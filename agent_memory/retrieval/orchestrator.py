@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from agent_memory.models import Memory, RetrievalResult
-from agent_memory.retrieval.fts_searcher import fts_search
 from agent_memory.retrieval.scorer import (
     deduplicate,
     entity_boost,
@@ -38,7 +37,7 @@ class RetrievalOrchestrator:
         query: str,
         token_budget: int = 2000,
     ) -> List[RetrievalResult]:
-        """Execute the retrieval cascade: Tags → FTS → Vectors → Graph expansion."""
+        """Execute the retrieval cascade: Tags → Graph → Vectors."""
         results: List[RetrievalResult] = []
 
         # Layer 0: Graph expansion (find related entities via graph traversal)
@@ -76,18 +75,7 @@ class RetrievalOrchestrator:
                     RetrievalResult(memory=mem, score=1.0, match_source="tag")
                 )
 
-        # Layer 2: FTS5 BM25 search
-        fts_results = fts_search(self.store, query)
-        results.extend(fts_results)
-
-        # Also FTS search graph-expanded terms
-        for eq in expanded_queries[:5]:  # limit to avoid too many queries
-            extra = fts_search(self.store, eq, limit=10)
-            for r in extra:
-                r.score *= 0.7  # discount graph-expanded results
-            results.extend(extra)
-
-        # Layer 2b: Entity-field search for graph-connected entities
+        # Layer 2: Entity-field search for graph-connected entities
         if self.graph and expanded_queries:
             seen_ids = {r.memory.id for r in results}
             for entity_name in expanded_queries[:8]:
@@ -162,7 +150,7 @@ class RetrievalOrchestrator:
 
         RRF score = sum over sources of: 1 / (k + rank_in_source)
 
-        Memories found by multiple retrieval channels (FTS + vector + graph)
+        Memories found by multiple retrieval channels (vector + graph)
         get boosted scores. Falls back to simple deduplication when only one
         source is present.
         """

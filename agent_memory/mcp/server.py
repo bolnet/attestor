@@ -91,7 +91,7 @@ def create_server(memory_path: str):
                 name="memory_recall",
                 description=(
                     "Smart retrieval: finds the most relevant memories using "
-                    "multi-layer search (tags, full-text, graph connections, "
+                    "multi-layer search (tags, graph connections, "
                     "and semantic vectors) with score fusion. Use this as the "
                     "primary way to find relevant context."
                 ),
@@ -121,7 +121,7 @@ def create_server(memory_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "query": {"type": "string", "description": "Text search query (FTS5 keyword match)"},
+                        "query": {"type": "string", "description": "Text search query (semantic vector search)"},
                         "category": {"type": "string", "description": "Filter by category"},
                         "entity": {"type": "string", "description": "Filter by entity"},
                         "status": {

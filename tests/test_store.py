@@ -57,47 +57,6 @@ class TestMemoryCRUD:
         assert len(active_career) == 1
 
 
-class TestFTS:
-    def test_fts_search(self, store):
-        store.insert(Memory(content="User prefers Python for backend development"))
-        store.insert(Memory(content="User lives in San Francisco"))
-        store.insert(Memory(content="User works at a tech company"))
-
-        results = store.fts_search("Python backend")
-        assert len(results) >= 1
-        assert any("Python" in r["memory"].content for r in results)
-
-    def test_fts_empty_query(self, store):
-        store.insert(Memory(content="some fact"))
-        results = store.fts_search("")
-        assert results == []
-
-    def test_fts_no_results(self, store):
-        store.insert(Memory(content="User likes cats"))
-        results = store.fts_search("xyznonexistent")
-        assert len(results) == 0
-
-    def test_fts_updates_on_memory_update(self, store):
-        m = Memory(content="original content about dogs")
-        store.insert(m)
-
-        # Should find with original content
-        results = store.fts_search("dogs")
-        assert len(results) >= 1
-
-        # Update content
-        m.content = "updated content about cats"
-        store.update(m)
-
-        # Should find with new content
-        results = store.fts_search("cats")
-        assert len(results) >= 1
-
-        # Should NOT find with old content
-        results = store.fts_search("dogs")
-        assert len(results) == 0
-
-
 class TestTagSearch:
     def test_tag_search(self, store):
         store.insert(Memory(content="a", tags=["python", "coding"], status="active"))

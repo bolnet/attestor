@@ -223,22 +223,43 @@ class AgentMemory:
         limit: int = 10,
     ) -> List[Memory]:
         """Search memories with filters."""
-        if query:
-            # Use FTS search with filters applied after
-            fts_results = self._store.fts_search(query, limit=limit * 2)
-            memories = [r["memory"] for r in fts_results]
-            # Apply filters
-            if category:
-                memories = [m for m in memories if m.category == category]
-            if entity:
-                memories = [m for m in memories if m.entity and entity.lower() in m.entity.lower()]
-            if status:
-                memories = [m for m in memories if m.status == status]
-            if after:
-                memories = [m for m in memories if m.created_at >= after]
-            if before:
-                memories = [m for m in memories if m.created_at <= before]
-            return memories[:limit]
+        if query and self._vector_store:
+            # Use vector search with filters applied after
+            try:
+                from agent_memory.embeddings import get_embedding
+
+                query_embedding = get_embedding(query)
+                if query_embedding:
+                    vec_results = self._vector_store.search(query_embedding, limit=limit * 2)
+                    memories = []
+                    for vr in vec_results:
+                        memory = self._store.get(vr["memory_id"])
+                        if memory:
+                            memories.append(memory)
+                    # Apply filters
+                    if category:
+                        memories = [m for m in memories if m.category == category]
+                    if entity:
+                        memories = [m for m in memories if m.entity and entity.lower() in m.entity.lower()]
+                    if status:
+                        memories = [m for m in memories if m.status == status]
+                    if after:
+                        memories = [m for m in memories if m.created_at >= after]
+                    if before:
+                        memories = [m for m in memories if m.created_at <= before]
+                    return memories[:limit]
+            except Exception:
+                pass  # Fall through to list_memories
+            return self._store.list_memories(
+                status=status, category=category, entity=entity,
+                after=after, before=before, limit=limit,
+            )
+        elif query:
+            # No vector store — fall back to listing with filters
+            return self._store.list_memories(
+                status=status, category=category, entity=entity,
+                after=after, before=before, limit=limit,
+            )
         else:
             return self._store.list_memories(
                 status=status,
@@ -479,14 +500,7 @@ class AgentMemory:
         except Exception as e:
             _check("SQLite", "error", error=str(e))
 
-        # ── 7. FTS5 ──
-        try:
-            self._store._conn.execute("SELECT * FROM memories_fts LIMIT 0")
-            _check("FTS5", "ok")
-        except Exception as e:
-            _check("FTS5", "error", error=str(e))
-
-        # ── 8. Embeddings API ──
+        # ── 7. Embeddings API ──
         try:
             from agent_memory.embeddings import available, _get_client, _model
 
@@ -506,14 +520,14 @@ class AgentMemory:
         except Exception as e:
             _check("Embeddings API", "error", error=str(e))
 
-        # ── 9. Retrieval Pipeline ──
-        layers = ["tag_match", "fts5_bm25"]
+        # ── 8. Retrieval Pipeline ──
+        layers = ["tag_match"]
         if self._graph:
             layers.append("graph_expansion")
         if self._vector_store:
             layers.append("vector_similarity")
         _check("Retrieval Pipeline", "ok",
-               active_layers=len(layers), max_layers=4, layers=layers)
+               active_layers=len(layers), max_layers=3, layers=layers)
 
         return report
 

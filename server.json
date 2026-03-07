@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.bolnet/memwright",
-  "description": "Embedded memory for AI agents with SQLite FTS5, pgvector, and Neo4j graph search.",
+  "description": "Embedded memory for AI agents with pgvector semantic search and Neo4j graph.",
   "repository": {
     "url": "https://github.com/bolnet/agent-memory",
     "source": "github"

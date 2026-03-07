@@ -1,6 +1,6 @@
 # Memwright (agent-memory)
 
-Embedded memory for AI agents. SQLite + FTS5 + pgvector + Neo4j.
+Embedded memory for AI agents. SQLite + pgvector + Neo4j.
 
 ## Project Structure
 
@@ -11,7 +11,7 @@ agent_memory/
   models.py            — Memory, RetrievalResult dataclasses
   embeddings.py        — OpenAI/OpenRouter embedding client
   store/
-    sqlite_store.py    — SQLite + FTS5 storage
+    sqlite_store.py    — SQLite storage
     vector_store.py    — pgvector (PostgreSQL) store
     schema.sql         — SQLite schema
     schema_pg.sql      — PostgreSQL schema
@@ -20,7 +20,6 @@ agent_memory/
     extractor.py       — Entity/relation extraction
   retrieval/
     orchestrator.py    — Multi-layer retrieval with RRF fusion
-    fts_searcher.py    — FTS5 BM25 searcher
     tag_matcher.py     — Tag matching layer
     scorer.py          — Scoring, boosts, dedup
   temporal/
@@ -47,11 +46,11 @@ This provides PostgreSQL (pgvector) and Neo4j.
 
 ## Architecture
 
-- **SQLite + FTS5**: Always-on keyword search with BM25 ranking
+- **SQLite**: Core storage, always on
 - **pgvector**: Semantic vector search (PostgreSQL)
 - **Neo4j**: Entity graph for multi-hop traversal
 - **Embeddings**: OpenAI text-embedding-3-small via OpenRouter or OpenAI direct
-- **Retrieval**: 4-layer cascade (tag → FTS5 → graph expansion → vector) with RRF fusion
+- **Retrieval**: 3-layer cascade (tag → graph expansion → vector) with RRF fusion
 - **Temporal**: Automatic contradiction detection and supersession
 
 ## Key Conventions

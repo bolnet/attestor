@@ -1,4 +1,4 @@
-"""SQLite + FTS5 storage implementation."""
+"""SQLite storage implementation."""
 
 from __future__ import annotations
 
@@ -133,73 +133,6 @@ class SQLiteStore:
 
         rows = self._conn.execute(query, params).fetchall()
         return [Memory.from_row(dict(r)) for r in rows]
-
-    # ── FTS5 Search ──
-
-    def fts_search(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Full-text search using FTS5 BM25 ranking.
-
-        Returns dicts with 'memory' and 'rank' keys.
-        """
-        # Escape FTS5 special characters
-        safe_query = self._escape_fts_query(query)
-        if not safe_query:
-            return []
-
-        rows = self._conn.execute(
-            """SELECT m.*, bm25(memories_fts) as rank
-               FROM memories_fts fts
-               JOIN memories m ON m.rowid = fts.rowid
-               WHERE memories_fts MATCH ?
-               AND m.status = 'active'
-               ORDER BY rank
-               LIMIT ?""",
-            (safe_query, limit),
-        ).fetchall()
-
-        results = []
-        for row in rows:
-            row_dict = dict(row)
-            rank = row_dict.pop("rank")
-            results.append({"memory": Memory.from_row(row_dict), "rank": rank})
-        return results
-
-    _FTS_STOP_WORDS = frozenset({
-        "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did", "will", "would", "could",
-        "should", "may", "might", "can", "shall", "to", "of", "in", "for",
-        "on", "with", "at", "by", "from", "as", "into", "about", "like",
-        "through", "after", "over", "between", "out", "against", "during",
-        "without", "before", "under", "around", "among", "what", "which",
-        "who", "whom", "this", "that", "these", "those", "am", "or", "and",
-        "but", "if", "than", "too", "very", "just", "how", "where", "when",
-        "why", "all", "each", "every", "both", "few", "more", "most", "other",
-        "some", "such", "no", "not", "only", "own", "same", "so", "then",
-        "up", "down", "my", "your", "his", "her", "its", "our", "their",
-        "me", "him", "us", "them", "i", "you", "he", "she", "it", "we", "they",
-    })
-
-    def _escape_fts_query(self, query: str) -> str:
-        """Convert a natural language query to an FTS5 query.
-
-        Strips possessives, filters stop words, joins content words with OR.
-        """
-        words = []
-        for word in query.split():
-            # Strip possessives: "Caroline's" → "Caroline"
-            parts = word.replace("\u2019", "'").split("'")
-            for part in parts:
-                cleaned = "".join(c for c in part if c.isalnum() or c == "_")
-                if cleaned and cleaned.lower() not in self._FTS_STOP_WORDS and len(cleaned) >= 2:
-                    words.append(f'"{cleaned}"')
-        if not words:
-            for word in query.split():
-                parts = word.replace("\u2019", "'").split("'")
-                for part in parts:
-                    cleaned = "".join(c for c in part if c.isalnum() or c == "_")
-                    if cleaned:
-                        words.append(f'"{cleaned}"')
-        return " OR ".join(words)
 
     # ── Tag Search ──
 
