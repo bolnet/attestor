@@ -220,6 +220,20 @@
         <p class="bench-chart-note">Competitor scores are self-reported. <a href="https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/" class="bench-link">Methodology is disputed</a> across vendors.</p>
       </div>
 
+      <!-- Token Efficiency Callout -->
+      <div class="bench-token-callout">
+        <div class="bench-token-callout-inner">
+          <div class="bench-token-stat">
+            <div class="bench-token-num">4,000</div>
+            <div class="bench-token-unit">tokens per recall</div>
+          </div>
+          <div class="bench-token-msg">
+            <strong>83.3% accuracy with just 4K tokens per query.</strong>
+            Full conversation history replay would cost 15,000+ tokens per context window &mdash; and grows with every session. Memwright retrieves only the relevant memories within a fixed token budget.
+          </div>
+        </div>
+      </div>
+
       <!-- Per-Category Breakdown -->
       <div class="bench-card">
         <div class="bench-card-header">
@@ -335,8 +349,17 @@
         </div>
       </div>
 
-      <div class="bench-note">
-        <strong>Context:</strong> GPT-4o scores (~83% AR) use the full context in-prompt &mdash; no memory system needed. Memwright retrieves from stored memories using a fixed token budget, which is a fundamentally harder task but scales to unlimited context.
+      <div class="bench-token-callout">
+        <div class="bench-token-callout-inner">
+          <div class="bench-token-stat">
+            <div class="bench-token-num">6,000</div>
+            <div class="bench-token-unit">tokens per recall</div>
+          </div>
+          <div class="bench-token-msg">
+            <strong>45.8% AR with a 6K token budget vs ~83% for GPT-4o with full context (up to 1.3M tokens).</strong>
+            Memwright retrieves from stored memories &mdash; a fundamentally harder task, but one that scales to unlimited context without blowing up your token bill.
+          </div>
+        </div>
       </div>
     </div>
   </section>
