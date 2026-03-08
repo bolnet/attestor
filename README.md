@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <em>Embedded memory for AI agents. No LLM cost per write. Works with Claude Code.</em>
+  <em>Embedded memory for AI agents. Open and inspectable. Works with Claude Code.</em>
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 
 AI agents forget everything between conversations. The typical fix is a managed vector database or cloud memory service. Memwright takes a different approach:
 
-- **No LLM cost per write** — Competitors call an LLM 3+ times per memory add. Memwright doesn't.
+- **Open & inspectable** — Your memories live in a SQLite file. Run `sqlite3 memory.db` and see exactly what the agent knows. No black boxes.
 - **Graph memory included** — Neo4j entity graph for multi-hop reasoning. Free, not paywalled.
 - **Token efficient** — 300-500 tokens per recall vs 15,000+ for full history replay.
 - **Fully local** — Your data stays on your machine. No cloud dependency.
@@ -34,7 +34,7 @@ Works as a **Claude Code MCP server**, a **Cursor MCP server**, or a **Python li
 
 ```bash
 pip install memwright[all]      # Recommended — includes pgvector, Neo4j, MCP
-pip install memwright           # Core only (SQLite + FTS5)
+pip install memwright           # Core only (SQLite)
 pip install memwright[vectors]  # + pgvector semantic search
 pip install memwright[neo4j]    # + Neo4j graph database
 pip install memwright[mcp]      # + MCP server for Claude Code / Cursor
@@ -99,6 +99,31 @@ mem.add("User works at Google as Principal Eng",
         tags=["career"], category="career", entity="SoFi")
 # ^ The SoFi memory is now superseded automatically
 ```
+
+## Benchmarks
+
+### LOCOMO (Long Conversation Memory)
+
+| System | Score |
+|--------|-------|
+| MemMachine | 84.9% |
+| Zep | ~75% |
+| Letta | 74.0% |
+| Mem0 (Graph) | 66.9% |
+| **Memwright** | **62.5%** |
+| OpenAI Memory | 52.9% |
+
+*LOCOMO scores are [disputed across vendors](https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/). Numbers above are self-reported.*
+
+### MemoryAgentBench (ICLR 2026)
+
+| Category | Score |
+|----------|-------|
+| Accurate Retrieval | 55% |
+| Conflict Resolution | 62% |
+| **Overall** | **58.5%** |
+
+**How Memwright uses LLMs:** Embeddings, entity extraction, memory extraction, and contradiction detection all use LLM calls. Retrieval combines tag matching, graph traversal, and vector search with RRF fusion — no LLM re-ranking or judge.
 
 ## How Retrieval Works
 

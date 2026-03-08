@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Memwright — Embedded Memory for AI Agents</title>
-  <meta name="description" content="Give your AI agents persistent memory. No LLM cost per write. pgvector + Neo4j graph. Works with Claude Code and Cursor.">
+  <meta name="description" content="Give your AI agents persistent memory. Open and inspectable. pgvector + Neo4j graph. Works with Claude Code and Cursor.">
   <meta property="og:title" content="Memwright — Embedded Memory for AI Agents">
-  <meta property="og:description" content="Give your AI agents persistent memory. No LLM cost per write. Works with Claude Code.">
+  <meta property="og:description" content="Give your AI agents persistent memory. Open and inspectable. Works with Claude Code.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://bolnet.github.io/agent-memory/">
   <link rel="stylesheet" href="style.css">
@@ -16,7 +16,7 @@
   <section class="hero">
     <div class="container">
       <img src="logo.svg" alt="Memwright" class="hero-logo" width="480" height="120">
-      <p class="tagline">Embedded memory for AI agents. No LLM cost per write. Works with Claude Code.</p>
+      <p class="tagline">Embedded memory for AI agents. Open and inspectable. Works with Claude Code.</p>
       <div class="install-box">
         <code id="install-cmd">pip install memwright[all]</code>
         <button class="copy-btn" onclick="navigator.clipboard.writeText('pip install memwright[all]');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy install command">Copy</button>
@@ -35,7 +35,7 @@
       <h2>The Problem</h2>
       <p class="problem-text">AI agents forget everything between conversations. The typical fix is a managed vector database or cloud memory service with high latency and vendor lock-in.</p>
       <h2>The Solution</h2>
-      <p class="problem-text">Memwright gives agents a local memory store with no LLM cost per write. pgvector for semantic similarity, Neo4j for entity graph traversal, and automatic contradiction detection &mdash; fused together with Reciprocal Rank Fusion.</p>
+      <p class="problem-text">Memwright gives agents an open, inspectable memory store you can query with SQL. pgvector for semantic similarity, Neo4j for entity graph traversal, and automatic contradiction detection &mdash; fused together with Reciprocal Rank Fusion.</p>
     </div>
   </section>
 
@@ -45,9 +45,9 @@
       <h2>Features</h2>
       <div class="features-grid">
         <div class="feature-card">
-          <div class="feature-icon">&#9889;</div>
-          <h3>No LLM Cost Per Write</h3>
-          <p>Competitors call an LLM 3+ times per memory add for extraction and dedup. Memwright uses rule-based extraction &mdash; zero inference cost on writes.</p>
+          <div class="feature-icon">&#128269;</div>
+          <h3>Open &amp; Inspectable</h3>
+          <p>Your memories live in a SQLite file. Run <code>sqlite3 memory.db</code> and see exactly what the agent knows. No black boxes, no vendor lock-in.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">&#127919;</div>
@@ -70,9 +70,9 @@
           <p>First-class Claude Code and Cursor integration via Model Context Protocol. 7 memory tools out of the box.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#128269;</div>
-          <h3>Inspectable</h3>
-          <p>Your data lives in a SQLite file. Run <code>sqlite3 memory.db</code> and see exactly what the agent remembers. No black boxes.</p>
+          <div class="feature-icon">&#9889;</div>
+          <h3>No Re-ranking LLM</h3>
+          <p>Retrieval uses tag matching, graph traversal, and vector search with RRF fusion. No expensive LLM judge or re-ranker at recall time.</p>
         </div>
       </div>
     </div>
@@ -109,6 +109,178 @@
           <div class="arch-step">
             <div class="arch-label">RRF Fusion &rarr; Ranked Results</div>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Benchmarks -->
+  <section class="benchmarks">
+    <div class="container">
+      <h2>Benchmarks</h2>
+      <p class="bench-intro">Evaluated against the industry-standard memory benchmarks. Scores are self-reported across vendors and <a href="https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/">methodology is disputed</a>.</p>
+
+      <!-- LOCOMO Bar Chart -->
+      <div class="bench-card">
+        <div class="bench-card-header">
+          <h3>LOCOMO</h3>
+          <span class="bench-badge">Long Conversation Memory</span>
+        </div>
+        <div class="bench-bars" id="locomo-bars">
+          <div class="bar-row">
+            <span class="bar-label">MemMachine</span>
+            <div class="bar-track">
+              <div class="bar-fill bar-other" style="--bar-width: 84.9%"><span class="bar-value">84.9%</span></div>
+            </div>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Zep</span>
+            <div class="bar-track">
+              <div class="bar-fill bar-other" style="--bar-width: 75%"><span class="bar-value">~75%</span></div>
+            </div>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Letta</span>
+            <div class="bar-track">
+              <div class="bar-fill bar-other" style="--bar-width: 74%"><span class="bar-value">74.0%</span></div>
+            </div>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Mem0</span>
+            <div class="bar-track">
+              <div class="bar-fill bar-other" style="--bar-width: 66.9%"><span class="bar-value">66.9%</span></div>
+            </div>
+          </div>
+          <div class="bar-row bar-row-highlight">
+            <span class="bar-label">Memwright</span>
+            <div class="bar-track">
+              <div class="bar-fill bar-ours" style="--bar-width: 62.5%"><span class="bar-value">62.5%</span></div>
+            </div>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">OpenAI</span>
+            <div class="bar-track">
+              <div class="bar-fill bar-other" style="--bar-width: 52.9%"><span class="bar-value">52.9%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAB Stats -->
+      <div class="bench-grid-bottom">
+        <div class="bench-card bench-card-compact">
+          <div class="bench-card-header">
+            <h3>MAB</h3>
+            <span class="bench-badge">MemoryAgentBench &middot; ICLR 2026</span>
+          </div>
+          <div class="stat-row">
+            <div class="stat-ring" style="--pct: 55">
+              <svg viewBox="0 0 80 80">
+                <circle class="stat-ring-bg" cx="40" cy="40" r="34"/>
+                <circle class="stat-ring-fill" cx="40" cy="40" r="34" style="--pct: 55"/>
+              </svg>
+              <div class="stat-ring-label">55%</div>
+            </div>
+            <div class="stat-info">
+              <div class="stat-name">Accurate Retrieval</div>
+              <div class="stat-desc">Finding the right memory for a query</div>
+            </div>
+          </div>
+          <div class="stat-row">
+            <div class="stat-ring" style="--pct: 62">
+              <svg viewBox="0 0 80 80">
+                <circle class="stat-ring-bg" cx="40" cy="40" r="34"/>
+                <circle class="stat-ring-fill" cx="40" cy="40" r="34" style="--pct: 62"/>
+              </svg>
+              <div class="stat-ring-label">62%</div>
+            </div>
+            <div class="stat-info">
+              <div class="stat-name">Conflict Resolution</div>
+              <div class="stat-desc">Detecting and superseding contradictions</div>
+            </div>
+          </div>
+          <div class="stat-row stat-row-total">
+            <div class="stat-ring stat-ring-big" style="--pct: 58.5">
+              <svg viewBox="0 0 80 80">
+                <circle class="stat-ring-bg" cx="40" cy="40" r="34"/>
+                <circle class="stat-ring-fill stat-ring-fill-highlight" cx="40" cy="40" r="34" style="--pct: 58.5"/>
+              </svg>
+              <div class="stat-ring-label">58.5%</div>
+            </div>
+            <div class="stat-info">
+              <div class="stat-name">Overall</div>
+              <div class="stat-desc">Combined score across categories</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bench-card bench-card-compact bench-llm-card">
+          <div class="bench-card-header">
+            <h3>LLM Usage</h3>
+            <span class="bench-badge">Honest breakdown</span>
+          </div>
+          <div class="llm-split">
+            <div class="llm-section">
+              <div class="llm-phase llm-phase-ingest">Ingestion</div>
+              <div class="llm-tag llm-tag-yes">LLM calls</div>
+              <ul class="llm-list">
+                <li>Embeddings</li>
+                <li>Entity extraction</li>
+                <li>Memory extraction</li>
+                <li>Contradiction detection</li>
+              </ul>
+            </div>
+            <div class="llm-divider"></div>
+            <div class="llm-section">
+              <div class="llm-phase llm-phase-retrieve">Retrieval</div>
+              <div class="llm-tag llm-tag-no">No re-ranking</div>
+              <ul class="llm-list">
+                <li>Tag matching</li>
+                <li>Graph traversal</li>
+                <li>Vector search + embeddings</li>
+                <li>RRF fusion</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Token Savings -->
+  <section class="savings">
+    <div class="container">
+      <h2>Claude Code Token Savings</h2>
+      <p class="savings-intro">Without memory, agents replay full conversation history to maintain context. Memwright replaces that with precise recall within a configurable token budget.</p>
+      <div class="savings-grid">
+        <div class="savings-card savings-before">
+          <div class="savings-card-label">Without Memwright</div>
+          <div class="savings-big-num">15,000+</div>
+          <div class="savings-unit">tokens per context window</div>
+          <div class="savings-detail">Full conversation history replay, CLAUDE.md padding, or manual context files. Grows with every session.</div>
+        </div>
+        <div class="savings-arrow">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><path d="M8 24h28M28 16l8 8-8 8" stroke="var(--orange)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="savings-card savings-after">
+          <div class="savings-card-label">With Memwright</div>
+          <div class="savings-big-num">300–500</div>
+          <div class="savings-unit">tokens per recall</div>
+          <div class="savings-detail">Ranked, deduplicated context injected from tag + graph + vector retrieval. Budget-aware &mdash; never exceeds your limit.</div>
+        </div>
+      </div>
+      <div class="savings-stats">
+        <div class="savings-stat">
+          <div class="savings-stat-num">~97%</div>
+          <div class="savings-stat-label">token reduction</div>
+        </div>
+        <div class="savings-stat">
+          <div class="savings-stat-num">$0.002</div>
+          <div class="savings-stat-label">per recall (embeddings)</div>
+        </div>
+        <div class="savings-stat">
+          <div class="savings-stat-num">2,000</div>
+          <div class="savings-stat-label">default token budget</div>
         </div>
       </div>
     </div>
