@@ -711,12 +711,14 @@ def run_mab(
     verbose: bool = False,
     api_key: Optional[str] = None,
     cache_dir: Optional[str] = None,
+    skip_examples: int = 0,
 ) -> Dict[str, Any]:
     """Run the MemoryAgentBench benchmark.
 
     Args:
         categories: Category codes to evaluate (default: ["AR", "CR"]).
         max_examples: Max examples per category.
+        skip_examples: Skip first N examples per category.
         max_questions: Max questions per example.
         chunk_size: Tokens per chunk for ingestion.
         context_max_tokens: Truncate contexts to this many tokens.
@@ -749,6 +751,8 @@ def run_mab(
     total_questions = 0
 
     for cat, examples in data.items():
+        if skip_examples:
+            examples = examples[skip_examples:]
         if verbose:
             print(f"\n=== Category: {cat} ({len(examples)} examples) ===")
 

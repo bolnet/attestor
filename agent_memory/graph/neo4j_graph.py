@@ -128,19 +128,21 @@ class Neo4jGraph:
         Traverses in both directions up to `depth` hops.
         Returns display names (original casing).
         """
+        # Neo4j doesn't support parameterized depth in variable-length paths
+        d = int(depth)
         records, _, _ = self._driver.execute_query(
-            "MATCH (start:Entity {name: $name})-[*1..$depth]-(other:Entity) "
+            f"MATCH (start:Entity {{name: $name}})-[*1..{d}]-(other:Entity) "
             "RETURN DISTINCT other.display_name AS name",
             name=entity.lower(),
-            depth=depth,
             database_=self.database,
         )
         return [r["name"] for r in records if r["name"]]
 
     def get_subgraph(self, entity: str, depth: int = 2) -> Dict[str, Any]:
         """Get entity and all connected nodes/edges as a dict."""
+        d = int(depth)
         records, _, _ = self._driver.execute_query(
-            "MATCH path = (start:Entity {name: $name})-[*1..$depth]-(other:Entity) "
+            f"MATCH path = (start:Entity {{name: $name}})-[*1..{d}]-(other:Entity) "
             "UNWIND nodes(path) AS n "
             "WITH COLLECT(DISTINCT {name: n.display_name, type: n.entity_type, key: n.name}) AS nodes, "
             "     COLLECT(path) AS paths "
@@ -154,7 +156,6 @@ class Neo4jGraph:
             "     }) AS edges "
             "RETURN nodes, edges",
             name=entity.lower(),
-            depth=depth,
             database_=self.database,
         )
         if records:

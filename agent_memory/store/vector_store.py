@@ -13,11 +13,13 @@ class VectorStore:
 
     def __init__(self, connection_string: str):
         import psycopg
+        from pgvector.psycopg import register_vector
 
         self.connection_string = connection_string
         self._conn = psycopg.connect(connection_string)
         self._conn.autocommit = True
         self._init_schema()
+        register_vector(self._conn)
 
     def _init_schema(self) -> None:
         schema_sql = _SCHEMA_PATH.read_text()
@@ -30,14 +32,16 @@ class VectorStore:
     def add(self, memory_id: str, content: str, embedding: List[float]) -> None:
         """Store a memory embedding."""
         import uuid
+        import numpy as np
 
         vec_id = uuid.uuid4().hex[:12]
+        vec = np.array(embedding, dtype=np.float32)
         with self._conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO memory_vectors (id, memory_id, content, embedding) "
-                "VALUES (%s, %s, %s, %s::vector) "
+                "VALUES (%s, %s, %s, %s) "
                 "ON CONFLICT (id) DO NOTHING",
-                (vec_id, memory_id, content, str(embedding)),
+                (vec_id, memory_id, content, vec),
             )
 
     def delete(self, memory_id: str) -> bool:
@@ -56,14 +60,17 @@ class VectorStore:
 
         Returns dicts with: memory_id, content, distance
         """
+        import numpy as np
+
+        vec = np.array(query_embedding, dtype=np.float32)
         with self._conn.cursor() as cur:
             cur.execute(
-                "SELECT memory_id, content, embedding <-> %s::vector AS distance "
+                "SELECT memory_id, content, embedding <-> %s AS distance "
                 "FROM memory_vectors "
                 "WHERE embedding IS NOT NULL "
-                "ORDER BY embedding <-> %s::vector "
+                "ORDER BY embedding <-> %s "
                 "LIMIT %s",
-                (str(query_embedding), str(query_embedding), limit),
+                (vec, vec, limit),
             )
             cols = [desc[0] for desc in cur.description]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
