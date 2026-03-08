@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS memory_vectors (
 
 CREATE INDEX IF NOT EXISTS idx_mv_memory_id ON memory_vectors(memory_id);
 
--- IVFFlat index for fast approximate nearest-neighbor search
--- Created separately after initial data load for best quality
--- CREATE INDEX IF NOT EXISTS idx_mv_embedding ON memory_vectors
---     USING ivfflat (embedding vector_l2_ops) WITH (lists = 100);
+-- HNSW index for fast approximate nearest-neighbor search
+-- Works well at any scale, no need to rebuild after inserts
+CREATE INDEX IF NOT EXISTS idx_mv_embedding_hnsw ON memory_vectors
+    USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64);

@@ -160,6 +160,7 @@ def main(argv=None):
         help="LLM for answer synthesis (OpenRouter model ID)",
     )
     p_mab.add_argument("--max-examples", type=int, default=None, help="Max examples per category")
+    p_mab.add_argument("--skip-examples", type=int, default=0, help="Skip first N examples per category")
     p_mab.add_argument("--max-questions", type=int, default=None, help="Max questions per example")
     p_mab.add_argument("--chunk-size", type=int, default=1024, help="Tokens per chunk")
     p_mab.add_argument("--context-max-tokens", type=int, default=None, help="Truncate context to N tokens")
@@ -746,6 +747,7 @@ def _cmd_mab(args):
         recall_budget=args.budget,
         verbose=args.verbose,
         api_key=api_key,
+        skip_examples=args.skip_examples,
     )
 
     print_mab(results)
