@@ -10,13 +10,19 @@ Falls back gracefully when neither key is set.
 
 from __future__ import annotations
 
+import hashlib
 import os
+from collections import OrderedDict
 from typing import List, Optional
 
 
 _client = None
 _model: str = "text-embedding-3-small"
 _initialized: bool = False
+
+# LRU cache for query embeddings — avoids repeated API calls for same text
+_CACHE_MAX = 256
+_embedding_cache: OrderedDict[str, List[float]] = OrderedDict()
 
 
 def _get_client():
@@ -52,11 +58,12 @@ def _get_client():
 
 
 def reset():
-    """Reset the cached client (useful for testing)."""
+    """Reset the cached client and embedding cache (useful for testing)."""
     global _client, _model, _initialized
     _client = None
     _model = "text-embedding-3-small"
     _initialized = False
+    _embedding_cache.clear()
 
 
 def available() -> bool:
@@ -67,8 +74,15 @@ def available() -> bool:
 def get_embedding(text: str) -> Optional[List[float]]:
     """Generate a single 1536-dim embedding.
 
+    Uses an LRU cache to avoid redundant API calls for identical text.
     Returns None if no API key is set or the call fails.
     """
+    # Check cache first
+    cache_key = hashlib.md5(text.encode()).hexdigest()
+    if cache_key in _embedding_cache:
+        _embedding_cache.move_to_end(cache_key)
+        return _embedding_cache[cache_key]
+
     client = _get_client()
     if not client:
         return None
@@ -78,7 +92,12 @@ def get_embedding(text: str) -> Optional[List[float]]:
             model=_model,
             input=text,
         )
-        return response.data[0].embedding
+        embedding = response.data[0].embedding
+        # Store in cache, evict oldest if full
+        _embedding_cache[cache_key] = embedding
+        if len(_embedding_cache) > _CACHE_MAX:
+            _embedding_cache.popitem(last=False)
+        return embedding
     except Exception:
         return None
 
