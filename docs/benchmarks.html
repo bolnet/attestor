@@ -6,7 +6,7 @@
   <title>Benchmark Results — Memwright</title>
   <meta name="description" content="Full benchmark methodology, infrastructure, and reproducible results for Memwright memory system.">
   <meta property="og:title" content="Benchmark Results — Memwright">
-  <meta property="og:description" content="LOCOMO 83.3% accuracy on 1,540 questions. Full methodology, models, and reproducible evidence.">
+  <meta property="og:description" content="LOCOMO 83.3% accuracy, MAB 58.5% overall. Full methodology, models, and reproducible evidence.">
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -32,7 +32,7 @@
           <div class="bench-hero-sub">10 conversations, 1,540 questions</div>
         </div>
         <div class="bench-hero-stat">
-          <div class="bench-hero-num">45.8%</div>
+          <div class="bench-hero-num">55%</div>
           <div class="bench-hero-label">MAB Accurate Retrieval</div>
           <div class="bench-hero-sub">22 examples, 2,000 questions</div>
         </div>
@@ -156,7 +156,7 @@
             <tr>
               <td><span class="bench-pill">Runtime</span></td>
               <td>Python 3.14</td>
-              <td>memwright v0.1.1</td>
+              <td>memwright v0.1.3</td>
             </tr>
           </tbody>
         </table>
@@ -314,7 +314,7 @@
 
       <div class="bench-mab-grid">
         <div class="bench-card bench-mab-card">
-          <div class="bench-mab-score">45.8%</div>
+          <div class="bench-mab-score">55%</div>
           <h3>Accurate Retrieval</h3>
           <p class="bench-mab-desc">Finding the correct memory from massive context. 22 examples, 2,000 questions.</p>
           <div class="bench-mab-compare">
@@ -323,7 +323,7 @@
           </div>
         </div>
         <div class="bench-card bench-mab-card">
-          <div class="bench-mab-score">15.5%</div>
+          <div class="bench-mab-score">62%</div>
           <h3>Conflict Resolution</h3>
           <p class="bench-mab-desc">Detecting contradictions and returning the latest fact. 8 examples, 800 questions.</p>
           <div class="bench-mab-compare">
@@ -356,7 +356,7 @@
             <div class="bench-token-unit">tokens per recall</div>
           </div>
           <div class="bench-token-msg">
-            <strong>45.8% AR with a 6K token budget vs ~83% for GPT-4o with full context (up to 1.3M tokens).</strong>
+            <strong>55% AR with a 6K token budget vs ~83% for GPT-4o with full context (up to 1.3M tokens).</strong>
             Memwright retrieves from stored memories &mdash; a fundamentally harder task, but one that scales to unlimited context without blowing up your token bill.
           </div>
         </div>
@@ -485,7 +485,7 @@ agent-memory mab \
               <td><code>mab-groq-results.json</code></td>
               <td>AR + CR + TTL + LRU</td>
               <td>146</td>
-              <td class="bench-num">29.5%</td>
+              <td class="bench-num">58.5%</td>
               <td><a href="https://github.com/bolnet/agent-memory/blob/dev/benchmark-logs/mab-groq-results.json" class="bench-file-link">View</a></td>
             </tr>
             <tr>
