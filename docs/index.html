@@ -16,7 +16,7 @@
   <section class="hero">
     <div class="container">
       <img src="logo.svg" alt="Memwright" class="hero-logo" width="480" height="120">
-      <p class="tagline">Embedded memory for AI agents. Open and inspectable. Works with Claude Code.</p>
+      <p class="tagline">Give your local AI agents persistent memory. From <code>docker compose up</code> to production-ready in minutes.</p>
       <div class="install-box">
         <code id="install-cmd">pip install memwright[all]</code>
         <button class="copy-btn" onclick="navigator.clipboard.writeText('pip install memwright[all]');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy install command">Copy</button>
@@ -34,9 +34,88 @@
   <section class="problem">
     <div class="container">
       <h2>The Problem</h2>
-      <p class="problem-text">AI agents forget everything between conversations. The typical fix is a managed vector database or cloud memory service with high latency and vendor lock-in.</p>
+      <p class="problem-text">AI agents forget everything between conversations. The typical fix is a cloud memory service with high latency, vendor lock-in, and zero visibility into what your agent actually remembers.</p>
       <h2>The Solution</h2>
-      <p class="problem-text">Memwright gives agents an open, inspectable memory store you can query with SQL. pgvector for semantic similarity, Neo4j for entity graph traversal, and automatic contradiction detection &mdash; fused together with Reciprocal Rank Fusion.</p>
+      <p class="problem-text">Memwright runs entirely on your machine. One <code>docker compose up</code> gives you pgvector + Neo4j + SQLite &mdash; the same stack that scores 83.3% on LOCOMO. Your agent's memory is a file you can inspect, query, and version control.</p>
+    </div>
+  </section>
+
+  <!-- Local to Production Journey -->
+  <section class="journey">
+    <div class="container">
+      <h2>Local Dev to Production in 3 Steps</h2>
+      <p class="journey-intro">Build and test your agentic AI locally with Claude Code. When it works, deploy the same codebase. No migration, no API changes, no surprises.</p>
+
+      <div class="journey-timeline">
+        <div class="journey-step">
+          <div class="journey-num">1</div>
+          <div class="journey-content">
+            <h3>Start Locally</h3>
+            <div class="journey-time">2 minutes</div>
+            <p>Docker Compose spins up PostgreSQL (pgvector) and Neo4j on your machine. One pip install. Your agent has semantic search, entity graphs, and contradiction detection &mdash; all running at localhost.</p>
+            <div class="journey-code">
+              <code>docker compose up -d<br>pip install memwright[all]<br>agent-memory init ~/.agent-memory/my-project<br>agent-memory doctor ~/.agent-memory/my-project</code>
+            </div>
+          </div>
+        </div>
+
+        <div class="journey-connector"></div>
+
+        <div class="journey-step">
+          <div class="journey-num">2</div>
+          <div class="journey-content">
+            <h3>Build with Claude Code</h3>
+            <div class="journey-time">5 minutes</div>
+            <p>Add the MCP server to your Claude Code config. Now every conversation builds memory automatically &mdash; entities extracted, embeddings computed, contradictions resolved. Your agent remembers preferences, decisions, and context across sessions.</p>
+            <div class="journey-code">
+              <code><span class="comment">// .mcp.json &mdash; that's it</span><br>{<br>&nbsp;&nbsp;"agent-memory": {<br>&nbsp;&nbsp;&nbsp;&nbsp;"command": "agent-memory",<br>&nbsp;&nbsp;&nbsp;&nbsp;"args": ["serve", "~/.agent-memory/my-project"]<br>&nbsp;&nbsp;}<br>}</code>
+            </div>
+          </div>
+        </div>
+
+        <div class="journey-connector"></div>
+
+        <div class="journey-step">
+          <div class="journey-num">3</div>
+          <div class="journey-content">
+            <h3>Ship to Production</h3>
+            <div class="journey-time">Same codebase</div>
+            <p>Point the connection strings at your production PostgreSQL and Neo4j. The Python API is the same, the retrieval pipeline is the same, your memories carry over. No vendor migration &mdash; you already own the data.</p>
+            <div class="journey-code">
+              <code><span class="comment"># Same code, production infra</span><br><span class="kw">from</span> agent_memory <span class="kw">import</span> AgentMemory<br><br>mem = AgentMemory(<span class="str">"./prod-store"</span>,<br>&nbsp;&nbsp;pg_conn=<span class="str">"postgresql://prod-host:5432/memwright"</span>,<br>&nbsp;&nbsp;neo4j_uri=<span class="str">"bolt://prod-neo4j:7687"</span>)<br><br><span class="comment"># 300-500 tokens per recall, 83.3% LOCOMO accuracy</span><br>context = mem.recall_as_context(<span class="str">"user preferences"</span>)</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Local Matters -->
+  <section class="local-benefits">
+    <div class="container">
+      <h2>Why Local-First Matters for Agentic AI</h2>
+      <div class="local-grid">
+        <div class="local-card">
+          <div class="local-icon">&#128270;</div>
+          <h3>Debug What Your Agent Knows</h3>
+          <p>Run <code>sqlite3 memory.db</code> and see every memory, every entity, every relationship. When your agent gives a wrong answer, you can trace it back to a specific stored memory &mdash; not a black-box API response.</p>
+        </div>
+        <div class="local-card">
+          <div class="local-icon">&#9889;</div>
+          <h3>Iterate Without API Costs</h3>
+          <p>Test memory extraction, retrieval, and contradiction handling locally. Only the embedding step needs an API call ($0.002 per recall). No metered retrieval fees, no per-query charges, no usage surprises.</p>
+        </div>
+        <div class="local-card">
+          <div class="local-icon">&#128274;</div>
+          <h3>Your Data Stays on Your Machine</h3>
+          <p>Memories live in a SQLite file on disk. Entity graphs stay in your local Neo4j. Nothing is sent to a cloud memory service. Ideal for enterprise, regulated industries, or anyone who cares about data sovereignty.</p>
+        </div>
+        <div class="local-card">
+          <div class="local-icon">&#128640;</div>
+          <h3>Production Path Without Migration</h3>
+          <p>Your local Docker setup mirrors production exactly. Same pgvector, same Neo4j, same retrieval pipeline. When you deploy, change connection strings &mdash; not architecture. Agents built locally work identically in production.</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -326,19 +405,23 @@ context = mem.recall_as_context(<span class="str">"user background"</span>)</cod
   <!-- Integrations -->
   <section class="integrations">
     <div class="container">
-      <h2>Integrations</h2>
+      <h2>Works With Your Stack</h2>
       <div class="integration-badges">
         <div class="integration">
           <div class="integration-name">Claude Code</div>
-          <div class="integration-desc">MCP server with 7 memory tools</div>
+          <div class="integration-desc">MCP server with 7 memory tools. Add to <code>.mcp.json</code> and your agent remembers across sessions.</div>
         </div>
         <div class="integration">
-          <div class="integration-name">Cursor</div>
-          <div class="integration-desc">Same MCP server, zero config change</div>
+          <div class="integration-name">Cursor / Windsurf</div>
+          <div class="integration-desc">Same MCP server, same config. Your IDE agent gets persistent memory with zero code changes.</div>
         </div>
         <div class="integration">
           <div class="integration-name">Python SDK</div>
-          <div class="integration-desc">Direct API for custom agents</div>
+          <div class="integration-desc">Build custom agents with <code>AgentMemory</code>. Full control over ingestion, retrieval, and graph traversal.</div>
+        </div>
+        <div class="integration">
+          <div class="integration-name">Any MCP Client</div>
+          <div class="integration-desc">Standard Model Context Protocol. Any MCP-compatible agent framework gets memory for free.</div>
         </div>
       </div>
     </div>
