@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Memwright — Embedded Memory for AI Agents</title>
-  <meta name="description" content="Give your AI agents persistent memory. Open and inspectable. pgvector + Neo4j graph. Works with Claude Code and Cursor.">
+  <meta name="description" content="Give your AI agents persistent memory. Open and inspectable. Tag matching, graph traversal, vector search. Works with Claude Code and Cursor.">
   <meta property="og:title" content="Memwright — Embedded Memory for AI Agents">
   <meta property="og:description" content="Give your AI agents persistent memory. Open and inspectable. Works with Claude Code.">
   <meta property="og:type" content="website">
@@ -16,7 +16,7 @@
   <section class="hero">
     <div class="container">
       <img src="logo.svg" alt="Memwright" class="hero-logo" width="480" height="120">
-      <p class="tagline">Give your local AI agents persistent memory. From <code>docker compose up</code> to production-ready in minutes.</p>
+      <p class="tagline">Give your AI agents persistent memory. One prompt to set up. Open and inspectable.</p>
       <div class="install-box">
         <code id="install-cmd">pip install memwright[all]</code>
         <button class="copy-btn" onclick="navigator.clipboard.writeText('pip install memwright[all]');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy install command">Copy</button>
@@ -36,25 +36,25 @@
       <h2>The Problem</h2>
       <p class="problem-text">AI agents forget everything between conversations. The typical fix is a cloud memory service with high latency, vendor lock-in, and zero visibility into what your agent actually remembers.</p>
       <h2>The Solution</h2>
-      <p class="problem-text">Memwright runs entirely on your machine. One <code>docker compose up</code> gives you pgvector + Neo4j + SQLite &mdash; the same stack that scores 83.3% on LOCOMO. Your agent's memory is a file you can inspect, query, and version control.</p>
+      <p class="problem-text">Memwright runs entirely on your machine. Tag matching, entity graph traversal, and semantic vector search &mdash; all fused with Reciprocal Rank Fusion. Your agent's memory is a file you can inspect, query, and version control.</p>
     </div>
   </section>
 
-  <!-- Local to Production Journey -->
+  <!-- Setup Journey -->
   <section class="journey">
     <div class="container">
-      <h2>Local Dev to Production in 3 Steps</h2>
-      <p class="journey-intro">Build and test your agentic AI locally with Claude Code. When it works, deploy the same codebase. No migration, no API changes, no surprises.</p>
+      <h2>From Zero to Memory in 2 Steps</h2>
+      <p class="journey-intro">Paste one prompt into Claude Code. It installs memwright, starts Docker, initializes the memory store, and configures MCP. You're done.</p>
 
       <div class="journey-timeline">
         <div class="journey-step">
           <div class="journey-num">1</div>
           <div class="journey-content">
-            <h3>Start Locally</h3>
-            <div class="journey-time">2 minutes</div>
-            <p>Docker Compose spins up PostgreSQL (pgvector) and Neo4j on your machine. One pip install. Your agent has semantic search, entity graphs, and contradiction detection &mdash; all running at localhost.</p>
+            <h3>One Prompt</h3>
+            <div class="journey-time">~2 minutes</div>
+            <p>Paste this into Claude Code. It handles the install, Docker containers, memory store initialization, and MCP config. You get tag matching, graph traversal, vector search, embeddings, and contradiction detection.</p>
             <div class="journey-code">
-              <code>docker compose up -d<br>pip install memwright[all]<br>agent-memory init ~/.agent-memory/my-project<br>agent-memory doctor ~/.agent-memory/my-project</code>
+              <code><span class="comment"># Paste this into Claude Code:</span><br><br>Set up memwright as this project's persistent memory.<br><br>1. Install: pip install "memwright[all]"<br>&nbsp;&nbsp;&nbsp;(if pip fails on macOS, use: pipx install "memwright[all]")<br>2. Make sure Docker Desktop is running<br>3. Initialize: agent-memory init ~/.agent-memory/PROJECT_NAME<br>4. Add embedding API key to the .env file<br>5. Create .mcp.json with the memory server config<br>&nbsp;&nbsp;&nbsp;(include env vars for OPENROUTER_API_KEY,<br>&nbsp;&nbsp;&nbsp;PG_CONNECTION_STRING, NEO4J_URI, NEO4J_PASSWORD)<br>6. Add memory instructions to CLAUDE.md<br>7. Verify: agent-memory doctor ~/.agent-memory/PROJECT_NAME</code>
             </div>
           </div>
         </div>
@@ -64,25 +64,11 @@
         <div class="journey-step">
           <div class="journey-num">2</div>
           <div class="journey-content">
-            <h3>Build with Claude Code</h3>
-            <div class="journey-time">5 minutes</div>
-            <p>Add the MCP server to your Claude Code config. Now every conversation builds memory automatically &mdash; entities extracted, embeddings computed, contradictions resolved. Your agent remembers preferences, decisions, and context across sessions.</p>
+            <h3>Your Agent Remembers</h3>
+            <div class="journey-time">Automatic</div>
+            <p>Every conversation builds memory. Entities extracted, embeddings computed, contradictions resolved. Your agent remembers preferences, decisions, and context across sessions.</p>
             <div class="journey-code">
-              <code><span class="comment">// .mcp.json &mdash; that's it</span><br>{<br>&nbsp;&nbsp;"agent-memory": {<br>&nbsp;&nbsp;&nbsp;&nbsp;"command": "agent-memory",<br>&nbsp;&nbsp;&nbsp;&nbsp;"args": ["serve", "~/.agent-memory/my-project"]<br>&nbsp;&nbsp;}<br>}</code>
-            </div>
-          </div>
-        </div>
-
-        <div class="journey-connector"></div>
-
-        <div class="journey-step">
-          <div class="journey-num">3</div>
-          <div class="journey-content">
-            <h3>Ship to Production</h3>
-            <div class="journey-time">Same codebase</div>
-            <p>Point the connection strings at your production PostgreSQL and Neo4j. The Python API is the same, the retrieval pipeline is the same, your memories carry over. No vendor migration &mdash; you already own the data.</p>
-            <div class="journey-code">
-              <code><span class="comment"># Same code, production infra</span><br><span class="kw">from</span> agent_memory <span class="kw">import</span> AgentMemory<br><br>mem = AgentMemory(<span class="str">"./prod-store"</span>,<br>&nbsp;&nbsp;pg_conn=<span class="str">"postgresql://prod-host:5432/memwright"</span>,<br>&nbsp;&nbsp;neo4j_uri=<span class="str">"bolt://prod-neo4j:7687"</span>)<br><br><span class="comment"># 300-500 tokens per recall, 83.3% LOCOMO accuracy</span><br>context = mem.recall_as_context(<span class="str">"user preferences"</span>)</code>
+              <code><span class="comment">// Claude Code generates .mcp.json for you</span><br>{<br>&nbsp;&nbsp;"mcpServers": {<br>&nbsp;&nbsp;&nbsp;&nbsp;"memory": {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"command": "agent-memory",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"args": ["serve", "~/.agent-memory/my-project"],<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"env": {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"OPENROUTER_API_KEY": "sk-or-...",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"PG_CONNECTION_STRING": "postgresql://...",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"NEO4J_URI": "bolt://localhost:7687",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"NEO4J_PASSWORD": "memwright"<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</code>
             </div>
           </div>
         </div>
@@ -93,7 +79,7 @@
   <!-- Why Local Matters -->
   <section class="local-benefits">
     <div class="container">
-      <h2>Why Local-First Matters for Agentic AI</h2>
+      <h2>Why Local Matters for Agentic AI</h2>
       <div class="local-grid">
         <div class="local-card">
           <div class="local-icon">&#128270;</div>
@@ -108,12 +94,12 @@
         <div class="local-card">
           <div class="local-icon">&#128274;</div>
           <h3>Your Data Stays on Your Machine</h3>
-          <p>Memories live in a SQLite file on disk. Entity graphs stay in your local Neo4j. Nothing is sent to a cloud memory service. Ideal for enterprise, regulated industries, or anyone who cares about data sovereignty.</p>
+          <p>Memories live in SQLite on disk. Entity graphs stay in your local Neo4j. Vector embeddings stay in your local pgvector. Nothing is sent to a cloud memory service.</p>
         </div>
         <div class="local-card">
           <div class="local-icon">&#128640;</div>
-          <h3>Production Path Without Migration</h3>
-          <p>Your local Docker setup mirrors production exactly. Same pgvector, same Neo4j, same retrieval pipeline. When you deploy, change connection strings &mdash; not architecture. Agents built locally work identically in production.</p>
+          <h3>Same Stack, Any Scale</h3>
+          <p>Your local setup uses the same pgvector, same Neo4j, same retrieval pipeline as any deployed version. Change connection strings to scale &mdash; not architecture.</p>
         </div>
       </div>
     </div>
@@ -344,7 +330,7 @@
         </div>
         <div class="savings-card savings-after">
           <div class="savings-card-label">With Memwright</div>
-          <div class="savings-big-num">300–500</div>
+          <div class="savings-big-num">300&ndash;500</div>
           <div class="savings-unit">tokens per recall</div>
           <div class="savings-detail">Ranked, deduplicated context injected from tag + graph + vector retrieval. Budget-aware &mdash; never exceeds your limit.</div>
         </div>
@@ -372,15 +358,47 @@
       <h2>Quick Start</h2>
       <div class="code-tabs">
         <div class="code-block">
-          <div class="code-header">Claude Code / Cursor (MCP)</div>
-          <pre><code><span class="comment"># Initialize a memory store</span>
+          <div class="code-header">Claude Code (one prompt)</div>
+          <pre><code><span class="comment"># Paste this into Claude Code &mdash; it handles the rest:</span>
+
+Set up memwright as this project's persistent memory.
+
+1. Install: pip install "memwright[all]"
+   (if pip fails on macOS, use: pipx install "memwright[all]")
+2. Make sure Docker Desktop is running
+3. Initialize: agent-memory init ~/.agent-memory/PROJECT_NAME
+4. Add embedding API key to the .env file
+5. Create .mcp.json with the memory server config
+   (include env vars for OPENROUTER_API_KEY,
+   PG_CONNECTION_STRING, NEO4J_URI, NEO4J_PASSWORD)
+6. Add memory instructions to CLAUDE.md
+7. Verify: agent-memory doctor ~/.agent-memory/PROJECT_NAME</code></pre>
+        </div>
+        <div class="code-block">
+          <div class="code-header">Manual Setup</div>
+          <pre><code><span class="comment"># 1. Install</span>
+pip install "memwright[all]"
+
+<span class="comment"># 2. Initialize (starts pgvector + Neo4j via Docker)</span>
 agent-memory init ~/.agent-memory/my-project
 
-<span class="comment"># Add to your .mcp.json</span>
+<span class="comment"># 3. Add your API key</span>
+echo 'OPENROUTER_API_KEY=sk-or-...' >> \
+  ~/.agent-memory/my-project/.env
+
+<span class="comment"># 4. Add to .mcp.json</span>
 {
-  "agent-memory": {
-    "command": "agent-memory",
-    "args": ["serve", "~/.agent-memory/my-project"]
+  "mcpServers": {
+    "memory": {
+      "command": "agent-memory",
+      "args": ["serve", "~/.agent-memory/my-project"],
+      "env": {
+        "OPENROUTER_API_KEY": "sk-or-...",
+        "PG_CONNECTION_STRING": "postgresql://...",
+        "NEO4J_URI": "bolt://localhost:7687",
+        "NEO4J_PASSWORD": "memwright"
+      }
+    }
   }
 }</code></pre>
         </div>
@@ -409,7 +427,7 @@ context = mem.recall_as_context(<span class="str">"user background"</span>)</cod
       <div class="integration-badges">
         <div class="integration">
           <div class="integration-name">Claude Code</div>
-          <div class="integration-desc">MCP server with 8 memory tools. Add to <code>.mcp.json</code> and your agent remembers across sessions.</div>
+          <div class="integration-desc">MCP server with 7 memory tools. Add to <code>.mcp.json</code> and your agent remembers across sessions.</div>
         </div>
         <div class="integration">
           <div class="integration-name">Cursor / Windsurf</div>
