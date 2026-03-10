@@ -24,46 +24,87 @@
 AI agents forget everything between conversations. The typical fix is a managed vector database or cloud memory service. Memwright takes a different approach:
 
 - **Open & inspectable** — Your memories live in a SQLite file. Run `sqlite3 memory.db` and see exactly what the agent knows. No black boxes.
-- **Graph memory included** — Neo4j entity graph for multi-hop reasoning. Free, not paywalled.
+- **3-layer retrieval** — Tag matching, Neo4j entity graph, and pgvector semantic search fused with Reciprocal Rank Fusion.
 - **Token efficient** — 300-500 tokens per recall vs 15,000+ for full history replay.
-- **Fully local** — Your data stays on your machine. No cloud dependency.
+- **Fully local** — Everything runs on your machine via Docker. No cloud dependency.
 
 Works as a **Claude Code MCP server**, a **Cursor MCP server**, or a **Python library**.
 
 ## Install
 
 ```bash
-pip install memwright[all]      # Recommended — includes pgvector, Neo4j, MCP
-pip install memwright           # Core only (SQLite)
-pip install memwright[vectors]  # + pgvector semantic search
-pip install memwright[neo4j]    # + Neo4j graph database
-pip install memwright[mcp]      # + MCP server for Claude Code / Cursor
+pip install memwright[all]
 ```
 
-**Requirements:** Docker (for PostgreSQL + Neo4j) and an embedding API key (`OPENROUTER_API_KEY` or `OPENAI_API_KEY`).
+> **Tip:** On macOS with Homebrew Python, use `pipx install "memwright[all]"` to install as a standalone CLI tool.
 
-## Quick Start — MCP Server (Claude Code / Cursor)
+**Requirements:** [Docker Desktop](https://docker.com/products/docker-desktop) and an embedding API key (`OPENROUTER_API_KEY` or `OPENAI_API_KEY`).
+
+## Quick Start — Claude Code
+
+Paste this prompt into Claude Code and it handles the rest:
+
+```
+Set up memwright as this project's persistent memory.
+
+1. Install: pip install "memwright[all]" (if pip fails on macOS, use: pipx install "memwright[all]")
+2. Make sure Docker Desktop is running
+3. Initialize: agent-memory init ~/.agent-memory/PROJECT_NAME
+4. Add your embedding API key to ~/.agent-memory/PROJECT_NAME/.env (OPENROUTER_API_KEY or OPENAI_API_KEY)
+5. Create .mcp.json in the project root:
+   {
+     "mcpServers": {
+       "memory": {
+         "command": "agent-memory",
+         "args": ["serve", "~/.agent-memory/PROJECT_NAME"],
+         "env": {
+           "OPENROUTER_API_KEY": "your-key-here",
+           "PG_CONNECTION_STRING": "postgresql://memwright:memwright@localhost:5432/memwright",
+           "NEO4J_URI": "bolt://localhost:7687",
+           "NEO4J_PASSWORD": "memwright"
+         }
+       }
+     }
+   }
+6. Add to CLAUDE.md: Use memory_recall at conversation start, memory_add to store context.
+7. Verify: agent-memory doctor ~/.agent-memory/PROJECT_NAME
+```
+
+### Manual Setup
 
 ```bash
-# 1. Initialize (starts Docker containers, generates .env)
+# 1. Install
+pip install "memwright[all]"
+
+# 2. Initialize (starts Docker containers for pgvector + Neo4j)
 agent-memory init ~/.agent-memory/my-project
 
-# 2. Get MCP config
-agent-memory setup-claude-code ~/.agent-memory/my-project
+# 3. Add your embedding API key
+echo 'OPENROUTER_API_KEY=sk-or-...' >> ~/.agent-memory/my-project/.env
 ```
 
-Add the output to your `.mcp.json`:
+Add to your project's `.mcp.json`:
 
 ```json
 {
-  "agent-memory": {
-    "command": "agent-memory",
-    "args": ["serve", "~/.agent-memory/my-project"]
+  "mcpServers": {
+    "memory": {
+      "command": "agent-memory",
+      "args": ["serve", "~/.agent-memory/my-project"],
+      "env": {
+        "OPENROUTER_API_KEY": "sk-or-...",
+        "PG_CONNECTION_STRING": "postgresql://memwright:memwright@localhost:5432/memwright",
+        "NEO4J_URI": "bolt://localhost:7687",
+        "NEO4J_PASSWORD": "memwright"
+      }
+    }
   }
 }
 ```
 
-Claude now has 7 memory tools: `memory_add`, `memory_get`, `memory_recall`, `memory_search`, `memory_forget`, `memory_timeline`, `memory_stats`.
+> **Note:** The `env` block is required because the MCP server process doesn't auto-load the `.env` file.
+
+Restart Claude Code. You now have 7 memory tools: `memory_add`, `memory_get`, `memory_recall`, `memory_search`, `memory_forget`, `memory_timeline`, `memory_stats`.
 
 Add to your `CLAUDE.md`:
 
@@ -73,7 +114,34 @@ Use `memory_recall` at the start of each conversation with the user's first mess
 Use `memory_add` to store preferences, decisions, and project context.
 ```
 
-## Quick Start — Python API
+## Quick Start — Cursor
+
+```bash
+# 1. Install and initialize
+pip install "memwright[all]"
+agent-memory init ~/.agent-memory/my-project
+```
+
+Add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "agent-memory",
+      "args": ["serve", "~/.agent-memory/my-project"],
+      "env": {
+        "OPENROUTER_API_KEY": "sk-or-...",
+        "PG_CONNECTION_STRING": "postgresql://memwright:memwright@localhost:5432/memwright",
+        "NEO4J_URI": "bolt://localhost:7687",
+        "NEO4J_PASSWORD": "memwright"
+      }
+    }
+  }
+}
+```
+
+## Quick Start — Python Library
 
 ```python
 from agent_memory import AgentMemory
@@ -147,7 +215,7 @@ graph TD
     style V fill:#161b22,stroke:#30363d,color:#F4F3EE
 ```
 
-When the graph is enabled, entity relationships are traversed to find related memories (e.g., querying "Python" also finds memories about "FastAPI" if they're connected). Graph relationship triples are injected as synthetic context for multi-hop reasoning.
+Entity relationships are traversed to find related memories (e.g., querying "Python" also finds memories about "FastAPI" if they're connected). Graph relationship triples are injected as synthetic context for multi-hop reasoning.
 
 ## CLI
 
