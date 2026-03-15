@@ -28,12 +28,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `mem.recall(query)` returns fused results from all three retrieval layers (tag, graph, vector) using RRF
   4. `mem.health()` reports all components healthy with no Docker/container checks
   5. No pgvector, Neo4j, psycopg, or neo4j driver code remains anywhere in the codebase
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: Delete pgvector/Neo4j/Docker code and strip config (CLEAN-01..05)
-- [ ] 01-02: Implement ChromaDB vector store and NetworkX graph (VEC-01..05, GRAPH-01..05)
-- [ ] 01-03: Wire auto-provisioning and update health check (PROV-01..04)
+- [ ] 01-01-PLAN.md — Delete pgvector/Neo4j/Docker code and strip config (CLEAN-01..05)
+- [ ] 01-02-PLAN.md — Implement ChromaDB vector store and NetworkX graph (VEC-01..05, GRAPH-01..05)
+- [ ] 01-03-PLAN.md — Wire auto-provisioning and update health check (PROV-01..04)
 
 ### Phase 2: Claude Code Plugin and Auto-Capture
 **Goal**: Memwright installs as a Claude Code plugin and automatically captures/recalls memories during sessions via hooks
@@ -70,7 +70,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3
+Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
