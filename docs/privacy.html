@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memwright — Privacy Policy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <section class="hero" style="padding: 48px 0 24px;">
+    <div class="container">
+      <a href="./" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">&larr; Back to Memwright</a>
+      <h1 style="font-size: 2rem; margin-top: 24px;">Privacy Policy</h1>
+      <p class="tagline">Last updated: March 16, 2026</p>
+    </div>
+  </section>
+
+  <section class="problem" style="padding: 40px 0;">
+    <div class="container">
+      <h2>Summary</h2>
+      <p class="problem-text">Memwright stores all data locally on your machine. No data is collected, transmitted, or shared with anyone.</p>
+
+      <h2>Data Storage</h2>
+      <p class="problem-text">All memories, entity graphs, and vector embeddings are stored in local files on your device:</p>
+      <ul style="color: var(--text-secondary); margin-bottom: 2rem; padding-left: 1.5rem; line-height: 2;">
+        <li><strong>SQLite database</strong> — <code>memory.db</code> in your store directory</li>
+        <li><strong>ChromaDB vectors</strong> — <code>chroma/</code> directory in your store</li>
+        <li><strong>NetworkX graph</strong> — <code>graph.json</code> in your store</li>
+        <li><strong>Configuration</strong> — <code>config.json</code> in your store</li>
+      </ul>
+
+      <h2>No Data Collection</h2>
+      <p class="problem-text">Memwright does not:</p>
+      <ul style="color: var(--text-secondary); margin-bottom: 2rem; padding-left: 1.5rem; line-height: 2;">
+        <li>Send any data to external servers</li>
+        <li>Collect usage analytics or telemetry</li>
+        <li>Require account registration</li>
+        <li>Phone home or check licenses</li>
+        <li>Access any network resources</li>
+      </ul>
+
+      <h2>Embeddings</h2>
+      <p class="problem-text">Vector embeddings are computed locally using sentence-transformers (all-MiniLM-L6-v2). The model runs on your machine. No text is sent to any API for embedding computation.</p>
+
+      <h2>Claude Code Integration</h2>
+      <p class="problem-text">When used as a Claude Code plugin or MCP server, Memwright runs locally alongside Claude Code. Memory data flows between Memwright and Claude Code on your machine via the Model Context Protocol (stdio). No memory data is sent to Anthropic's servers — only your conversation with Claude is sent, which may include recalled memories that Claude Code injects into the conversation context.</p>
+
+      <h2>Third-Party Services</h2>
+      <p class="problem-text">Memwright has zero external dependencies by default. Optional features (LLM-based extraction) require an API key you provide and control.</p>
+
+      <h2>Open Source</h2>
+      <p class="problem-text">Memwright is open source under the Apache 2.0 license. You can audit the complete source code at <a href="https://github.com/bolnet/agent-memory" style="color: var(--orange-light);">github.com/bolnet/agent-memory</a>.</p>
+
+      <h2>Contact</h2>
+      <p class="problem-text">For privacy questions, open an issue at <a href="https://github.com/bolnet/agent-memory/issues" style="color: var(--orange-light);">github.com/bolnet/agent-memory/issues</a>.</p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <div class="footer-links">
+        <a href="https://github.com/bolnet/agent-memory">GitHub</a>
+        <a href="https://pypi.org/project/memwright/">PyPI</a>
+        <a href="./">Home</a>
+      </div>
+      <p class="footer-license">Apache 2.0 License</p>
+    </div>
+  </footer>
+</body>
+</html>
