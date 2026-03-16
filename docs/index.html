@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Memwright — Embedded Memory for AI Agents</title>
-  <meta name="description" content="Give your AI agents persistent memory. Open and inspectable. Tag matching, graph traversal, vector search. Works with Claude Code and Cursor.">
-  <meta property="og:title" content="Memwright — Embedded Memory for AI Agents">
-  <meta property="og:description" content="Give your AI agents persistent memory. Open and inspectable. Works with Claude Code.">
+  <title>Memwright — Zero-Config Memory for AI Agents</title>
+  <meta name="description" content="Give your AI agents persistent memory. Zero config. No Docker, no API keys. Tag matching, graph traversal, vector search with local embeddings. Works with Claude Code.">
+  <meta property="og:title" content="Memwright — Zero-Config Memory for AI Agents">
+  <meta property="og:description" content="Persistent memory for AI agents. pip install memwright. No Docker, no API keys, no configuration.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://bolnet.github.io/agent-memory/">
   <link rel="stylesheet" href="style.css">
@@ -16,10 +16,10 @@
   <section class="hero">
     <div class="container">
       <img src="logo.svg" alt="Memwright" class="hero-logo" width="480" height="120">
-      <p class="tagline">Give your AI agents persistent memory. One prompt to set up. Open and inspectable.</p>
+      <p class="tagline">Zero-config memory for AI agents. No Docker. No API keys. Just <code>pip install</code> and go.</p>
       <div class="install-box">
-        <code id="install-cmd">pip install memwright[all]</code>
-        <button class="copy-btn" onclick="navigator.clipboard.writeText('pip install memwright[all]');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy install command">Copy</button>
+        <code id="install-cmd">pip install memwright</code>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText('pip install memwright');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy install command">Copy</button>
       </div>
       <div class="cta-links">
         <a href="https://github.com/bolnet/agent-memory" class="btn btn-primary">GitHub</a>
@@ -34,27 +34,27 @@
   <section class="problem">
     <div class="container">
       <h2>The Problem</h2>
-      <p class="problem-text">AI agents forget everything between conversations. The typical fix is a cloud memory service with high latency, vendor lock-in, and zero visibility into what your agent actually remembers.</p>
+      <p class="problem-text">AI agents forget everything between conversations. Cloud memory services add latency, vendor lock-in, and zero visibility. Most require Docker, API keys, and complex setup before you write a line of code.</p>
       <h2>The Solution</h2>
-      <p class="problem-text">Memwright runs entirely on your machine. Tag matching, entity graph traversal, and semantic vector search &mdash; all fused with Reciprocal Rank Fusion. Your agent's memory is a file you can inspect, query, and version control.</p>
+      <p class="problem-text">Memwright runs entirely on your machine with zero configuration. <code>pip install memwright</code> gives you tag matching, entity graph traversal, and semantic vector search &mdash; all fused with Reciprocal Rank Fusion. No Docker. No API keys. Your agent's memory is a directory you can inspect, query, and version control.</p>
     </div>
   </section>
 
   <!-- Setup Journey -->
   <section class="journey">
     <div class="container">
-      <h2>From Zero to Memory in 2 Steps</h2>
-      <p class="journey-intro">Paste one prompt into Claude Code. It installs memwright, starts Docker, initializes the memory store, and configures MCP. You're done.</p>
+      <h2>From Zero to Memory in 30 Seconds</h2>
+      <p class="journey-intro">Install the package. That's it. Everything auto-provisions on first use &mdash; SQLite, ChromaDB, NetworkX. No Docker, no containers, no environment variables.</p>
 
       <div class="journey-timeline">
         <div class="journey-step">
           <div class="journey-num">1</div>
           <div class="journey-content">
-            <h3>One Prompt</h3>
-            <div class="journey-time">~2 minutes</div>
-            <p>Paste this into Claude Code. It handles the install, Docker containers, memory store initialization, and MCP config. You get tag matching, graph traversal, vector search, embeddings, and contradiction detection.</p>
+            <h3>Install</h3>
+            <div class="journey-time">~10 seconds</div>
+            <p>One command. ChromaDB and NetworkX install as dependencies. Local sentence-transformers embeddings download on first use (~90MB, one-time).</p>
             <div class="journey-code">
-              <code><span class="comment"># Paste this into Claude Code:</span><br><br>Set up memwright as this project's persistent memory.<br><br>1. Install: pip install "memwright[all]"<br>&nbsp;&nbsp;&nbsp;(if pip fails on macOS, use: pipx install "memwright[all]")<br>2. Make sure Docker Desktop is running<br>3. Initialize: agent-memory init ~/.agent-memory/PROJECT_NAME<br>4. Add embedding API key to the .env file<br>5. Create .mcp.json with the memory server config<br>&nbsp;&nbsp;&nbsp;(include env vars for OPENROUTER_API_KEY,<br>&nbsp;&nbsp;&nbsp;PG_CONNECTION_STRING, NEO4J_URI, NEO4J_PASSWORD)<br>6. Add memory instructions to CLAUDE.md<br>7. Verify: agent-memory doctor ~/.agent-memory/PROJECT_NAME</code>
+              <code><span class="comment"># That's it. No Docker. No API keys.</span><br>pip install memwright</code>
             </div>
           </div>
         </div>
@@ -66,9 +66,9 @@
           <div class="journey-content">
             <h3>Your Agent Remembers</h3>
             <div class="journey-time">Automatic</div>
-            <p>Every conversation builds memory. Entities extracted, embeddings computed, contradictions resolved. Your agent remembers preferences, decisions, and context across sessions.</p>
+            <p>Every conversation builds memory. Entities extracted, embeddings computed locally, contradictions resolved. Your agent remembers preferences, decisions, and context across sessions.</p>
             <div class="journey-code">
-              <code><span class="comment">// Claude Code generates .mcp.json for you</span><br>{<br>&nbsp;&nbsp;"mcpServers": {<br>&nbsp;&nbsp;&nbsp;&nbsp;"memory": {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"command": "agent-memory",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"args": ["serve", "~/.agent-memory/my-project"],<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"env": {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"OPENROUTER_API_KEY": "sk-or-...",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"PG_CONNECTION_STRING": "postgresql://...",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"NEO4J_URI": "bolt://localhost:7687",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"NEO4J_PASSWORD": "memwright"<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</code>
+              <code><span class="comment">// .mcp.json &mdash; zero-config MCP server</span><br>{<br>&nbsp;&nbsp;"mcpServers": {<br>&nbsp;&nbsp;&nbsp;&nbsp;"memory": {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"command": "memwright",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"args": ["mcp"]<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</code>
             </div>
           </div>
         </div>
@@ -76,69 +76,76 @@
     </div>
   </section>
 
-  <!-- Why Local Matters -->
+  <!-- Claude Code Plugin -->
   <section class="local-benefits">
     <div class="container">
-      <h2>Why Local Matters for Agentic AI</h2>
+      <h2>Claude Code Plugin</h2>
+      <p class="journey-intro" style="margin-bottom: 32px">Install as a Claude Code plugin for automatic memory capture. Hooks observe your sessions &mdash; no manual <code>memory_add</code> needed.</p>
       <div class="local-grid">
         <div class="local-card">
-          <div class="local-icon">&#128270;</div>
-          <h3>Debug What Your Agent Knows</h3>
-          <p>Run <code>sqlite3 memory.db</code> and see every memory, every entity, every relationship. When your agent gives a wrong answer, you can trace it back to a specific stored memory &mdash; not a black-box API response.</p>
-        </div>
-        <div class="local-card">
           <div class="local-icon">&#9889;</div>
-          <h3>Iterate Without API Costs</h3>
-          <p>Test memory extraction, retrieval, and contradiction handling locally. Only the embedding step needs an API call ($0.002 per recall). No metered retrieval fees, no per-query charges, no usage surprises.</p>
+          <h3>Auto-Capture</h3>
+          <p>PostToolUse hook captures observations from Write, Edit, and Bash automatically. Stop hook summarizes key decisions at session end.</p>
         </div>
         <div class="local-card">
-          <div class="local-icon">&#128274;</div>
-          <h3>Your Data Stays on Your Machine</h3>
-          <p>Memories live in SQLite on disk. Entity graphs stay in your local Neo4j. Vector embeddings stay in your local pgvector. Nothing is sent to a cloud memory service.</p>
+          <div class="local-icon">&#128161;</div>
+          <h3>Context Injection</h3>
+          <p>SessionStart hook injects relevant memories (20K token budget) into every conversation. Your agent starts each session with full context.</p>
         </div>
         <div class="local-card">
-          <div class="local-icon">&#128640;</div>
-          <h3>Same Stack, Any Scale</h3>
-          <p>Your local setup uses the same pgvector, same Neo4j, same retrieval pipeline as any deployed version. Change connection strings to scale &mdash; not architecture.</p>
+          <div class="local-icon">&#128268;</div>
+          <h3>MCP Resources</h3>
+          <p>Entities and memories are <code>@</code>-mentionable. Type <code>@memwright:entity://python</code> to pull in everything about Python.</p>
+        </div>
+        <div class="local-card">
+          <div class="local-icon">&#128736;</div>
+          <h3>Skills &amp; Prompts</h3>
+          <p>Slash commands: <code>/memwright:mem-recall</code>, <code>/memwright:mem-timeline</code>, <code>/memwright:mem-health</code>. Native MCP prompts too.</p>
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 32px;">
+        <div class="install-box">
+          <code>/plugin marketplace add bolnet/agent-memory</code>
+          <button class="copy-btn" onclick="navigator.clipboard.writeText('/plugin marketplace add bolnet/agent-memory');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy plugin command">Copy</button>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Features -->
+  <!-- Why Local Matters -->
   <section class="features">
     <div class="container">
-      <h2>Features</h2>
+      <h2>Why Local Matters</h2>
       <div class="features-grid">
         <div class="feature-card">
           <div class="feature-icon">&#128269;</div>
           <h3>Open &amp; Inspectable</h3>
-          <p>Your memories live in a SQLite file. Run <code>sqlite3 memory.db</code> and see exactly what the agent knows. No black boxes, no vendor lock-in.</p>
+          <p>Your memories live in SQLite + JSON files. Run <code>sqlite3 memory.db</code> and see exactly what the agent knows. No black boxes.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#127919;</div>
-          <h3>Token Efficient</h3>
-          <p>300-500 tokens per recall vs 15,000+ for full history replay. Precise context injection within a configurable token budget.</p>
+          <div class="feature-icon">&#128274;</div>
+          <h3>Your Data Stays Local</h3>
+          <p>Memories in SQLite. Entity graph in JSON. Vector embeddings computed locally by sentence-transformers. Nothing leaves your machine.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9889;</div>
+          <h3>Zero Cost to Run</h3>
+          <p>No embedding API calls. No cloud memory service fees. No Docker containers eating resources. Just files on disk.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">&#128260;</div>
           <h3>Contradiction Handling</h3>
-          <p>New facts automatically supersede old ones. "Works at Google" replaces "Works at SoFi" &mdash; no stale memories.</p>
+          <p>New facts automatically supersede old ones. "Works at Google" replaces "Works at SoFi" &mdash; no stale memories polluting context.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">&#128300;</div>
           <h3>Graph-Enhanced</h3>
-          <p>Neo4j entity graph enables multi-hop reasoning. Query "Python" and find related "FastAPI" memories through graph traversal.</p>
+          <p>NetworkX entity graph enables multi-hop reasoning. Query "Python" and find related "FastAPI" memories through graph traversal.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#128268;</div>
-          <h3>MCP Server</h3>
-          <p>First-class Claude Code and Cursor integration via Model Context Protocol. 7 memory tools out of the box.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">&#9889;</div>
-          <h3>No Re-ranking LLM</h3>
-          <p>Retrieval uses tag matching, graph traversal, and vector search with RRF fusion. No expensive LLM judge or re-ranker at recall time.</p>
+          <div class="feature-icon">&#127919;</div>
+          <h3>Token Efficient</h3>
+          <p>Precise recall within a configurable token budget. RRF fusion ranks the most relevant memories, not a full history dump.</p>
         </div>
       </div>
     </div>
@@ -158,17 +165,17 @@
             <div class="arch-layer layer-1">
               <span class="layer-num">1</span>
               <span class="layer-name">Tag Match</span>
-              <span class="layer-detail">SQL index</span>
+              <span class="layer-detail">SQLite index</span>
             </div>
             <div class="arch-layer layer-2">
               <span class="layer-num">2</span>
               <span class="layer-name">Graph Expansion</span>
-              <span class="layer-detail">Neo4j multi-hop</span>
+              <span class="layer-detail">NetworkX multi-hop</span>
             </div>
             <div class="arch-layer layer-3">
               <span class="layer-num">3</span>
               <span class="layer-name">Vector Similarity</span>
-              <span class="layer-detail">pgvector cosine</span>
+              <span class="layer-detail">ChromaDB cosine</span>
             </div>
           </div>
           <div class="arch-arrow">&darr;</div>
@@ -180,11 +187,40 @@
     </div>
   </section>
 
+  <!-- Stack -->
+  <section class="local-benefits">
+    <div class="container">
+      <h2>The Stack</h2>
+      <div class="local-grid">
+        <div class="local-card">
+          <div class="local-icon">&#128451;</div>
+          <h3>SQLite</h3>
+          <p>Core storage. ACID guarantees. Always available. Run raw SQL to inspect your memories. Built into Python &mdash; zero dependencies.</p>
+        </div>
+        <div class="local-card">
+          <div class="local-icon">&#128301;</div>
+          <h3>ChromaDB</h3>
+          <p>In-process vector store with built-in sentence-transformers embeddings (all-MiniLM-L6-v2). No API keys. Persistent on disk.</p>
+        </div>
+        <div class="local-card">
+          <div class="local-icon">&#128279;</div>
+          <h3>NetworkX</h3>
+          <p>In-memory entity graph with multi-hop BFS traversal. JSON persistence. Sub-millisecond queries. Entities and relationships extracted automatically.</p>
+        </div>
+        <div class="local-card">
+          <div class="local-icon">&#128200;</div>
+          <h3>RRF Fusion</h3>
+          <p>Reciprocal Rank Fusion combines results from all three layers. Memories appearing in multiple layers get boosted. Temporal and entity boosts applied.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Benchmarks -->
   <section class="benchmarks">
     <div class="container">
       <h2>Benchmarks</h2>
-      <p class="bench-intro">Evaluated against the industry-standard memory benchmarks. Scores are self-reported across vendors and <a href="https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/">methodology is disputed</a>.</p>
+      <p class="bench-intro">Evaluated against industry-standard memory benchmarks. Scores are self-reported across vendors and <a href="https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/">methodology is disputed</a>.</p>
 
       <!-- LOCOMO Bar Chart -->
       <div class="bench-card">
@@ -237,7 +273,7 @@
         <div class="bench-card bench-card-compact">
           <div class="bench-card-header">
             <h3>MAB</h3>
-            <span class="bench-badge">MemoryAgentBench &middot; ICLR 2026</span>
+            <span class="bench-badge">MemoryAgentBench</span>
           </div>
           <div class="stat-row">
             <div class="stat-ring" style="--pct: 55">
@@ -288,12 +324,11 @@
           <div class="llm-split">
             <div class="llm-section">
               <div class="llm-phase llm-phase-ingest">Ingestion</div>
-              <div class="llm-tag llm-tag-yes">LLM calls</div>
+              <div class="llm-tag llm-tag-no">Local only</div>
               <ul class="llm-list">
-                <li>Embeddings</li>
-                <li>Entity extraction</li>
-                <li>Memory extraction</li>
-                <li>Contradiction detection</li>
+                <li>Local embeddings (sentence-transformers)</li>
+                <li>Rule-based entity extraction</li>
+                <li>Rule-based contradiction detection</li>
               </ul>
             </div>
             <div class="llm-divider"></div>
@@ -303,50 +338,11 @@
               <ul class="llm-list">
                 <li>Tag matching</li>
                 <li>Graph traversal</li>
-                <li>Vector search + embeddings</li>
+                <li>Vector search (local)</li>
                 <li>RRF fusion</li>
               </ul>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Token Savings -->
-  <section class="savings">
-    <div class="container">
-      <h2>Claude Code Token Savings</h2>
-      <p class="savings-intro">Without memory, agents replay full conversation history to maintain context. Memwright replaces that with precise recall within a configurable token budget.</p>
-      <div class="savings-grid">
-        <div class="savings-card savings-before">
-          <div class="savings-card-label">Without Memwright</div>
-          <div class="savings-big-num">15,000+</div>
-          <div class="savings-unit">tokens per context window</div>
-          <div class="savings-detail">Full conversation history replay, CLAUDE.md padding, or manual context files. Grows with every session.</div>
-        </div>
-        <div class="savings-arrow">
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><path d="M8 24h28M28 16l8 8-8 8" stroke="var(--orange)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="savings-card savings-after">
-          <div class="savings-card-label">With Memwright</div>
-          <div class="savings-big-num">300&ndash;500</div>
-          <div class="savings-unit">tokens per recall</div>
-          <div class="savings-detail">Ranked, deduplicated context injected from tag + graph + vector retrieval. Budget-aware &mdash; never exceeds your limit.</div>
-        </div>
-      </div>
-      <div class="savings-stats">
-        <div class="savings-stat">
-          <div class="savings-stat-num">~97%</div>
-          <div class="savings-stat-label">token reduction</div>
-        </div>
-        <div class="savings-stat">
-          <div class="savings-stat-num">$0.002</div>
-          <div class="savings-stat-label">per recall (embeddings)</div>
-        </div>
-        <div class="savings-stat">
-          <div class="savings-stat-num">2,000</div>
-          <div class="savings-stat-label">default token budget</div>
         </div>
       </div>
     </div>
@@ -358,63 +354,47 @@
       <h2>Quick Start</h2>
       <div class="code-tabs">
         <div class="code-block">
-          <div class="code-header">Claude Code (one prompt)</div>
-          <pre><code><span class="comment"># Paste this into Claude Code &mdash; it handles the rest:</span>
+          <div class="code-header">Claude Code Plugin (recommended)</div>
+          <pre><code><span class="comment"># Install plugin &mdash; auto-captures memories</span>
+/plugin marketplace add bolnet/agent-memory
 
-Set up memwright as this project's persistent memory.
-
-1. Install: pip install "memwright[all]"
-   (if pip fails on macOS, use: pipx install "memwright[all]")
-2. Make sure Docker Desktop is running
-3. Initialize: agent-memory init ~/.agent-memory/PROJECT_NAME
-4. Add embedding API key to the .env file
-5. Create .mcp.json with the memory server config
-   (include env vars for OPENROUTER_API_KEY,
-   PG_CONNECTION_STRING, NEO4J_URI, NEO4J_PASSWORD)
-6. Add memory instructions to CLAUDE.md
-7. Verify: agent-memory doctor ~/.agent-memory/PROJECT_NAME</code></pre>
+<span class="comment"># That's it. Memories captured automatically.</span>
+<span class="comment"># SessionStart injects context.</span>
+<span class="comment"># PostToolUse captures observations.</span>
+<span class="comment"># Stop summarizes decisions.</span></code></pre>
         </div>
         <div class="code-block">
-          <div class="code-header">Manual Setup</div>
+          <div class="code-header">MCP Server (any client)</div>
           <pre><code><span class="comment"># 1. Install</span>
-pip install "memwright[all]"
+pip install memwright
 
-<span class="comment"># 2. Initialize (starts pgvector + Neo4j via Docker)</span>
-agent-memory init ~/.agent-memory/my-project
-
-<span class="comment"># 3. Add your API key</span>
-echo 'OPENROUTER_API_KEY=sk-or-...' >> \
-  ~/.agent-memory/my-project/.env
-
-<span class="comment"># 4. Add to .mcp.json</span>
+<span class="comment"># 2. Add to .mcp.json</span>
 {
   "mcpServers": {
     "memory": {
-      "command": "agent-memory",
-      "args": ["serve", "~/.agent-memory/my-project"],
-      "env": {
-        "OPENROUTER_API_KEY": "sk-or-...",
-        "PG_CONNECTION_STRING": "postgresql://...",
-        "NEO4J_URI": "bolt://localhost:7687",
-        "NEO4J_PASSWORD": "memwright"
-      }
+      "command": "memwright",
+      "args": ["mcp"]
     }
   }
-}</code></pre>
+}
+
+<span class="comment"># Works with Claude Code, Cursor,</span>
+<span class="comment"># Windsurf, or any MCP client.</span></code></pre>
         </div>
-        <div class="code-block">
+        <div class="code-block" style="grid-column: 1 / -1;">
           <div class="code-header">Python API</div>
           <pre><code><span class="kw">from</span> agent_memory <span class="kw">import</span> AgentMemory
 
-mem = AgentMemory(<span class="str">"./my-agent"</span>)
+mem = AgentMemory(<span class="str">"./my-agent"</span>)  <span class="comment"># auto-provisions SQLite + ChromaDB + NetworkX</span>
 
 <span class="comment"># Store facts</span>
-mem.add(<span class="str">"User prefers Python over Java"</span>,
-        tags=[<span class="str">"preference"</span>], category=<span class="str">"preference"</span>)
+mem.add(<span class="str">"User prefers Python over Java"</span>, tags=[<span class="str">"preference"</span>], category=<span class="str">"preference"</span>)
 
-<span class="comment"># Recall relevant memories</span>
+<span class="comment"># Recall relevant memories (tag + graph + vector fusion)</span>
 results = mem.recall(<span class="str">"what language?"</span>)
-context = mem.recall_as_context(<span class="str">"user background"</span>)</code></pre>
+
+<span class="comment"># Get formatted context for prompt injection</span>
+context = mem.recall_as_context(<span class="str">"user background"</span>, budget=<span class="str">20000</span>)</code></pre>
         </div>
       </div>
     </div>
@@ -427,11 +407,11 @@ context = mem.recall_as_context(<span class="str">"user background"</span>)</cod
       <div class="integration-badges">
         <div class="integration">
           <div class="integration-name">Claude Code</div>
-          <div class="integration-desc">MCP server with 7 memory tools. Add to <code>.mcp.json</code> and your agent remembers across sessions.</div>
+          <div class="integration-desc">Plugin with auto-capture hooks + MCP server with 8 memory tools. Install once, memories captured automatically.</div>
         </div>
         <div class="integration">
           <div class="integration-name">Cursor / Windsurf</div>
-          <div class="integration-desc">Same MCP server, same config. Your IDE agent gets persistent memory with zero code changes.</div>
+          <div class="integration-desc">Same MCP server, same <code>.mcp.json</code> config. Your IDE agent gets persistent memory with zero code changes.</div>
         </div>
         <div class="integration">
           <div class="integration-name">Python SDK</div>
@@ -439,9 +419,17 @@ context = mem.recall_as_context(<span class="str">"user background"</span>)</cod
         </div>
         <div class="integration">
           <div class="integration-name">Any MCP Client</div>
-          <div class="integration-desc">Standard Model Context Protocol. Any MCP-compatible agent framework gets memory for free.</div>
+          <div class="integration-desc">Standard Model Context Protocol. 8 tools + resources + prompts. Any MCP-compatible framework gets memory for free.</div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- v2 Banner -->
+  <section class="problem" style="text-align: center;">
+    <div class="container">
+      <h2 style="color: var(--orange); font-size: 1.5rem;">v2.0.0 &mdash; Zero-Config Rewrite</h2>
+      <p class="problem-text" style="max-width: 600px; margin: 0 auto;">Replaced pgvector + Neo4j + Docker with ChromaDB + NetworkX + nothing. Same retrieval quality. Same benchmarks. Zero infrastructure. <a href="https://github.com/bolnet/agent-memory/releases/tag/v2.0.0" style="color: var(--orange-light);">Release notes &rarr;</a></p>
     </div>
   </section>
 
