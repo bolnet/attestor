@@ -85,6 +85,7 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 4 added: Run benchmarks on v2 backends and compare scores
+- Phase 5 added: Submit plugin to official Anthropic marketplace
 
 ### Pending Todos
 
