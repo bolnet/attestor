@@ -7,11 +7,11 @@
 
 ### Backend Cleanup
 
-- [ ] **CLEAN-01**: All pgvector/PostgreSQL code removed (vector_store.py, schema_pg.sql, psycopg deps)
-- [ ] **CLEAN-02**: All Neo4j code removed (neo4j_graph.py, neo4j driver dep)
-- [ ] **CLEAN-03**: Docker compose file and Docker health checks removed
-- [ ] **CLEAN-04**: OpenAI/OpenRouter embedding client removed (embeddings.py rewritten or deleted)
-- [ ] **CLEAN-05**: Config dataclass stripped of pg_connection_string, neo4j_* fields
+- [x] **CLEAN-01**: All pgvector/PostgreSQL code removed (vector_store.py, schema_pg.sql, psycopg deps)
+- [x] **CLEAN-02**: All Neo4j code removed (neo4j_graph.py, neo4j driver dep)
+- [x] **CLEAN-03**: Docker compose file and Docker health checks removed
+- [x] **CLEAN-04**: OpenAI/OpenRouter embedding client removed (embeddings.py rewritten or deleted)
+- [x] **CLEAN-05**: Config dataclass stripped of pg_connection_string, neo4j_* fields
 
 ### Vector Search
 
@@ -100,11 +100,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLEAN-01 | Phase 1 | Pending |
-| CLEAN-02 | Phase 1 | Pending |
-| CLEAN-03 | Phase 1 | Pending |
-| CLEAN-04 | Phase 1 | Pending |
-| CLEAN-05 | Phase 1 | Pending |
+| CLEAN-01 | Phase 1 | Complete |
+| CLEAN-02 | Phase 1 | Complete |
+| CLEAN-03 | Phase 1 | Complete |
+| CLEAN-04 | Phase 1 | Complete |
+| CLEAN-05 | Phase 1 | Complete |
 | VEC-01 | Phase 1 | Pending |
 | VEC-02 | Phase 1 | Pending |
 | VEC-03 | Phase 1 | Pending |

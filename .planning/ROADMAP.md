@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `mem.recall(query)` returns fused results from all three retrieval layers (tag, graph, vector) using RRF
   4. `mem.health()` reports all components healthy with no Docker/container checks
   5. No pgvector, Neo4j, psycopg, or neo4j driver code remains anywhere in the codebase
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 01-01-PLAN.md — Delete pgvector/Neo4j/Docker code and strip config (CLEAN-01..05)
@@ -74,6 +74,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Zero-Infrastructure Backends | 0/3 | Not started | - |
+| 1. Zero-Infrastructure Backends | 1/3 | In Progress|  |
 | 2. Claude Code Plugin and Auto-Capture | 0/2 | Not started | - |
 | 3. MCP Enhancements and Distribution | 0/2 | Not started | - |
