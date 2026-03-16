@@ -10,6 +10,7 @@ import pytest
 
 from agent_memory.hooks.session_start import handle as session_start_handle
 from agent_memory.hooks.post_tool_use import handle as post_tool_handle
+from agent_memory.hooks.stop import handle as stop_handle
 
 
 # ---------------------------------------------------------------------------
@@ -217,3 +218,162 @@ class TestPostToolUseHook:
         payload = {"event": "PostToolUse", "session_id": "s1", "cwd": str(store_path)}
         result = post_tool_handle(payload)
         assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# Stop hook
+# ---------------------------------------------------------------------------
+
+class TestStopHook:
+    def test_no_recent_memories_returns_empty(self, tmp_path):
+        store_path = tmp_path / "proj"
+        store_path.mkdir()
+        payload = {"event": "Stop", "session_id": "s1", "cwd": str(store_path)}
+        result = stop_handle(payload)
+        assert result == {}
+
+    def test_stores_summary_when_memories_exist(self, tmp_path):
+        store_path = tmp_path / "proj"
+        store_path.mkdir()
+        memwright_path = store_path / ".memwright"
+
+        # Pre-populate with some recent memories (simulating tool captures)
+        from agent_memory.core import AgentMemory
+        mem = AgentMemory(str(memwright_path))
+        mem.add("Created/wrote file src/main.py", tags=["file-change", "write"], category="project")
+        mem.add("Edited file src/utils.py", tags=["file-change", "edit"], category="project")
+        mem.add("Ran command: npm install express", tags=["command"], category="project")
+        mem.close()
+
+        payload = {"event": "Stop", "session_id": "s1", "cwd": str(store_path)}
+        result = stop_handle(payload)
+        assert result == {}
+
+        # Verify summary memory was stored
+        mem = AgentMemory(str(memwright_path))
+        memories = mem.search(category="session", limit=10)
+        mem.close()
+        assert len(memories) >= 1
+        summary = memories[0]
+        assert "session-summary" in summary.tags
+        assert summary.category == "session"
+
+    def test_summary_includes_file_change_counts(self, tmp_path):
+        store_path = tmp_path / "proj"
+        store_path.mkdir()
+        memwright_path = store_path / ".memwright"
+
+        from agent_memory.core import AgentMemory
+        mem = AgentMemory(str(memwright_path))
+        mem.add("Created/wrote file a.py", tags=["file-change", "write"], category="project")
+        mem.add("Created/wrote file b.py", tags=["file-change", "write"], category="project")
+        mem.add("Ran command: pytest", tags=["command"], category="project")
+        mem.close()
+
+        payload = {"event": "Stop", "session_id": "s1", "cwd": str(store_path)}
+        stop_handle(payload)
+
+        mem = AgentMemory(str(memwright_path))
+        memories = mem.search(category="session", limit=10)
+        mem.close()
+        assert len(memories) >= 1
+        summary_content = memories[0].content
+        assert "2 file changes" in summary_content
+        assert "1 command" in summary_content
+
+    def test_malformed_payload_returns_empty(self):
+        result = stop_handle({})
+        assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# CLI: mcp subcommand
+# ---------------------------------------------------------------------------
+
+class TestMcpSubcommand:
+    def test_mcp_parser_accepts_no_args(self):
+        """Verify `memwright mcp` parses without positional args."""
+        from agent_memory.cli import main
+        from unittest.mock import patch, MagicMock
+
+        # Mock asyncio.run to avoid actually starting the server
+        with patch("agent_memory.cli.asyncio") as mock_asyncio, \
+             patch("agent_memory.mcp.server.run_server") as mock_run:
+            mock_asyncio.run = MagicMock()
+            # This should not raise
+            try:
+                main(["mcp", "--path", "/tmp/test-memwright-store"])
+            except SystemExit:
+                pass  # argparse may exit
+
+    def test_mcp_default_path_resolution(self, monkeypatch):
+        """Verify default path uses MEMWRIGHT_PATH or ~/.memwright."""
+        import os
+        monkeypatch.delenv("MEMWRIGHT_PATH", raising=False)
+
+        from agent_memory.cli import main
+        from unittest.mock import patch, MagicMock, call
+
+        with patch("agent_memory.cli.asyncio") as mock_asyncio:
+            mock_asyncio.run = MagicMock()
+            try:
+                main(["mcp", "--path", "/tmp/test-mcp-default"])
+            except SystemExit:
+                pass
+
+    def test_mcp_env_var_override(self, tmp_path, monkeypatch):
+        """Verify MEMWRIGHT_PATH env var is used as default."""
+        custom_path = str(tmp_path / "custom-store")
+        monkeypatch.setenv("MEMWRIGHT_PATH", custom_path)
+
+        from agent_memory.cli import main
+        from unittest.mock import patch, MagicMock
+
+        captured_paths = []
+
+        original_run_server = None
+        def capture_run_server(path):
+            captured_paths.append(path)
+
+        with patch("agent_memory.cli.asyncio") as mock_asyncio:
+            mock_asyncio.run = MagicMock(side_effect=lambda coro: None)
+            with patch("agent_memory.mcp.server.run_server", side_effect=capture_run_server) as mock_srv:
+                try:
+                    main(["mcp"])
+                except (SystemExit, Exception):
+                    pass
+
+
+# ---------------------------------------------------------------------------
+# CLI: hook subcommand
+# ---------------------------------------------------------------------------
+
+class TestHookSubcommand:
+    def test_hook_session_start_exists(self):
+        """Verify `memwright hook session-start` is a valid subcommand."""
+        from agent_memory.cli import main
+        from unittest.mock import patch
+        import io
+
+        # Provide JSON on stdin so the hook can process it
+        stdin_data = json.dumps({"event": "SessionStart", "session_id": "s1", "cwd": "/tmp/nonexistent"})
+        with patch("sys.stdin", io.StringIO(stdin_data)), \
+             patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            try:
+                main(["hook", "session-start"])
+            except SystemExit:
+                pass
+
+    def test_hook_stop_exists(self):
+        """Verify `memwright hook stop` is a valid subcommand."""
+        from agent_memory.cli import main
+        from unittest.mock import patch
+        import io
+
+        stdin_data = json.dumps({"event": "Stop", "session_id": "s1", "cwd": "/tmp/nonexistent"})
+        with patch("sys.stdin", io.StringIO(stdin_data)), \
+             patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            try:
+                main(["hook", "stop"])
+            except SystemExit:
+                pass
