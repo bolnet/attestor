@@ -80,13 +80,14 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 ### Phase 4: Run benchmarks on v2 backends and compare scores
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Run MAB and LOCOMO benchmarks on v2 backends (ChromaDB + NetworkX), compare scores to v1 baselines, fix regressions, update landing page
+**Requirements**: BENCH-01, BENCH-02
 **Depends on:** Phase 3
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 4 to break down)
+- [ ] 04-01-PLAN.md — Run MAB and LOCOMO benchmarks, capture results (BENCH-01, BENCH-02)
+- [ ] 04-02-PLAN.md — Compare scores to baselines, update landing page (BENCH-01, BENCH-02)
 
 ### Phase 5: Submit plugin to official Anthropic marketplace
 
