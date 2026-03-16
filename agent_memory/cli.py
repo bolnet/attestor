@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import sys
@@ -163,6 +164,23 @@ def main(argv=None):
     p_mab.add_argument("--output", "-o", default=None, help="Save results JSON to file")
     p_mab.add_argument("--env-file", default=None, help="Path to .env file for API keys")
 
+    # mcp (zero-config MCP server -- used by .mcp.json)
+    p_mcp = subparsers.add_parser(
+        "mcp",
+        help="Start MCP server with default store path (zero-config)",
+    )
+    p_mcp.add_argument(
+        "--path", default=None,
+        help="Override store path (default: $MEMWRIGHT_PATH or ~/.memwright)",
+    )
+
+    # hook (delegates to hook handlers)
+    p_hook = subparsers.add_parser("hook", help="Run a Claude Code lifecycle hook")
+    hook_sub = p_hook.add_subparsers(dest="hook_name", help="Hook to run")
+    hook_sub.add_parser("session-start", help="SessionStart hook")
+    hook_sub.add_parser("post-tool-use", help="PostToolUse hook")
+    hook_sub.add_parser("stop", help="Stop hook")
+
     args = parser.parse_args(argv)
 
     if not args.command:
@@ -188,6 +206,8 @@ def main(argv=None):
         "doctor": _cmd_doctor,
         "locomo": _cmd_locomo,
         "mab": _cmd_mab,
+        "mcp": _cmd_mcp_serve,
+        "hook": _cmd_hook,
     }
     handlers[args.command](args)
 
@@ -544,6 +564,51 @@ def _cmd_mab(args):
         output_path = Path(args.output)
         output_path.write_text(json.dumps(results, indent=2))
         print(f"\nResults saved to {args.output}")
+
+
+def _cmd_mcp_serve(args):
+    """Start MCP server with default store path (zero-config)."""
+    try:
+        from agent_memory.mcp.server import run_server
+    except ImportError:
+        print("MCP support requires: pip install agent-memory[mcp]")
+        sys.exit(1)
+
+    store_path = getattr(args, "path", None)
+    if not store_path:
+        store_path = os.environ.get(
+            "MEMWRIGHT_PATH", os.path.expanduser("~/.memwright")
+        )
+
+    # Ensure store directory and DB exist
+    Path(store_path).mkdir(parents=True, exist_ok=True)
+    AgentMemory(store_path).close()
+
+    print(f"Starting MCP server for {store_path}...", file=sys.stderr)
+    asyncio.run(run_server(store_path))
+
+
+def _cmd_hook(args):
+    """Dispatch to the appropriate hook handler."""
+    hook_name = getattr(args, "hook_name", None)
+    if not hook_name:
+        print("Usage: memwright hook {session-start|post-tool-use|stop}")
+        return
+
+    hook_handlers = {
+        "session-start": "agent_memory.hooks.session_start",
+        "post-tool-use": "agent_memory.hooks.post_tool_use",
+        "stop": "agent_memory.hooks.stop",
+    }
+
+    module_name = hook_handlers.get(hook_name)
+    if not module_name:
+        print(f"Unknown hook: {hook_name}")
+        return
+
+    import importlib
+    mod = importlib.import_module(module_name)
+    mod.main()
 
 
 if __name__ == "__main__":
