@@ -13,7 +13,7 @@ Memwright v2 is a brownfield rebuild that replaces Docker-dependent backends (pg
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Zero-Infrastructure Backends** - Replace pgvector/Neo4j with ChromaDB + NetworkX, remove all Docker deps, auto-provision on first use
-- [ ] **Phase 2: Claude Code Plugin and Auto-Capture** - Plugin packaging, SessionStart/PostToolUse/Stop hooks for automatic memory capture
+- [x] **Phase 2: Claude Code Plugin and Auto-Capture** - Plugin packaging, SessionStart/PostToolUse/Stop hooks for automatic memory capture (completed 2026-03-16)
 - [ ] **Phase 3: MCP Enhancements and Distribution** - MCP resources/prompts, skills, PyPI/registry publishing with new deps
 
 ## Phase Details
@@ -45,7 +45,7 @@ Plans:
   3. When the user writes/edits files or runs commands, observations are automatically captured as memories
   4. On session end, a session summary with key decisions is stored as a memory
   5. Hooks are registered in `hooks/hooks.json` and callable as shell commands
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 02-01-PLAN.md — Plugin manifest, marketplace catalog, MCP bundle, CLAUDE.md (PLUG-01..05)
@@ -75,5 +75,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Zero-Infrastructure Backends | 3/3 | Complete | 2026-03-16 |
-| 2. Claude Code Plugin and Auto-Capture | 0/2 | In Progress | - |
+| 2. Claude Code Plugin and Auto-Capture | 2/2 | Complete   | 2026-03-16 |
 | 3. MCP Enhancements and Distribution | 0/2 | Not started | - |

@@ -46,11 +46,11 @@
 
 ### Auto-Capture Hooks
 
-- [ ] **HOOK-01**: SessionStart hook injects relevant memories into conversation context
-- [ ] **HOOK-02**: PostToolUse hook captures observations from Write/Edit/Bash tool use
-- [ ] **HOOK-03**: Stop hook summarizes session and stores key decisions as memories
-- [ ] **HOOK-04**: Hooks registered in `hooks/hooks.json` within plugin structure
-- [ ] **HOOK-05**: Hook scripts callable as shell commands pointing to Python entry points
+- [x] **HOOK-01**: SessionStart hook injects relevant memories into conversation context
+- [x] **HOOK-02**: PostToolUse hook captures observations from Write/Edit/Bash tool use
+- [x] **HOOK-03**: Stop hook summarizes session and stores key decisions as memories
+- [x] **HOOK-04**: Hooks registered in `hooks/hooks.json` within plugin structure
+- [x] **HOOK-05**: Hook scripts callable as shell commands pointing to Python entry points
 
 ### Skills
 
@@ -124,11 +124,11 @@
 | PLUG-03 | Phase 2 | Complete |
 | PLUG-04 | Phase 2 | Complete |
 | PLUG-05 | Phase 2 | Complete |
-| HOOK-01 | Phase 2 | Pending |
-| HOOK-02 | Phase 2 | Pending |
-| HOOK-03 | Phase 2 | Pending |
-| HOOK-04 | Phase 2 | Pending |
-| HOOK-05 | Phase 2 | Pending |
+| HOOK-01 | Phase 2 | Complete |
+| HOOK-02 | Phase 2 | Complete |
+| HOOK-03 | Phase 2 | Complete |
+| HOOK-04 | Phase 2 | Complete |
+| HOOK-05 | Phase 2 | Complete |
 | SKILL-01 | Phase 3 | Pending |
 | SKILL-02 | Phase 3 | Pending |
 | SKILL-03 | Phase 3 | Pending |
