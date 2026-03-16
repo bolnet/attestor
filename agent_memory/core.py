@@ -1,4 +1,4 @@
-"""AgentMemory main class — the public API."""
+"""AgentMemory main class -- the public API."""
 
 from __future__ import annotations
 
@@ -45,53 +45,11 @@ class AgentMemory:
         db_path = self.path / "memory.db"
         self._store = SQLiteStore(db_path)
 
-        # Initialize pgvector store
+        # TODO: rewire in Plan 03 -- new vector backend (ChromaDB)
         self._vector_store = None
-        if self.config.pg_connection_string:
-            try:
-                from agent_memory.store.vector_store import VectorStore
-                self._vector_store = VectorStore(self.config.pg_connection_string)
-            except ImportError:
-                logger.error(
-                    "pgvector requires psycopg. "
-                    "Install with: pip install memwright[vectors]"
-                )
-            except Exception as e:
-                logger.error(
-                    "Could not connect to PostgreSQL (%s). "
-                    "Run: docker compose up -d", e,
-                )
-        else:
-            logger.error(
-                "No pg_connection_string configured. "
-                "Set PG_CONNECTION_STRING in .env"
-            )
 
-        # Initialize Neo4j graph
+        # TODO: rewire in Plan 03 -- new graph backend (NetworkX)
         self._graph = None
-        if self.config.neo4j_password:
-            try:
-                from agent_memory.graph.neo4j_graph import Neo4jGraph
-                self._graph = Neo4jGraph(
-                    uri=self.config.neo4j_uri,
-                    auth=(self.config.neo4j_user, self.config.neo4j_password),
-                    database=self.config.neo4j_database,
-                )
-            except ImportError:
-                logger.error(
-                    "Neo4j requires the neo4j package. "
-                    "Install with: pip install memwright[neo4j]"
-                )
-            except Exception as e:
-                logger.error(
-                    "Could not connect to Neo4j (%s). "
-                    "Run: docker compose up -d", e,
-                )
-        else:
-            logger.error(
-                "No neo4j_password configured. "
-                "Set NEO4J_PASSWORD in .env"
-            )
 
         # Initialize managers
         self._temporal = TemporalManager(self._store)
@@ -102,7 +60,6 @@ class AgentMemory:
             graph=self._graph,
         )
 
-
     def close(self) -> None:
         """Close all database connections."""
         if self._vector_store:
@@ -112,7 +69,7 @@ class AgentMemory:
                 pass
         if self._graph:
             try:
-                self._graph.save()  # no-op for Neo4j
+                self._graph.save()
             except Exception:
                 pass
             if hasattr(self._graph, "close"):
@@ -128,7 +85,7 @@ class AgentMemory:
     def __exit__(self, *args):
         self.close()
 
-    # ── Write ──
+    # -- Write --
 
     def add(
         self,
@@ -161,34 +118,8 @@ class AgentMemory:
         for old in contradictions:
             self._temporal.supersede(old, memory.id)
 
-        # Store embedding in vector DB (if enabled)
-        if self._vector_store:
-            try:
-                from agent_memory.embeddings import get_embedding
-
-                embedding = get_embedding(content)
-                if embedding:
-                    self._vector_store.add(memory.id, content, embedding)
-            except Exception:
-                pass  # Non-fatal: vector store failure doesn't block memory storage
-
-        # Update entity graph (if enabled)
-        if self._graph:
-            try:
-                from agent_memory.graph.extractor import extract_entities_and_relations
-
-                nodes, edges = extract_entities_and_relations(
-                    content, tags or [], entity, category
-                )
-                for node in nodes:
-                    self._graph.add_entity(node["name"], node["type"], node.get("attributes", {}))
-                for edge in edges:
-                    self._graph.add_relation(
-                        edge["from"], edge["to"], edge["type"], edge.get("metadata", {})
-                    )
-                self._graph.save()
-            except Exception:
-                pass  # Non-fatal
+        # TODO: rewire in Plan 03 -- store embedding in vector DB
+        # TODO: rewire in Plan 03 -- update entity graph
 
         return memory
 
@@ -196,7 +127,7 @@ class AgentMemory:
         """Get a specific memory by ID."""
         return self._store.get(memory_id)
 
-    # ── Read ──
+    # -- Read --
 
     def recall(
         self, query: str, budget: Optional[int] = None
@@ -223,54 +154,17 @@ class AgentMemory:
         limit: int = 10,
     ) -> List[Memory]:
         """Search memories with filters."""
-        if query and self._vector_store:
-            # Use vector search with filters applied after
-            try:
-                from agent_memory.embeddings import get_embedding
+        # TODO: rewire in Plan 03 -- vector search path
+        return self._store.list_memories(
+            status=status,
+            category=category,
+            entity=entity,
+            after=after,
+            before=before,
+            limit=limit,
+        )
 
-                query_embedding = get_embedding(query)
-                if query_embedding:
-                    vec_results = self._vector_store.search(query_embedding, limit=limit * 2)
-                    memories = []
-                    for vr in vec_results:
-                        memory = self._store.get(vr["memory_id"])
-                        if memory:
-                            memories.append(memory)
-                    # Apply filters
-                    if category:
-                        memories = [m for m in memories if m.category == category]
-                    if entity:
-                        memories = [m for m in memories if m.entity and entity.lower() in m.entity.lower()]
-                    if status:
-                        memories = [m for m in memories if m.status == status]
-                    if after:
-                        memories = [m for m in memories if m.created_at >= after]
-                    if before:
-                        memories = [m for m in memories if m.created_at <= before]
-                    return memories[:limit]
-            except Exception:
-                pass  # Fall through to list_memories
-            return self._store.list_memories(
-                status=status, category=category, entity=entity,
-                after=after, before=before, limit=limit,
-            )
-        elif query:
-            # No vector store — fall back to listing with filters
-            return self._store.list_memories(
-                status=status, category=category, entity=entity,
-                after=after, before=before, limit=limit,
-            )
-        else:
-            return self._store.list_memories(
-                status=status,
-                category=category,
-                entity=entity,
-                after=after,
-                before=before,
-                limit=limit,
-            )
-
-    # ── Timeline ──
+    # -- Timeline --
 
     def timeline(self, entity: str) -> List[Memory]:
         """Get all memories about an entity in chronological order."""
@@ -284,7 +178,7 @@ class AgentMemory:
         """Get only active, non-superseded memories."""
         return self._temporal.current_facts(category=category, entity=entity)
 
-    # ── Extraction ──
+    # -- Extraction --
 
     def extract(
         self,
@@ -307,34 +201,17 @@ class AgentMemory:
             stored.append(stored_mem)
         return stored
 
-    # ── Batch Operations ──
+    # -- Batch Operations --
 
     def batch_embed(self, batch_size: int = 100) -> int:
         """Batch-compute and store embeddings for all active memories.
 
-        More efficient than per-memory embedding during add() since it uses
-        batch API calls. Returns count of newly embedded memories.
+        Returns count of newly embedded memories.
         """
-        if not self._vector_store:
-            return 0
+        # TODO: rewire in Plan 03 -- batch embedding with new vector backend
+        return 0
 
-        from agent_memory.embeddings import get_embeddings_batch
-
-        all_memories = self._store.list_memories(status="active", limit=100_000)
-        count = 0
-
-        for i in range(0, len(all_memories), batch_size):
-            batch = all_memories[i : i + batch_size]
-            texts = [m.content for m in batch]
-            embeddings = get_embeddings_batch(texts)
-            for mem_obj, emb in zip(batch, embeddings):
-                if emb is not None:
-                    self._vector_store.add(mem_obj.id, mem_obj.content, emb)
-                    count += 1
-
-        return count
-
-    # ── Maintenance ──
+    # -- Maintenance --
 
     def forget(self, memory_id: str) -> bool:
         """Archive a specific memory."""
@@ -360,11 +237,9 @@ class AgentMemory:
     def health(self) -> Dict[str, Any]:
         """Check health of all components. Returns structured status report.
 
-        Each required service gets its own check mark. No fallbacks —
-        if a service is down, it's marked as down.
+        Currently only checks SQLite and retrieval pipeline.
+        Will be fully rewritten in Plan 03 with new backends.
         """
-        import shutil
-        import subprocess
         import time
 
         report: Dict[str, Any] = {
@@ -378,113 +253,7 @@ class AgentMemory:
             if status == "error":
                 report["healthy"] = False
 
-        # ── 1. Docker Daemon ──
-        docker_ok = False
-        if shutil.which("docker"):
-            try:
-                result = subprocess.run(
-                    ["docker", "info"], capture_output=True, timeout=5,
-                )
-                if result.returncode == 0:
-                    docker_ok = True
-                    _check("Docker", "ok")
-                else:
-                    _check("Docker", "error",
-                           error="Daemon not running. Start Docker Desktop.")
-            except Exception as e:
-                _check("Docker", "error", error=str(e))
-        else:
-            _check("Docker", "error", error="Docker not installed")
-
-        # ── 2. PostgreSQL Container ──
-        if docker_ok:
-            try:
-                cr = subprocess.run(
-                    ["docker", "inspect", "--format",
-                     "{{.State.Status}}", "memwright-postgres"],
-                    capture_output=True, text=True, timeout=5,
-                )
-                state = cr.stdout.strip() if cr.returncode == 0 else "not found"
-                if state == "running":
-                    _check("PostgreSQL Container", "ok")
-                else:
-                    _check("PostgreSQL Container", "error",
-                           error=f"Container state: {state}. Fix: docker compose up -d")
-            except Exception as e:
-                _check("PostgreSQL Container", "error", error=str(e))
-        else:
-            _check("PostgreSQL Container", "error",
-                   error="Docker not available")
-
-        # ── 3. pgvector Connection ──
-        try:
-            import psycopg
-            t0 = time.monotonic()
-            conn = psycopg.connect(self.config.pg_connection_string, autocommit=True)
-            cur = conn.cursor()
-            cur.execute("SELECT 1")
-            latency = round((time.monotonic() - t0) * 1000, 1)
-            # Check pgvector extension
-            cur.execute("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
-            row = cur.fetchone()
-            conn.close()
-            if row:
-                _check("pgvector", "ok", version=f"v{row[0]}", latency_ms=latency)
-            else:
-                _check("pgvector", "ok",
-                       note="Extension not yet installed (created on first use)",
-                       latency_ms=latency)
-        except ImportError:
-            _check("pgvector", "error",
-                   error="psycopg not installed. Fix: pip install memwright[vectors]")
-        except Exception as e:
-            _check("pgvector", "error",
-                   error="PostgreSQL unreachable. Fix: docker compose up -d")
-
-        # ── 4. Neo4j Container ──
-        if docker_ok:
-            try:
-                cr = subprocess.run(
-                    ["docker", "inspect", "--format",
-                     "{{.State.Status}}", "memwright-neo4j"],
-                    capture_output=True, text=True, timeout=5,
-                )
-                state = cr.stdout.strip() if cr.returncode == 0 else "not found"
-                if state == "running":
-                    _check("Neo4j Container", "ok")
-                else:
-                    _check("Neo4j Container", "error",
-                           error=f"Container state: {state}. Fix: docker compose up -d")
-            except Exception as e:
-                _check("Neo4j Container", "error", error=str(e))
-        else:
-            _check("Neo4j Container", "error",
-                   error="Docker not available")
-
-        # ── 5. Neo4j Connection ──
-        try:
-            from neo4j import GraphDatabase
-            t0 = time.monotonic()
-            driver = GraphDatabase.driver(
-                self.config.neo4j_uri,
-                auth=(self.config.neo4j_user, self.config.neo4j_password),
-            )
-            driver.verify_connectivity()
-            latency = round((time.monotonic() - t0) * 1000, 1)
-            info = driver.get_server_info()
-            driver.close()
-            details: Dict[str, Any] = {"latency_ms": latency}
-            if info:
-                details["version"] = str(info.agent)
-            _check("Neo4j", "ok", **details)
-        except ImportError:
-            _check("Neo4j", "error",
-                   error="neo4j package not installed. Fix: pip install memwright[neo4j]")
-        except Exception as e:
-            _check("Neo4j", "error",
-                   error="Neo4j unreachable. Fix: docker compose up -d")
-
-        # ── 6. SQLite ──
+        # -- SQLite --
         try:
             t0 = time.monotonic()
             row = self._store._conn.execute("SELECT COUNT(*) FROM memories").fetchone()
@@ -500,27 +269,7 @@ class AgentMemory:
         except Exception as e:
             _check("SQLite", "error", error=str(e))
 
-        # ── 7. Embeddings API ──
-        try:
-            from agent_memory.embeddings import available, _get_client, _model
-
-            if available():
-                client = _get_client()
-                provider = "unknown"
-                if hasattr(client, "base_url"):
-                    base_url = str(client.base_url)
-                    if "openrouter" in base_url:
-                        provider = "OpenRouter"
-                    else:
-                        provider = "OpenAI"
-                _check("Embeddings API", "ok", provider=provider, model=_model)
-            else:
-                _check("Embeddings API", "error",
-                       error="No API key. Set OPENROUTER_API_KEY or OPENAI_API_KEY")
-        except Exception as e:
-            _check("Embeddings API", "error", error=str(e))
-
-        # ── 8. Retrieval Pipeline ──
+        # -- Retrieval Pipeline --
         layers = ["tag_match"]
         if self._graph:
             layers.append("graph_expansion")
@@ -531,7 +280,7 @@ class AgentMemory:
 
         return report
 
-    # ── Export / Import ──
+    # -- Export / Import --
 
     def export_json(self, filepath: str) -> None:
         """Export all memories to a JSON file."""
@@ -569,7 +318,7 @@ class AgentMemory:
                 pass
         return count
 
-    # ── Raw SQL ──
+    # -- Raw SQL --
 
     def execute(self, sql: str, params: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
         """Execute raw SQL. Use with caution."""

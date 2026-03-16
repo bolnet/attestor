@@ -91,30 +91,7 @@ class RetrievalOrchestrator:
                         )
                         seen_ids.add(mem.id)
 
-        # Layer 3: Vector similarity (cosine)
-        if self.vector_store:
-            try:
-                from agent_memory.embeddings import get_embedding
-
-                query_embedding = get_embedding(query)
-                if query_embedding:
-                    vec_results = self.vector_store.search(query_embedding, limit=20)
-                    for vr in vec_results:
-                        # Look up the full memory from SQLite
-                        memory = self.store.get(vr["memory_id"])
-                        if memory and memory.status == "active":
-                            # Cosine distance → similarity score
-                            distance = vr.get("distance", 1.0)
-                            score = max(0.0, 1.0 - distance)
-                            results.append(
-                                RetrievalResult(
-                                    memory=memory,
-                                    score=score,
-                                    match_source="vector",
-                                )
-                            )
-            except Exception:
-                pass  # Vector search failure is non-fatal
+        # TODO: rewire in Plan 03 -- vector similarity layer (ChromaDB)
 
         # Layer 4: Inject graph relationship triples as synthetic memories
         # These give the LLM structured relationship data for multi-hop reasoning
