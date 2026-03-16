@@ -15,19 +15,19 @@
 
 ### Vector Search
 
-- [ ] **VEC-01**: ChromaDB runs as in-process PersistentClient (zero-config, no subprocess)
-- [ ] **VEC-02**: ChromaDB uses built-in sentence-transformers embeddings (no API key)
-- [ ] **VEC-03**: ChromaDB persistent storage at `{store_path}/chroma/`
-- [ ] **VEC-04**: Vector search returns results compatible with retrieval orchestrator (memory_id, content, distance)
-- [ ] **VEC-05**: ChromaDB auto-provisions on first use (collection created automatically)
+- [x] **VEC-01**: ChromaDB runs as in-process PersistentClient (zero-config, no subprocess)
+- [x] **VEC-02**: ChromaDB uses built-in sentence-transformers embeddings (no API key)
+- [x] **VEC-03**: ChromaDB persistent storage at `{store_path}/chroma/`
+- [x] **VEC-04**: Vector search returns results compatible with retrieval orchestrator (memory_id, content, distance)
+- [x] **VEC-05**: ChromaDB auto-provisions on first use (collection created automatically)
 
 ### Entity Graph
 
-- [ ] **GRAPH-01**: NetworkX MultiDiGraph replaces Neo4j for entity storage
-- [ ] **GRAPH-02**: Graph persisted as JSON at `{store_path}/graph.json`
-- [ ] **GRAPH-03**: Multi-hop traversal (get_related with depth parameter) works identically to Neo4j version
-- [ ] **GRAPH-04**: Entity/relation extraction populates NetworkX graph on memory add
-- [ ] **GRAPH-05**: Graph auto-provisions on first use (empty graph if no file exists)
+- [x] **GRAPH-01**: NetworkX MultiDiGraph replaces Neo4j for entity storage
+- [x] **GRAPH-02**: Graph persisted as JSON at `{store_path}/graph.json`
+- [x] **GRAPH-03**: Multi-hop traversal (get_related with depth parameter) works identically to Neo4j version
+- [x] **GRAPH-04**: Entity/relation extraction populates NetworkX graph on memory add
+- [x] **GRAPH-05**: Graph auto-provisions on first use (empty graph if no file exists)
 
 ### Auto-Provisioning
 
@@ -105,16 +105,16 @@
 | CLEAN-03 | Phase 1 | Complete |
 | CLEAN-04 | Phase 1 | Complete |
 | CLEAN-05 | Phase 1 | Complete |
-| VEC-01 | Phase 1 | Pending |
-| VEC-02 | Phase 1 | Pending |
-| VEC-03 | Phase 1 | Pending |
-| VEC-04 | Phase 1 | Pending |
-| VEC-05 | Phase 1 | Pending |
-| GRAPH-01 | Phase 1 | Pending |
-| GRAPH-02 | Phase 1 | Pending |
-| GRAPH-03 | Phase 1 | Pending |
-| GRAPH-04 | Phase 1 | Pending |
-| GRAPH-05 | Phase 1 | Pending |
+| VEC-01 | Phase 1 | Complete |
+| VEC-02 | Phase 1 | Complete |
+| VEC-03 | Phase 1 | Complete |
+| VEC-04 | Phase 1 | Complete |
+| VEC-05 | Phase 1 | Complete |
+| GRAPH-01 | Phase 1 | Complete |
+| GRAPH-02 | Phase 1 | Complete |
+| GRAPH-03 | Phase 1 | Complete |
+| GRAPH-04 | Phase 1 | Complete |
+| GRAPH-05 | Phase 1 | Complete |
 | PROV-01 | Phase 1 | Pending |
 | PROV-02 | Phase 1 | Pending |
 | PROV-03 | Phase 1 | Pending |
