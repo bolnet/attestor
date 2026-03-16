@@ -5,12 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "memwright"
 version = "0.1.3"
-description = "Embedded memory for AI agents with SQLite, pgvector, and graph support."
+description = "Embedded memory for AI agents with SQLite, ChromaDB, and NetworkX graph support."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.9"
 authors = [{ name = "aarjay" }]
-keywords = ["ai", "agent", "memory", "llm", "sqlite", "pgvector", "graph", "embedded"]
+keywords = ["ai", "agent", "memory", "llm", "sqlite", "chromadb", "networkx", "graph", "embedded"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -24,6 +24,10 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
+dependencies = [
+    "chromadb>=0.4.0",
+    "networkx>=3.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/bolnet/agent-memory"
@@ -31,19 +35,8 @@ Repository = "https://github.com/bolnet/agent-memory"
 Issues = "https://github.com/bolnet/agent-memory/issues"
 
 [project.optional-dependencies]
-vectors = ["psycopg[binary]>=3.2.0", "psycopg-pool>=3.2.0", "pgvector>=0.3.0", "numpy>=1.24.0", "openai>=1.0.0"]
-neo4j = ["neo4j>=5.0"]
 extraction = ["openai>=1.0.0"]
 mcp = ["mcp>=1.0.0"]
-production = [
-    "psycopg[binary]>=3.2.0", "psycopg-pool>=3.2.0", "pgvector>=0.3.0", "numpy>=1.24.0",
-    "openai>=1.0.0", "neo4j>=5.0",
-]
-all = [
-    "psycopg[binary]>=3.2.0", "psycopg-pool>=3.2.0", "pgvector>=0.3.0", "numpy>=1.24.0",
-    "openai>=1.0.0", "neo4j>=5.0",
-    "mcp>=1.0.0",
-]
 dev = ["pytest>=7.0", "pytest-cov>=4.0"]
 
 [project.scripts]
