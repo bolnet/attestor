@@ -61,7 +61,7 @@ Plans:
   3. `/mcp__memwright__recall` and `/mcp__memwright__timeline` work as native MCP prompt commands
   4. `pip install memwright` on a clean machine gives a working zero-config memory system (no extras needed)
   5. MCP Registry listing reflects new version with updated deps and capabilities
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 03-01-PLAN.md — MCP resources, prompts, and tool verification (MCP-01..05)
@@ -76,4 +76,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. Zero-Infrastructure Backends | 3/3 | Complete | 2026-03-16 |
 | 2. Claude Code Plugin and Auto-Capture | 2/2 | Complete   | 2026-03-16 |
-| 3. MCP Enhancements and Distribution | 0/2 | Not started | - |
+| 3. MCP Enhancements and Distribution | 1/2 | In Progress|  |
