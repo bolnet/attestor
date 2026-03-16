@@ -38,11 +38,11 @@
 
 ### Plugin System
 
-- [ ] **PLUG-01**: Plugin manifest at `.claude-plugin/plugin.json` with marketplace metadata
-- [ ] **PLUG-02**: Marketplace catalog at `.claude-plugin/marketplace.json`
-- [ ] **PLUG-03**: Users can install via `/plugin marketplace add bolnet/agent-memory`
-- [ ] **PLUG-04**: Plugin bundles MCP server via `.mcp.json`
-- [ ] **PLUG-05**: Plugin includes CLAUDE.md with usage instructions
+- [x] **PLUG-01**: Plugin manifest at `.claude-plugin/plugin.json` with marketplace metadata
+- [x] **PLUG-02**: Marketplace catalog at `.claude-plugin/marketplace.json`
+- [x] **PLUG-03**: Users can install via `/plugin marketplace add bolnet/agent-memory`
+- [x] **PLUG-04**: Plugin bundles MCP server via `.mcp.json`
+- [x] **PLUG-05**: Plugin includes CLAUDE.md with usage instructions
 
 ### Auto-Capture Hooks
 
@@ -119,11 +119,11 @@
 | PROV-02 | Phase 1 | Complete |
 | PROV-03 | Phase 1 | Complete |
 | PROV-04 | Phase 1 | Complete |
-| PLUG-01 | Phase 2 | Pending |
-| PLUG-02 | Phase 2 | Pending |
-| PLUG-03 | Phase 2 | Pending |
-| PLUG-04 | Phase 2 | Pending |
-| PLUG-05 | Phase 2 | Pending |
+| PLUG-01 | Phase 2 | Complete |
+| PLUG-02 | Phase 2 | Complete |
+| PLUG-03 | Phase 2 | Complete |
+| PLUG-04 | Phase 2 | Complete |
+| PLUG-05 | Phase 2 | Complete |
 | HOOK-01 | Phase 2 | Pending |
 | HOOK-02 | Phase 2 | Pending |
 | HOOK-03 | Phase 2 | Pending |

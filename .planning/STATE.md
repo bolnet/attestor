@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-16T01:48:48.724Z"
-last_activity: 2026-03-16 — Completed 01-03 (Wire backends, complete integration)
+status: in-progress
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-16T02:27:06Z"
+last_activity: 2026-03-16 — Completed 02-01 (Plugin packaging and manifests)
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_plans: 7
+  completed_plans: 4
+  percent: 57
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15)
 
 **Core value:** Zero-config automatic memory that just works — install and forget
-**Current focus:** Phase 1: Zero-Infrastructure Backends
+**Current focus:** Phase 2: Claude Code Plugin and Auto-Capture
 
 ## Current Position
 
-Phase: 1 of 3 (Zero-Infrastructure Backends) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase 1 complete
-Last activity: 2026-03-16 — Completed 01-03 (Wire backends, complete integration)
+Phase: 2 of 3 (Claude Code Plugin and Auto-Capture)
+Plan: 1 of 2 in current phase (complete)
+Status: In progress
+Last activity: 2026-03-16 — Completed 02-01 (Plugin packaging and manifests)
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 3.7min
+- Total plans completed: 4
+- Average duration: 3min
 - Total execution time: 0.2 hours
 
 **By Phase:**
@@ -44,6 +44,7 @@ Progress: [██████████] 100%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 3/3 | 11min | 3.7min |
+| 02 | 1/2 | 1min | 1min |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -69,6 +70,8 @@ Recent decisions affecting current work:
 - [01-03] Backend init wrapped in try/except -- runtime errors log warning, SQLite never breaks
 - [01-03] Vector search passes text to ChromaStore.search() -- no embedding step
 - [01-03] search() uses ChromaDB semantic search first, falls back to SQLite list
+- [02-01] mcp_config references ../.mcp.json (repo root) for Claude Code auto-discovery
+- [02-01] .mcp.json uses memwright mcp (zero-config, no path arg) -- subcommand created by plan 02-02
 
 ### Pending Todos
 
@@ -80,5 +83,5 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T01:48:48.721Z
-Stopped at: Phase 2 context gathered
+Last session: 2026-03-16T02:27:06Z
+Stopped at: Completed 02-01-PLAN.md
