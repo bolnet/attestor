@@ -1,33 +1,83 @@
-"""ChromaDB vector store — zero-config local embeddings, no API key required."""
+"""ChromaDB vector store — OpenAI embeddings via OpenRouter when available, local fallback."""
 
 from __future__ import annotations
 
+import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 
 import chromadb
-from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+
+logger = logging.getLogger("agent_memory")
+
+
+def _get_embedding_function():
+    """Select best available embedding function.
+
+    Priority:
+    1. OpenAI text-embedding-3-small via OpenRouter (1536D, SOTA quality)
+    2. OpenAI text-embedding-3-small via OpenAI direct (1536D)
+    3. Local sentence-transformers all-MiniLM-L6-v2 (384D, zero-config fallback)
+    """
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+    openai_key = os.environ.get("OPENAI_API_KEY")
+
+    if openrouter_key:
+        try:
+            from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+            logger.info("Using OpenAI embeddings via OpenRouter (text-embedding-3-small)")
+            return OpenAIEmbeddingFunction(
+                api_key=openrouter_key,
+                api_base="https://openrouter.ai/api/v1",
+                model_name="openai/text-embedding-3-small",
+            ), "openai-openrouter"
+        except Exception as e:
+            logger.warning("OpenRouter embedding setup failed: %s, falling back to local", e)
+
+    if openai_key:
+        try:
+            from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+            logger.info("Using OpenAI embeddings direct (text-embedding-3-small)")
+            return OpenAIEmbeddingFunction(
+                api_key=openai_key,
+                model_name="text-embedding-3-small",
+            ), "openai-direct"
+        except Exception as e:
+            logger.warning("OpenAI embedding setup failed: %s, falling back to local", e)
+
+    from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+    logger.info("Using local sentence-transformers embeddings (all-MiniLM-L6-v2)")
+    return SentenceTransformerEmbeddingFunction(
+        model_name="all-MiniLM-L6-v2",
+    ), "local"
 
 
 class ChromaStore:
-    """Persistent vector store using ChromaDB with local sentence-transformer embeddings.
+    """Persistent vector store using ChromaDB.
 
-    Drop-in replacement for the old pgvector VectorStore.
-    ChromaDB handles embedding generation internally via sentence-transformers,
-    so no API key or external service is needed.
+    Uses OpenAI text-embedding-3-small (1536D) via OpenRouter/OpenAI when
+    an API key is available. Falls back to local sentence-transformers (384D)
+    for zero-config operation.
+
+    IMPORTANT: Switching embedding models invalidates existing vectors.
+    Use batch_embed() to re-embed after changing models.
     """
 
     def __init__(self, store_path: Path) -> None:
         chroma_path = store_path / "chroma"
         self._client = chromadb.PersistentClient(path=str(chroma_path))
-        self._embedding_fn = SentenceTransformerEmbeddingFunction(
-            model_name="all-MiniLM-L6-v2",
-        )
+        self._embedding_fn, self._provider = _get_embedding_function()
         self._collection = self._client.get_or_create_collection(
             name="memories",
             embedding_function=self._embedding_fn,
             metadata={"hnsw:space": "cosine"},
         )
+
+    @property
+    def provider(self) -> str:
+        """Return the current embedding provider name."""
+        return self._provider
 
     def add(self, memory_id: str, content: str) -> None:
         """Store content with auto-generated embedding. Upserts if id exists."""
@@ -63,7 +113,6 @@ class ChromaStore:
 
     def delete(self, memory_id: str) -> bool:
         """Remove embedding by memory id. Returns True if it existed."""
-        # Check existence first — ChromaDB delete doesn't error on missing ids
         existing = self._collection.get(ids=[memory_id])
         if not existing["ids"]:
             return False
