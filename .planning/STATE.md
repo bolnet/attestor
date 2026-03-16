@@ -89,6 +89,7 @@ Recent decisions affecting current work:
 
 - Phase 4 added: Run benchmarks on v2 backends and compare scores
 - Phase 5 added: Submit plugin to official Anthropic marketplace
+- Phase 6 added: Fix MAB benchmark regression — all-MiniLM-L6-v2 (384D) too weak for MAB tasks
 
 ### Pending Todos
 

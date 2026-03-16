@@ -99,3 +99,13 @@ Plans:
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 5 to break down)
+
+### Phase 6: Fix MAB benchmark regression - upgrade embedding model
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 5
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 6 to break down)
