@@ -61,12 +61,18 @@ def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
                 model_name="text-embedding-3-small",
             )
 
-        # Replace the vector store with one using OpenAI embeddings
+        # Must delete existing collection first — ChromaDB won't change
+        # embedding function on an existing collection
+        if mem._vector_store:
+            mem._vector_store._client.delete_collection("memories")
         new_store = ChromaStore(mem.path, embedding_function=embedding_fn)
         mem._vector_store = new_store
         mem._retrieval.vector_store = new_store
-    except Exception:
-        pass  # Fall back to local embeddings silently
+    except Exception as e:
+        import logging
+        logging.getLogger("agent_memory").warning(
+            "Benchmark embedding upgrade failed: %s — using local embeddings", e
+        )
 
 
 # ---------------------------------------------------------------------------
