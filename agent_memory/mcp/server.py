@@ -1,4 +1,4 @@
-"""MCP server exposing AgentMemory as tools for Claude Code / Claude Desktop."""
+"""MCP server exposing AgentMemory as tools, resources, and prompts."""
 
 from __future__ import annotations
 
@@ -9,8 +9,188 @@ from typing import Any
 from agent_memory.core import AgentMemory
 
 
+def _build_handlers(mem: AgentMemory) -> dict:
+    """Build resource and prompt handler functions for an AgentMemory instance.
+
+    Returns a dict of async handler functions that can be registered with
+    an MCP server or called directly in tests.
+    """
+    from mcp.types import (
+        GetPromptResult,
+        Prompt,
+        PromptArgument,
+        PromptMessage,
+        Resource,
+        ResourceTemplate,
+        TextContent,
+    )
+
+    async def list_resources() -> list[Resource]:
+        resources: list[Resource] = []
+
+        # Entity resources (only if graph is available)
+        if mem._graph is not None:
+            for entity in mem._graph.get_entities():
+                resources.append(
+                    Resource(
+                        uri=f"memwright://entity/{entity['key']}",
+                        name=entity["name"],
+                        description=f"{entity['type']} entity",
+                        mimeType="application/json",
+                    )
+                )
+
+        # Recent memory resources (last 50 active)
+        for m in mem.search(limit=50):
+            resources.append(
+                Resource(
+                    uri=f"memwright://memory/{m.id}",
+                    name=m.content[:80],
+                    description=f"{m.category} memory",
+                    mimeType="application/json",
+                )
+            )
+
+        return resources
+
+    async def read_resource(uri) -> str:
+        uri_str = str(uri)
+
+        if uri_str.startswith("memwright://entity/"):
+            if mem._graph is None:
+                raise ValueError("Graph not available")
+            key = uri_str[len("memwright://entity/"):]
+            # Find matching entity
+            entities = mem._graph.get_entities()
+            match = next((e for e in entities if e["key"] == key), None)
+            if match is None:
+                raise ValueError(f"Entity not found: {key}")
+            related = mem._graph.get_related(key)
+            return json.dumps({
+                "name": match["name"],
+                "type": match["type"],
+                "key": match["key"],
+                "attributes": match.get("attributes", {}),
+                "related": related,
+            }, indent=2)
+
+        elif uri_str.startswith("memwright://memory/"):
+            memory_id = uri_str[len("memwright://memory/"):]
+            memory = mem.get(memory_id)
+            if memory is None:
+                raise ValueError(f"Memory not found: {memory_id}")
+            return json.dumps({
+                "id": memory.id,
+                "content": memory.content,
+                "category": memory.category,
+                "entity": memory.entity,
+                "tags": memory.tags,
+                "status": memory.status,
+                "event_date": memory.event_date,
+                "created_at": memory.created_at,
+            }, indent=2)
+
+        else:
+            raise ValueError(f"Unknown resource URI: {uri_str}")
+
+    async def list_resource_templates() -> list[ResourceTemplate]:
+        return [
+            ResourceTemplate(
+                uriTemplate="memwright://entity/{name}",
+                name="Entity",
+                description="Look up an entity by name",
+                mimeType="application/json",
+            ),
+            ResourceTemplate(
+                uriTemplate="memwright://memory/{id}",
+                name="Memory",
+                description="Look up a memory by ID",
+                mimeType="application/json",
+            ),
+        ]
+
+    async def list_prompts() -> list[Prompt]:
+        return [
+            Prompt(
+                name="recall",
+                description="Search memories for relevant context",
+                arguments=[
+                    PromptArgument(
+                        name="query",
+                        description="Natural language query to search memories",
+                        required=True,
+                    ),
+                ],
+            ),
+            Prompt(
+                name="timeline",
+                description="Get chronological history of an entity",
+                arguments=[
+                    PromptArgument(
+                        name="entity",
+                        description="Entity name to get timeline for",
+                        required=True,
+                    ),
+                ],
+            ),
+        ]
+
+    async def get_prompt(
+        name: str, arguments: dict[str, str] | None
+    ) -> GetPromptResult:
+        args = arguments or {}
+
+        if name == "recall":
+            query = args.get("query", "")
+            results = mem.recall(query)
+            lines = []
+            for r in results:
+                lines.append(
+                    f"[{r.match_source}] (score: {r.score:.2f}) {r.memory.content}"
+                )
+            text = "\n".join(lines) if lines else "No memories found."
+            return GetPromptResult(
+                description=f"Recall results for: {query}",
+                messages=[
+                    PromptMessage(
+                        role="user",
+                        content=TextContent(type="text", text=text),
+                    ),
+                ],
+            )
+
+        elif name == "timeline":
+            entity = args.get("entity", "")
+            memories = mem.timeline(entity)
+            lines = []
+            for m in memories:
+                date = m.event_date or m.created_at
+                lines.append(f"[{date}] {m.content}")
+            text = "\n".join(lines) if lines else f"No timeline for {entity}."
+            return GetPromptResult(
+                description=f"Timeline for: {entity}",
+                messages=[
+                    PromptMessage(
+                        role="user",
+                        content=TextContent(type="text", text=text),
+                    ),
+                ],
+            )
+
+        else:
+            raise ValueError(f"Unknown prompt: {name}")
+
+    return {
+        "list_resources": list_resources,
+        "read_resource": read_resource,
+        "list_resource_templates": list_resource_templates,
+        "list_prompts": list_prompts,
+        "get_prompt": get_prompt,
+    }
+
+
 def create_server(memory_path: str):
-    """Create an MCP server exposing AgentMemory tools.
+    """Create an MCP server exposing AgentMemory tools, resources, and prompts.
 
     Requires: pip install agent-memory[mcp]
     """
@@ -27,6 +207,8 @@ def create_server(memory_path: str):
 
     mem = AgentMemory(memory_path)
     server = Server("agent-memory")
+
+    # -- Tools --
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -181,6 +363,30 @@ def create_server(memory_path: str):
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
         except Exception as e:
             return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+    # -- Resources and Prompts --
+
+    handlers = _build_handlers(mem)
+
+    @server.list_resources()
+    async def _list_resources():
+        return await handlers["list_resources"]()
+
+    @server.read_resource()
+    async def _read_resource(uri):
+        return await handlers["read_resource"](uri)
+
+    @server.list_resource_templates()
+    async def _list_resource_templates():
+        return await handlers["list_resource_templates"]()
+
+    @server.list_prompts()
+    async def _list_prompts():
+        return await handlers["list_prompts"]()
+
+    @server.get_prompt()
+    async def _get_prompt(name, arguments):
+        return await handlers["get_prompt"](name, arguments)
 
     return server
 
