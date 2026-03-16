@@ -54,9 +54,9 @@
 
 ### Skills
 
-- [ ] **SKILL-01**: `/memwright:mem-recall` skill for natural language memory search
-- [ ] **SKILL-02**: `/memwright:mem-timeline` skill for entity timeline queries
-- [ ] **SKILL-03**: `/memwright:mem-health` skill for component health check
+- [x] **SKILL-01**: `/memwright:mem-recall` skill for natural language memory search
+- [x] **SKILL-02**: `/memwright:mem-timeline` skill for entity timeline queries
+- [x] **SKILL-03**: `/memwright:mem-health` skill for component health check
 
 ### MCP Enhancements
 
@@ -68,10 +68,10 @@
 
 ### Distribution
 
-- [ ] **DIST-01**: `pip install memwright` works for any MCP client (zero-config)
-- [ ] **DIST-02**: `/plugin marketplace add bolnet/agent-memory` works for Claude Code
-- [ ] **DIST-03**: PyPI package updated with new dependencies (chromadb, networkx, no psycopg/neo4j)
-- [ ] **DIST-04**: MCP Registry listing updated
+- [x] **DIST-01**: `pip install memwright` works for any MCP client (zero-config)
+- [x] **DIST-02**: `/plugin marketplace add bolnet/agent-memory` works for Claude Code
+- [x] **DIST-03**: PyPI package updated with new dependencies (chromadb, networkx, no psycopg/neo4j)
+- [x] **DIST-04**: MCP Registry listing updated
 
 ## v2 Requirements
 
@@ -129,18 +129,18 @@
 | HOOK-03 | Phase 2 | Complete |
 | HOOK-04 | Phase 2 | Complete |
 | HOOK-05 | Phase 2 | Complete |
-| SKILL-01 | Phase 3 | Pending |
-| SKILL-02 | Phase 3 | Pending |
-| SKILL-03 | Phase 3 | Pending |
+| SKILL-01 | Phase 3 | Complete |
+| SKILL-02 | Phase 3 | Complete |
+| SKILL-03 | Phase 3 | Complete |
 | MCP-01 | Phase 3 | Pending |
 | MCP-02 | Phase 3 | Pending |
 | MCP-03 | Phase 3 | Pending |
 | MCP-04 | Phase 3 | Pending |
 | MCP-05 | Phase 3 | Pending |
-| DIST-01 | Phase 3 | Pending |
-| DIST-02 | Phase 3 | Pending |
-| DIST-03 | Phase 3 | Pending |
-| DIST-04 | Phase 3 | Pending |
+| DIST-01 | Phase 3 | Complete |
+| DIST-02 | Phase 3 | Complete |
+| DIST-03 | Phase 3 | Complete |
+| DIST-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 41 total
