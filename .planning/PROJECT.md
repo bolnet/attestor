@@ -60,14 +60,14 @@ Zero-config automatic memory that just works — install and forget. Memories ca
 - **Package name**: Keep `memwright` on PyPI for continuity
 - **Python import**: Keep `agent_memory` module name
 - **No API keys by default**: ChromaDB built-in embeddings (sentence-transformers) run locally
-- **ChromaDB via stdio**: Vector search runs as MCP stdio subprocess, matching claude-mem pattern
+- **ChromaDB in-process**: Vector search via `chromadb.PersistentClient` (simpler than stdio subprocess)
 - **Benchmarks untouched**: mab.py and locomo.py stay as-is for now
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| ChromaDB via MCP stdio (not in-process) | Match claude-mem architecture exactly, process isolation | — Pending |
+| ChromaDB in-process PersistentClient | Simpler than MCP stdio, more reliable, still zero-config | — Pending |
 | NetworkX (not Neo4j) | Zero-Docker, in-memory ~0.1ms traversal, JSON-persisted | — Pending |
 | Remove pgvector+Neo4j entirely | Clean break, no fallback complexity, simpler codebase | — Pending |
 | ChromaDB built-in embeddings | No API key needed, true zero-config | — Pending |
