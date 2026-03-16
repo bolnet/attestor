@@ -28,12 +28,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `mem.recall(query)` returns fused results from all three retrieval layers (tag, graph, vector) using RRF
   4. `mem.health()` reports all components healthy with no Docker/container checks
   5. No pgvector, Neo4j, psycopg, or neo4j driver code remains anywhere in the codebase
-**Plans:** 1/3 plans executed
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Delete pgvector/Neo4j/Docker code and strip config (CLEAN-01..05)
-- [ ] 01-02-PLAN.md — Implement ChromaDB vector store and NetworkX graph (VEC-01..05, GRAPH-01..05)
-- [ ] 01-03-PLAN.md — Wire auto-provisioning and update health check (PROV-01..04)
+- [x] 01-01-PLAN.md — Delete pgvector/Neo4j/Docker code and strip config (CLEAN-01..05)
+- [x] 01-02-PLAN.md — Implement ChromaDB vector store and NetworkX graph (VEC-01..05, GRAPH-01..05)
+- [x] 01-03-PLAN.md — Wire auto-provisioning and update health check (PROV-01..04)
 
 ### Phase 2: Claude Code Plugin and Auto-Capture
 **Goal**: Memwright installs as a Claude Code plugin and automatically captures/recalls memories during sessions via hooks
@@ -45,11 +45,11 @@ Plans:
   3. When the user writes/edits files or runs commands, observations are automatically captured as memories
   4. On session end, a session summary with key decisions is stored as a memory
   5. Hooks are registered in `hooks/hooks.json` and callable as shell commands
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 02-01: Plugin manifest, marketplace catalog, MCP bundle, CLAUDE.md (PLUG-01..05)
-- [ ] 02-02: SessionStart, PostToolUse, Stop hooks with registration (HOOK-01..05)
+- [ ] 02-01-PLAN.md — Plugin manifest, marketplace catalog, MCP bundle, CLAUDE.md (PLUG-01..05)
+- [ ] 02-02-PLAN.md — SessionStart, PostToolUse, Stop hooks with CLI entry points (HOOK-01..05)
 
 ### Phase 3: MCP Enhancements and Distribution
 **Goal**: Memwright is published with rich MCP integration (resources, prompts, skills) and available via both pip and plugin marketplace
@@ -74,6 +74,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Zero-Infrastructure Backends | 1/3 | In Progress|  |
-| 2. Claude Code Plugin and Auto-Capture | 0/2 | Not started | - |
+| 1. Zero-Infrastructure Backends | 3/3 | Complete | 2026-03-16 |
+| 2. Claude Code Plugin and Auto-Capture | 0/2 | In Progress | - |
 | 3. MCP Enhancements and Distribution | 0/2 | Not started | - |
