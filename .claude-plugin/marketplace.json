@@ -1,0 +1,12 @@
+{
+  "slug": "bolnet/agent-memory",
+  "display_name": "Memwright",
+  "short_description": "Automatic memory for Claude Code sessions",
+  "long_description": "Memwright gives Claude Code persistent memory across sessions. It automatically captures decisions, preferences, and context from your conversations, then injects relevant memories at the start of each session. Zero-config: install and forget.",
+  "category": "productivity",
+  "tags": ["memory", "context", "persistence", "automatic"],
+  "icon": "brain",
+  "screenshots": [],
+  "install_command": "pip install memwright",
+  "homepage": "https://bolnet.github.io/agent-memory/"
+}
