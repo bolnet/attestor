@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <em>Embedded memory for AI agents. Open and inspectable. Works with Claude Code.</em>
+  <em>Zero-config memory for AI agents. No Docker. No API keys. Just install and go.</em>
 </p>
 
 <p align="center">
@@ -21,177 +21,132 @@
 
 ## Why Memwright?
 
-AI agents forget everything between conversations. The typical fix is a managed vector database or cloud memory service. Memwright takes a different approach:
+AI agents forget everything between conversations. Memwright gives them persistent memory with zero setup:
 
-- **Open & inspectable** — Your memories live in a SQLite file. Run `sqlite3 memory.db` and see exactly what the agent knows. No black boxes.
-- **3-layer retrieval** — Tag matching, Neo4j entity graph, and pgvector semantic search fused with Reciprocal Rank Fusion.
-- **Token efficient** — 300-500 tokens per recall vs 15,000+ for full history replay.
-- **Fully local** — Everything runs on your machine via Docker. No cloud dependency.
+- **Zero config** — `pip install memwright` and go. No Docker, no API keys, no environment variables.
+- **Open & inspectable** — Memories live in SQLite + JSON files. Run `sqlite3 memory.db` to see exactly what the agent knows.
+- **3-layer retrieval** — Tag matching, NetworkX entity graph, and ChromaDB vector search fused with Reciprocal Rank Fusion.
+- **Auto-capture** — Claude Code plugin hooks capture observations automatically. No manual `memory_add` needed.
+- **Local embeddings** — sentence-transformers runs on your machine. Nothing leaves your data.
 
-Works as a **Claude Code MCP server**, a **Cursor MCP server**, or a **Python library**.
+Works as a **Claude Code plugin**, a **Claude Code / Cursor MCP server**, or a **Python library**.
 
 ## Install
 
 ```bash
-pip install memwright[all]
+pip install memwright
 ```
 
-> **Tip:** On macOS with Homebrew Python, use `pipx install "memwright[all]"` to install as a standalone CLI tool.
+That's it. No Docker. No API keys. ChromaDB and NetworkX install as dependencies. Local embeddings download on first use (~90MB, one-time).
 
-**Requirements:** [Docker Desktop](https://docker.com/products/docker-desktop) and an embedding API key (`OPENROUTER_API_KEY` or `OPENAI_API_KEY`).
-
-## Quick Start — Claude Code
-
-Paste this prompt into Claude Code and it handles the rest:
+## Quick Start — Claude Code Plugin (Recommended)
 
 ```
-Set up memwright as this project's persistent memory.
-
-1. Install: pip install "memwright[all]" (if pip fails on macOS, use: pipx install "memwright[all]")
-2. Make sure Docker Desktop is running
-3. Initialize: agent-memory init ~/.agent-memory/PROJECT_NAME
-4. Add your embedding API key to ~/.agent-memory/PROJECT_NAME/.env (OPENROUTER_API_KEY or OPENAI_API_KEY)
-5. Create .mcp.json in the project root:
-   {
-     "mcpServers": {
-       "memory": {
-         "command": "agent-memory",
-         "args": ["serve", "~/.agent-memory/PROJECT_NAME"],
-         "env": {
-           "OPENROUTER_API_KEY": "your-key-here",
-           "PG_CONNECTION_STRING": "postgresql://memwright:memwright@localhost:5432/memwright",
-           "NEO4J_URI": "bolt://localhost:7687",
-           "NEO4J_PASSWORD": "memwright"
-         }
-       }
-     }
-   }
-6. Add to CLAUDE.md: Use memory_recall at conversation start, memory_add to store context.
-7. Verify: agent-memory doctor ~/.agent-memory/PROJECT_NAME
+/plugin marketplace add bolnet/agent-memory
 ```
 
-### Manual Setup
+After install, memories are captured automatically:
+- **SessionStart** — injects relevant memories into every session
+- **PostToolUse** — captures observations from Write/Edit/Bash
+- **Stop** — summarizes key decisions at session end
 
-```bash
-# 1. Install
-pip install "memwright[all]"
+Skills: `/memwright:mem-recall`, `/memwright:mem-timeline`, `/memwright:mem-health`
 
-# 2. Initialize (starts Docker containers for pgvector + Neo4j)
-agent-memory init ~/.agent-memory/my-project
+## Quick Start — MCP Server (Any Client)
 
-# 3. Add your embedding API key
-echo 'OPENROUTER_API_KEY=sk-or-...' >> ~/.agent-memory/my-project/.env
-```
-
-Add to your project's `.mcp.json`:
+Add to `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "memory": {
-      "command": "agent-memory",
-      "args": ["serve", "~/.agent-memory/my-project"],
-      "env": {
-        "OPENROUTER_API_KEY": "sk-or-...",
-        "PG_CONNECTION_STRING": "postgresql://memwright:memwright@localhost:5432/memwright",
-        "NEO4J_URI": "bolt://localhost:7687",
-        "NEO4J_PASSWORD": "memwright"
-      }
+      "command": "memwright",
+      "args": ["mcp"]
     }
   }
 }
 ```
 
-> **Note:** The `env` block is required because the MCP server process doesn't auto-load the `.env` file.
+Restart your editor. You now have 8 memory tools + MCP resources + MCP prompts.
 
-Restart Claude Code. You now have 7 memory tools: `memory_add`, `memory_get`, `memory_recall`, `memory_search`, `memory_forget`, `memory_timeline`, `memory_stats`.
+### MCP Tools
 
-Add to your `CLAUDE.md`:
+| Tool | Description |
+|------|-------------|
+| `memory_add` | Store a memory with tags, category, entity |
+| `memory_get` | Retrieve a specific memory by ID |
+| `memory_recall` | Smart multi-layer retrieval with RRF fusion |
+| `memory_search` | Filtered search by category, entity, date |
+| `memory_forget` | Archive a specific memory |
+| `memory_timeline` | Chronological history of an entity |
+| `memory_stats` | Store statistics |
+| `memory_health` | Component health check |
 
-```markdown
-## Memory
-Use `memory_recall` at the start of each conversation with the user's first message.
-Use `memory_add` to store preferences, decisions, and project context.
-```
+### MCP Resources & Prompts
 
-## Quick Start — Cursor
-
-```bash
-# 1. Install and initialize
-pip install "memwright[all]"
-agent-memory init ~/.agent-memory/my-project
-```
-
-Add to `.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "memory": {
-      "command": "agent-memory",
-      "args": ["serve", "~/.agent-memory/my-project"],
-      "env": {
-        "OPENROUTER_API_KEY": "sk-or-...",
-        "PG_CONNECTION_STRING": "postgresql://memwright:memwright@localhost:5432/memwright",
-        "NEO4J_URI": "bolt://localhost:7687",
-        "NEO4J_PASSWORD": "memwright"
-      }
-    }
-  }
-}
-```
+- **Resources**: `@memwright:entity://python` — @-mention entities and memories
+- **Prompts**: `/mcp__memwright__recall`, `/mcp__memwright__timeline` — native slash commands
 
 ## Quick Start — Python Library
 
 ```python
 from agent_memory import AgentMemory
 
-mem = AgentMemory("./my-agent")
+mem = AgentMemory("./my-agent")  # auto-provisions SQLite + ChromaDB + NetworkX
 
 # Store facts
 mem.add("User prefers Python over Java",
         tags=["preference", "coding"], category="preference")
-mem.add("User works at SoFi as Staff SWE",
-        tags=["career"], category="career", entity="SoFi")
+mem.add("User works at Google as Principal Eng",
+        tags=["career"], category="career", entity="Google")
 
-# Recall relevant memories
+# Recall relevant memories (tag + graph + vector fusion)
 results = mem.recall("what language does the user prefer?")
 for r in results:
-    print(f"[{r.match_source}:{r.score:.2f}] {r.content}")
+    print(f"[{r.match_source}:{r.score:.2f}] {r.memory.content}")
 
-# Get formatted context string for prompt injection
-context = mem.recall_as_context("user background", budget=500)
+# Get formatted context for prompt injection
+context = mem.recall_as_context("user background", budget=20000)
 
-# Contradiction handling — old facts get auto-superseded
-mem.add("User works at Google as Principal Eng",
-        tags=["career"], category="career", entity="SoFi")
-# ^ The SoFi memory is now superseded automatically
+# Contradiction handling — old facts auto-superseded
+mem.add("User works at Meta as Director",
+        tags=["career"], category="career", entity="Google")
+# ^ The Google memory is now superseded automatically
 ```
+
+## Quick Start — Cursor / Windsurf
+
+Add to `.cursor/mcp.json` (Cursor) or equivalent config:
+
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "memwright",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Same zero-config setup. No environment variables needed.
 
 ## Benchmarks
 
 ### LOCOMO (Long Conversation Memory)
 
-| System | Score |
-|--------|-------|
+| System | Accuracy |
+|--------|----------|
 | MemMachine | 84.9% |
+| **Memwright** | **81.2%** |
 | Zep | ~75% |
 | Letta | 74.0% |
 | Mem0 (Graph) | 66.9% |
-| **Memwright** | **62.5%** |
 | OpenAI Memory | 52.9% |
 
 *LOCOMO scores are [disputed across vendors](https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/). Numbers above are self-reported.*
 
-### MemoryAgentBench (ICLR 2026)
-
-| Category | Score |
-|----------|-------|
-| Accurate Retrieval | 55% |
-| Conflict Resolution | 62% |
-| **Overall** | **58.5%** |
-
-**How Memwright uses LLMs:** Embeddings, entity extraction, memory extraction, and contradiction detection all use LLM calls. Retrieval combines tag matching, graph traversal, and vector search with RRF fusion — no LLM re-ranking or judge.
+**How Memwright uses LLMs:** Retrieval is fully local — tag matching, graph traversal, and vector search with RRF fusion. No LLM re-ranking or judge. Embeddings are local (sentence-transformers). Only the benchmark answer synthesis uses an LLM.
 
 ## How Retrieval Works
 
@@ -200,8 +155,8 @@ Multi-layer cascade with Reciprocal Rank Fusion:
 ```mermaid
 graph TD
     Q[Query] --> T["Tag Match"]
-    Q --> G["Graph · Neo4j"]
-    Q --> V["Vector · pgvector"]
+    Q --> G["Graph · NetworkX"]
+    Q --> V["Vector · ChromaDB"]
     T --> R[RRF Fusion]
     G --> R
     V --> R
@@ -217,10 +172,24 @@ graph TD
 
 Entity relationships are traversed to find related memories (e.g., querying "Python" also finds memories about "FastAPI" if they're connected). Graph relationship triples are injected as synthetic context for multi-hop reasoning.
 
+## Architecture
+
+```
+AgentMemory
+├── SQLite           — Core storage, ACID guarantees
+├── ChromaDB         — Semantic vector search (local sentence-transformers)
+├── NetworkX         — Entity graph, multi-hop BFS traversal, JSON persistence
+├── Retrieval        — 3-layer cascade with RRF fusion
+├── Temporal         — Contradiction detection, supersession, validity windows
+├── Extraction       — Rule-based + optional LLM
+├── Hooks            — SessionStart, PostToolUse, Stop (Claude Code plugin)
+├── MCP Server       — 8 tools + resources + prompts
+└── CLI + Doctor     — Health check for all components
+```
+
 ## CLI
 
 ```bash
-agent-memory init ./store              # Initialize store + Docker + .env
 agent-memory add ./store "text" ...    # Add a memory
 agent-memory recall ./store "query"    # Multi-layer recall
 agent-memory search ./store "text"     # Search memories
@@ -228,23 +197,10 @@ agent-memory list ./store              # List memories
 agent-memory timeline ./store          # Entity timeline
 agent-memory stats ./store             # Store statistics
 agent-memory doctor ./store            # Health check
-agent-memory serve ./store             # Start MCP server
+memwright mcp                          # Start MCP server (zero-config)
+memwright hook session-start           # Run SessionStart hook
 agent-memory export ./store -o bak.json
 agent-memory import ./store bak.json
-```
-
-## Architecture
-
-```
-AgentMemory
-├── SQLite           — Core storage, always on
-├── pgvector         — Semantic vector search (PostgreSQL)
-├── Neo4j            — Entity graph, multi-hop traversal
-├── Retrieval        — Multi-layer cascade with RRF fusion
-├── Temporal         — Contradiction detection, supersession
-├── Extraction       — Rule-based + optional LLM
-├── MCP Server       — Claude Code / Cursor integration
-└── CLI + Doctor     — Health check for all components
 ```
 
 ## Configuration
@@ -254,14 +210,11 @@ AgentMemory stores `config.json` in the memory store directory:
 ```json
 {
   "default_token_budget": 2000,
-  "min_results": 3,
-  "pg_connection_string": "postgresql://memwright:memwright@localhost:5432/memwright",
-  "neo4j_uri": "bolt://localhost:7687",
-  "neo4j_password": "memwright"
+  "min_results": 3
 }
 ```
 
-Environment variables override config: `PG_CONNECTION_STRING`, `NEO4J_PASSWORD`, `OPENROUTER_API_KEY` / `OPENAI_API_KEY`.
+Zero config by default. All backends auto-provision on first use.
 
 ## License
 
