@@ -45,11 +45,21 @@ class AgentMemory:
         db_path = self.path / "memory.db"
         self._store = SQLiteStore(db_path)
 
-        # TODO: rewire in Plan 03 -- new vector backend (ChromaDB)
+        # Initialize ChromaDB vector store
         self._vector_store = None
+        try:
+            from agent_memory.store.chroma_store import ChromaStore
+            self._vector_store = ChromaStore(self.path)
+        except Exception as e:
+            logger.warning("ChromaDB init failed: %s", e)
 
-        # TODO: rewire in Plan 03 -- new graph backend (NetworkX)
+        # Initialize NetworkX graph
         self._graph = None
+        try:
+            from agent_memory.graph.networkx_graph import NetworkXGraph
+            self._graph = NetworkXGraph(self.path)
+        except Exception as e:
+            logger.warning("NetworkX init failed: %s", e)
 
         # Initialize managers
         self._temporal = TemporalManager(self._store)
@@ -118,8 +128,35 @@ class AgentMemory:
         for old in contradictions:
             self._temporal.supersede(old, memory.id)
 
-        # TODO: rewire in Plan 03 -- store embedding in vector DB
-        # TODO: rewire in Plan 03 -- update entity graph
+        # Store in vector DB
+        if self._vector_store:
+            try:
+                self._vector_store.add(memory.id, content)
+            except Exception:
+                pass  # Non-fatal
+
+        # Update entity graph
+        if self._graph:
+            try:
+                from agent_memory.graph.extractor import extract_entities_and_relations
+                nodes, edges = extract_entities_and_relations(
+                    content, tags or [], entity, category,
+                )
+                for node in nodes:
+                    self._graph.add_entity(
+                        node["name"],
+                        entity_type=node.get("type", "general"),
+                        attributes=node.get("attributes"),
+                    )
+                for edge in edges:
+                    self._graph.add_relation(
+                        edge["from"],
+                        edge["to"],
+                        relation_type=edge.get("type", "related_to"),
+                        metadata=edge.get("metadata"),
+                    )
+            except Exception:
+                pass  # Non-fatal
 
         return memory
 
@@ -154,7 +191,32 @@ class AgentMemory:
         limit: int = 10,
     ) -> List[Memory]:
         """Search memories with filters."""
-        # TODO: rewire in Plan 03 -- vector search path
+        # If there's a text query and vector store, use semantic search
+        if query and self._vector_store:
+            try:
+                vec_results = self._vector_store.search(query, limit=limit * 2)
+                if vec_results:
+                    # Get full memory objects, apply filters
+                    memories = []
+                    for vr in vec_results:
+                        mem = self._store.get(vr["memory_id"])
+                        if not mem or mem.status != status:
+                            continue
+                        if category and mem.category != category:
+                            continue
+                        if entity and mem.entity != entity:
+                            continue
+                        if after and mem.created_at < after:
+                            continue
+                        if before and mem.created_at > before:
+                            continue
+                        memories.append(mem)
+                        if len(memories) >= limit:
+                            break
+                    return memories
+            except Exception:
+                pass  # Fall through to SQLite search
+
         return self._store.list_memories(
             status=status,
             category=category,
@@ -204,12 +266,22 @@ class AgentMemory:
     # -- Batch Operations --
 
     def batch_embed(self, batch_size: int = 100) -> int:
-        """Batch-compute and store embeddings for all active memories.
+        """Batch-index all active memories into ChromaDB.
 
-        Returns count of newly embedded memories.
+        ChromaDB handles embedding generation internally.
+        Returns count of memories processed.
         """
-        # TODO: rewire in Plan 03 -- batch embedding with new vector backend
-        return 0
+        if not self._vector_store:
+            return 0
+        memories = self._store.list_memories(status="active", limit=1_000_000)
+        count = 0
+        for mem in memories:
+            try:
+                self._vector_store.add(mem.id, mem.content)
+                count += 1
+            except Exception:
+                pass
+        return count
 
     # -- Maintenance --
 
@@ -237,8 +309,8 @@ class AgentMemory:
     def health(self) -> Dict[str, Any]:
         """Check health of all components. Returns structured status report.
 
-        Currently only checks SQLite and retrieval pipeline.
-        Will be fully rewritten in Plan 03 with new backends.
+        Checks: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.
+        No Docker checks. No external API checks.
         """
         import time
 
@@ -268,6 +340,35 @@ class AgentMemory:
                    latency_ms=latency)
         except Exception as e:
             _check("SQLite", "error", error=str(e))
+
+        # -- ChromaDB --
+        if self._vector_store:
+            try:
+                vector_count = self._vector_store.count()
+                chroma_dir = self.path / "chroma"
+                _check("ChromaDB", "ok",
+                       vector_count=vector_count,
+                       chroma_dir=str(chroma_dir),
+                       dir_exists=chroma_dir.exists())
+            except Exception as e:
+                _check("ChromaDB", "error", error=str(e))
+        else:
+            _check("ChromaDB", "error", error="Not initialized")
+
+        # -- NetworkX Graph --
+        if self._graph:
+            try:
+                graph_stats = self._graph.stats()
+                graph_path = self.path / "graph.json"
+                _check("NetworkX Graph", "ok",
+                       nodes=graph_stats["nodes"],
+                       edges=graph_stats["edges"],
+                       graph_file=str(graph_path),
+                       file_exists=graph_path.exists())
+            except Exception as e:
+                _check("NetworkX Graph", "error", error=str(e))
+        else:
+            _check("NetworkX Graph", "error", error="Not initialized")
 
         # -- Retrieval Pipeline --
         layers = ["tag_match"]

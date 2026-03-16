@@ -91,7 +91,27 @@ class RetrievalOrchestrator:
                         )
                         seen_ids.add(mem.id)
 
-        # TODO: rewire in Plan 03 -- vector similarity layer (ChromaDB)
+        # Layer 3: Vector similarity (ChromaDB)
+        if self.vector_store:
+            try:
+                vec_results = self.vector_store.search(query, limit=20)
+                seen_ids = {r.memory.id for r in results}
+                for vr in vec_results:
+                    mid = vr["memory_id"]
+                    if mid in seen_ids:
+                        continue
+                    memory = self.store.get(mid)
+                    if memory and memory.status == "active":
+                        distance = vr.get("distance", 1.0)
+                        score = max(0.0, 1.0 - distance)
+                        results.append(
+                            RetrievalResult(
+                                memory=memory, score=score, match_source="vector",
+                            )
+                        )
+                        seen_ids.add(mid)
+            except Exception:
+                pass
 
         # Layer 4: Inject graph relationship triples as synthetic memories
         # These give the LLM structured relationship data for multi-hop reasoning
