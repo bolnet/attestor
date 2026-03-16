@@ -61,11 +61,11 @@ Plans:
   3. `/mcp__memwright__recall` and `/mcp__memwright__timeline` work as native MCP prompt commands
   4. `pip install memwright` on a clean machine gives a working zero-config memory system (no extras needed)
   5. MCP Registry listing reflects new version with updated deps and capabilities
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 03-01: MCP resources, prompts, and updated tools (MCP-01..05)
-- [ ] 03-02: Skills and distribution packaging (SKILL-01..03, DIST-01..04)
+- [ ] 03-01-PLAN.md — MCP resources, prompts, and tool verification (MCP-01..05)
+- [ ] 03-02-PLAN.md — Skills and distribution packaging (SKILL-01..03, DIST-01..04)
 
 ## Progress
 
