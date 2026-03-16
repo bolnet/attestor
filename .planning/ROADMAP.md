@@ -77,6 +77,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | 1. Zero-Infrastructure Backends | 3/3 | Complete | 2026-03-16 |
 | 2. Claude Code Plugin and Auto-Capture | 2/2 | Complete   | 2026-03-16 |
 | 3. MCP Enhancements and Distribution | 1/2 | In Progress|  |
+| 4. Run benchmarks on v2 backends | 1/2 | In Progress |  |
 
 ### Phase 4: Run benchmarks on v2 backends and compare scores
 
@@ -86,7 +87,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 **Plans:** 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Run MAB and LOCOMO benchmarks, capture results (BENCH-01, BENCH-02)
+- [x] 04-01-PLAN.md — Run MAB and LOCOMO benchmarks, capture results (BENCH-01, BENCH-02)
 - [ ] 04-02-PLAN.md — Compare scores to baselines, update landing page (BENCH-01, BENCH-02)
 
 ### Phase 5: Submit plugin to official Anthropic marketplace

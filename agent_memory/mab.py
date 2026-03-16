@@ -10,7 +10,7 @@ Usage:
     agent-memory mab --max-examples 2              # Quick test
     agent-memory mab --chunk-size 2048             # Smaller chunks
 
-Requires: pip install memwright[benchmark]  (for datasets + openai)
+Requires: pip install datasets openai  (not included in memwright base deps)
 """
 
 from __future__ import annotations
