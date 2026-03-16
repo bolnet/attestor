@@ -21,7 +21,7 @@ def main(argv=None):
     # init
     p_init = subparsers.add_parser(
         "init",
-        help="Initialize a new memory store with Docker services and tool config",
+        help="Initialize a new memory store with tool config",
     )
     p_init.add_argument("path", help="Directory path for the memory store")
     p_init.add_argument(
@@ -29,11 +29,6 @@ def main(argv=None):
         choices=["claude-code", "cursor"],
         default=None,
         help="Print MCP config for a specific tool",
-    )
-    p_init.add_argument(
-        "--no-docker",
-        action="store_true",
-        help="Skip Docker setup (use existing services)",
     )
 
     # add
@@ -113,10 +108,9 @@ def main(argv=None):
     # doctor (health check)
     p_doctor = subparsers.add_parser(
         "doctor",
-        help="Check health of all components (SQLite, vectors, graph, embeddings)",
+        help="Check health of all components (SQLite, retrieval pipeline)",
     )
-    p_doctor.add_argument("path", nargs="?", default=None, help="Memory store path (full health check)")
-    p_doctor.add_argument("--env-file", default=None, help="Path to .env file")
+    p_doctor.add_argument("path", nargs="?", default=None, help="Memory store path")
 
     # locomo (LOCOMO benchmark)
     p_locomo = subparsers.add_parser(
@@ -219,43 +213,22 @@ def _cmd_init(args):
     store_path = Path(args.path).resolve()
     store_path.mkdir(parents=True, exist_ok=True)
 
-    # --- Step 1: Docker Compose ---
-    if not args.no_docker:
-        _init_docker(store_path)
-
-    # --- Step 2: .env file ---
-    _init_env(store_path)
-
-    # --- Step 3: Load env and create store ---
-    env_file = store_path / ".env"
-    if env_file.exists():
-        _load_env_file(str(env_file))
-
     print(f"\nInitializing memory store at {store_path}...")
     try:
         import logging
         logging.getLogger("agent_memory").setLevel(logging.WARNING)
         mem = AgentMemory(str(store_path))
-        print(f"  ✅ SQLite: {store_path}/memory.db")
-        if mem._vector_store:
-            print(f"  ✅ pgvector: connected")
-        else:
-            print(f"  ❌ pgvector: not connected (check Docker)")
-        if mem._graph:
-            print(f"  ✅ Neo4j: connected")
-        else:
-            print(f"  ❌ Neo4j: not connected (check Docker)")
+        print(f"  SQLite: {store_path}/memory.db")
         mem.close()
     except Exception as e:
-        print(f"  ⚠️  Store created but services unavailable: {e}")
+        print(f"  Store created but error occurred: {e}")
 
-    # --- Step 4: Print MCP config ---
+    # Print MCP config
     agent_memory_bin = shutil.which("agent-memory") or "agent-memory"
     abs_path = str(store_path)
 
     tool = args.tool
     if not tool:
-        # Print both
         print("\n" + "=" * 50)
         print("MCP Configuration")
         print("=" * 50)
@@ -266,105 +239,6 @@ def _cmd_init(args):
         _print_mcp_config(tool, agent_memory_bin, abs_path)
 
     print("Run 'agent-memory doctor %s' to verify all components." % args.path)
-
-
-def _init_docker(store_path: Path):
-    """Generate docker-compose.yml and start containers."""
-    import subprocess
-
-    compose_file = store_path / "docker-compose.yml"
-    if not compose_file.exists():
-        compose_content = """\
-services:
-  postgres:
-    image: pgvector/pgvector:pg16
-    container_name: memwright-postgres
-    environment:
-      POSTGRES_USER: memwright
-      POSTGRES_PASSWORD: memwright
-      POSTGRES_DB: memwright
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U memwright -d memwright"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  neo4j:
-    image: neo4j:5-community
-    container_name: memwright-neo4j
-    environment:
-      NEO4J_AUTH: neo4j/memwright
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    volumes:
-      - neo4jdata:/data
-    healthcheck:
-      test: ["CMD", "neo4j", "status"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-
-volumes:
-  pgdata:
-  neo4jdata:
-"""
-        compose_file.write_text(compose_content)
-        print(f"Created {compose_file}")
-    else:
-        print(f"docker-compose.yml already exists at {compose_file}")
-
-    # Start containers
-    print("Starting Docker containers...")
-    try:
-        result = subprocess.run(
-            ["docker", "compose", "up", "-d"],
-            cwd=str(store_path),
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        if result.returncode == 0:
-            print("  ✅ Docker containers started")
-        else:
-            print(f"  ❌ Docker failed: {result.stderr.strip()}")
-            print("  Make sure Docker is installed and running.")
-    except FileNotFoundError:
-        print("  ❌ Docker not found. Install Docker Desktop: https://docker.com/products/docker-desktop")
-    except subprocess.TimeoutExpired:
-        print("  ⚠️  Docker startup timed out (containers may still be starting)")
-
-
-def _init_env(store_path: Path):
-    """Create .env file with defaults if it doesn't exist."""
-    env_file = store_path / ".env"
-    if not env_file.exists():
-        env_content = """\
-# Memwright configuration
-# See: https://github.com/bolnet/agent-memory
-
-# PostgreSQL (pgvector) — matches docker-compose.yml defaults
-PG_CONNECTION_STRING=postgresql://memwright:memwright@localhost:5432/memwright
-
-# Neo4j — matches docker-compose.yml defaults
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=memwright
-
-# Embeddings — uncomment one:
-# OPENROUTER_API_KEY=your-key-here
-# OPENAI_API_KEY=your-key-here
-"""
-        env_file.write_text(env_content)
-        print(f"Created {env_file} (add your API key for embeddings)")
-    else:
-        print(f".env already exists at {env_file}")
 
 
 def _print_mcp_config(tool: str, binary: str, store_path: str):
@@ -378,7 +252,7 @@ def _print_mcp_config(tool: str, binary: str, store_path: str):
                 }
             }
         }
-        print(f"\n📋 Claude Code — add to .claude/settings.json:")
+        print(f"\nClaude Code -- add to .claude/settings.json:")
         print(json.dumps(config, indent=2))
     elif tool == "cursor":
         config = {
@@ -389,7 +263,7 @@ def _print_mcp_config(tool: str, binary: str, store_path: str):
                 }
             }
         }
-        print(f"\n📋 Cursor — add to .cursor/mcp.json:")
+        print(f"\nCursor -- add to .cursor/mcp.json:")
         print(json.dumps(config, indent=2))
 
 
@@ -540,29 +414,19 @@ def _cmd_setup_claude_code(args):
     agent_memory_bin = shutil.which("agent-memory") or "agent-memory"
     abs_path = str(Path(args.path).resolve())
 
-    print("Tip: Use 'agent-memory init %s' for full setup with Docker.\n" % args.path)
+    print("Tip: Use 'agent-memory init %s' for full setup.\n" % args.path)
     _print_mcp_config("claude-code", agent_memory_bin, abs_path)
     _print_mcp_config("cursor", agent_memory_bin, abs_path)
 
 
 def _cmd_doctor(args):
     """Check health of all components."""
-    # Load env file
-    if args.env_file:
-        _load_env_file(args.env_file)
-    else:
-        default_env = Path(".env")
-        if default_env.exists():
-            _load_env_file(str(default_env))
-
     print("Memwright Doctor")
     print("=" * 50)
 
-    # If a store path is given, do a full health check via AgentMemory.health()
     store_path = getattr(args, "path", None)
     if store_path:
         try:
-            # Suppress fallback warnings during doctor — we check each service directly
             import logging
             logging.getLogger("agent_memory").setLevel(logging.CRITICAL)
             mem = AgentMemory(store_path)
@@ -571,23 +435,25 @@ def _cmd_doctor(args):
             mem.close()
             return
         except Exception as e:
-            print(f"\n❌ Failed to open store at {store_path}: {e}")
+            print(f"\nFailed to open store at {store_path}: {e}")
             print()
             return
 
-    # No store path — check services standalone
-    _check_services_standalone()
+    # No store path -- print usage
+    print("\nUsage: agent-memory doctor <store-path>")
+    print("Checks SQLite and retrieval pipeline health.")
+    print()
 
 
 def _print_health_report(report):
     """Pretty-print a health() report as individual check marks."""
-    overall = "✅ ALL HEALTHY" if report["healthy"] else "❌ ISSUES DETECTED"
+    overall = "ALL HEALTHY" if report["healthy"] else "ISSUES DETECTED"
     print(f"\nOverall: {overall}\n")
 
     for check in report["checks"]:
         name = check["name"]
         status = check["status"]
-        icon = "✅" if status == "ok" else "❌"
+        icon = "OK" if status == "ok" else "FAIL"
 
         # Build detail string
         details = []
@@ -609,86 +475,10 @@ def _print_health_report(report):
             details.append(check["note"])
 
         detail_str = f" ({', '.join(details)})" if details else ""
-        print(f"  {icon} {name}{detail_str}")
+        print(f"  [{icon}] {name}{detail_str}")
 
         if status == "error" and check.get("error"):
             print(f"     {check['error']}")
-
-    print()
-
-
-def _check_services_standalone():
-    """Check external services without a store path (legacy behavior)."""
-    # Check PostgreSQL + pgvector
-    pg_conn = os.environ.get("PG_CONNECTION_STRING", "")
-    if pg_conn:
-        display_conn = pg_conn
-        if "@" in pg_conn:
-            parts = pg_conn.split("@")
-            display_conn = "postgresql://***@" + parts[-1]
-        print(f"\nPostgreSQL: {display_conn}")
-        try:
-            import psycopg
-
-            conn = psycopg.connect(pg_conn, autocommit=True)
-            cur = conn.cursor()
-            cur.execute("SELECT 1")
-            print("  Status: ✅ CONNECTED")
-
-            cur.execute("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
-            row = cur.fetchone()
-            if row:
-                print(f"  pgvector: v{row[0]}")
-            else:
-                print("  pgvector: not yet installed (will be created on first use)")
-            conn.close()
-        except ImportError:
-            print("  Status: ❌ psycopg NOT INSTALLED")
-            print("  Fix: pip install memwright[vectors]")
-        except Exception as e:
-            print(f"  Status: ❌ UNREACHABLE ({e})")
-            print("  Fix: docker-compose up -d")
-    else:
-        print("\nPostgreSQL: ⚠️  NOT CONFIGURED")
-        print("  Set PG_CONNECTION_STRING in .env or environment")
-
-    # Check Neo4j
-    neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-    neo4j_pass = os.environ.get("NEO4J_PASSWORD", "")
-    neo4j_user = os.environ.get("NEO4J_USER", "neo4j")
-    if neo4j_pass:
-        print(f"\nNeo4j: {neo4j_uri}")
-        try:
-            from neo4j import GraphDatabase
-
-            driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_pass))
-            driver.verify_connectivity()
-            info = driver.get_server_info()
-            driver.close()
-            print("  Status: ✅ CONNECTED")
-            if info:
-                print(f"  Version: {info.agent}")
-        except ImportError:
-            print("  Status: ❌ neo4j package NOT INSTALLED")
-            print("  Fix: pip install memwright[neo4j]")
-        except Exception as e:
-            print(f"  Status: ❌ UNREACHABLE ({e})")
-            print("  Fix: docker-compose up -d")
-    else:
-        print("\nNeo4j: ⚠️  NOT CONFIGURED")
-        print("  Set NEO4J_PASSWORD in .env or environment")
-
-    # Check embedding API
-    openrouter = os.environ.get("OPENROUTER_API_KEY", "")
-    openai_key = os.environ.get("OPENAI_API_KEY", "")
-    print("\nEmbeddings:")
-    if openrouter:
-        print("  Provider: ✅ OpenRouter (OPENROUTER_API_KEY set)")
-    elif openai_key:
-        print("  Provider: ✅ OpenAI (OPENAI_API_KEY set)")
-    else:
-        print("  Status: ⚠️  NO API KEY")
-        print("  Set OPENROUTER_API_KEY or OPENAI_API_KEY for vector embeddings")
 
     print()
 
@@ -702,7 +492,7 @@ def _cmd_locomo(args):
     from agent_memory.locomo import run_locomo, print_locomo
 
     print("Running LOCOMO benchmark...")
-    print("(Long Conversation Memory — industry-standard benchmark)\n")
+    print("(Long Conversation Memory -- industry-standard benchmark)\n")
 
     results = run_locomo(
         data_path=args.data,
@@ -735,7 +525,7 @@ def _cmd_mab(args):
     from agent_memory.mab import run_mab, print_mab
 
     print("Running MemoryAgentBench benchmark...")
-    print("(ICLR 2026 benchmark — Accurate Retrieval, Conflict Resolution, etc.)\n")
+    print("(ICLR 2026 benchmark -- Accurate Retrieval, Conflict Resolution, etc.)\n")
 
     results = run_mab(
         categories=args.categories,
