@@ -82,6 +82,10 @@ Recent decisions affecting current work:
 - [03-02] plugin.json version (0.2.0) is plugin format version, independent of package version (2.0.0)
 - [Phase 03]: _build_handlers extracted for testable MCP resource/prompt handlers
 
+### Roadmap Evolution
+
+- Phase 4 added: Run benchmarks on v2 backends and compare scores
+
 ### Pending Todos
 
 None yet.

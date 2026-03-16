@@ -77,3 +77,13 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | 1. Zero-Infrastructure Backends | 3/3 | Complete | 2026-03-16 |
 | 2. Claude Code Plugin and Auto-Capture | 2/2 | Complete   | 2026-03-16 |
 | 3. MCP Enhancements and Distribution | 1/2 | In Progress|  |
+
+### Phase 4: Run benchmarks on v2 backends and compare scores
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 3
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 4 to break down)
