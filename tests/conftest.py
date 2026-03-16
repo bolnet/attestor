@@ -1,4 +1,4 @@
-"""Shared test fixtures — ensures tests use test databases, not production."""
+"""Shared test fixtures -- zero-config, no Docker required."""
 
 import tempfile
 
@@ -7,19 +7,16 @@ import pytest
 from agent_memory import AgentMemory
 
 
-# Test databases (separate from production)
+# Minimal config -- no external services needed
 TEST_CONFIG = {
-    "pg_connection_string": "postgresql://memwright:memwright@localhost:5432/memwright_test",
-    "neo4j_uri": "bolt://localhost:7688",
-    "neo4j_user": "neo4j",
-    "neo4j_password": "memwright",
-    "neo4j_database": "neo4j",
+    "default_token_budget": 2000,
+    "min_results": 3,
 }
 
 
 @pytest.fixture
 def test_config():
-    """Config dict pointing to test databases."""
+    """Config dict for tests."""
     return dict(TEST_CONFIG)
 
 

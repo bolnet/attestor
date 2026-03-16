@@ -8,8 +8,6 @@ from agent_memory import AgentMemory
 
 from .conftest import TEST_CONFIG
 
-# mem fixture comes from conftest.py, but we need a seeded version here
-
 
 @pytest.fixture
 def seeded_mem():
@@ -34,13 +32,13 @@ class TestRecall:
     def test_recall_career(self, seeded_mem):
         results = seeded_mem.recall("what's the user's current role?")
         assert len(results) >= 1
-        contents = [r.content for r in results]
+        contents = [r.memory.content for r in results]
         assert any("SoFi" in c for c in contents)
 
     def test_recall_preference(self, seeded_mem):
         results = seeded_mem.recall("what programming language does the user prefer?")
         assert len(results) >= 1
-        contents = [r.content for r in results]
+        contents = [r.memory.content for r in results]
         assert any("Python" in c for c in contents)
 
     def test_recall_with_budget(self, seeded_mem):
@@ -54,6 +52,15 @@ class TestRecall:
             results = m.recall("anything")
             assert results == []
             m.close()
+
+    def test_recall_uses_vector_layer(self, seeded_mem):
+        """Recall should include vector match results."""
+        results = seeded_mem.recall("golden retriever pet dog")
+        assert len(results) >= 1
+        # The vector layer should find the "golden retriever named Max" memory
+        # even if tag matching doesn't match "dog"
+        contents = [r.memory.content for r in results]
+        assert any("Max" in c for c in contents)
 
 
 class TestRecallAsContext:
@@ -94,7 +101,7 @@ class TestScoring:
         m = Memory(id="abc", content="test")
         results = [
             RetrievalResult(memory=m, score=0.5, match_source="tag"),
-            RetrievalResult(memory=m, score=0.8, match_source="fts"),
+            RetrievalResult(memory=m, score=0.8, match_source="vector"),
         ]
         deduped = deduplicate(results)
         assert len(deduped) == 1
@@ -109,7 +116,7 @@ class TestScoring:
                 memory=Memory(content="short"), score=0.5, match_source="tag"
             ),
             RetrievalResult(
-                memory=Memory(content="a " * 500), score=0.9, match_source="fts"
+                memory=Memory(content="a " * 500), score=0.9, match_source="vector"
             ),
         ]
         fitted = fit_to_budget(results, token_budget=10)

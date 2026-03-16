@@ -1,4 +1,4 @@
-"""Tests for AgentMemory core class."""
+"""Tests for AgentMemory core class -- zero-config with ChromaDB + NetworkX."""
 
 import json
 import os
@@ -31,6 +31,14 @@ class TestInit:
         m = AgentMemory(mem_dir, config=test_config)
         assert m.config.default_token_budget == 500
         m.close()
+
+    def test_zero_config_init(self):
+        """AgentMemory(tmp_path) succeeds with no env vars, no config file."""
+        with tempfile.TemporaryDirectory() as td:
+            m = AgentMemory(td)
+            assert m._vector_store is not None
+            assert m._graph is not None
+            m.close()
 
 
 class TestCRUD:
@@ -84,6 +92,79 @@ class TestCRUD:
         removed = mem.compact()
         assert removed == 1
         assert mem.get(m.id) is None
+
+
+class TestBackendIntegration:
+    def test_add_stores_to_all_backends(self, mem):
+        """add() stores content in SQLite, ChromaDB, and NetworkX."""
+        m = mem.add(
+            "User prefers dark mode",
+            tags=["preference"],
+            category="preference",
+            entity="user",
+        )
+        # SQLite
+        retrieved = mem.get(m.id)
+        assert retrieved is not None
+
+        # ChromaDB
+        assert mem._vector_store is not None
+        assert mem._vector_store.count() >= 1
+
+        # NetworkX (entity should exist)
+        assert mem._graph is not None
+        entities = mem._graph.get_entities()
+        entity_names = [e["name"].lower() for e in entities]
+        assert "user" in entity_names
+
+    def test_recall_returns_fused_results(self, mem):
+        """Recall returns results from multiple retrieval layers."""
+        mem.add("User prefers Python for scripting",
+                tags=["python", "preference"], category="preference", entity="user")
+        mem.add("User works at SoFi as Staff SWE",
+                tags=["career", "sofi"], category="career", entity="SoFi")
+        mem.add("User likes hiking in the Bay Area",
+                tags=["personal", "hobby"], category="personal")
+
+        results = mem.recall("what programming language does the user prefer?")
+        assert len(results) >= 1
+        sources = {r.match_source for r in results}
+        # Should have at least tag or vector results
+        assert len(sources) >= 1
+
+    def test_health_all_healthy(self, mem):
+        """health() reports all components healthy."""
+        h = mem.health()
+        assert h["healthy"] is True
+        check_names = [c["name"] for c in h["checks"]]
+        assert "SQLite" in check_names
+        assert "ChromaDB" in check_names
+        assert "NetworkX Graph" in check_names
+        assert "Retrieval Pipeline" in check_names
+        for c in h["checks"]:
+            assert c["status"] == "ok", f"{c['name']} not ok: {c}"
+
+    def test_health_no_docker_checks(self, mem):
+        """Health report has no Docker/PostgreSQL/Neo4j check names."""
+        h = mem.health()
+        report_str = json.dumps(h).lower()
+        assert "docker" not in report_str
+        assert "postgresql" not in report_str
+        assert "neo4j" not in report_str
+        assert "pgvector" not in report_str
+
+    def test_close_saves_graph(self):
+        """Graph entities persist after close and reopen."""
+        with tempfile.TemporaryDirectory() as td:
+            mem1 = AgentMemory(td)
+            mem1.add("User works at Google", tags=["career"], entity="Google")
+            mem1.close()
+
+            mem2 = AgentMemory(td)
+            entities = mem2._graph.get_entities()
+            entity_names = [e["name"].lower() for e in entities]
+            assert "google" in entity_names
+            mem2.close()
 
 
 class TestSearch:

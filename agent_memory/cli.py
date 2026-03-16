@@ -108,7 +108,7 @@ def main(argv=None):
     # doctor (health check)
     p_doctor = subparsers.add_parser(
         "doctor",
-        help="Check health of all components (SQLite, retrieval pipeline)",
+        help="Check health of all components (SQLite, ChromaDB, NetworkX, retrieval)",
     )
     p_doctor.add_argument("path", nargs="?", default=None, help="Memory store path")
 
@@ -441,7 +441,7 @@ def _cmd_doctor(args):
 
     # No store path -- print usage
     print("\nUsage: agent-memory doctor <store-path>")
-    print("Checks SQLite and retrieval pipeline health.")
+    print("Checks SQLite, ChromaDB, NetworkX graph, and retrieval pipeline.")
     print()
 
 
@@ -457,18 +457,16 @@ def _print_health_report(report):
 
         # Build detail string
         details = []
-        if check.get("version"):
-            details.append(check["version"])
-        if check.get("provider"):
-            details.append(check["provider"])
-        if check.get("model"):
-            details.append(check["model"])
         if check.get("latency_ms") is not None:
             details.append(f"{check['latency_ms']}ms")
         if check.get("memory_count") is not None:
             details.append(f"{check['memory_count']} memories")
         if check.get("db_size_bytes") is not None:
             details.append(f"{check['db_size_bytes']:,} bytes")
+        if check.get("vector_count") is not None:
+            details.append(f"{check['vector_count']} vectors")
+        if check.get("nodes") is not None:
+            details.append(f"{check['nodes']} nodes, {check.get('edges', 0)} edges")
         if check.get("active_layers") is not None:
             details.append(f"{check['active_layers']}/{check['max_layers']} layers")
         if check.get("note"):
