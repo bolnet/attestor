@@ -15,7 +15,7 @@
 
 ### Vector Search
 
-- [ ] **VEC-01**: ChromaDB runs as MCP stdio subprocess (not in-process)
+- [ ] **VEC-01**: ChromaDB runs as in-process PersistentClient (zero-config, no subprocess)
 - [ ] **VEC-02**: ChromaDB uses built-in sentence-transformers embeddings (no API key)
 - [ ] **VEC-03**: ChromaDB persistent storage at `{store_path}/chroma/`
 - [ ] **VEC-04**: Vector search returns results compatible with retrieval orchestrator (memory_id, content, distance)

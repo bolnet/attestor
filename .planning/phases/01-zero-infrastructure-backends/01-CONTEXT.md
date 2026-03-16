@@ -13,11 +13,11 @@ Replace pgvector (PostgreSQL) and Neo4j with ChromaDB (via MCP stdio subprocess)
 <decisions>
 ## Implementation Decisions
 
-### ChromaDB stdio protocol
-- Use `chroma-mcp` package via MCP stdio transport (same approach as claude-mem)
-- Lazy start: subprocess spawned on first add() or recall(), not at init time
-- Auto-restart on crash: detect subprocess death, respawn, retry the failed operation
+### ChromaDB integration
+- Use ChromaDB in-process via `chromadb.PersistentClient` (simpler than MCP stdio, still zero-config)
+- ChromaDB handles embeddings internally via built-in sentence-transformers
 - Data stored inside store path: `{store_path}/chroma/` — everything in one directory
+- Note: Originally planned as MCP stdio subprocess (like claude-mem), changed to in-process for simplicity
 
 ### Deletion strategy
 - Claude's discretion on ordering (delete-first vs build-alongside-then-swap)
