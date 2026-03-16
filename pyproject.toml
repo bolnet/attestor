@@ -4,15 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "memwright"
-version = "0.1.3"
-description = "Embedded memory for AI agents with SQLite, ChromaDB, and NetworkX graph support."
+version = "2.0.0"
+description = "Zero-config embedded memory for AI agents. SQLite + ChromaDB + NetworkX. No Docker, no API keys."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.9"
 authors = [{ name = "aarjay" }]
-keywords = ["ai", "agent", "memory", "llm", "sqlite", "chromadb", "networkx", "graph", "embedded"]
+keywords = ["ai", "agent", "memory", "llm", "sqlite", "chromadb", "networkx", "graph", "embedded", "zero-config", "mcp", "claude-code", "plugin"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
@@ -38,6 +38,7 @@ Issues = "https://github.com/bolnet/agent-memory/issues"
 extraction = ["openai>=1.0.0"]
 mcp = ["mcp>=1.0.0"]
 dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+all = ["mcp>=1.0.0", "openai>=1.0.0"]
 
 [project.scripts]
 agent-memory = "agent_memory.cli:main"
