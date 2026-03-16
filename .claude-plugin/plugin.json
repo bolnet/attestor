@@ -1,15 +1,13 @@
 {
-  "name": "bolnet/agent-memory",
-  "display_name": "Memwright",
-  "version": "0.2.0",
-  "description": "Embedded memory for AI agents. Automatically captures and recalls context across Claude Code sessions.",
-  "author": "aarjay",
-  "license": "Apache-2.0",
+  "name": "agent-memory",
+  "version": "2.0.0",
+  "description": "Zero-config memory for AI agents. Automatically captures and recalls context across Claude Code sessions. No Docker, no API keys.",
+  "author": {
+    "name": "aarjay",
+    "url": "https://github.com/bolnet"
+  },
+  "homepage": "https://bolnet.github.io/agent-memory/",
   "repository": "https://github.com/bolnet/agent-memory",
-  "entry_point": "pip install memwright",
-  "hooks": "hooks/hooks.json",
-  "mcp_config": "../.mcp.json",
-  "claude_md": "CLAUDE.md",
-  "keywords": ["memory", "context", "agent", "mcp"],
-  "min_claude_code_version": "1.0.0"
+  "license": "Apache-2.0",
+  "keywords": ["memory", "context", "agent", "mcp", "zero-config"]
 }
