@@ -60,11 +60,11 @@
 
 ### MCP Enhancements
 
-- [ ] **MCP-01**: MCP resources expose entities as @-mentionable (`@memwright:entity://name`)
-- [ ] **MCP-02**: MCP resources expose recent memories as @-mentionable
-- [ ] **MCP-03**: MCP prompts register `recall` as native `/mcp__memwright__recall` command
-- [ ] **MCP-04**: MCP prompts register `timeline` as native `/mcp__memwright__timeline` command
-- [ ] **MCP-05**: Existing 8 MCP tools updated to work with new backends
+- [x] **MCP-01**: MCP resources expose entities as @-mentionable (`@memwright:entity://name`)
+- [x] **MCP-02**: MCP resources expose recent memories as @-mentionable
+- [x] **MCP-03**: MCP prompts register `recall` as native `/mcp__memwright__recall` command
+- [x] **MCP-04**: MCP prompts register `timeline` as native `/mcp__memwright__timeline` command
+- [x] **MCP-05**: Existing 8 MCP tools updated to work with new backends
 
 ### Distribution
 
@@ -132,11 +132,11 @@
 | SKILL-01 | Phase 3 | Complete |
 | SKILL-02 | Phase 3 | Complete |
 | SKILL-03 | Phase 3 | Complete |
-| MCP-01 | Phase 3 | Pending |
-| MCP-02 | Phase 3 | Pending |
-| MCP-03 | Phase 3 | Pending |
-| MCP-04 | Phase 3 | Pending |
-| MCP-05 | Phase 3 | Pending |
+| MCP-01 | Phase 3 | Complete |
+| MCP-02 | Phase 3 | Complete |
+| MCP-03 | Phase 3 | Complete |
+| MCP-04 | Phase 3 | Complete |
+| MCP-05 | Phase 3 | Complete |
 | DIST-01 | Phase 3 | Complete |
 | DIST-02 | Phase 3 | Complete |
 | DIST-03 | Phase 3 | Complete |
