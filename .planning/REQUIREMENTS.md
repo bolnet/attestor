@@ -31,10 +31,10 @@
 
 ### Auto-Provisioning
 
-- [ ] **PROV-01**: `AgentMemory("./path")` creates all storage (SQLite, ChromaDB, NetworkX) with zero config
-- [ ] **PROV-02**: No environment variables required by default
-- [ ] **PROV-03**: No Docker required
-- [ ] **PROV-04**: Health check updated to reflect new stack (no Docker/container checks)
+- [x] **PROV-01**: `AgentMemory("./path")` creates all storage (SQLite, ChromaDB, NetworkX) with zero config
+- [x] **PROV-02**: No environment variables required by default
+- [x] **PROV-03**: No Docker required
+- [x] **PROV-04**: Health check updated to reflect new stack (no Docker/container checks)
 
 ### Plugin System
 
@@ -115,10 +115,10 @@
 | GRAPH-03 | Phase 1 | Complete |
 | GRAPH-04 | Phase 1 | Complete |
 | GRAPH-05 | Phase 1 | Complete |
-| PROV-01 | Phase 1 | Pending |
-| PROV-02 | Phase 1 | Pending |
-| PROV-03 | Phase 1 | Pending |
-| PROV-04 | Phase 1 | Pending |
+| PROV-01 | Phase 1 | Complete |
+| PROV-02 | Phase 1 | Complete |
+| PROV-03 | Phase 1 | Complete |
+| PROV-04 | Phase 1 | Complete |
 | PLUG-01 | Phase 2 | Pending |
 | PLUG-02 | Phase 2 | Pending |
 | PLUG-03 | Phase 2 | Pending |
