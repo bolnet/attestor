@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import chromadb
-from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+
+logger = logging.getLogger("agent_memory")
 
 
 class ChromaStore:
@@ -15,19 +17,34 @@ class ChromaStore:
     Drop-in replacement for the old pgvector VectorStore.
     ChromaDB handles embedding generation internally via sentence-transformers,
     so no API key or external service is needed.
+
+    For benchmarking, pass a custom embedding_function to override the default.
     """
 
-    def __init__(self, store_path: Path) -> None:
+    def __init__(self, store_path: Path, embedding_function=None) -> None:
         chroma_path = store_path / "chroma"
         self._client = chromadb.PersistentClient(path=str(chroma_path))
-        self._embedding_fn = SentenceTransformerEmbeddingFunction(
-            model_name="all-MiniLM-L6-v2",
-        )
+
+        if embedding_function is not None:
+            self._embedding_fn = embedding_function
+            self._provider = "custom"
+        else:
+            from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+            self._embedding_fn = SentenceTransformerEmbeddingFunction(
+                model_name="all-MiniLM-L6-v2",
+            )
+            self._provider = "local"
+
         self._collection = self._client.get_or_create_collection(
             name="memories",
             embedding_function=self._embedding_fn,
             metadata={"hnsw:space": "cosine"},
         )
+
+    @property
+    def provider(self) -> str:
+        """Return the current embedding provider name."""
+        return self._provider
 
     def add(self, memory_id: str, content: str) -> None:
         """Store content with auto-generated embedding. Upserts if id exists."""
@@ -63,7 +80,6 @@ class ChromaStore:
 
     def delete(self, memory_id: str) -> bool:
         """Remove embedding by memory id. Returns True if it existed."""
-        # Check existence first — ChromaDB delete doesn't error on missing ids
         existing = self._collection.get(ids=[memory_id])
         if not existing["ids"]:
             return False

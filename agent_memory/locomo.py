@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from agent_memory.core import AgentMemory
-from agent_memory.mab import token_f1
+from agent_memory.mab import token_f1, _upgrade_embeddings_for_benchmark
 
 DEFAULT_MODEL = "openai/gpt-4.1-mini"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -572,6 +572,8 @@ def run_locomo(
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mem = AgentMemory(tmpdir)
+            # Use OpenAI embeddings for benchmarking if key available
+            _upgrade_embeddings_for_benchmark(mem)
 
             # Disable temporal boost and contradiction checking for benchmark
             if mem._retrieval:

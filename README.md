@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <em>Zero-config memory for AI agents. No Docker. No API keys. Just install and go.</em>
+  <em>Zero-config memory for Claude Code. No Docker. No API keys. Just install and go.</em>
 </p>
 
 <p align="center">
@@ -19,42 +19,36 @@
 
 ---
 
-## Why Memwright?
+## The Problem
 
-AI agents forget everything between conversations. Memwright gives them persistent memory with zero setup:
+Claude Code forgets everything between sessions. Every new conversation starts from zero — no memory of what you built yesterday, what decisions you made, or what your project even does.
 
-- **Zero config** — `pip install memwright` and go. No Docker, no API keys, no environment variables.
-- **Open & inspectable** — Memories live in SQLite + JSON files. Run `sqlite3 memory.db` to see exactly what the agent knows.
-- **3-layer retrieval** — Tag matching, NetworkX entity graph, and ChromaDB vector search fused with Reciprocal Rank Fusion.
-- **Auto-capture** — Claude Code plugin hooks capture observations automatically. No manual `memory_add` needed.
-- **Local embeddings** — sentence-transformers runs on your machine. Nothing leaves your data.
+Claude Code's built-in auto-memory stores flat markdown files. No search. No ranking. No contradiction handling. As your project grows, those files become a wall of text that burns tokens without helping.
 
-Works as a **Claude Code plugin**, a **Claude Code / Cursor MCP server**, or a **Python library**.
+## What Memwright Does
 
-## Install
+Memwright gives Claude Code persistent, searchable memory that actually saves tokens:
+
+- **Ranked retrieval** — 3-layer search (tags + entity graph + vector similarity) returns only the most relevant memories, not everything
+- **Token budgets** — You set a ceiling (e.g. 2,000 tokens). Memwright fits the highest-scored memories within that budget. No overflow
+- **Contradiction handling** — "User works at Google" automatically supersedes "User works at Meta". Stale facts don't pollute context
+- **Zero config** — `pip install memwright`, add one JSON block, restart Claude Code. Done
+
+## Setup (2 minutes)
+
+### Step 1: Install
 
 ```bash
-pip install memwright
+pipx install memwright
 ```
 
-That's it. No Docker. No API keys. ChromaDB and NetworkX install as dependencies. Local embeddings download on first use (~90MB, one-time).
+This installs memwright as an isolated CLI tool with all dependencies (ChromaDB, NetworkX, sentence-transformers, MCP). Local embeddings download on first use (~90MB, one-time).
 
-## Quick Start — Claude Code Plugin (Recommended)
+If `memwright doctor` reports ChromaDB issues, run `pipx reinstall memwright` to force a clean install.
 
-```
-/plugin marketplace add bolnet/agent-memory
-```
+### Step 2: Add MCP server config
 
-After install, memories are captured automatically:
-- **SessionStart** — injects relevant memories into every session
-- **PostToolUse** — captures observations from Write/Edit/Bash
-- **Stop** — summarizes key decisions at session end
-
-Skills: `/memwright:mem-recall`, `/memwright:mem-timeline`, `/memwright:mem-health`
-
-## Quick Start — MCP Server (Any Client)
-
-Add to `.mcp.json`:
+**For all Claude Code sessions** (global) — add to `~/.claude/.mcp.json`:
 
 ```json
 {
@@ -67,69 +61,245 @@ Add to `.mcp.json`:
 }
 ```
 
-Restart your editor. You now have 8 memory tools + MCP resources + MCP prompts.
+**For one project only** — add `.mcp.json` to your project root with the same content.
 
-### MCP Tools
+### Step 3: Restart Claude Code
 
-| Tool | Description |
+The `memory` MCP server will appear. Approve it once. Claude now has 8 memory tools available in every session.
+
+### Step 4: Verify
+
+```bash
+memwright doctor ~/.memwright
+```
+
+Or ask Claude to call `memory_health`. You should see all 4 components healthy: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.
+
+## How It Works (And Why Tokens Don't Get Exhausted)
+
+### Memory lives outside the context window
+
+This is the key difference. Claude Code's built-in auto-memory loads `MEMORY.md` directly into the context window — every line, every message, always. Memwright stores memories in a separate process (SQLite + ChromaDB + NetworkX on disk). Claude's context window never sees them until it explicitly asks.
+
+```
+Claude Code auto-memory:                 Memwright:
+
+┌──────────────────────────┐             ┌──────────────────────────┐
+│  Context Window          │             │  Context Window          │
+│                          │             │                          │
+│  System prompt           │             │  System prompt           │
+│  CLAUDE.md               │             │  CLAUDE.md               │
+│  MEMORY.md ← ALL of it, │             │  User message            │
+│    every message, grows  │             │  memory_recall → 2K max  │
+│    forever               │             │                          │
+│  User message            │             └──────────────────────────┘
+│                          │
+└──────────────────────────┘             ┌──────────────────────────┐
+                                         │  Memwright (on disk)     │
+                                         │  10,000 memories         │
+                                         │  10,000 vectors          │
+                                         │  500 entities            │
+                                         │  ← never in context      │
+                                         └──────────────────────────┘
+```
+
+### The cost stays flat as memory grows
+
+```
+MEMORY.md approach:
+  Month 1:   2K tokens loaded every message
+  Month 3:   8K tokens loaded every message
+  Month 6:  15K tokens loaded every message  ← context getting crowded
+
+Memwright approach:
+  Month 1:   2K tokens max when recalled
+  Month 3:   2K tokens max when recalled     (now ranking from 1,000 memories)
+  Month 6:   2K tokens max when recalled     (now ranking from 5,000 memories)
+                                              ← same cost, better results
+```
+
+More stored memories actually makes Memwright *better* — more candidates to rank from — while the context cost stays the same.
+
+### How a recall actually works
+
+When Claude calls `memory_recall("deployment setup", budget=2000)`:
+
+1. **3 layers search in parallel** — tag match (SQLite), entity graph traversal (NetworkX), semantic vector search (ChromaDB)
+2. **RRF fusion** — memories found by multiple layers score higher
+3. **Temporal + entity boosts** — recent and entity-relevant memories rank higher
+4. **Budget fitting** — takes results in score order until the budget is full
+
+```
+Store has 5,000 memories. Claude asks about "deployment setup".
+
+  Tag search finds:     15 memories tagged "deployment"
+  Graph search finds:    8 memories linked to "AWS", "Docker" entities
+  Vector search finds:  20 semantically similar memories
+
+  After dedup + RRF:    30 unique candidates, scored and ranked
+
+  Budget fitting (2,000 tokens):
+    Memory A (score 0.95):  500 tokens → in   (total: 500)
+    Memory B (score 0.90):  600 tokens → in   (total: 1,100)
+    Memory C (score 0.88):  400 tokens → in   (total: 1,500)
+    Memory D (score 0.85):  300 tokens → in   (total: 1,800)
+    Memory E (score 0.80):  400 tokens → SKIP (would exceed 2,000)
+
+  Result: 4 memories, 1,800 tokens. The other 4,996 memories never entered context.
+```
+
+### Side-by-side comparison
+
+| | Claude Code auto-memory | Memwright |
+|---|---|---|
+| Where memory lives | In context window (MEMORY.md) | On disk (separate process) |
+| When it's loaded | Every message, always | Only when Claude calls `memory_recall` |
+| Token cost | Grows with project history | Fixed ceiling you choose (2K, 4K, 20K) |
+| Retrieval | None — full file dump | 3-layer ranked search, returns top results |
+| Contradiction handling | Manual — you edit files | Automatic — new facts supersede old ones |
+| After 6 months | 15K+ tokens of unranked context every message | 2K of the most relevant tokens, on demand |
+
+## MCP Tools (What Claude Can Do)
+
+Once the MCP server is running, Claude has these tools:
+
+| Tool | What it does |
 |------|-------------|
-| `memory_add` | Store a memory with tags, category, entity |
-| `memory_get` | Retrieve a specific memory by ID |
-| `memory_recall` | Smart multi-layer retrieval with RRF fusion |
-| `memory_search` | Filtered search by category, entity, date |
-| `memory_forget` | Archive a specific memory |
+| `memory_add` | Store a fact with tags, category, entity, and confidence |
+| `memory_recall` | Smart retrieval — set `budget` to control token usage (default: 2,000) |
+| `memory_search` | Filter by category, entity, status, date range |
+| `memory_get` | Fetch one memory by ID |
+| `memory_forget` | Archive a memory (never deleted, just superseded) |
 | `memory_timeline` | Chronological history of an entity |
-| `memory_stats` | Store statistics |
-| `memory_health` | Component health check |
+| `memory_stats` | Store size, memory count, vector count, graph nodes |
+| `memory_health` | Health check across all 4 components |
 
 ### MCP Resources & Prompts
 
-- **Resources**: `@memwright:entity://python` — @-mention entities and memories
-- **Prompts**: `/mcp__memwright__recall`, `/mcp__memwright__timeline` — native slash commands
+- **@-mentions**: `@memwright:entity://python` — pull entity context into conversation
+- **Prompts**: `/mcp__memwright__recall`, `/mcp__memwright__timeline`
 
-## Quick Start — Python Library
+## How Retrieval Works
+
+```
+Query
+  ├─ Layer 1: Tag Match (SQLite)         → exact/partial tag hits
+  ├─ Layer 2: Graph Expansion (NetworkX) → related entities via BFS
+  └─ Layer 3: Vector Search (ChromaDB)   → semantic similarity
+                    │
+              RRF Fusion (k=60)
+        memories in multiple layers score higher
+                    │
+            Temporal Boost (+0.2 max, decays over 90 days)
+            Entity Boost (+0.15 to +0.30)
+                    │
+           fit_to_budget(results, token_budget)
+        greedy selection by score, respects ceiling
+                    │
+             Ranked Results
+```
+
+Querying "Python" also finds memories about "FastAPI" if they're connected in the entity graph. Multi-hop reasoning through relationship traversal.
+
+## Architecture
+
+```
+AgentMemory
+├── SQLite           — Core storage, ACID guarantees, always available
+├── ChromaDB         — Semantic vector search (local sentence-transformers, all-MiniLM-L6-v2)
+├── NetworkX         — Entity graph, multi-hop BFS traversal, JSON persistence
+├── Retrieval        — 3-layer cascade with RRF fusion + temporal/entity boosts
+├── Temporal         — Contradiction detection, supersession, validity windows
+├── MCP Server       — 8 tools + resources + prompts (Claude Code integration)
+└── CLI + Doctor     — Health check, export/import, manual add/recall
+```
+
+All backends are embedded. No servers, no containers, no network calls. ChromaDB and NetworkX are wrapped in try/except — if they fail, the system continues with SQLite only.
+
+## CLI
+
+Both `memwright` and `agent-memory` work as entry points:
+
+```bash
+memwright mcp                          # Start MCP server (zero-config, uses ~/.memwright)
+memwright mcp --path /custom/path      # Start with custom store location
+memwright doctor ~/.memwright           # Health check
+
+agent-memory add ./store "text" --tags "t1,t2" --category general
+agent-memory recall ./store "query" --budget 4000
+agent-memory search ./store --category project --entity Python
+agent-memory list ./store
+agent-memory timeline ./store --entity Python
+agent-memory stats ./store
+agent-memory export ./store -o backup.json
+agent-memory import ./store backup.json
+agent-memory compact ./store           # Remove archived memories
+```
+
+## Memory Store Location
+
+The MCP server stores everything at `~/.memwright/` by default (configurable with `--path`). The store is a directory containing:
+
+```
+~/.memwright/
+├── memory.db        — SQLite database (core storage)
+├── config.json      — Token budget, min results config
+├── graph.json       — NetworkX entity graph
+└── chroma/          — ChromaDB vector store + embeddings
+```
+
+You can inspect memories directly: `sqlite3 ~/.memwright/memory.db "SELECT * FROM memories LIMIT 10;"`
+
+## Configuration
+
+Stored in `{store_path}/config.json`:
+
+```json
+{
+  "default_token_budget": 2000,
+  "min_results": 3
+}
+```
+
+All fields are optional. Defaults apply if the file doesn't exist. The store auto-provisions on first use.
+
+## Also Works With
+
+While Claude Code is the primary target, the MCP server works with any MCP client:
+
+| Client | Config file |
+|--------|-------------|
+| Claude Code | `.mcp.json` (project) or `~/.claude/.mcp.json` (global) |
+| Cursor | `.cursor/mcp.json` |
+| Windsurf | MCP config in settings |
+| Any MCP client | Standard MCP stdio transport |
+
+Same `memwright mcp` command. Same zero-config setup.
+
+## Python API
+
+For custom agents or scripts:
 
 ```python
 from agent_memory import AgentMemory
 
-mem = AgentMemory("./my-agent")  # auto-provisions SQLite + ChromaDB + NetworkX
+mem = AgentMemory("./my-agent")  # auto-provisions all backends
 
-# Store facts
+# Store
 mem.add("User prefers Python over Java",
         tags=["preference", "coding"], category="preference")
-mem.add("User works at Google as Principal Eng",
-        tags=["career"], category="career", entity="Google")
 
-# Recall relevant memories (tag + graph + vector fusion)
-results = mem.recall("what language does the user prefer?")
-for r in results:
-    print(f"[{r.match_source}:{r.score:.2f}] {r.memory.content}")
+# Recall with token budget
+results = mem.recall("what language?", budget=2000)
 
-# Get formatted context for prompt injection
-context = mem.recall_as_context("user background", budget=20000)
+# Get formatted context string for prompt injection
+context = mem.recall_as_context("user background", budget=4000)
 
-# Contradiction handling — old facts auto-superseded
-mem.add("User works at Meta as Director",
-        tags=["career"], category="career", entity="Google")
-# ^ The Google memory is now superseded automatically
+# Contradiction handling — automatic
+mem.add("User works at Google", tags=["career"], category="career", entity="Google")
+mem.add("User works at Meta", tags=["career"], category="career", entity="Meta")
+# ^ Google memory auto-superseded
 ```
-
-## Quick Start — Cursor / Windsurf
-
-Add to `.cursor/mcp.json` (Cursor) or equivalent config:
-
-```json
-{
-  "mcpServers": {
-    "memory": {
-      "command": "memwright",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-Same zero-config setup. No environment variables needed.
 
 ## Benchmarks
 
@@ -144,77 +314,35 @@ Same zero-config setup. No environment variables needed.
 | Mem0 (Graph) | 66.9% |
 | OpenAI Memory | 52.9% |
 
-*LOCOMO scores are [disputed across vendors](https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/). Numbers above are self-reported.*
+*Scores are self-reported across vendors. [Methodology is disputed](https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/).*
 
-**How Memwright uses LLMs:** Retrieval is fully local — tag matching, graph traversal, and vector search with RRF fusion. No LLM re-ranking or judge. Embeddings are local (sentence-transformers). Only the benchmark answer synthesis uses an LLM.
+Retrieval is fully local — tag matching, graph traversal, vector search with RRF fusion. No LLM re-ranking. Embeddings are local (sentence-transformers). Only benchmark answer synthesis uses an LLM.
 
-## How Retrieval Works
+## Uninstall
 
-Multi-layer cascade with Reciprocal Rank Fusion:
+### 1. Remove the MCP server config
 
-```mermaid
-graph TD
-    Q[Query] --> T["Tag Match"]
-    Q --> G["Graph · NetworkX"]
-    Q --> V["Vector · ChromaDB"]
-    T --> R[RRF Fusion]
-    G --> R
-    V --> R
-    R --> O[Ranked Results]
+**Global** — delete the `memory` entry from `~/.claude/.mcp.json`
 
-    style Q fill:#C15F3C,stroke:#C15F3C,color:#fff
-    style R fill:#C15F3C,stroke:#C15F3C,color:#fff
-    style O fill:#161b22,stroke:#C15F3C,color:#F4F3EE
-    style T fill:#161b22,stroke:#30363d,color:#F4F3EE
-    style G fill:#161b22,stroke:#30363d,color:#F4F3EE
-    style V fill:#161b22,stroke:#30363d,color:#F4F3EE
-```
+**Per-project** — delete the `memory` entry from `.mcp.json` in your project root
 
-Entity relationships are traversed to find related memories (e.g., querying "Python" also finds memories about "FastAPI" if they're connected). Graph relationship triples are injected as synthetic context for multi-hop reasoning.
-
-## Architecture
-
-```
-AgentMemory
-├── SQLite           — Core storage, ACID guarantees
-├── ChromaDB         — Semantic vector search (local sentence-transformers)
-├── NetworkX         — Entity graph, multi-hop BFS traversal, JSON persistence
-├── Retrieval        — 3-layer cascade with RRF fusion
-├── Temporal         — Contradiction detection, supersession, validity windows
-├── Extraction       — Rule-based + optional LLM
-├── Hooks            — SessionStart, PostToolUse, Stop (Claude Code plugin)
-├── MCP Server       — 8 tools + resources + prompts
-└── CLI + Doctor     — Health check for all components
-```
-
-## CLI
+### 2. Uninstall the package
 
 ```bash
-agent-memory add ./store "text" ...    # Add a memory
-agent-memory recall ./store "query"    # Multi-layer recall
-agent-memory search ./store "text"     # Search memories
-agent-memory list ./store              # List memories
-agent-memory timeline ./store          # Entity timeline
-agent-memory stats ./store             # Store statistics
-agent-memory doctor ./store            # Health check
-memwright mcp                          # Start MCP server (zero-config)
-memwright hook session-start           # Run SessionStart hook
-agent-memory export ./store -o bak.json
-agent-memory import ./store bak.json
+pipx uninstall memwright
 ```
 
-## Configuration
+### 3. Delete stored memories (optional)
 
-AgentMemory stores `config.json` in the memory store directory:
+```bash
+# Export first if you want a backup
+agent-memory export ~/.memwright -o memwright-backup.json
 
-```json
-{
-  "default_token_budget": 2000,
-  "min_results": 3
-}
+# Then delete
+rm -rf ~/.memwright
 ```
 
-Zero config by default. All backends auto-provision on first use.
+If you used per-project stores, also remove any `.memwright/` directories in your project roots.
 
 ## License
 
