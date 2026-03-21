@@ -346,8 +346,10 @@ class AgentMemory:
             try:
                 vector_count = self._vector_store.count()
                 chroma_dir = self.path / "chroma"
+                provider = getattr(self._vector_store, 'provider', 'unknown')
                 _check("ChromaDB", "ok",
                        vector_count=vector_count,
+                       embedding_provider=provider,
                        chroma_dir=str(chroma_dir),
                        dir_exists=chroma_dir.exists())
             except Exception as e:

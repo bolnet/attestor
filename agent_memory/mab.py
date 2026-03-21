@@ -28,6 +28,54 @@ from agent_memory.core import AgentMemory
 from agent_memory.utils.tokens import estimate_tokens
 
 # ---------------------------------------------------------------------------
+# Benchmark embedding upgrade
+# ---------------------------------------------------------------------------
+
+
+def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
+    """Replace local embeddings with OpenAI text-embedding-3-small for benchmarking.
+
+    Benchmarks need high-quality embeddings (1536D OpenAI) for fair comparison
+    against competitors. The product uses local sentence-transformers (384D)
+    for zero-config operation.
+    """
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+    openai_key = os.environ.get("OPENAI_API_KEY")
+
+    if not (openrouter_key or openai_key):
+        return  # No key — benchmark with local embeddings
+
+    try:
+        from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+        from agent_memory.store.chroma_store import ChromaStore
+
+        if openrouter_key:
+            embedding_fn = OpenAIEmbeddingFunction(
+                api_key=openrouter_key,
+                api_base="https://openrouter.ai/api/v1",
+                model_name="openai/text-embedding-3-small",
+            )
+        else:
+            embedding_fn = OpenAIEmbeddingFunction(
+                api_key=openai_key,
+                model_name="text-embedding-3-small",
+            )
+
+        # Must delete existing collection first — ChromaDB won't change
+        # embedding function on an existing collection
+        if mem._vector_store:
+            mem._vector_store._client.delete_collection("memories")
+        new_store = ChromaStore(mem.path, embedding_function=embedding_fn)
+        mem._vector_store = new_store
+        mem._retrieval.vector_store = new_store
+    except Exception as e:
+        import logging
+        logging.getLogger("agent_memory").warning(
+            "Benchmark embedding upgrade failed: %s — using local embeddings", e
+        )
+
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
@@ -771,6 +819,8 @@ def run_mab(
             # Fresh store per example
             with tempfile.TemporaryDirectory() as tmpdir:
                 mem = AgentMemory(tmpdir)
+                # Use OpenAI embeddings for benchmarking if key available
+                _upgrade_embeddings_for_benchmark(mem)
                 mem._retrieval.enable_temporal_boost = False
 
                 # Disable vector+contradiction during bulk add, batch embed after
