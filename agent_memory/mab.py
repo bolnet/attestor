@@ -38,6 +38,9 @@ def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
     Benchmarks need high-quality embeddings (1536D OpenAI) for fair comparison
     against competitors. The product uses local sentence-transformers (384D)
     for zero-config operation.
+
+    Only applies to ChromaDB vector stores — non-ChromaDB backends (e.g. ArangoDB)
+    manage their own embeddings and are skipped.
     """
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
@@ -46,8 +49,13 @@ def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
         return  # No key — benchmark with local embeddings
 
     try:
-        from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
         from agent_memory.store.chroma_store import ChromaStore
+
+        # Only upgrade ChromaDB-backed vector stores
+        if not isinstance(mem._vector_store, ChromaStore):
+            return
+
+        from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 
         if openrouter_key:
             embedding_fn = OpenAIEmbeddingFunction(
@@ -760,6 +768,7 @@ def run_mab(
     api_key: Optional[str] = None,
     cache_dir: Optional[str] = None,
     skip_examples: int = 0,
+    backend_config: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run the MemoryAgentBench benchmark.
 
@@ -818,7 +827,7 @@ def run_mab(
 
             # Fresh store per example
             with tempfile.TemporaryDirectory() as tmpdir:
-                mem = AgentMemory(tmpdir)
+                mem = AgentMemory(tmpdir, config=backend_config)
                 # Use OpenAI embeddings for benchmarking if key available
                 _upgrade_embeddings_for_benchmark(mem)
                 mem._retrieval.enable_temporal_boost = False

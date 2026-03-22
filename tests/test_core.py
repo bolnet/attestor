@@ -137,9 +137,9 @@ class TestBackendIntegration:
         h = mem.health()
         assert h["healthy"] is True
         check_names = [c["name"] for c in h["checks"]]
-        assert "SQLite" in check_names
-        assert "ChromaDB" in check_names
-        assert "NetworkX Graph" in check_names
+        assert "SQLiteStore" in check_names
+        assert "ChromaStore" in check_names
+        assert "NetworkXGraph" in check_names
         assert "Retrieval Pipeline" in check_names
         for c in h["checks"]:
             assert c["status"] == "ok", f"{c['name']} not ok: {c}"
