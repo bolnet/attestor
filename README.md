@@ -205,16 +205,167 @@ Querying "Python" also finds memories about "FastAPI" if they're connected in th
 
 ```
 AgentMemory
-├── SQLite           — Core storage, ACID guarantees, always available
-├── ChromaDB         — Semantic vector search (local sentence-transformers, all-MiniLM-L6-v2)
-├── NetworkX         — Entity graph, multi-hop BFS traversal, JSON persistence
-├── Retrieval        — 3-layer cascade with RRF fusion + temporal/entity boosts
-├── Temporal         — Contradiction detection, supersession, validity windows
-├── MCP Server       — 8 tools + resources + prompts (Claude Code integration)
-└── CLI + Doctor     — Health check, export/import, manual add/recall
+├── Local (zero-config)
+│   ├── SQLite           — Core document storage, ACID, always available
+│   ├── ChromaDB         — Semantic vector search (local sentence-transformers)
+│   └── NetworkX         — Entity graph, multi-hop BFS, JSON persistence
+├── Cloud backends (single service fills all roles)
+│   ├── PostgreSQL       — pgvector + Apache AGE (Neon, Cloud SQL, self-hosted)
+│   ├── ArangoDB         — Native document + vector + graph (ArangoGraph Cloud)
+│   ├── AWS              — DynamoDB + OpenSearch Serverless + Neptune
+│   ├── Azure            — Cosmos DB (DiskANN vectors) + NetworkX graph
+│   └── GCP              — AlloyDB (pgvector + AGE) + Vertex AI embeddings
+├── Retrieval            — 3-layer cascade with RRF fusion + temporal/entity boosts
+├── Temporal             — Contradiction detection, supersession, validity windows
+├── Embeddings           — Auto-detected: cloud-native → OpenAI → local fallback
+├── MCP Server           — 8 tools + resources + prompts (Claude Code integration)
+└── CLI + Doctor         — Health check, benchmarks, export/import
 ```
 
-All backends are embedded. No servers, no containers, no network calls. ChromaDB and NetworkX are wrapped in try/except — if they fail, the system continues with SQLite only.
+The default local stack (SQLite + ChromaDB + NetworkX) works with zero config — no servers, no containers, no API keys. Cloud backends are opt-in and each fills all three roles (document, vector, graph) in a single service. If any optional component fails, the system degrades gracefully to SQLite-only.
+
+## Cloud Backends
+
+Each cloud backend fills all three roles (document store, vector search, entity graph) in a single service. Configure with `--backend` and `--backend-config` on any CLI command, or pass a `config` dict to the Python API.
+
+### PostgreSQL (Neon, Cloud SQL, self-hosted)
+
+Uses pgvector for vector search and Apache AGE for the entity graph. AGE is optional — on platforms without it (like Neon free tier), graph operations gracefully degrade and the backend still works for document + vector.
+
+```python
+mem = AgentMemory("./store", config={
+    "backends": ["postgres"],
+    "postgres": {"url": "postgresql://user:pass@host:5432/memwright"}
+})
+```
+
+Tested on: **Neon** (free tier, $0), **GCP Cloud SQL** (PostgreSQL 15), **Docker** (PG16 + pgvector + AGE).
+
+### ArangoDB (ArangoGraph Cloud, self-hosted)
+
+Native document, vector, and graph support in one database. Supports both local Docker and ArangoGraph Cloud with TLS.
+
+```python
+mem = AgentMemory("./store", config={
+    "backends": ["arangodb"],
+    "arangodb": {"url": "https://your-instance.arangodb.cloud:8529", "database": "memwright"}
+})
+```
+
+### AWS (DynamoDB + OpenSearch + Neptune)
+
+Serverless-first: DynamoDB for documents, OpenSearch Serverless for vectors, Neptune Serverless for graph. Each service is optional — the backend works with whichever services are available. Auth via standard boto3 credential chain (IAM roles, env vars, profiles).
+
+```python
+mem = AgentMemory("./store", config={
+    "backends": ["aws"],
+    "aws": {"region": "us-east-1"}
+})
+```
+
+Infrastructure: `agent_memory/infra/aws.tf` (Terraform).
+
+### Azure (Cosmos DB)
+
+Cosmos DB with DiskANN vector indexing for documents and vectors. Graph uses NetworkX in-memory with persistence to Cosmos containers. Supports API key or DefaultAzureCredential (managed identity).
+
+```python
+mem = AgentMemory("./store", config={
+    "backends": ["azure"],
+    "azure": {"cosmos_endpoint": "https://your-account.documents.azure.com:443/"}
+})
+```
+
+Infrastructure: `agent_memory/infra/azure.tf` (Terraform).
+
+### GCP (AlloyDB)
+
+Extends the PostgreSQL backend with AlloyDB Connector (IAM auth via ADC) and Vertex AI embeddings (text-embedding-005, 768D). Falls back to psycopg2 via Auth Proxy if the connector isn't available.
+
+```python
+mem = AgentMemory("./store", config={
+    "backends": ["gcp"],
+    "gcp": {"project_id": "my-project", "cluster": "memwright", "instance": "primary"}
+})
+```
+
+Infrastructure: `agent_memory/infra/gcp.tf` (Terraform).
+
+### Backend CLI Usage
+
+```bash
+# Benchmarks with a cloud backend
+agent-memory locomo --backend postgres --backend-config '{"url": "postgresql://..."}'
+agent-memory mab --backend arangodb --backend-config '{"url": "https://..."}'
+
+# Performance benchmark
+python bench_perf.py --backend arangodb --backend-config '{"url": "http://localhost:8530"}'
+```
+
+## Embedding Providers
+
+Memwright auto-detects the best available embedding provider:
+
+| Priority | Provider | Model | Dimensions | Trigger |
+|----------|----------|-------|------------|---------|
+| 1 | Cloud-native | Bedrock Titan / Azure OpenAI / Vertex AI | 768-1536 | Cloud backend configured |
+| 2 | OpenAI / OpenRouter | text-embedding-3-small | 1536 | `OPENAI_API_KEY` or `OPENROUTER_API_KEY` set |
+| 3 | Local (default) | all-MiniLM-L6-v2 | 384 | Always available, no API key needed |
+
+The local fallback downloads ~90MB on first use. All providers implement the same interface — switching is transparent.
+
+## Connection Configuration
+
+A 3-layer config system resolves backend settings:
+
+1. **Engine defaults** — sensible defaults per backend (ports, databases, TLS)
+2. **User config** — `config.json` in store path or programmatic dict
+3. **CLI overrides** — `--backend-config` arguments
+
+Credentials support `$ENV_VAR` syntax for environment variable injection. TLS certificates can be provided as file paths or base64-encoded strings.
+
+## Testing
+
+### Running Tests
+
+```bash
+# All unit tests — no Docker, no API keys required
+.venv/bin/pytest tests/ -v
+
+# Live PostgreSQL tests (Neon or any PostgreSQL with pgvector)
+NEON_DATABASE_URL='postgresql://...' .venv/bin/pytest tests/test_postgres_live.py -v
+
+# Live Azure Cosmos DB tests
+AZURE_COSMOS_ENDPOINT='https://...' AZURE_COSMOS_KEY='...' .venv/bin/pytest tests/test_azure_live.py -v
+
+# Performance benchmark
+python bench_perf.py
+
+# Accuracy benchmarks (need OPENROUTER_API_KEY)
+agent-memory locomo --max-conversations 1 --max-questions 5 --verbose
+agent-memory mab --max-examples 1 --max-questions 5 --verbose
+```
+
+### Test Coverage
+
+- **392+ unit tests** covering all backends, config resolution, embeddings, retrieval, and CLI
+- **14 live integration tests** against Neon PostgreSQL (free tier)
+- **Mock tests** for every cloud backend (no cloud account needed)
+- All unit tests run without Docker or API keys
+
+### Test Files
+
+| File | Tests | What it covers |
+|------|-------|---------------|
+| `test_connection.py` | 46 | 3-layer config, URL parsing, env resolution, auth/TLS |
+| `test_embeddings.py` | 26 | All embedding providers, fallback chain |
+| `test_registry.py` | — | Backend mapping, role conflicts |
+| `test_postgres_backend.py` | — | Schema, CRUD, vector/graph ops |
+| `test_postgres_live.py` | 14 | Live tests against real PostgreSQL |
+| `test_arango_backend.py` | — | Document, vector, graph operations |
+| `test_azure_backend.py` | — | Cosmos DB containers, vector indexing |
+| `test_aws_backend.py` | — | DynamoDB, OpenSearch, Neptune |
+| `test_gcp_backend.py` | — | AlloyDB connector, fallback logic |
 
 ## CLI
 
