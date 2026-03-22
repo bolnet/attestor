@@ -17,34 +17,20 @@ class TemporalManager:
 
     def timeline(self, entity: str) -> List[Memory]:
         """Get all memories about an entity ordered by event_date/created_at."""
-        rows = self.store.execute(
-            """SELECT * FROM memories
-               WHERE entity = ?
-               ORDER BY COALESCE(event_date, created_at) ASC""",
-            [entity],
+        memories = self.store.list_memories(entity=entity, limit=100_000)
+        return sorted(
+            memories,
+            key=lambda m: m.event_date or m.created_at,
         )
-        return [Memory.from_row(r) for r in rows]
 
     def current_facts(
         self, category: Optional[str] = None, entity: Optional[str] = None
     ) -> List[Memory]:
         """Return only active, non-superseded memories."""
-        conditions = ["status = 'active'", "valid_until IS NULL"]
-        params: list = []
-
-        if category:
-            conditions.append("category = ?")
-            params.append(category)
-        if entity:
-            conditions.append("entity = ?")
-            params.append(entity)
-
-        where = " AND ".join(conditions)
-        rows = self.store.execute(
-            f"SELECT * FROM memories WHERE {where} ORDER BY created_at DESC",
-            params,
+        memories = self.store.list_memories(
+            status="active", category=category, entity=entity, limit=100_000,
         )
-        return [Memory.from_row(r) for r in rows]
+        return [m for m in memories if m.valid_until is None]
 
     def check_contradictions(self, new_memory: Memory) -> List[Memory]:
         """Find active memories that potentially contradict the new one.
@@ -54,15 +40,18 @@ class TemporalManager:
         if not new_memory.entity:
             return []
 
-        candidates = self.store.execute(
-            """SELECT * FROM memories
-               WHERE entity = ? AND category = ? AND status = 'active'
-               AND valid_until IS NULL AND id != ?""",
-            [new_memory.entity, new_memory.category, new_memory.id],
+        candidates = self.store.list_memories(
+            status="active",
+            category=new_memory.category,
+            entity=new_memory.entity,
+            limit=100_000,
         )
         contradictions = []
-        for row in candidates:
-            existing = Memory.from_row(row)
+        for existing in candidates:
+            if existing.valid_until is not None:
+                continue
+            if existing.id == new_memory.id:
+                continue
             if existing.content.strip() != new_memory.content.strip():
                 contradictions.append(existing)
         return contradictions

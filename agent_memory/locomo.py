@@ -532,6 +532,7 @@ def run_locomo(
     recall_budget: int = 4000,
     verbose: bool = False,
     api_key: Optional[str] = None,
+    backend_config: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run the full LOCOMO benchmark.
 
@@ -571,7 +572,7 @@ def run_locomo(
             print(f"\n--- Conversation {conv_idx + 1}/{len(conversations)}: {conv_id} ---")
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            mem = AgentMemory(tmpdir)
+            mem = AgentMemory(tmpdir, config=backend_config)
             # Use OpenAI embeddings for benchmarking if key available
             _upgrade_embeddings_for_benchmark(mem)
 
