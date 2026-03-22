@@ -10,6 +10,8 @@ from typing import Any, Dict, List, Optional
 
 import networkx as nx
 
+from agent_memory.store.base import GraphStore
+
 
 def _sanitize_rel_type(rel_type: str) -> str:
     """Normalize relation type: uppercase, safe characters only."""
@@ -17,12 +19,14 @@ def _sanitize_rel_type(rel_type: str) -> str:
     return sanitized.upper()
 
 
-class NetworkXGraph:
+class NetworkXGraph(GraphStore):
     """In-process entity graph using NetworkX MultiDiGraph with JSON persistence.
 
     Drop-in replacement for the old Neo4j graph backend.
     Node ids are lowercased; display_name preserves original case.
     """
+
+    ROLES = {"graph"}
 
     def __init__(self, store_path: Path) -> None:
         self._path = store_path / "graph.json"
@@ -209,7 +213,7 @@ class NetworkXGraph:
 
         return result
 
-    def stats(self) -> Dict[str, Any]:
+    def graph_stats(self) -> Dict[str, Any]:
         """Return node count, edge count, and type breakdown."""
         types: Dict[str, int] = {}
         for _nid, data in self._graph.nodes(data=True):

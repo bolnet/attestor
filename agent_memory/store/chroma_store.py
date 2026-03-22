@@ -1,4 +1,4 @@
-"""ChromaDB vector store — zero-config local embeddings, no API key required."""
+"""ChromaDB vector store — shared embedding provider with cloud-native support."""
 
 from __future__ import annotations
 
@@ -8,18 +8,19 @@ from typing import Any, Dict, List, Optional
 
 import chromadb
 
+from agent_memory.store.base import VectorStore
+
 logger = logging.getLogger("agent_memory")
 
 
-class ChromaStore:
-    """Persistent vector store using ChromaDB with local sentence-transformer embeddings.
+class ChromaStore(VectorStore):
+    """Persistent vector store using ChromaDB.
 
-    Drop-in replacement for the old pgvector VectorStore.
-    ChromaDB handles embedding generation internally via sentence-transformers,
-    so no API key or external service is needed.
-
-    For benchmarking, pass a custom embedding_function to override the default.
+    Uses the shared embedding provider (cloud-native → OpenAI → local fallback).
+    Pass a custom embedding_function to override auto-detection.
     """
+
+    ROLES = {"vector"}
 
     def __init__(self, store_path: Path, embedding_function=None) -> None:
         chroma_path = store_path / "chroma"
@@ -29,11 +30,14 @@ class ChromaStore:
             self._embedding_fn = embedding_function
             self._provider = "custom"
         else:
-            from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-            self._embedding_fn = SentenceTransformerEmbeddingFunction(
-                model_name="all-MiniLM-L6-v2",
+            from agent_memory.store.embeddings import (
+                ChromaEmbeddingAdapter,
+                get_embedding_provider,
             )
-            self._provider = "local"
+
+            provider = get_embedding_provider()
+            self._embedding_fn = ChromaEmbeddingAdapter(provider)
+            self._provider = provider.provider_name
 
         self._collection = self._client.get_or_create_collection(
             name="memories",

@@ -8,12 +8,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from agent_memory.models import Memory
+from agent_memory.store.base import DocumentStore
 
 _SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
 
-class SQLiteStore:
+class SQLiteStore(DocumentStore):
     """Low-level SQLite storage for memories."""
+
+    ROLES = {"document"}
 
     def __init__(self, db_path: str | Path):
         self.db_path = Path(db_path)
@@ -191,8 +194,8 @@ class SQLiteStore:
 
     # ── Raw SQL ──
 
-    def execute(self, sql: str, params: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
-        cursor = self._conn.execute(sql, params or [])
+    def execute(self, query: str, params: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
+        cursor = self._conn.execute(query, params or [])
         if cursor.description is None:
             self._conn.commit()
             return []

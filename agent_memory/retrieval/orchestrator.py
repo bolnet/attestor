@@ -12,7 +12,7 @@ from agent_memory.retrieval.scorer import (
     temporal_boost,
 )
 from agent_memory.retrieval.tag_matcher import extract_tags
-from agent_memory.store.sqlite_store import SQLiteStore
+from agent_memory.store.base import DocumentStore
 
 
 class RetrievalOrchestrator:
@@ -20,7 +20,7 @@ class RetrievalOrchestrator:
 
     def __init__(
         self,
-        store: SQLiteStore,
+        store: DocumentStore,
         min_results: int = 3,
         vector_store=None,
         graph=None,

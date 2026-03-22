@@ -17,7 +17,7 @@ def graph(tmp_path: Path) -> NetworkXGraph:
 
 class TestNetworkXGraphInit:
     def test_initializes_empty_graph(self, graph: NetworkXGraph):
-        stats = graph.stats()
+        stats = graph.graph_stats()
         assert stats["nodes"] == 0
         assert stats["edges"] == 0
 
@@ -27,7 +27,7 @@ class TestNetworkXGraphInit:
         g1.save()
 
         g2 = NetworkXGraph(tmp_path)
-        stats = g2.stats()
+        stats = g2.graph_stats()
         assert stats["nodes"] == 1
 
 
@@ -58,12 +58,12 @@ class TestAddRelation:
         graph.add_entity("Alice", "person")
         graph.add_entity("Acme", "organization")
         graph.add_relation("Alice", "Acme", "works_at")
-        stats = graph.stats()
+        stats = graph.graph_stats()
         assert stats["edges"] == 1
 
     def test_auto_creates_missing_nodes(self, graph: NetworkXGraph):
         graph.add_relation("Alice", "Acme", "works_at")
-        stats = graph.stats()
+        stats = graph.graph_stats()
         assert stats["nodes"] == 2
         assert stats["edges"] == 1
 
@@ -186,7 +186,7 @@ class TestPersistence:
         g1.save()
 
         g2 = NetworkXGraph(tmp_path)
-        stats = g2.stats()
+        stats = g2.graph_stats()
         assert stats["nodes"] == 2
         assert stats["edges"] == 1
         related = g2.get_related("Alice", depth=1)
@@ -204,7 +204,7 @@ class TestStats:
         graph.add_entity("Python", "tool")
         graph.add_entity("Alice", "person")
         graph.add_relation("Alice", "Python", "uses")
-        stats = graph.stats()
+        stats = graph.graph_stats()
         assert stats["nodes"] == 2
         assert stats["edges"] == 1
 
@@ -212,6 +212,6 @@ class TestStats:
         graph.add_entity("Python", "tool")
         graph.add_entity("JavaScript", "tool")
         graph.add_entity("Alice", "person")
-        stats = graph.stats()
+        stats = graph.graph_stats()
         assert stats["types"]["tool"] == 2
         assert stats["types"]["person"] == 1
