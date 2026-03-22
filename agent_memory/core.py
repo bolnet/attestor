@@ -10,7 +10,13 @@ from typing import Any, Dict, List, Optional
 
 from agent_memory.models import Memory, RetrievalResult
 from agent_memory.retrieval.orchestrator import RetrievalOrchestrator
-from agent_memory.store.sqlite_store import SQLiteStore
+from agent_memory.store.base import DocumentStore, GraphStore, VectorStore
+from agent_memory.store.registry import (
+    BACKEND_REGISTRY,
+    DEFAULT_BACKENDS,
+    instantiate_backend,
+    resolve_backends,
+)
 from agent_memory.temporal.manager import TemporalManager
 from agent_memory.utils.config import MemoryConfig, load_config, save_config
 
@@ -41,25 +47,61 @@ class AgentMemory:
             self.config = load_config(self.path)
         save_config(self.path, self.config)
 
-        # Initialize store
-        db_path = self.path / "memory.db"
-        self._store = SQLiteStore(db_path)
+        # Backend configuration
+        backends = getattr(self.config, "backends", None) or DEFAULT_BACKENDS
+        backend_configs: Dict[str, Dict[str, Any]] = (
+            getattr(self.config, "backend_configs", None) or {}
+        )
 
-        # Initialize ChromaDB vector store
-        self._vector_store = None
-        try:
-            from agent_memory.store.chroma_store import ChromaStore
-            self._vector_store = ChromaStore(self.path)
-        except Exception as e:
-            logger.warning("ChromaDB init failed: %s", e)
+        # Resolve role -> backend_name mapping
+        role_assignments = resolve_backends(backends)
 
-        # Initialize NetworkX graph
-        self._graph = None
-        try:
-            from agent_memory.graph.networkx_graph import NetworkXGraph
-            self._graph = NetworkXGraph(self.path)
-        except Exception as e:
-            logger.warning("NetworkX init failed: %s", e)
+        # Docker manager (lazy, only needed for container-based backends)
+        self._docker = None
+
+        # Track instantiated backends so multi-role backends (e.g., ArangoDB)
+        # reuse the same instance
+        _instances: Dict[str, Any] = {}
+
+        def _get_or_create(backend_name: str) -> Any:
+            if backend_name in _instances:
+                return _instances[backend_name]
+            entry = BACKEND_REGISTRY[backend_name]
+            if entry["init_style"] == "config":
+                bcfg = backend_configs.get(backend_name, {})
+                self._ensure_docker(backend_name, bcfg)
+            # SQLiteStore expects a file path, not a directory
+            if backend_name == "sqlite":
+                store_path = self.path / "memory.db"
+            else:
+                store_path = self.path
+            instance = instantiate_backend(
+                backend_name, store_path, backend_configs.get(backend_name),
+            )
+            _instances[backend_name] = instance
+            return instance
+
+        # Initialize document store (required — no graceful degradation)
+        doc_backend = role_assignments["document"]
+        self._store: DocumentStore = _get_or_create(doc_backend)
+
+        # Initialize vector store (optional — graceful degradation)
+        self._vector_store: Optional[VectorStore] = None
+        if "vector" in role_assignments:
+            try:
+                self._vector_store = _get_or_create(role_assignments["vector"])
+            except Exception as e:
+                logger.warning("Vector store init failed (%s): %s",
+                               role_assignments["vector"], e)
+
+        # Initialize graph store (optional — graceful degradation)
+        self._graph: Optional[GraphStore] = None
+        if "graph" in role_assignments:
+            try:
+                self._graph = _get_or_create(role_assignments["graph"])
+            except Exception as e:
+                logger.warning("Graph store init failed (%s): %s",
+                               role_assignments["graph"], e)
 
         # Initialize managers
         self._temporal = TemporalManager(self._store)
@@ -94,6 +136,20 @@ class AgentMemory:
 
     def __exit__(self, *args):
         self.close()
+
+    def _ensure_docker(self, backend_name: str, bcfg: Dict[str, Any]) -> None:
+        """Start a Docker container for backends that require one."""
+        from agent_memory.infra.docker import DockerManager
+
+        if self._docker is None:
+            self._docker = DockerManager()
+        docker_images = {
+            "arangodb": ("arangodb/arangodb:latest", 8529, {"ARANGO_NO_AUTH": "1"}),
+        }
+        if backend_name in docker_images:
+            image, default_port, env = docker_images[backend_name]
+            port = bcfg.get("port", default_port)
+            self._docker.ensure_running(backend_name, image, port, env)
 
     # -- Write --
 
@@ -325,52 +381,71 @@ class AgentMemory:
             if status == "error":
                 report["healthy"] = False
 
-        # -- SQLite --
+        # -- Document Store --
         try:
             t0 = time.monotonic()
-            row = self._store._conn.execute("SELECT COUNT(*) FROM memories").fetchone()
+            store_stats = self._store.stats()
             latency = round((time.monotonic() - t0) * 1000, 1)
-            _check("SQLite", "ok",
-                   memory_count=row[0],
-                   db_path=str(self._store.db_path),
-                   db_size_bytes=(
-                       self._store.db_path.stat().st_size
-                       if self._store.db_path.exists() else 0
-                   ),
-                   latency_ms=latency)
+            check_name = type(self._store).__name__
+            details: Dict[str, Any] = {
+                "memory_count": store_stats.get("total_memories", 0),
+                "latency_ms": latency,
+            }
+            # SQLite-specific details
+            if hasattr(self._store, "db_path"):
+                details["db_path"] = str(self._store.db_path)
+                details["db_size_bytes"] = (
+                    self._store.db_path.stat().st_size
+                    if self._store.db_path.exists() else 0
+                )
+            _check(check_name, "ok", **details)
         except Exception as e:
-            _check("SQLite", "error", error=str(e))
+            _check("Document Store", "error", error=str(e))
 
-        # -- ChromaDB --
+        # -- Vector Store --
         if self._vector_store:
             try:
-                vector_count = self._vector_store.count()
-                chroma_dir = self.path / "chroma"
-                provider = getattr(self._vector_store, 'provider', 'unknown')
-                _check("ChromaDB", "ok",
-                       vector_count=vector_count,
-                       embedding_provider=provider,
-                       chroma_dir=str(chroma_dir),
-                       dir_exists=chroma_dir.exists())
+                vec_name = type(self._vector_store).__name__
+                # Skip if same instance as document store (multi-role backend)
+                if self._vector_store is not self._store:
+                    vector_count = self._vector_store.count()
+                    vec_details: Dict[str, Any] = {"vector_count": vector_count}
+                    if hasattr(self._vector_store, "provider"):
+                        vec_details["embedding_provider"] = self._vector_store.provider
+                    _check(vec_name, "ok", **vec_details)
+                else:
+                    _check(f"{vec_name} (vector)", "ok",
+                           note="shared instance with document store")
             except Exception as e:
-                _check("ChromaDB", "error", error=str(e))
+                _check("Vector Store", "error", error=str(e))
         else:
-            _check("ChromaDB", "error", error="Not initialized")
+            _check("Vector Store", "error", error="Not initialized")
 
-        # -- NetworkX Graph --
+        # -- Graph Store --
         if self._graph:
             try:
-                graph_stats = self._graph.stats()
-                graph_path = self.path / "graph.json"
-                _check("NetworkX Graph", "ok",
-                       nodes=graph_stats["nodes"],
-                       edges=graph_stats["edges"],
-                       graph_file=str(graph_path),
-                       file_exists=graph_path.exists())
+                graph_name = type(self._graph).__name__
+                graph_stats = (
+                    self._graph.graph_stats()
+                    if hasattr(self._graph, "graph_stats")
+                    else self._graph.stats()
+                )
+                graph_details: Dict[str, Any] = {
+                    "nodes": graph_stats["nodes"],
+                    "edges": graph_stats["edges"],
+                }
+                # Skip if same instance as document store (multi-role backend)
+                if self._graph is not self._store:
+                    if hasattr(self._graph, "graph_path"):
+                        graph_details["graph_file"] = str(self._graph.graph_path)
+                    _check(graph_name, "ok", **graph_details)
+                else:
+                    _check(f"{graph_name} (graph)", "ok", **graph_details,
+                           note="shared instance with document store")
             except Exception as e:
-                _check("NetworkX Graph", "error", error=str(e))
+                _check("Graph Store", "error", error=str(e))
         else:
-            _check("NetworkX Graph", "error", error="Not initialized")
+            _check("Graph Store", "error", error="Not initialized")
 
         # -- Retrieval Pipeline --
         layers = ["tag_match"]

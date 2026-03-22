@@ -1,0 +1,50 @@
+# PostgreSQL 16 + pgvector + Apache AGE
+# Build: docker build -f agent_memory/infra/Dockerfile.postgres -t memwright-postgres:16 .
+#
+# Multi-stage build to keep final image small.
+
+FROM postgres:16-bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    git \
+    postgresql-server-dev-16 \
+    cmake \
+    flex \
+    bison \
+    libreadline-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# pgvector v0.8.0
+RUN git clone --branch v0.8.0 --depth 1 https://github.com/pgvector/pgvector.git /tmp/pgvector \
+    && cd /tmp/pgvector \
+    && make -j$(nproc) \
+    && make install
+
+# Apache AGE v1.5.0 (PG16 branch)
+RUN git clone --branch release/PG16/1.5.0 --depth 1 https://github.com/apache/age.git /tmp/age \
+    && cd /tmp/age \
+    && make -j$(nproc) \
+    && make install
+
+# --- Final stage ---
+FROM postgres:16-bookworm
+
+# Copy compiled extensions from builder
+COPY --from=builder /usr/lib/postgresql/16/lib/vector.so /usr/lib/postgresql/16/lib/
+COPY --from=builder /usr/share/postgresql/16/extension/vector* /usr/share/postgresql/16/extension/
+COPY --from=builder /usr/lib/postgresql/16/lib/age.so /usr/lib/postgresql/16/lib/
+COPY --from=builder /usr/share/postgresql/16/extension/age* /usr/share/postgresql/16/extension/
+
+# AGE requires shared_preload_libraries and ag_catalog on search_path
+RUN echo "shared_preload_libraries = 'age'" >> /usr/share/postgresql/postgresql.conf.sample
+
+# Init script: create extensions on first boot
+COPY <<'INITSCRIPT' /docker-entrypoint-initdb.d/01-extensions.sql
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS age;
+LOAD 'age';
+SET search_path = ag_catalog, "$user", public;
+SELECT create_graph('memory_graph');
+INITSCRIPT

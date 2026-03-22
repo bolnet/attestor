@@ -38,8 +38,24 @@ Issues = "https://github.com/bolnet/agent-memory/issues"
 
 [project.optional-dependencies]
 extraction = ["openai>=1.0.0"]
+arangodb = ["python-arango>=8.0.0"]
+postgres = ["psycopg2-binary>=2.9.0"]
+aws = ["boto3>=1.28.0"]
+azure = ["azure-cosmos>=4.5.0", "azure-identity>=1.14.0", "azure-search-documents>=11.4.0"]
+gcp = ["google-cloud-firestore>=2.11.0", "google-cloud-aiplatform>=1.38.0"]
+cloud-embeddings = ["openai>=1.0.0"]
 dev = ["pytest>=7.0", "pytest-cov>=4.0"]
-all = ["openai>=1.0.0"]
+all = [
+    "openai>=1.0.0",
+    "python-arango>=8.0.0",
+    "psycopg2-binary>=2.9.0",
+    "boto3>=1.28.0",
+    "azure-cosmos>=4.5.0",
+    "azure-identity>=1.14.0",
+    "azure-search-documents>=11.4.0",
+    "google-cloud-firestore>=2.11.0",
+    "google-cloud-aiplatform>=1.38.0",
+]
 
 [project.scripts]
 agent-memory = "agent_memory.cli:main"
@@ -50,3 +66,6 @@ packages = ["agent_memory"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "docker: tests requiring Docker (deselect with '-m not docker')",
+]

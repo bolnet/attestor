@@ -281,6 +281,11 @@ footer { padding: 4rem 0; text-align: center; }
           <span><span class="dollar">$ </span>pip install memwright</span>
           <span class="copy-btn">copy</span>
         </div>
+        <span style="color:var(--text-muted); font-size:0.85rem;">or</span>
+        <div class="hero-cmd" onclick="navigator.clipboard.writeText('pipx install memwright'); this.querySelector('.copy-btn').textContent='copied!';">
+          <span><span class="dollar">$ </span>pipx install memwright</span>
+          <span class="copy-btn">copy</span>
+        </div>
       </div>
       <div class="hero-actions">
         <a href="https://github.com/bolnet/agent-memory" class="btn-primary">
@@ -453,7 +458,7 @@ footer { padding: 4rem 0; text-align: center; }
     <div class="section-header">
       <span class="section-label">Claude Code Plugin</span>
       <h2>Install once. Memories captured automatically.</h2>
-      <p>Hooks observe your sessions. No manual memory_add calls needed.</p>
+      <p>Hooks observe your sessions. No manual memory_add calls needed. Plugin pending marketplace approval — use <a href="#quickstart" style="color:var(--accent);">MCP server setup</a> in the meantime.</p>
     </div>
     <div class="plugin-grid">
       <div class="plug-card">
@@ -695,26 +700,34 @@ footer { padding: 4rem 0; text-align: center; }
     <div class="qs-grid">
       <div class="qs-card recommended">
         <div class="qs-badge">Recommended</div>
-        <h3>Claude Code Plugin</h3>
-        <div class="qs-desc">Auto-captures memories. SessionStart injects context. Zero manual work.</div>
-        <div class="qs-code"><span class="comment"># Install plugin</span>
-/plugin marketplace add bolnet/agent-memory
-
-<span class="comment"># That's it. Automatic.</span></div>
-      </div>
-      <div class="qs-card">
         <h3>MCP Server</h3>
-        <div class="qs-desc">Works with Claude Code, Cursor, Windsurf, or any MCP client.</div>
-        <div class="qs-code"><span class="comment"># Install</span>
+        <div class="qs-desc">Works with Claude Code, Cursor, Windsurf, or any MCP client. Two steps and done.</div>
+        <div class="qs-code"><span class="comment"># 1. Install</span>
 pip install memwright
 
-<span class="comment"># .mcp.json</span>
+<span class="comment"># 2. Add to .mcp.json</span>
+<span class="comment">#    Claude Code: project root or ~/.claude/.mcp.json (global)</span>
+<span class="comment">#    Cursor: .cursor/mcp.json</span>
 { <span class="str">"mcpServers"</span>: {
   <span class="str">"memory"</span>: {
     <span class="str">"command"</span>: <span class="str">"memwright"</span>,
     <span class="str">"args"</span>: [<span class="str">"mcp"</span>]
   }
-}}</div>
+}}
+
+<span class="comment"># 3. Verify</span>
+memwright doctor ~/.memwright</div>
+      </div>
+      <div class="qs-card">
+        <h3>Claude Code Plugin</h3>
+        <div class="qs-desc">Auto-captures memories with lifecycle hooks. Pending marketplace approval — use MCP server for now.</div>
+        <div class="qs-code"><span class="comment"># Coming soon</span>
+/plugin marketplace add bolnet/agent-memory
+
+<span class="comment"># Auto-capture via hooks:</span>
+<span class="comment"># SessionStart → injects context</span>
+<span class="comment"># PostToolUse → captures observations</span>
+<span class="comment"># Stop → summarizes session</span></div>
       </div>
       <div class="qs-card">
         <h3>Python API</h3>
