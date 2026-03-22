@@ -31,6 +31,7 @@ def arango_container():
             port=ARANGO_TEST_PORT,
             env={"ARANGO_NO_AUTH": "1"},
             health_timeout=60,
+            container_port=8529,
         )
         import time
         deadline = time.monotonic() + 60

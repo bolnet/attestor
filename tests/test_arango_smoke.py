@@ -27,6 +27,7 @@ def arango_container():
             port=8530,
             env={"ARANGO_NO_AUTH": "1"},
             health_timeout=60,
+            container_port=8529,
         )
         import time
         # Poll until ArangoDB is actually ready
