@@ -91,11 +91,13 @@ class DockerManager:
         image: str,
         port: int,
         env: Dict[str, str],
+        container_port: Optional[int] = None,
     ) -> None:
+        internal = container_port or port
         cmd = [
             "docker", "run", "-d",
             "--name", name,
-            "-p", f"{port}:{port}",
+            "-p", f"{port}:{internal}",
         ]
         for k, v in env.items():
             cmd.extend(["-e", f"{k}={v}"])
