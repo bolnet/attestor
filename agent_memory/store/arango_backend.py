@@ -3,23 +3,17 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from arango import ArangoClient
 
 from agent_memory.models import Memory
 from agent_memory.store.base import DocumentStore, VectorStore, GraphStore
+from agent_memory.store.connection import CloudConnection
 
 logger = logging.getLogger("agent_memory")
-
-
-def _resolve_env(value: Any) -> Any:
-    """Resolve $ENV_VAR references in config values."""
-    if isinstance(value, str) and value.startswith("$"):
-        return os.environ.get(value[1:], value)
-    return value
 
 
 def _sanitize_rel_type(rel_type: str) -> str:
@@ -31,40 +25,64 @@ def _sanitize_rel_type(rel_type: str) -> str:
 class ArangoBackend(DocumentStore, VectorStore, GraphStore):
     """Multi-role ArangoDB backend: document + vector + graph in one DB.
 
-    Config:
-        mode: "local" (auto-Docker) or "cloud" (connection string)
-        url: ArangoDB endpoint (default: http://localhost:8529)
-        database: database name (default: memwright)
-        username: (default: root)
-        password: (default: empty, resolves $ENV_VAR)
-        port: Docker port for local mode (default: 8529)
+    Accepts raw config dict. See CloudConnection.from_config() for formats.
+
+    Supports:
+        - Local Docker (mode=local): auto-creates database via _system
+        - ArangoGraph cloud: TLS with CA cert (base64 or file path)
+        - Self-hosted cloud (AWS/Azure/GCP): standard TLS
     """
 
     ROLES: Set[str] = {"document", "vector", "graph"}
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self._config = config
-        mode = config.get("mode", "cloud")
-        url = _resolve_env(config.get("url", "http://localhost:8529"))
-        db_name = config.get("database", "memwright")
-        username = _resolve_env(config.get("username", "root"))
-        password = _resolve_env(config.get("password", ""))
+        conn = CloudConnection.from_config(config, backend_name="arangodb")
+        self._conn = conn
 
-        if mode == "local":
-            port = config.get("port", 8529)
-            url = f"http://localhost:{port}"
+        # Resolve CA cert for TLS verification (ArangoGraph provides base64-encoded certs)
+        store_path = config.get("_store_path")
+        ca_cert_path = conn.tls.resolve_ca_cert_path(store_path)
 
-        self._client = ArangoClient(hosts=url)
+        # Build client kwargs
+        client_kwargs: Dict[str, Any] = {"hosts": conn.url}
+        if ca_cert_path:
+            client_kwargs["verify_override"] = ca_cert_path
+        elif not conn.tls.verify:
+            client_kwargs["verify_override"] = False
 
-        sys_db = self._client.db("_system", username=username, password=password)
-        if not sys_db.has_database(db_name):
-            sys_db.create_database(db_name)
+        self._client = ArangoClient(**client_kwargs)
 
-        self._db = self._client.db(db_name, username=username, password=password)
+        # Auto-create database if possible (works on local Docker and ArangoGraph root)
+        # Falls back gracefully if _system access is denied
+        self._ensure_database(conn)
+
+        self._db = self._client.db(
+            conn.database,
+            username=conn.auth.username,
+            password=conn.auth.password,
+        )
         self._init_collections()
         self._init_graph()
-        self._embedding_fn = None
+        self._embedder = None  # lazy-init via shared embeddings module
+        self._embedding_fn = None  # backward compat for benchmark code
         self._vector_index_created = False
+
+    def _ensure_database(self, conn: CloudConnection) -> None:
+        """Try to create the database via _system. Skip if access denied."""
+        try:
+            sys_db = self._client.db(
+                "_system",
+                username=conn.auth.username,
+                password=conn.auth.password,
+            )
+            if not sys_db.has_database(conn.database):
+                sys_db.create_database(conn.database)
+                logger.info("Created database %r", conn.database)
+        except Exception as e:
+            # Cloud instances with restricted users can't access _system.
+            # Database must already exist in that case.
+            logger.debug("Could not access _system (expected on some cloud setups): %s", e)
 
     def _init_collections(self) -> None:
         """Create document collections and indexes."""
@@ -264,23 +282,33 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
     # ── VectorStore ──
 
     def _ensure_embedding_fn(self) -> None:
-        """Lazy-init sentence-transformers embedding function."""
-        if self._embedding_fn is None:
-            from sentence_transformers import SentenceTransformer
-            self._embedding_fn = SentenceTransformer("all-MiniLM-L6-v2")
+        """Lazy-init embedding provider via shared module."""
+        if self._embedder is not None:
+            return
+
+        from agent_memory.store.embeddings import get_embedding_provider
+
+        self._embedder = get_embedding_provider()
+        # Backward compat: benchmark code checks _openai_client to confirm provider
+        if self._embedder.provider_name == "openai":
+            self._openai_client = getattr(self._embedder, "_client", True)
+        self._embedding_fn = self._embedder  # backward compat marker (non-None = initialized)
+
+    def _embed(self, text: str) -> List[float]:
+        """Generate embedding using the shared provider."""
+        self._ensure_embedding_fn()
+        return self._embedder.embed(text)
 
     def add(self, memory_id: str, content: str) -> None:
         """Generate embedding and store as vector_data on the memory doc."""
-        self._ensure_embedding_fn()
-        embedding = self._embedding_fn.encode(content).tolist()
+        embedding = self._embed(content)
         col = self._db.collection("memories")
         if col.has(memory_id):
             col.update({"_key": memory_id, "vector_data": embedding})
 
     def search(self, query_text: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Vector similarity search using cosine similarity."""
-        self._ensure_embedding_fn()
-        query_vec = self._embedding_fn.encode(query_text).tolist()
+        query_vec = self._embed(query_text)
 
         aql = """
         FOR doc IN memories

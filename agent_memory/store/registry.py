@@ -6,6 +6,12 @@ import importlib
 import logging
 from typing import Any, Dict, List, Optional, Set
 
+from agent_memory.store.connection import (
+    BACKEND_DEFAULTS,
+    CLOUD_DEFAULTS,
+    merge_config_layers,
+)
+
 logger = logging.getLogger("agent_memory")
 
 
@@ -35,6 +41,30 @@ BACKEND_REGISTRY: Dict[str, Dict[str, Any]] = {
     "arangodb": {
         "module": "agent_memory.store.arango_backend",
         "class": "ArangoBackend",
+        "roles": {"document", "vector", "graph"},
+        "init_style": "config",
+    },
+    "postgres": {
+        "module": "agent_memory.store.postgres_backend",
+        "class": "PostgresBackend",
+        "roles": {"document", "vector", "graph"},
+        "init_style": "config",
+    },
+    "gcp": {
+        "module": "agent_memory.store.gcp_backend",
+        "class": "GCPBackend",
+        "roles": {"document", "vector", "graph"},
+        "init_style": "config",
+    },
+    "azure": {
+        "module": "agent_memory.store.azure_backend",
+        "class": "AzureBackend",
+        "roles": {"document", "vector", "graph"},
+        "init_style": "config",
+    },
+    "aws": {
+        "module": "agent_memory.store.aws_backend",
+        "class": "AWSBackend",
         "roles": {"document", "vector", "graph"},
         "init_style": "config",
     },
@@ -85,10 +115,15 @@ def instantiate_backend(
 ) -> Any:
     """Import and instantiate a backend class.
 
+    For config-based backends, applies layered config resolution:
+        Layer 1: CLOUD_DEFAULTS
+        Layer 2: BACKEND_DEFAULTS[backend_name]
+        Layer 3+: backend_config (project config + CLI overrides)
+
     Args:
         backend_name: Registry key (e.g., "sqlite", "arangodb").
         store_path: Path for path-based backends.
-        backend_config: Config dict for config-based backends.
+        backend_config: Config dict for config-based backends (layers 3-5 merged).
 
     Returns:
         Instantiated backend object.
@@ -100,7 +135,13 @@ def instantiate_backend(
     if entry["init_style"] == "path":
         return cls(store_path)
     elif entry["init_style"] == "config":
-        config = backend_config or {}
-        return cls(config)
+        merged = merge_config_layers(
+            CLOUD_DEFAULTS,
+            BACKEND_DEFAULTS.get(backend_name, {}),
+            backend_config or {},
+        )
+        # Pass store_path so backends can write cert files etc.
+        merged["_store_path"] = str(store_path)
+        return cls(merged)
     else:
         raise ValueError(f"Unknown init_style: {entry['init_style']!r}")
