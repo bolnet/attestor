@@ -68,17 +68,25 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         host = parsed.hostname or "localhost"
         port = parsed.port or conn_info.port
 
-        self._conn = psycopg2.connect(
-            host=host,
-            port=port,
-            dbname=conn_info.database,
-            user=conn_info.auth.username,
-            password=conn_info.auth.password,
-        )
+        # Support sslmode from config or connection options
+        sslmode = config.get("sslmode") or conn_info.extra.get("sslmode")
+
+        connect_kwargs: Dict[str, Any] = {
+            "host": host,
+            "port": port,
+            "dbname": conn_info.database,
+            "user": conn_info.auth.username,
+            "password": conn_info.auth.password,
+        }
+        if sslmode:
+            connect_kwargs["sslmode"] = sslmode
+
+        self._conn = psycopg2.connect(**connect_kwargs)
         self._conn.autocommit = True
 
         self._embedder = None  # lazy-init via shared embeddings module
         self._embedding_fn = None  # backward compat for benchmark code
+        self._has_age = False  # set by _init_age()
         # Determine embedding dimension before schema init
         self._ensure_embedding_fn()
         self._embedding_dim = self._embedder.dimension
@@ -140,28 +148,48 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         """)
 
     def _init_age(self) -> None:
-        """Initialize Apache AGE extension and graph."""
-        self._execute("CREATE EXTENSION IF NOT EXISTS age;")
-        self._age_execute("LOAD 'age';")
-        self._age_execute(
-            "SET search_path = ag_catalog, \"$user\", public;"
-        )
-        # create_graph is not idempotent — catch if exists
+        """Initialize Apache AGE extension and graph.
+
+        Non-fatal: if AGE is not available (e.g. Neon, Cloud SQL),
+        graph methods will raise NotImplementedError but document+vector still work.
+        """
         try:
+            self._execute("CREATE EXTENSION IF NOT EXISTS age;")
+            self._age_execute("LOAD 'age';")
             self._age_execute(
-                "SELECT create_graph('memory_graph');"
+                "SET search_path = ag_catalog, \"$user\", public;"
             )
-        except psycopg2.errors.InvalidSchemaName:
-            self._conn.rollback()
-            self._conn.autocommit = True
-        except Exception as e:
-            if "already exists" in str(e):
+            # create_graph is not idempotent — catch if exists
+            try:
+                self._age_execute(
+                    "SELECT create_graph('memory_graph');"
+                )
+            except psycopg2.errors.InvalidSchemaName:
                 self._conn.rollback()
                 self._conn.autocommit = True
-            else:
-                raise
+            except Exception as e:
+                if "already exists" in str(e):
+                    self._conn.rollback()
+                    self._conn.autocommit = True
+                else:
+                    raise
+            self._has_age = True
+            logger.info("Apache AGE graph initialized")
+        except Exception as e:
+            self._conn.rollback()
+            self._conn.autocommit = True
+            self._has_age = False
+            logger.info("Apache AGE not available — graph role disabled: %s", e)
 
     # ── AGE Helpers ──
+
+    def _require_age(self) -> None:
+        """Raise if AGE is not available."""
+        if not self._has_age:
+            raise NotImplementedError(
+                "Graph operations require Apache AGE extension. "
+                "Use NetworkX for graph role on this PostgreSQL instance."
+            )
 
     def _age_execute(self, sql: str, params: Any = None) -> None:
         """Execute a non-query AGE/SQL statement."""
@@ -418,6 +446,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         entity_type: str = "general",
         attributes: Optional[Dict[str, Any]] = None,
     ) -> None:
+        self._require_age()
         key = name.lower()
         escaped_key = _escape_cypher(key)
         escaped_name = _escape_cypher(name)
@@ -457,6 +486,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         relation_type: str = "related_to",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
+        self._require_age()
         from_key = _escape_cypher(from_entity.lower())
         to_key = _escape_cypher(to_entity.lower())
         from_name = _escape_cypher(from_entity)
@@ -486,6 +516,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         )
 
     def get_related(self, entity: str, depth: int = 2) -> List[str]:
+        self._require_age()
         key = _escape_cypher(entity.lower())
 
         results = self._age_query(
@@ -507,6 +538,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         return names
 
     def get_subgraph(self, entity: str, depth: int = 2) -> Dict[str, Any]:
+        self._require_age()
         key = _escape_cypher(entity.lower())
 
         # Check entity exists
@@ -561,6 +593,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         return {"entity": entity, "nodes": nodes, "edges": edges}
 
     def get_entities(self, entity_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        self._require_age()
         if entity_type:
             et = _escape_cypher(entity_type)
             results = self._age_query(
@@ -587,6 +620,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         return entities
 
     def get_edges(self, entity: str) -> List[Dict[str, Any]]:
+        self._require_age()
         key = _escape_cypher(entity.lower())
 
         results = self._age_query(
@@ -628,6 +662,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
 
     def graph_stats(self) -> Dict[str, Any]:
         """Graph statistics: node/edge counts, entity types."""
+        self._require_age()
         node_results = self._age_query(
             "MATCH (e:Entity) RETURN count(e)",
         )
