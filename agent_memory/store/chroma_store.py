@@ -8,10 +8,12 @@ from typing import Any, Dict, List, Optional
 
 import chromadb
 
+from agent_memory.store.base import VectorStore
+
 logger = logging.getLogger("agent_memory")
 
 
-class ChromaStore:
+class ChromaStore(VectorStore):
     """Persistent vector store using ChromaDB with local sentence-transformer embeddings.
 
     Drop-in replacement for the old pgvector VectorStore.
@@ -20,6 +22,8 @@ class ChromaStore:
 
     For benchmarking, pass a custom embedding_function to override the default.
     """
+
+    ROLES = {"vector"}
 
     def __init__(self, store_path: Path, embedding_function=None) -> None:
         chroma_path = store_path / "chroma"

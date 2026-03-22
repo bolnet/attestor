@@ -50,3 +50,6 @@ packages = ["agent_memory"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "docker: tests requiring Docker (deselect with '-m not docker')",
+]
