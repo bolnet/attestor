@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "agent-memory": {
-      "command": "memwright",
-      "args": ["mcp"],
-      "env": {}
-    }
-  }
-}
