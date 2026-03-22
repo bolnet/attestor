@@ -606,7 +606,7 @@ def run_locomo(
             if verbose:
                 graph_stats = ""
                 if mem._graph:
-                    g_info = mem._graph.stats()
+                    g_info = mem._graph.graph_stats()
                     graph_stats = f", graph: {g_info.get('nodes', 0)} nodes, {g_info.get('edges', 0)} edges"
                 print(f"  Ingested {mem_count} memories ({embed_count} embedded{graph_stats}) in {ingest_time:.2f}s")
 

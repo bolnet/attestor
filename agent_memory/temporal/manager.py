@@ -6,13 +6,13 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from agent_memory.models import Memory
-from agent_memory.store.sqlite_store import SQLiteStore
+from agent_memory.store.base import DocumentStore
 
 
 class TemporalManager:
     """Handles temporal queries, contradiction detection, and supersession."""
 
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: DocumentStore):
         self.store = store
 
     def timeline(self, entity: str) -> List[Memory]:
