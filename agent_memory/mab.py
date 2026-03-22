@@ -15,6 +15,7 @@ Requires: pip install datasets openai  (not included in memwright base deps)
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import statistics
@@ -25,6 +26,8 @@ from collections import Counter, defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from agent_memory.core import AgentMemory
+
+logger = logging.getLogger("agent_memory")
 from agent_memory.utils.tokens import estimate_tokens
 
 # ---------------------------------------------------------------------------
@@ -33,54 +36,57 @@ from agent_memory.utils.tokens import estimate_tokens
 
 
 def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
-    """Replace local embeddings with OpenAI text-embedding-3-small for benchmarking.
+    """Ensure benchmarks use OpenAI text-embedding-3-small via OpenRouter.
 
-    Benchmarks need high-quality embeddings (1536D OpenAI) for fair comparison
-    against competitors. The product uses local sentence-transformers (384D)
-    for zero-config operation.
+    Benchmarks always use OpenRouter for embeddings — no fallback to local models.
+    Works for all backends (ChromaDB, ArangoDB, future PostgreSQL).
 
-    Only applies to ChromaDB vector stores — non-ChromaDB backends (e.g. ArangoDB)
-    manage their own embeddings and are skipped.
+    Raises RuntimeError if OPENROUTER_API_KEY is not set.
     """
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-    openai_key = os.environ.get("OPENAI_API_KEY")
-
-    if not (openrouter_key or openai_key):
-        return  # No key — benchmark with local embeddings
+    if not openrouter_key:
+        raise RuntimeError(
+            "OPENROUTER_API_KEY required for benchmarks. "
+            "Set it in .env or environment."
+        )
 
     try:
         from agent_memory.store.chroma_store import ChromaStore
 
-        # Only upgrade ChromaDB-backed vector stores
-        if not isinstance(mem._vector_store, ChromaStore):
-            return
+        if isinstance(mem._vector_store, ChromaStore):
+            from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 
-        from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
-
-        if openrouter_key:
             embedding_fn = OpenAIEmbeddingFunction(
                 api_key=openrouter_key,
                 api_base="https://openrouter.ai/api/v1",
                 model_name="openai/text-embedding-3-small",
             )
-        else:
-            embedding_fn = OpenAIEmbeddingFunction(
-                api_key=openai_key,
-                model_name="text-embedding-3-small",
-            )
+            # Must delete existing collection — ChromaDB won't change
+            # embedding function on an existing collection
+            if mem._vector_store:
+                mem._vector_store._client.delete_collection("memories")
+            new_store = ChromaStore(mem.path, embedding_function=embedding_fn)
+            mem._vector_store = new_store
+            mem._retrieval.vector_store = new_store
+            return
+    except ImportError:
+        pass
 
-        # Must delete existing collection first — ChromaDB won't change
-        # embedding function on an existing collection
-        if mem._vector_store:
-            mem._vector_store._client.delete_collection("memories")
-        new_store = ChromaStore(mem.path, embedding_function=embedding_fn)
-        mem._vector_store = new_store
-        mem._retrieval.vector_store = new_store
-    except Exception as e:
-        import logging
-        logging.getLogger("agent_memory").warning(
-            "Benchmark embedding upgrade failed: %s — using local embeddings", e
-        )
+    # Non-ChromaDB backends (ArangoDB, future PostgreSQL):
+    # They already auto-detect OPENROUTER_API_KEY in _ensure_embedding_fn,
+    # but force it here to be explicit.
+    vector_store = mem._vector_store
+    if vector_store and hasattr(vector_store, "_ensure_embedding_fn"):
+        # Reset so it re-initializes with OpenRouter key
+        vector_store._embedding_fn = None
+        vector_store._ensure_embedding_fn()
+        if hasattr(vector_store, "_openai_client"):
+            logger.info("Benchmark: using OpenAI embeddings via OpenRouter")
+        else:
+            raise RuntimeError(
+                "Backend failed to initialize OpenAI embeddings despite "
+                "OPENROUTER_API_KEY being set. Check openai package."
+            )
 
 
 # ---------------------------------------------------------------------------

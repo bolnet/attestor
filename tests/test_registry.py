@@ -37,7 +37,7 @@ class TestResolveBackends:
 
     def test_unknown_backend_raises(self):
         with pytest.raises(ValueError, match="Unknown backend"):
-            resolve_backends(["postgres"])
+            resolve_backends(["nonexistent"])
 
     def test_partial_roles_ok(self):
         """A subset of roles is fine — unfilled roles degrade gracefully."""
@@ -70,7 +70,7 @@ class TestInstantiateBackend:
 
     def test_instantiate_unknown_raises(self, tmp_path):
         with pytest.raises(KeyError):
-            instantiate_backend("postgres", tmp_path)
+            instantiate_backend("nonexistent", tmp_path)
 
     def test_missing_arango_import_raises(self, tmp_path):
         """When python-arango is not installed, importing arangodb backend should fail gracefully."""
