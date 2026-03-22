@@ -38,8 +38,9 @@ Issues = "https://github.com/bolnet/agent-memory/issues"
 
 [project.optional-dependencies]
 extraction = ["openai>=1.0.0"]
+arangodb = ["python-arango>=8.0.0"]
 dev = ["pytest>=7.0", "pytest-cov>=4.0"]
-all = ["openai>=1.0.0"]
+all = ["openai>=1.0.0", "python-arango>=8.0.0"]
 
 [project.scripts]
 agent-memory = "agent_memory.cli:main"

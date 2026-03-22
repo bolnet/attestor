@@ -37,12 +37,13 @@ class DockerManager:
         port: int,
         env: Dict[str, str],
         health_timeout: int = 30,
+        container_port: Optional[int] = None,
     ) -> ContainerInfo:
         """Start container if not running. Returns container info."""
         name = self.container_name(backend_name)
 
         if not self._is_running(name):
-            self._start_container(name, image, port, env)
+            self._start_container(name, image, port, env, container_port=container_port)
             self._wait_healthy(name, timeout=health_timeout)
 
         return ContainerInfo(name=name, port=port, image=image)
