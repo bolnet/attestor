@@ -1,0 +1,433 @@
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Could not connect to PostgreSQL (connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: '5432', hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: could not receive data from server: Connection refused
+- host: 'localhost', port: '5432', hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused). Run: docker compose up -d
+Could not connect to Neo4j (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 61] Connection refused)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 61] Connection refused)). Run: docker compose up -d
+Running MemoryAgentBench benchmark...
+(ICLR 2026 benchmark — Accurate Retrieval, Conflict Resolution, etc.)
+
+
+=== Category: LRU (30 examples) ===
+
+  Example 1/30: source=infbench_sum_eng_shots2, ~122857 tokens, 1 questions
+    Ingested 161 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.36 (428ms)
+
+  Example 2/30: source=infbench_sum_eng_shots2, ~397361 tokens, 1 questions
+    Ingested 514 chunks (0 embedded) in 0.4s
+    [FAIL] Q0: token_f1=0.18 (142ms)
+
+  Example 3/30: source=infbench_sum_eng_shots2, ~106607 tokens, 1 questions
+    Ingested 136 chunks (0 embedded) in 0.2s
+    [FAIL] Q0: token_f1=0.33 (40ms)
+
+  Example 4/30: source=infbench_sum_eng_shots2, ~85826 tokens, 1 questions
+    Ingested 110 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.33 (46ms)
+
+  Example 5/30: source=infbench_sum_eng_shots2, ~73014 tokens, 1 questions
+    Ingested 94 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.31 (100ms)
+
+  Example 6/30: source=infbench_sum_eng_shots2, ~84852 tokens, 1 questions
+    Ingested 111 chunks (0 embedded) in 0.2s
+    [FAIL] Q0: token_f1=0.27 (73ms)
+
+  Example 7/30: source=infbench_sum_eng_shots2, ~93537 tokens, 1 questions
+    Ingested 119 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.22 (43ms)
+
+  Example 8/30: source=infbench_sum_eng_shots2, ~77200 tokens, 1 questions
+    Ingested 99 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: token_f1=0.33 (19ms)
+
+  Example 9/30: source=infbench_sum_eng_shots2, ~207040 tokens, 1 questions
+    Ingested 268 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.31 (36ms)
+
+  Example 10/30: source=infbench_sum_eng_shots2, ~292749 tokens, 1 questions
+    Ingested 376 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.14 (50ms)
+
+  Example 11/30: source=infbench_sum_eng_shots2, ~77591 tokens, 1 questions
+    Ingested 100 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.30 (22ms)
+
+  Example 12/30: source=infbench_sum_eng_shots2, ~68477 tokens, 1 questions
+    Ingested 88 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: token_f1=0.35 (21ms)
+
+  Example 13/30: source=infbench_sum_eng_shots2, ~112868 tokens, 1 questions
+    Ingested 145 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.41 (21ms)
+
+  Example 14/30: source=infbench_sum_eng_shots2, ~286991 tokens, 1 questions
+    Ingested 371 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.30 (45ms)
+
+  Example 15/30: source=infbench_sum_eng_shots2, ~454656 tokens, 1 questions
+    Ingested 582 chunks (0 embedded) in 0.2s
+    [FAIL] Q0: token_f1=0.20 (60ms)
+
+  Example 16/30: source=infbench_sum_eng_shots2, ~237221 tokens, 1 questions
+    Ingested 306 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.19 (37ms)
+
+  Example 17/30: source=infbench_sum_eng_shots2, ~151912 tokens, 1 questions
+    Ingested 195 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: token_f1=0.17 (26ms)
+
+  Example 18/30: source=infbench_sum_eng_shots2, ~223078 tokens, 1 questions
+    Ingested 287 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.18 (32ms)
+
+  Example 19/30: source=infbench_sum_eng_shots2, ~132886 tokens, 1 questions
+    Ingested 170 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: token_f1=0.26 (22ms)
+
+  Example 20/30: source=infbench_sum_eng_shots2, ~235829 tokens, 1 questions
+    Ingested 302 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: token_f1=0.22 (32ms)
+
+  Example 21/30: source=detective_qa, ~92215 tokens, 6 questions
+    Ingested 118 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: exact_match=0.00 (1ms)
+    [FAIL] Q1: exact_match=0.00 (1ms)
+    [FAIL] Q2: exact_match=0.00 (1ms)
+    [FAIL] Q3: exact_match=0.00 (1ms)
+    [FAIL] Q4: exact_match=0.00 (1ms)
+    [FAIL] Q5: exact_match=0.00 (1ms)
+
+  Example 22/30: source=detective_qa, ~93061 tokens, 6 questions
+    Ingested 119 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: exact_match=0.00 (1ms)
+    [FAIL] Q1: exact_match=0.00 (1ms)
+    [FAIL] Q2: exact_match=0.00 (1ms)
+    [FAIL] Q3: exact_match=0.00 (1ms)
+    [FAIL] Q4: exact_match=0.00 (1ms)
+    [FAIL] Q5: exact_match=0.00 (1ms)
+
+  Example 23/30: source=detective_qa, ~91392 tokens, 8 questions
+    Ingested 117 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: exact_match=0.00 (1ms)
+    [FAIL] Q1: exact_match=0.00 (1ms)
+    [FAIL] Q2: exact_match=0.00 (1ms)
+    [FAIL] Q3: exact_match=0.00 (1ms)
+    [FAIL] Q4: exact_match=0.00 (1ms)
+    [FAIL] Q5: exact_match=0.00 (1ms)
+    [FAIL] Q6: exact_match=0.00 (1ms)
+    [FAIL] Q7: exact_match=0.00 (1ms)
+
+  Example 24/30: source=detective_qa, ~114067 tokens, 6 questions
+    Ingested 147 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: exact_match=0.00 (1ms)
+    [FAIL] Q1: exact_match=0.00 (1ms)
+    [FAIL] Q2: exact_match=0.00 (1ms)
+    [FAIL] Q3: exact_match=0.00 (1ms)
+    [FAIL] Q4: exact_match=0.00 (1ms)
+    [FAIL] Q5: exact_match=0.00 (1ms)
+
+  Example 25/30: source=detective_qa, ~113379 tokens, 8 questions
+    Ingested 145 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: exact_match=0.00 (1ms)
+    [FAIL] Q1: exact_match=0.00 (1ms)
+    [FAIL] Q2: exact_match=0.00 (1ms)
+    [FAIL] Q3: exact_match=0.00 (1ms)
+    [FAIL] Q4: exact_match=0.00 (1ms)
+    [FAIL] Q5: exact_match=0.00 (1ms)
+    [FAIL] Q6: exact_match=0.00 (1ms)
+    [FAIL] Q7: exact_match=0.00 (1ms)
+
+  Example 26/30: source=detective_qa, ~100964 tokens, 10 questions
+    Ingested 130 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: exact_match=0.00 (1ms)
+    [FAIL] Q1: exact_match=0.00 (1ms)
+    [FAIL] Q2: exact_match=0.00 (1ms)
+    [FAIL] Q3: exact_match=0.00 (1ms)
+    [FAIL] Q4: exact_match=0.00 (1ms)
+    [FAIL] Q5: exact_match=0.00 (1ms)
+    [FAIL] Q6: exact_match=0.00 (1ms)
+    [FAIL] Q7: exact_match=0.00 (1ms)
+    [FAIL] Q8: exact_match=0.00 (1ms)
+    [FAIL] Q9: exact_match=0.00 (1ms)
+
+  Example 27/30: source=detective_qa, ~106941 tokens, 6 questions
+    Ingested 138 chunks (0 embedded) in 0.0s
+    [FAIL] Q0: exact_match=0.00 (1ms)
+    [FAIL] Q1: exact_match=0.00 (1ms)
+    [FAIL] Q2: exact_match=0.00 (2ms)
+    [FAIL] Q3: exact_match=0.00 (2ms)
+    [FAIL] Q4: exact_match=0.00 (1ms)
+    [FAIL] Q5: exact_match=0.00 (1ms)
+
+  Example 28/30: source=detective_qa, ~155399 tokens, 6 questions
+    Ingested 200 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: exact_match=0.00 (1ms)
+    [FAIL] Q1: exact_match=0.00 (1ms)
+    [FAIL] Q2: exact_match=0.00 (2ms)
+    [FAIL] Q3: exact_match=0.00 (1ms)
+    [FAIL] Q4: exact_match=0.00 (1ms)
+    [FAIL] Q5: exact_match=0.00 (1ms)
+
+  Example 29/30: source=detective_qa, ~186858 tokens, 9 questions
+    Ingested 240 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: exact_match=0.00 (2ms)
+    [FAIL] Q1: exact_match=0.00 (2ms)
+    [FAIL] Q2: exact_match=0.00 (2ms)
+    [FAIL] Q3: exact_match=0.00 (2ms)
+    [FAIL] Q4: exact_match=0.00 (2ms)
+    [FAIL] Q5: exact_match=0.00 (2ms)
+    [FAIL] Q6: exact_match=0.00 (2ms)
+    [FAIL] Q7: exact_match=0.00 (2ms)
+    [FAIL] Q8: exact_match=0.00 (2ms)
+
+  Example 30/30: source=detective_qa, ~123981 tokens, 6 questions
+    Ingested 159 chunks (0 embedded) in 0.1s
+    [FAIL] Q0: exact_match=0.00 (3ms)
+    [FAIL] Q1: exact_match=0.00 (1ms)
+    [FAIL] Q2: exact_match=0.00 (1ms)
+    [FAIL] Q3: exact_match=0.00 (1ms)
+    [FAIL] Q4: exact_match=0.00 (1ms)
+    [FAIL] Q5: exact_match=0.00 (1ms)
+
+MemoryAgentBench Results — Memwright
+=======================================================
+Categories: LRU
+Answer model: openai/gpt-4.1-mini
+Chunk size: 1024 tokens
+Questions evaluated: 91
+
+Overall Accuracy: 5.9%
+
+By Category:
+    Category   Accuracy    Correct
+  ---------- ---------- ----------
+         LRU       5.9%   0/91 
+
+By Sub-task:
+  Sub-task                    Accuracy  Questions
+  ------------------------- ---------- ----------
+  infbench_sum_eng_shots2        26.9%         20
+  detective_qa                    0.0%         71
+
+Timing:
+  Ingest:  2.7s (6047 chunks)
+  Recall:  1.4s (avg 15ms/query)
+
+Compare with:
+  GPT-4o (long-ctx):  AR ~83%, CR ~60%  (MAB paper)
+  Mem0:               limited on dense tasks  (MAB paper)
+  MemGPT:             AR ~50-70%  (MAB paper)
+
+Results saved to /Users/aarjay/Documents/agent-memory/benchmark-logs/mab-groq-lru-80-results.json
