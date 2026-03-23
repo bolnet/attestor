@@ -1,0 +1,23 @@
+Running MemoryAgentBench benchmark...
+(ICLR 2026 benchmark — Accurate Retrieval, Conflict Resolution, etc.)
+
+
+=== Category: AR (22 examples) ===
+
+  Example 1/22: source=ruler_qa1_197K, ~201242 tokens, 100 questions
+    Ingested 260 chunks (260 embedded) in 40.2s
+    [PASS] Q0: substring_exact_match=1.00 (21137ms)
+    [FAIL] Q1: substring_exact_match=0.00 (33857ms)
+    [FAIL] Q2: substring_exact_match=0.00 (20472ms)
+    [FAIL] Q3: substring_exact_match=0.00 (20736ms)
+    [FAIL] Q4: substring_exact_match=0.00 (21278ms)
+    [FAIL] Q5: substring_exact_match=0.00 (30628ms)
+    [FAIL] Q6: substring_exact_match=0.00 (26278ms)
+    [PASS] Q7: substring_exact_match=1.00 (19125ms)
+    [FAIL] Q8: substring_exact_match=0.00 (27862ms)
+    [FAIL] Q9: substring_exact_match=0.00 (24943ms)
+    [FAIL] Q10: substring_exact_match=0.00 (20483ms)
+    [FAIL] Q11: substring_exact_match=0.00 (24013ms)
+    [FAIL] Q12: substring_exact_match=0.00 (28323ms)
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/resource_tracker.py:396: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/mp-wgdmqbww'}
+  warnings.warn(
