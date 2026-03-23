@@ -72,21 +72,21 @@ def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
     except ImportError:
         pass
 
-    # Non-ChromaDB backends (ArangoDB, future PostgreSQL):
-    # They already auto-detect OPENROUTER_API_KEY in _ensure_embedding_fn,
-    # but force it here to be explicit.
+    # Non-ChromaDB backends (ArangoDB, PostgreSQL, Azure, AWS, GCP):
     vector_store = mem._vector_store
     if vector_store and hasattr(vector_store, "_ensure_embedding_fn"):
         # Reset so it re-initializes with OpenRouter key
         vector_store._embedding_fn = None
         vector_store._ensure_embedding_fn()
-        if hasattr(vector_store, "_openai_client"):
-            logger.info("Benchmark: using OpenAI embeddings via OpenRouter")
+        if hasattr(vector_store, "_openai_client") or hasattr(vector_store, "_embedder"):
+            logger.info("Benchmark: using upgraded embeddings via OpenRouter")
         else:
             raise RuntimeError(
                 "Backend failed to initialize OpenAI embeddings despite "
                 "OPENROUTER_API_KEY being set. Check openai package."
             )
+    elif vector_store:
+        logger.warning("Benchmark: vector store has no known embedding upgrade path")
 
 
 # ---------------------------------------------------------------------------
