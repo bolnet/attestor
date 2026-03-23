@@ -1,0 +1,58 @@
+Running LOCOMO benchmark...
+(Long Conversation Memory — industry-standard benchmark)
+
+
+--- Conversation 1/10: conv-26 ---
+    Resolving coreferences in session_1 (18 turns)...
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/aarjay/Documents/agent-memory/.claude/worktrees/friendly-sanderson/agent_memory/cli.py", line 771, in <module>
+    main()
+    ~~~~^^
+  File "/Users/aarjay/Documents/agent-memory/.claude/worktrees/friendly-sanderson/agent_memory/cli.py", line 198, in main
+    handlers[args.command](args)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/aarjay/Documents/agent-memory/.claude/worktrees/friendly-sanderson/agent_memory/cli.py", line 717, in _cmd_locomo
+    results = run_locomo(
+        data_path=args.data,
+    ...<9 lines>...
+        api_key=api_key,
+    )
+  File "/Users/aarjay/Documents/agent-memory/.claude/worktrees/friendly-sanderson/agent_memory/locomo.py", line 585, in run_locomo
+    mem_count = ingest_conversation(
+        mem, conv,
+    ...<5 lines>...
+        resolve_pronouns=resolve_pronouns,
+    )
+  File "/Users/aarjay/Documents/agent-memory/.claude/worktrees/friendly-sanderson/agent_memory/locomo.py", line 335, in ingest_conversation
+    turns = _resolve_coreferences(
+        turns, date_time, speaker_a, speaker_b,
+        api_key=api_key, model=extraction_model,
+    )
+  File "/Users/aarjay/Documents/agent-memory/.claude/worktrees/friendly-sanderson/agent_memory/locomo.py", line 155, in _resolve_coreferences
+    resolved_text = _chat(client, model, prompt, max_tokens=4096)
+  File "/Users/aarjay/Documents/agent-memory/.claude/worktrees/friendly-sanderson/agent_memory/locomo.py", line 46, in _chat
+    response = client.chat.completions.create(
+        model=model,
+        max_tokens=max_tokens,
+        messages=[{"role": "user", "content": prompt}],
+    )
+  File "/Users/aarjay/Documents/agent-memory/.venv/lib/python3.14/site-packages/openai/_utils/_utils.py", line 286, in wrapper
+    return func(*args, **kwargs)
+  File "/Users/aarjay/Documents/agent-memory/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 1211, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<47 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/aarjay/Documents/agent-memory/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1297, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/aarjay/Documents/agent-memory/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1070, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}

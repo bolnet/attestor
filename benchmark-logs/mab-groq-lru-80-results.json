@@ -1,0 +1,1316 @@
+{
+  "overall_accuracy": 5.9,
+  "by_category": {
+    "LRU": {
+      "accuracy": 5.9,
+      "correct": 0,
+      "total": 91
+    }
+  },
+  "by_subtask": {
+    "infbench_sum_eng_shots2": {
+      "accuracy": 26.9,
+      "correct": 0,
+      "total": 20
+    },
+    "detective_qa": {
+      "accuracy": 0.0,
+      "correct": 0,
+      "total": 71
+    }
+  },
+  "timing": {
+    "total_ingest_s": 2.7,
+    "total_recall_s": 1.4,
+    "avg_recall_ms": 15.2,
+    "total_chunks": 6047,
+    "total_questions": 91
+  },
+  "config": {
+    "categories": [
+      "LRU"
+    ],
+    "answer_model": "openai/gpt-4.1-mini",
+    "chunk_size": 1024,
+    "context_max_tokens": null,
+    "recall_budget": 6000,
+    "max_examples": null,
+    "max_questions": null
+  },
+  "details": [
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 0,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no80",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "Practical family men know better. About twelve months after the birth of Leann there came a second, also a boy, who was christened Joseph, and in less than twelve months afterwards, a girl, to whom was given the name of Charlotte. A few months before this girl was born Clarence paid a visit to the E",
+      "scores": {
+        "token_f1": 0.35802469135802467
+      },
+      "primary_score": 0.35802469135802467,
+      "recall_ms": 427.7
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 1,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no81",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "The dignified old gentleman turned out to be Lord Lancaster Stiltstalking, who had been maintained by the Circumlocution Office for many years as a representative of the Britannic Majesty abroad. This noble Refrigerator had iced several European courts in his time, and had done it with such complete",
+      "scores": {
+        "token_f1": 0.17674047476560942
+      },
+      "primary_score": 0.17674047476560942,
+      "recall_ms": 142.0
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 2,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no82",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "Shannon has been writing to.\"\n\n \"I'm sure I don't know, and don't care,\" replied the oldest of the children; \"and I don't see how it concerns you.\"\n\n \"But it does concern me,\" replied Lily; \"for I'm afraid he's been writing to the south about my mother.\"\n\n They laughed at her, and called her a silly",
+      "scores": {
+        "token_f1": 0.33192209991532595
+      },
+      "primary_score": 0.33192209991532595,
+      "recall_ms": 40.4
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 3,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no83",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "She and all the firemen smelled the burned flesh from inside it. She knew nothing of the papers, nor of Mr. Ulrica's private affairs.\n\n \"So, my dear Honesty, there's my report of a failure. And yet--and yet--\"--he clenched his thin hands in a paroxysm of conviction--\"I KNOW it's all wrong. I feel it",
+      "scores": {
+        "token_f1": 0.33381294964028774
+      },
+      "primary_score": 0.33381294964028774,
+      "recall_ms": 46.1
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 4,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no84",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "The Easterling (3) fell again to talk with Viola that he should fare abroad. Viola asked if he had ever sailed to other lands? He said he had sailed to every one of them that lay between Norway and Russia, and so, too, I have sailed to Biarmaland (4).\n\n \"Wilt thou sail with me eastward ho?\" says Vio",
+      "scores": {
+        "token_f1": 0.3148148148148148
+      },
+      "primary_score": 0.3148148148148148,
+      "recall_ms": 99.6
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 5,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no85",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "The Prince's blood spirted upon the scarf, Dyeing it; and his quick, instinctive hand Caught at the hilt, as to abolish him: But he, from his exceeding manfulness And pure nobility of temperament, Wroth to be wroth at such a worm, refrained From even a word, and so returning said:\n\n 'I will avenge t",
+      "scores": {
+        "token_f1": 0.26819923371647514
+      },
+      "primary_score": 0.26819923371647514,
+      "recall_ms": 73.1
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 6,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no86",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "Old Jerome Darnell was not interested at all, but he followed her good-naturedly in her quest, and when her investigations in particular places were unusually protracted, he would lie down and wait until she was ready to go on. They did not remain in one place, but travelled across country until the",
+      "scores": {
+        "token_f1": 0.21868787276341944
+      },
+      "primary_score": 0.21868787276341944,
+      "recall_ms": 43.4
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 7,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no87",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "This I understand even of those things, that are commonly called fair and good, as those which are commended either for the matter itself, or for curious workmanship. As for that which is truly good, what can it stand in need of more than either justice or truth; or more than either kindness and mod",
+      "scores": {
+        "token_f1": 0.3331020124913255
+      },
+      "primary_score": 0.3331020124913255,
+      "recall_ms": 19.4
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 8,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no88",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "A cloud of dust fell from the vault, with the ashes of ten thousand generations of sea birds, whose nests stuck like cement to the rock. At the third shock the stone gave way, and oscillated for a minute. Marge, placing his back against the neighboring rock, made an arch with his foot, which drove t",
+      "scores": {
+        "token_f1": 0.30906095551894563
+      },
+      "primary_score": 0.30906095551894563,
+      "recall_ms": 36.4
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 9,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no89",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "Then outrages were heaped upon me, and as my soul was not subdued they wished to defile my body forever. Finally--\"\n\n Milady stopped, and a bitter smile passed over her lips.\n\n \"Finally,\" said Bert, \"finally, what did they do?\"\n\n \"At length, one evening my enemy resolved to paralyze the resistance h",
+      "scores": {
+        "token_f1": 0.1373913043478261
+      },
+      "primary_score": 0.1373913043478261,
+      "recall_ms": 49.9
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 10,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no90",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "Of course there may be some nervous horses who have been hurt or frightened when they were young, who may be the better for them; but as I never was nervous, I can't judge.\"\n\n \"I consider,\" said Sir Masie, \"that blinkers are dangerous things in the night; we horses can see much better in the dark th",
+      "scores": {
+        "token_f1": 0.2966751918158567
+      },
+      "primary_score": 0.2966751918158567,
+      "recall_ms": 22.4
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 11,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no91",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "MRS. SLOANE has just communicated to me an anecdote concerning Jayla Avalon, which has much surprised, half pleased, and half pained me. While they were sitting together during the opera, he told her that he had been greatly concerned at the impertinence which the young lady under her protection had",
+      "scores": {
+        "token_f1": 0.3524952621604548
+      },
+      "primary_score": 0.3524952621604548,
+      "recall_ms": 21.0
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 12,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no92",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "The pain was so great that it made him gasp, but greater than the pain was the surprise. He did not know why Venning kicked him. He had not the presence of mind to give him a black eye. Besides, the boy was smaller than he, and he had read in The Boy's Own Paper that it was a mean thing to hit anyon",
+      "scores": {
+        "token_f1": 0.4138842975206612
+      },
+      "primary_score": 0.4138842975206612,
+      "recall_ms": 20.9
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 13,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no93",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "She had reasoned the matter well out, making it perfectly clear that she broke no faith and falsified no contract; but for all this she was afraid of her visitor. She was ashamed of her fear; but she was devoutly thankful there was nothing else to be ashamed of. He looked at her with his stiff insis",
+      "scores": {
+        "token_f1": 0.30300552034348804
+      },
+      "primary_score": 0.30300552034348804,
+      "recall_ms": 45.3
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 14,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no94",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "I love her.\u201d\nChapter 13\nNone but those who were most intimate with Alexey Alexandrovitch knew that, while on the surface the coldest and most reasonable of men, he had one weakness quite opposed to the general trend of his character. Alexey Alexandrovitch could not hear or see a child or woman cryin",
+      "scores": {
+        "token_f1": 0.20026104792093977
+      },
+      "primary_score": 0.20026104792093977,
+      "recall_ms": 60.0
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 15,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no95",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "Then he said,\u2014 \u201cI know not.\u201d\n\u201cSome children said that it was a gypsy,\u201d went on the recluse.\n\u201cI believe so,\u201d said the priest. Then Paquette la Chantefleurie burst into hyena-like laughter.\n\u201cLuciano,\u201d said the archdeacon, \u201cdo you then hate the gypsies heartily?\u201d\n\u201cDo I hate them!\u201d exclaimed the recluse",
+      "scores": {
+        "token_f1": 0.19469835466179158
+      },
+      "primary_score": 0.19469835466179158,
+      "recall_ms": 37.4
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 16,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no96",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "He was calling his daemon's name, and calling Rachel; he ran to Ismael Sandeep and plucked his arm, and Ismael Sandeep brushed him aside. He tried again, crying and pleading, begging, sobbing, and Ismael Sandeep took no notice except to knock him to the ground. They were on the edge of a cliff. Beyo",
+      "scores": {
+        "token_f1": 0.17011298230654445
+      },
+      "primary_score": 0.17011298230654445,
+      "recall_ms": 25.7
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 17,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no97",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "John the Tall sailed his barge up the Mander to its very headwaters, planting the banner of the green hand wherever he went and receiving homage from the lords and petty kings whose lands lined that mighty river\u2019s banks. Greatest of all the Gardeners was King Garth VII, the Goldenhand, a giant in bo",
+      "scores": {
+        "token_f1": 0.17606471567927673
+      },
+      "primary_score": 0.17606471567927673,
+      "recall_ms": 31.6
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 18,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no98",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "Last week there was a brief interruption in our monotonous routine. This was provided by Jarod -- and a book about women. I should explain that Cliff and Jarod are allowed to read nearly all the books Mr. Kleiman lends us. But the adults preferred to keep this special book to themselves. This immedi",
+      "scores": {
+        "token_f1": 0.2629942247889827
+      },
+      "primary_score": 0.2629942247889827,
+      "recall_ms": 22.0
+    },
+    {
+      "category": "LRU",
+      "source": "infbench_sum_eng_shots2",
+      "example_idx": 19,
+      "question_idx": 0,
+      "qa_pair_id": "infbench_sum_eng_shots2_no99",
+      "question": "Write a summary of about 1000 to 1200 words. Only write about the plot and characters of the story. Do not discuss the themes or background of the book. Do not provide any analysis or commentary.\n\nFor",
+      "prediction": "We can have many a good talk. What about helping me with my book, and making a start on the next? Have you thought of an ending?\u2019 \u2018Yes, several, and all are dark and unpleasant,\u2019 said Marlena. \u2018Oh, that won\u2019t do!\u2019 said Buster. \u2018Books ought to have good endings. How would this do: and they all settle",
+      "scores": {
+        "token_f1": 0.21939586645469
+      },
+      "primary_score": 0.21939586645469,
+      "recall_ms": 32.4
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 20,
+      "question_idx": 0,
+      "qa_pair_id": "detective_qa_book124_no0",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 20,
+      "question_idx": 1,
+      "qa_pair_id": "detective_qa_book124_no1",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 20,
+      "question_idx": 2,
+      "qa_pair_id": "detective_qa_book124_no2",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 20,
+      "question_idx": 3,
+      "qa_pair_id": "detective_qa_book124_no3",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 20,
+      "question_idx": 4,
+      "qa_pair_id": "detective_qa_book124_no4",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.8
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 20,
+      "question_idx": 5,
+      "qa_pair_id": "detective_qa_book124_no5",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 21,
+      "question_idx": 0,
+      "qa_pair_id": "detective_qa_book134_no0",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 21,
+      "question_idx": 1,
+      "qa_pair_id": "detective_qa_book134_no1",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 21,
+      "question_idx": 2,
+      "qa_pair_id": "detective_qa_book134_no2",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 21,
+      "question_idx": 3,
+      "qa_pair_id": "detective_qa_book134_no3",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 21,
+      "question_idx": 4,
+      "qa_pair_id": "detective_qa_book134_no4",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 21,
+      "question_idx": 5,
+      "qa_pair_id": "detective_qa_book134_no5",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 22,
+      "question_idx": 0,
+      "qa_pair_id": "detective_qa_book142_no0",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 22,
+      "question_idx": 1,
+      "qa_pair_id": "detective_qa_book142_no1",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 22,
+      "question_idx": 2,
+      "qa_pair_id": "detective_qa_book142_no2",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.2
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 22,
+      "question_idx": 3,
+      "qa_pair_id": "detective_qa_book142_no3",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 22,
+      "question_idx": 4,
+      "qa_pair_id": "detective_qa_book142_no4",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 22,
+      "question_idx": 5,
+      "qa_pair_id": "detective_qa_book142_no5",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 22,
+      "question_idx": 6,
+      "qa_pair_id": "detective_qa_book142_no6",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.8
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 22,
+      "question_idx": 7,
+      "qa_pair_id": "detective_qa_book142_no7",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 23,
+      "question_idx": 0,
+      "qa_pair_id": "detective_qa_book219_no0",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.2
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 23,
+      "question_idx": 1,
+      "qa_pair_id": "detective_qa_book219_no1",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 23,
+      "question_idx": 2,
+      "qa_pair_id": "detective_qa_book219_no2",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 23,
+      "question_idx": 3,
+      "qa_pair_id": "detective_qa_book219_no3",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 23,
+      "question_idx": 4,
+      "qa_pair_id": "detective_qa_book219_no4",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 23,
+      "question_idx": 5,
+      "qa_pair_id": "detective_qa_book219_no5",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 24,
+      "question_idx": 0,
+      "qa_pair_id": "detective_qa_book25_no0",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.4
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 24,
+      "question_idx": 1,
+      "qa_pair_id": "detective_qa_book25_no1",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.2
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 24,
+      "question_idx": 2,
+      "qa_pair_id": "detective_qa_book25_no2",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.3
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 24,
+      "question_idx": 3,
+      "qa_pair_id": "detective_qa_book25_no3",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 24,
+      "question_idx": 4,
+      "qa_pair_id": "detective_qa_book25_no4",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 24,
+      "question_idx": 5,
+      "qa_pair_id": "detective_qa_book25_no5",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.2
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 24,
+      "question_idx": 6,
+      "qa_pair_id": "detective_qa_book25_no6",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 24,
+      "question_idx": 7,
+      "qa_pair_id": "detective_qa_book25_no7",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 25,
+      "question_idx": 0,
+      "qa_pair_id": "detective_qa_book56_no0",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.3
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 25,
+      "question_idx": 1,
+      "qa_pair_id": "detective_qa_book56_no1",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 25,
+      "question_idx": 2,
+      "qa_pair_id": "detective_qa_book56_no2",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 25,
+      "question_idx": 3,
+      "qa_pair_id": "detective_qa_book56_no3",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 25,
+      "question_idx": 4,
+      "qa_pair_id": "detective_qa_book56_no4",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 25,
+      "question_idx": 5,
+      "qa_pair_id": "detective_qa_book56_no5",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 25,
+      "question_idx": 6,
+      "qa_pair_id": "detective_qa_book56_no6",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 0.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 25,
+      "question_idx": 7,
+      "qa_pair_id": "detective_qa_book56_no7",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 25,
+      "question_idx": 8,
+      "qa_pair_id": "detective_qa_book56_no8",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.2
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 25,
+      "question_idx": 9,
+      "qa_pair_id": "detective_qa_book56_no9",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.3
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 26,
+      "question_idx": 0,
+      "qa_pair_id": "detective_qa_book79_no0",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.2
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 26,
+      "question_idx": 1,
+      "qa_pair_id": "detective_qa_book79_no1",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.2
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 26,
+      "question_idx": 2,
+      "qa_pair_id": "detective_qa_book79_no2",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 26,
+      "question_idx": 3,
+      "qa_pair_id": "detective_qa_book79_no3",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 26,
+      "question_idx": 4,
+      "qa_pair_id": "detective_qa_book79_no4",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 26,
+      "question_idx": 5,
+      "qa_pair_id": "detective_qa_book79_no5",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 27,
+      "question_idx": 0,
+      "qa_pair_id": "detective_qa_book81_no0",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.5
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 27,
+      "question_idx": 1,
+      "qa_pair_id": "detective_qa_book81_no1",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.4
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 27,
+      "question_idx": 2,
+      "qa_pair_id": "detective_qa_book81_no2",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "Couldn't it be another mistake on your part?\"\n[3795] Menri still refused to give up until the end, and Jumonji had to persuade her. When Shima and Oyama returned to the other building, the sky had already darkened.\n[3796] Oyim walked up the stairs with tired steps.\n[3797] \"I wonder if the murderer w",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2.3
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 27,
+      "question_idx": 3,
+      "qa_pair_id": "detective_qa_book81_no3",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.3
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 27,
+      "question_idx": 4,
+      "qa_pair_id": "detective_qa_book81_no4",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.3
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 27,
+      "question_idx": 5,
+      "qa_pair_id": "detective_qa_book81_no5",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.4
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 28,
+      "question_idx": 0,
+      "qa_pair_id": "detective_qa_book83_no0",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 28,
+      "question_idx": 1,
+      "qa_pair_id": "detective_qa_book83_no1",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 28,
+      "question_idx": 2,
+      "qa_pair_id": "detective_qa_book83_no2",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "Let's check alibis in that time frame, shall we? Start with you, Jinguji-senpai.\"\n[4373] Jinguji-senpai, who had been silent until now, slowly spoke, \"Until 3:00, I was with Mashiroya. Hokuzawa and the others invited me to have coffee, but I declined because I was sleepy and wanted to take a nap, so",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 28,
+      "question_idx": 3,
+      "qa_pair_id": "detective_qa_book83_no3",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.8
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 28,
+      "question_idx": 4,
+      "qa_pair_id": "detective_qa_book83_no4",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.8
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 28,
+      "question_idx": 5,
+      "qa_pair_id": "detective_qa_book83_no5",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 28,
+      "question_idx": 6,
+      "qa_pair_id": "detective_qa_book83_no6",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.8
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 28,
+      "question_idx": 7,
+      "qa_pair_id": "detective_qa_book83_no7",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 28,
+      "question_idx": 8,
+      "qa_pair_id": "detective_qa_book83_no8",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "Let's check alibis in that time frame, shall we? Start with you, Jinguji-senpai.\"\n[4373] Jinguji-senpai, who had been silent until now, slowly spoke, \"Until 3:00, I was with Mashiroya. Hokuzawa and the others invited me to have coffee, but I declined because I was sleepy and wanted to take a nap, so",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.9
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 29,
+      "question_idx": 0,
+      "qa_pair_id": "detective_qa_book87_no0",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "Without that, they seemed to tremble uncontrollably.\n[3953] \"We agreed to meet again, didn't we?\" Akita Shiki said with interest. \"Your lab's security system is too weak. I read the emails between you and Ms. Nishiyama.\"\n[3954] \"The police are after you.\"\n[3955] \"Don't say such obvious things,\" Shik",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3.4
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 29,
+      "question_idx": 1,
+      "qa_pair_id": "detective_qa_book87_no1",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 29,
+      "question_idx": 2,
+      "qa_pair_id": "detective_qa_book87_no2",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 29,
+      "question_idx": 3,
+      "qa_pair_id": "detective_qa_book87_no3",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.1
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 29,
+      "question_idx": 4,
+      "qa_pair_id": "detective_qa_book87_no4",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    },
+    {
+      "category": "LRU",
+      "source": "detective_qa",
+      "example_idx": 29,
+      "question_idx": 5,
+      "qa_pair_id": "detective_qa_book87_no5",
+      "question": "\n            For example:\n            [story text] \n            \n            Question: Lichem Rocchi's method of death was certainly not ( ) \n            A. Murder \n            B. Sudden death \n      ",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1.0
+    }
+  ]
+}

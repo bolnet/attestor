@@ -1,0 +1,5658 @@
+{
+  "overall_accuracy": 18.8,
+  "by_category": {
+    "AR": {
+      "accuracy": 28.0,
+      "correct": 56,
+      "total": 200
+    },
+    "CR": {
+      "accuracy": 9.5,
+      "correct": 19,
+      "total": 200
+    }
+  },
+  "by_subtask": {
+    "ruler_qa1_197K": {
+      "accuracy": 29.0,
+      "correct": 29,
+      "total": 100
+    },
+    "ruler_qa2_421K": {
+      "accuracy": 27.0,
+      "correct": 27,
+      "total": 100
+    },
+    "factconsolidation_mh_6k": {
+      "accuracy": 11.0,
+      "correct": 11,
+      "total": 100
+    },
+    "factconsolidation_mh_32k": {
+      "accuracy": 8.0,
+      "correct": 8,
+      "total": 100
+    }
+  },
+  "timing": {
+    "total_ingest_s": 367.3,
+    "total_recall_s": 1738.8,
+    "avg_recall_ms": 4347.1,
+    "total_chunks": 811,
+    "total_questions": 400
+  },
+  "config": {
+    "categories": [
+      "AR",
+      "CR"
+    ],
+    "answer_model": "openai/gpt-4.1-mini",
+    "chunk_size": 1024,
+    "context_max_tokens": null,
+    "recall_budget": 6000,
+    "max_examples": 2,
+    "max_questions": null
+  },
+  "details": [
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 0,
+      "qa_pair_id": "ruler_qa1_197K_no0",
+      "question": "In what country is Normandy located?",
+      "prediction": "Normandy is located in France.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1462.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 1,
+      "qa_pair_id": "ruler_qa1_197K_no1",
+      "question": "When were the Normans in Normandy?",
+      "prediction": "The Normans were in Normandy from at least the early 11th century, with Duke Richard I forging it into a cohesive principality, and experienced a cultural golden age in the late 11th to early 12th century.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2438.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 2,
+      "qa_pair_id": "ruler_qa1_197K_no2",
+      "question": "From which countries did the Norse originate?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2402.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 3,
+      "qa_pair_id": "ruler_qa1_197K_no3",
+      "question": "Who was the Norse leader?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1179.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 4,
+      "qa_pair_id": "ruler_qa1_197K_no4",
+      "question": "What century did the Normans first gain their separate identity?",
+      "prediction": "The Normans began to form a separate identity in the early 11th century.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2287.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 5,
+      "qa_pair_id": "ruler_qa1_197K_no5",
+      "question": "Who was the duke in the battle of Hastings?",
+      "prediction": "The duke in the Battle of Hastings was Duke William II of Normandy.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1212.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 6,
+      "qa_pair_id": "ruler_qa1_197K_no6",
+      "question": "Who ruled the duchy of Normandy",
+      "prediction": "The Duchy of Normandy was ruled by the Norman dukes, notably Richard I of Normandy, and later by William the Conqueror.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1403.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 7,
+      "qa_pair_id": "ruler_qa1_197K_no7",
+      "question": "What religion were the Normans",
+      "prediction": "The Normans were exponents of Catholic orthodoxy and Christian piety.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2049.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 8,
+      "qa_pair_id": "ruler_qa1_197K_no8",
+      "question": "What is the original meaning of the word Norman?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1242.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 9,
+      "qa_pair_id": "ruler_qa1_197K_no9",
+      "question": "When was the Latin version of the word Norman first recorded?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2081.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 10,
+      "qa_pair_id": "ruler_qa1_197K_no10",
+      "question": "When was the Duchy of Normandy founded?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1395.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 11,
+      "qa_pair_id": "ruler_qa1_197K_no11",
+      "question": "Who did Rollo sign the treaty of Saint-Clair-sur-Epte with?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2316.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 12,
+      "qa_pair_id": "ruler_qa1_197K_no12",
+      "question": "What river originally bounded the Duchy",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2246.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 13,
+      "qa_pair_id": "ruler_qa1_197K_no13",
+      "question": "Who upon arriving gave the original viking settlers a common identity?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1654.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 14,
+      "qa_pair_id": "ruler_qa1_197K_no14",
+      "question": "What was the Norman religion?",
+      "prediction": "The Normans were Christians and exponents of Catholic orthodoxy.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2556.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 15,
+      "qa_pair_id": "ruler_qa1_197K_no15",
+      "question": "What part of France were the Normans located?",
+      "prediction": "The Normans were located in Normandy, France.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1501.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 16,
+      "qa_pair_id": "ruler_qa1_197K_no16",
+      "question": "What was one of the Norman's major exports?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1350.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 17,
+      "qa_pair_id": "ruler_qa1_197K_no17",
+      "question": "Who was the Normans' main enemy in Italy, the Byzantine Empire and Armenia?",
+      "prediction": "The Normans' main enemy in Italy, the Byzantine Empire, and Armenia was the Byzantine Empire.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2097.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 18,
+      "qa_pair_id": "ruler_qa1_197K_no18",
+      "question": "When did Herve serve as a Byzantine general?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1502.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 19,
+      "qa_pair_id": "ruler_qa1_197K_no19",
+      "question": "When did Robert Crispin go up against the Turks?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1178.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 20,
+      "qa_pair_id": "ruler_qa1_197K_no20",
+      "question": "Who ruined Roussel de Bailleul's plans for an independent state?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1648.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 21,
+      "qa_pair_id": "ruler_qa1_197K_no21",
+      "question": "What was the name of the Norman castle?",
+      "prediction": "Trim Castle and Dublin Castle",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1510.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 22,
+      "qa_pair_id": "ruler_qa1_197K_no22",
+      "question": "Who was the leader when the Franks entered the Euphrates valley?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1637.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 23,
+      "qa_pair_id": "ruler_qa1_197K_no23",
+      "question": "Who did the Normans team up with in Anatolia?",
+      "prediction": "The passages do not provide information about who the Normans teamed up with in Anatolia.  \nAnswer: I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2127.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 24,
+      "qa_pair_id": "ruler_qa1_197K_no24",
+      "question": "What were the origins of the Raouliii family?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1255.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 25,
+      "qa_pair_id": "ruler_qa1_197K_no25",
+      "question": "What was the name of the count of Apulia",
+      "prediction": "The count of Apulia was Robert Guiscard.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1490.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 26,
+      "qa_pair_id": "ruler_qa1_197K_no26",
+      "question": "When did Dyrrachium  fall to the Normans?",
+      "prediction": "Dyrrachium did not fall to the Normans in 1107 despite their siege; they besieged it but were unsuccessful.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1619.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 27,
+      "qa_pair_id": "ruler_qa1_197K_no27",
+      "question": "How many men were in Robert's army?",
+      "prediction": "Robert's army numbered 30,000 men.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1672.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 28,
+      "qa_pair_id": "ruler_qa1_197K_no28",
+      "question": "Where did the Normans and Byzantines sign the peace treaty?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1464.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 29,
+      "qa_pair_id": "ruler_qa1_197K_no29",
+      "question": "Who was Robert's son?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1390.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 30,
+      "qa_pair_id": "ruler_qa1_197K_no30",
+      "question": "What river was Petrela located by?",
+      "prediction": "Petrela was located by the river Deabolis.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1392.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 31,
+      "qa_pair_id": "ruler_qa1_197K_no31",
+      "question": "When did the Normans attack Dyrrachium?",
+      "prediction": "The Normans attacked Dyrrachium in 1107.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1703.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 32,
+      "qa_pair_id": "ruler_qa1_197K_no32",
+      "question": "What was the naval base called?",
+      "prediction": "The naval bases are called Blount Island Command and Naval Submarine Base Kings Bay.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1611.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 33,
+      "qa_pair_id": "ruler_qa1_197K_no33",
+      "question": "Where was Dyrrachium located?",
+      "prediction": "Dyrrachium was located at the banks of the river Deabolis.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1412.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 34,
+      "qa_pair_id": "ruler_qa1_197K_no34",
+      "question": "Who did Emma Marry?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1337.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 35,
+      "qa_pair_id": "ruler_qa1_197K_no35",
+      "question": "Who was Emma's brother?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1175.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 36,
+      "qa_pair_id": "ruler_qa1_197K_no36",
+      "question": "To where did Ethelred flee?",
+      "prediction": "Ethelred fled to Normandy in 1013.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1551.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 37,
+      "qa_pair_id": "ruler_qa1_197K_no37",
+      "question": "Who kicked Ethelred out?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1436.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 38,
+      "qa_pair_id": "ruler_qa1_197K_no38",
+      "question": "Who was Edward the Confessor's half-brother?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1714.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 39,
+      "qa_pair_id": "ruler_qa1_197K_no39",
+      "question": "When did Edward return?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1712.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 40,
+      "qa_pair_id": "ruler_qa1_197K_no40",
+      "question": "Who did Edward make archbishop of Canterbury?",
+      "prediction": "Edward made Robert of Jumi\u00e8ges archbishop of Canterbury.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1930.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 41,
+      "qa_pair_id": "ruler_qa1_197K_no41",
+      "question": "Where did Harold II die?",
+      "prediction": "Harold II died at the Battle of Hastings in 1066.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1757.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 42,
+      "qa_pair_id": "ruler_qa1_197K_no42",
+      "question": "Who killed Harold II?",
+      "prediction": "Duke William II of Normandy killed King Harold II at the Battle of Hastings in 1066.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1596.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 43,
+      "qa_pair_id": "ruler_qa1_197K_no43",
+      "question": "When was the Battle of Hastings?",
+      "prediction": "The Battle of Hastings was in 1066.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1556.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 44,
+      "qa_pair_id": "ruler_qa1_197K_no44",
+      "question": "Who was the ruling class ahead of the Normans?",
+      "prediction": "The Anglo-Saxons were the ruling class ahead of the Normans.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1927.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 45,
+      "qa_pair_id": "ruler_qa1_197K_no45",
+      "question": "What was the Anglo-Norman language's final form?",
+      "prediction": "The Anglo-Norman language was eventually absorbed into the Anglo-Saxon language and influenced it, helping in the development of Middle English.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1671.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 46,
+      "qa_pair_id": "ruler_qa1_197K_no46",
+      "question": "In what year did the Norman's invade at Bannow Bay?",
+      "prediction": "1169",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2119.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 47,
+      "qa_pair_id": "ruler_qa1_197K_no47",
+      "question": "What country did the Normans invade in 1169?",
+      "prediction": "The Normans invaded Ireland in 1169.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1418.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 48,
+      "qa_pair_id": "ruler_qa1_197K_no48",
+      "question": "What culture did the Normans combine with in Ireland?",
+      "prediction": "The Normans combined with Irish culture in Ireland.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1520.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 49,
+      "qa_pair_id": "ruler_qa1_197K_no49",
+      "question": "Who was Margaret's brother?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1819.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 50,
+      "qa_pair_id": "ruler_qa1_197K_no50",
+      "question": "Who was Margaret's husband?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2586.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 51,
+      "qa_pair_id": "ruler_qa1_197K_no51",
+      "question": "When was Scotland invaded by William?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1403.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 52,
+      "qa_pair_id": "ruler_qa1_197K_no52",
+      "question": "Who was the hostage?",
+      "prediction": "Isaac was the hostage, confined with silver chains after Richard conquered the island.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1470.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 53,
+      "qa_pair_id": "ruler_qa1_197K_no53",
+      "question": "Who did Alexander I marry?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1256.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 54,
+      "qa_pair_id": "ruler_qa1_197K_no54",
+      "question": "What culture's arrival in Scotland is know as the \"Davidian Revolution\"?",
+      "prediction": "The arrival of the Normans in Scotland is known as the \"Davidian Revolution.\"",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1881.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 55,
+      "qa_pair_id": "ruler_qa1_197K_no55",
+      "question": "Where was Ralph earl of?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1249.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 56,
+      "qa_pair_id": "ruler_qa1_197K_no56",
+      "question": "Who was Ralph in charge of being at war with?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1484.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 57,
+      "qa_pair_id": "ruler_qa1_197K_no57",
+      "question": "Who made Ralph earl?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1479.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 58,
+      "qa_pair_id": "ruler_qa1_197K_no58",
+      "question": "What country was under the control of Norman barons?",
+      "prediction": "Ireland was under the control of Norman barons after their invasion in 1169.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1585.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 59,
+      "qa_pair_id": "ruler_qa1_197K_no59",
+      "question": "What year did Roger de Tosny fail to accomplish what he set out to do?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1278.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 60,
+      "qa_pair_id": "ruler_qa1_197K_no60",
+      "question": "Who was in charge of the papal army in the War of Barbastro?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1352.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 61,
+      "qa_pair_id": "ruler_qa1_197K_no61",
+      "question": "When did the Siege of Antioch take place?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1507.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 62,
+      "qa_pair_id": "ruler_qa1_197K_no62",
+      "question": "What was the name of Bohemond's nephew?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2315.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 63,
+      "qa_pair_id": "ruler_qa1_197K_no63",
+      "question": "What major conquest did Tancred play a roll in?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1683.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 64,
+      "qa_pair_id": "ruler_qa1_197K_no64",
+      "question": "How long did Western Europe control Cyprus?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1366.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 65,
+      "qa_pair_id": "ruler_qa1_197K_no65",
+      "question": "What ruined Richard's plans to reach Acre?",
+      "prediction": "Richard's plans to reach Acre were not ruined; he conquered Cyprus by 1 June and left for Acre on 5 June with his allies.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3310.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 66,
+      "qa_pair_id": "ruler_qa1_197K_no66",
+      "question": "Who was Richard's fiancee?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2735.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 67,
+      "qa_pair_id": "ruler_qa1_197K_no67",
+      "question": "What year did the storm hit Richard's fleet?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3963.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 68,
+      "qa_pair_id": "ruler_qa1_197K_no68",
+      "question": "Who ruled Cyprus in 1191?",
+      "prediction": "In 1191, Cyprus was ruled by Isaac until Richard the Lionheart conquered the island and confined Isaac with silver chains by 1 June.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1661.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 69,
+      "qa_pair_id": "ruler_qa1_197K_no69",
+      "question": "Who was Guy's Rival?",
+      "prediction": "Guy de Lusignan's rival was Conrad of Montferrat.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1766.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 70,
+      "qa_pair_id": "ruler_qa1_197K_no70",
+      "question": "What were Isaac's chains made out of?",
+      "prediction": "Isaac's chains were made of silver.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1691.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 71,
+      "qa_pair_id": "ruler_qa1_197K_no71",
+      "question": "Who led Richard's troops when Cyprus was conquered?",
+      "prediction": "Guy de Lusignan led Richard's troops when Cyprus was conquered.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2082.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 72,
+      "qa_pair_id": "ruler_qa1_197K_no72",
+      "question": "What continent are the Canarian Islands off the coast of?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3895.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 73,
+      "qa_pair_id": "ruler_qa1_197K_no73",
+      "question": "Who became the King of the Canary Islands?",
+      "prediction": "Bethencourt took the title of King of the Canary Islands.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2650.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 74,
+      "qa_pair_id": "ruler_qa1_197K_no74",
+      "question": "Who bought the rights?",
+      "prediction": "BSkyB bought the Premier League rights, paying \u00a3304 million for a monopoly of all live matches from the 1992 season.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1746.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 75,
+      "qa_pair_id": "ruler_qa1_197K_no75",
+      "question": "Who sold the rights?",
+      "prediction": "ITV sold the Premier League rights for the 1992 season.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1659.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 76,
+      "qa_pair_id": "ruler_qa1_197K_no76",
+      "question": "Where are Jersey and Guernsey",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1571.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 77,
+      "qa_pair_id": "ruler_qa1_197K_no77",
+      "question": "How many customaries does Norman customary law have?",
+      "prediction": "Norman customary law was transcribed in two customaries: the Tr\u00e8s ancien coutumier and the Grand coutumier de Normandie.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3769.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 78,
+      "qa_pair_id": "ruler_qa1_197K_no78",
+      "question": "What is the Norman architecture idiom?",
+      "prediction": "The Norman architecture idiom is unique Romanesque architecture.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1740.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 79,
+      "qa_pair_id": "ruler_qa1_197K_no79",
+      "question": "What kind of arches does Norman architecture have?",
+      "prediction": "Norman architecture has a unique Romanesque style.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1624.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 80,
+      "qa_pair_id": "ruler_qa1_197K_no80",
+      "question": "What architecture type came after Norman in England?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1225.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 81,
+      "qa_pair_id": "ruler_qa1_197K_no81",
+      "question": "What architecture type came before Norman in England?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1809.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 82,
+      "qa_pair_id": "ruler_qa1_197K_no82",
+      "question": "What place had the Norman Arab architectural style?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2330.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 83,
+      "qa_pair_id": "ruler_qa1_197K_no83",
+      "question": "When did the church reform begin?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3757.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 84,
+      "qa_pair_id": "ruler_qa1_197K_no84",
+      "question": "Who used the church to unify themselves?",
+      "prediction": "The Huguenots used the church to unify themselves, as indicated by their establishment of churches in places like Brandenburg-Prussia after fleeing France around 1685.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2343.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 85,
+      "qa_pair_id": "ruler_qa1_197K_no85",
+      "question": "When were the French wars of religion?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1431.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 86,
+      "qa_pair_id": "ruler_qa1_197K_no86",
+      "question": "What kind of needlework was used in the creation of the Bayeux Tapestry?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1136.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 87,
+      "qa_pair_id": "ruler_qa1_197K_no87",
+      "question": "What is Norman art's most well known piece?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1940.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 88,
+      "qa_pair_id": "ruler_qa1_197K_no88",
+      "question": "Who commissioned the Tapestry?",
+      "prediction": "The Bayeux Tapestry was commissioned by Odo, the Bishop of Bayeux and first Earl of Kent.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1847.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 89,
+      "qa_pair_id": "ruler_qa1_197K_no89",
+      "question": "What is the most important type of Norman art preserved in churches?",
+      "prediction": "Mosaics are the most important type of Norman art preserved in churches.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1574.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 90,
+      "qa_pair_id": "ruler_qa1_197K_no90",
+      "question": "In what century did important classical music developments occur in Normandy?",
+      "prediction": "Important classical music developments in Normandy occurred in the 11th century.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1654.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 91,
+      "qa_pair_id": "ruler_qa1_197K_no91",
+      "question": "Who were the two abbots at F\u00e9camp Abbey?",
+      "prediction": "William of Volpiano and John of Ravenna.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1497.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 92,
+      "qa_pair_id": "ruler_qa1_197K_no92",
+      "question": "Where did the monks flee to?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1209.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 93,
+      "qa_pair_id": "ruler_qa1_197K_no93",
+      "question": "What monastery did the Saint-Evroul monks establish in Italy?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4865.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 94,
+      "qa_pair_id": "ruler_qa1_197K_no94",
+      "question": "Who patronized the monks in Italy?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1251.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 95,
+      "qa_pair_id": "ruler_qa1_197K_no95",
+      "question": "What tradition were the Saint-Evroul monks known for?",
+      "prediction": "The Saint-Evroul monks were known for participating in the Cluniac reform of monasteries and patronising intellectual pursuits, especially the proliferation of scriptoria and the reconstitution of a compilation of lost illuminated manuscripts.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1884.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 96,
+      "qa_pair_id": "ruler_qa1_197K_no96",
+      "question": "What branch of theoretical computer science deals with broadly classifying computational problems by difficulty and class of relationship?",
+      "prediction": "The branch is computational complexity theory.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1303.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 97,
+      "qa_pair_id": "ruler_qa1_197K_no97",
+      "question": "By what main attribute are computational problems classified utilizing computational complexity theory?",
+      "prediction": "Computational problems are classified mainly by their time and space complexity and whether they belong to classes such as P, NP, or NP-complete in computational complexity theory.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1839.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 98,
+      "qa_pair_id": "ruler_qa1_197K_no98",
+      "question": "What is the term for a task that generally lends itself to being solved by a computer?",
+      "prediction": "A computational problem.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1462.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa1_197K",
+      "example_idx": 0,
+      "question_idx": 99,
+      "qa_pair_id": "ruler_qa1_197K_no99",
+      "question": "What measure of a computational problem broadly defines the inherent difficulty of the solution?",
+      "prediction": "The complexity class of the problem broadly defines the inherent difficulty of the solution.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1355.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 0,
+      "qa_pair_id": "ruler_qa2_421K_no0",
+      "question": "Were Scott Derrickson and Ed Wood of the same nationality?",
+      "prediction": "Yes, both Scott Derrickson and Ed Wood are American.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1550.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 1,
+      "qa_pair_id": "ruler_qa2_421K_no1",
+      "question": "What government position was held by the woman who portrayed Corliss Archer in the film Kiss and Tell?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2016.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 2,
+      "qa_pair_id": "ruler_qa2_421K_no2",
+      "question": "What science fantasy young adult series, told in first person, has a set of companion books narrating the stories of enslaved worlds and alien species?",
+      "prediction": "The \"Animorphs\" series, specifically \"The Hork-Bajir Chronicles,\" is a science fantasy young adult series, told in first person, with companion books narrating the stories of enslaved worlds and alien species.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2322.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 3,
+      "qa_pair_id": "ruler_qa2_421K_no3",
+      "question": "Are the Laleli Mosque and Esma Sultan Mansion located in the same neighborhood?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1671.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 4,
+      "qa_pair_id": "ruler_qa2_421K_no4",
+      "question": "The director of the romantic comedy \"Big Stone Gap\" is based in what New York city?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1554.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 5,
+      "qa_pair_id": "ruler_qa2_421K_no5",
+      "question": "2014 S/S is the debut album of a South Korean boy group that was formed by who?",
+      "prediction": "2014 S/S is the debut album of the South Korean boy group Madtown, which was formed by J. Tune Camp.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2716.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 6,
+      "qa_pair_id": "ruler_qa2_421K_no6",
+      "question": "Who was known by his stage name Aladin and helped organizations improve their performance as a consultant?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1665.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 7,
+      "qa_pair_id": "ruler_qa2_421K_no7",
+      "question": "The arena where the Lewiston Maineiacs played their home games can seat how many people?",
+      "prediction": "The Dwyer Arena in Lewiston can seat up to 1,400 people.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1736.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 8,
+      "qa_pair_id": "ruler_qa2_421K_no8",
+      "question": "Who is older, Annie Morton or Terry Richardson?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1470.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 9,
+      "qa_pair_id": "ruler_qa2_421K_no9",
+      "question": "Are Local H and For Against both from the United States?",
+      "prediction": "Local H is from the United States; I don't know about For Against.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1503.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 10,
+      "qa_pair_id": "ruler_qa2_421K_no10",
+      "question": "What is the name of the fight song of the university whose main campus is in Lawrence, Kansas and whose branch campuses are in the Kansas City metropolitan area?",
+      "prediction": "Kansas Song (We\u2019re From Kansas)",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1553.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 11,
+      "qa_pair_id": "ruler_qa2_421K_no11",
+      "question": "What screenwriter with credits for \"Evolution\" co-wrote a film starring Nicolas Cage and T\u00e9a Leoni?",
+      "prediction": "Scott Rosenberg co-wrote a film starring Nicolas Cage and T\u00e9a Leoni.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1631.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 12,
+      "qa_pair_id": "ruler_qa2_421K_no12",
+      "question": "What year did Guns N Roses perform a promo for a movie starring Arnold Schwarzenegger as a former New York Police detective?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1407.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 13,
+      "qa_pair_id": "ruler_qa2_421K_no13",
+      "question": "Are Random House Tower and 888 7th Avenue both used for real estate?",
+      "prediction": "Yes, Random House Tower is a mixed-use tower with luxury apartments and office space, and 888 7th Avenue is a modern office skyscraper.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2620.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 14,
+      "qa_pair_id": "ruler_qa2_421K_no14",
+      "question": "The football manager who recruited David Beckham managed Manchester United during what timeframe?",
+      "prediction": "Alex Ferguson managed Manchester United during the 1995\u201396 season.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1532.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 15,
+      "qa_pair_id": "ruler_qa2_421K_no15",
+      "question": "Brown State Fishing Lake is in a country that has a population of how many inhabitants ?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1195.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 16,
+      "qa_pair_id": "ruler_qa2_421K_no16",
+      "question": "The Vermont Catamounts men's soccer team currently competes in a conference that was formerly known as what from 1988 to 1996?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1540.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 17,
+      "qa_pair_id": "ruler_qa2_421K_no17",
+      "question": "Are Giuseppe Verdi and Ambroise Thomas both Opera composers ?",
+      "prediction": "Ambroise Thomas is an opera composer known for \"Mignon\" (1866) and \"Hamlet\" (1868); Giuseppe Verdi is mentioned as the composer of \"Don Carlos\" (1867), so yes, both are opera composers.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2525.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 18,
+      "qa_pair_id": "ruler_qa2_421K_no18",
+      "question": "Roger O. Egeberg was Assistant Secretary for Health and Scientific Affairs during the administration of a president that served during what years?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1362.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 19,
+      "qa_pair_id": "ruler_qa2_421K_no19",
+      "question": "Which writer was from England, Henry Roth or Robert Erskine Childers?",
+      "prediction": "Robert Erskine Childers was from England; Henry Roth was American.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1731.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 20,
+      "qa_pair_id": "ruler_qa2_421K_no20",
+      "question": "Which other Mexican Formula One race car driver has held the podium besides the Force India driver born in 1990?",
+      "prediction": "Pedro Rodr\u00edguez is the other Mexican Formula One driver who has held the podium, being the only one to have won a grand prix.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1661.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 21,
+      "qa_pair_id": "ruler_qa2_421K_no21",
+      "question": "This singer of A Rather Blustery Day also voiced what hedgehog?",
+      "prediction": "Jim Cummings voiced Dr. Robotnik from \"Sonic the Hedgehog\".",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1509.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 22,
+      "qa_pair_id": "ruler_qa2_421K_no22",
+      "question": "Aside from the Apple Remote, what other device can control the program Apple Remote was originally designed to interact with?",
+      "prediction": "The Siri Remote can control the program Apple Remote was originally designed to interact with.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1483.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 23,
+      "qa_pair_id": "ruler_qa2_421K_no23",
+      "question": "Which performance act has a higher instrument to person ratio, Badly Drawn Boy or Wolf Alice? ",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1451.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 24,
+      "qa_pair_id": "ruler_qa2_421K_no24",
+      "question": "What was the father of Kasper Schmeichel voted to be by the IFFHS in 1992?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3461.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 25,
+      "qa_pair_id": "ruler_qa2_421K_no25",
+      "question": "Who was the writer of These Boots Are Made for Walkin' and who died in 2007?",
+      "prediction": "The writer of \"These Boots Are Made for Walkin'\" was Lee Hazlewood, and no information about anyone related to the song dying in 2007 is provided in the passages.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2113.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 26,
+      "qa_pair_id": "ruler_qa2_421K_no26",
+      "question": "The 2011\u201312 VCU Rams men's basketball team, led by third year head coach Shaka Smart, represented Virginia Commonwealth University which was founded in what year?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2150.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 27,
+      "qa_pair_id": "ruler_qa2_421K_no27",
+      "question": "Are both Dictyosperma, and Huernia described as a genus?",
+      "prediction": "Only Jovibarba is described as a genus; Dictyosperma and Huernia are not mentioned in the passages.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1630.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 28,
+      "qa_pair_id": "ruler_qa2_421K_no28",
+      "question": "Kaiser Ventures corporation was founded by an American industrialist who became known as the father of modern American shipbuilding?",
+      "prediction": "No information about Kaiser Ventures corporation or its founder is available in the passages.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1582.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 29,
+      "qa_pair_id": "ruler_qa2_421K_no29",
+      "question": "What is the name for the adventure in \"Tunnels and Trolls\", a game designed by Ken St. Andre?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2094.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 30,
+      "qa_pair_id": "ruler_qa2_421K_no30",
+      "question": "When was Poison's album \"Shut Up, Make Love\" released?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2060.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 31,
+      "qa_pair_id": "ruler_qa2_421K_no31",
+      "question": "Hayden is a singer-songwriter from Canada, but where does Buck-Tick hail from?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1380.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 32,
+      "qa_pair_id": "ruler_qa2_421K_no32",
+      "question": "Which  French ace pilot and adventurer fly L'Oiseau Blanc",
+      "prediction": "Charles Nungesser and Fran\u00e7ois Coli flew L'Oiseau Blanc.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1598.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 33,
+      "qa_pair_id": "ruler_qa2_421K_no33",
+      "question": "Are Freakonomics and In the Realm of the Hackers both American documentaries?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1822.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 34,
+      "qa_pair_id": "ruler_qa2_421K_no34",
+      "question": "Which band, Letters to Cleo or Screaming Trees, had more members?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1506.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 35,
+      "qa_pair_id": "ruler_qa2_421K_no35",
+      "question": "Alexander Kerensky was defeated and destroyed by the Bolsheviks in the course of a civil war that ended when ?",
+      "prediction": "The Russian Civil War ended in 1923 when Red control of the newly formed Soviet Union was assured.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2682.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 36,
+      "qa_pair_id": "ruler_qa2_421K_no36",
+      "question": "Seven Brief Lessons on Physics was written by an Italian physicist that has worked in France since what year?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3301.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 37,
+      "qa_pair_id": "ruler_qa2_421K_no37",
+      "question": "The Livesey Hal War Memorial commemorates the fallen of which war, that had over 60 million casualties?",
+      "prediction": "The Livesey Hall War Memorial commemorates the fallen of World War I and World War II.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1540.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 38,
+      "qa_pair_id": "ruler_qa2_421K_no38",
+      "question": "Are both Elko Regional Airport and Gerald R. Ford International Airport located in Michigan?",
+      "prediction": "Gerald R. Ford International Airport is located in Michigan; the location of Elko Regional Airport is not mentioned.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2163.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 39,
+      "qa_pair_id": "ruler_qa2_421K_no39",
+      "question": "Ralph Hefferline was a psychology professor at a university that is located in what city?",
+      "prediction": "Ralph Hefferline was a psychology professor at Columbia University, which is located in New York City.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1843.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 40,
+      "qa_pair_id": "ruler_qa2_421K_no40",
+      "question": "Which dog's ancestors include Gordon and Irish Setters: the Manchester Terrier or the Scotch Collie?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2254.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 41,
+      "qa_pair_id": "ruler_qa2_421K_no41",
+      "question": "Where is the company that Sachin Warrier worked for as a software engineer headquartered? ",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1361.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 42,
+      "qa_pair_id": "ruler_qa2_421K_no42",
+      "question": "A Japanese manga series based on a 16 year old high school student Ichitaka Seto, is written and illustrated by someone born in what year?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1260.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 43,
+      "qa_pair_id": "ruler_qa2_421K_no43",
+      "question": "The battle in which Giuseppe Arimondi lost his life secured what for Ethiopia?",
+      "prediction": "The battle secured Ethiopian sovereignty.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1350.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 44,
+      "qa_pair_id": "ruler_qa2_421K_no44",
+      "question": "Alfred Balk served as the secretary of the Committee on the Employment of Minority Groups in the News Media under which United States Vice President?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2480.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 45,
+      "qa_pair_id": "ruler_qa2_421K_no45",
+      "question": "A medieval fortress in Dirleton, East Lothian, Scotland borders on the south side of what coastal area?",
+      "prediction": "The medieval fortress in Dirleton, East Lothian, Scotland borders on the south side of Yellowcraigs.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2019.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 46,
+      "qa_pair_id": "ruler_qa2_421K_no46",
+      "question": "Who is the writer of this song that was inspired by words on a tombstone and was the first track on the box set Back to Mono?",
+      "prediction": "The song \"To Know Him Is to Love Him\" was written by Phil Spector.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1901.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 47,
+      "qa_pair_id": "ruler_qa2_421K_no47",
+      "question": "What type of forum did a former Soviet statesman initiate?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1657.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 48,
+      "qa_pair_id": "ruler_qa2_421K_no48",
+      "question": "Are Ferocactus and Silene both types of plant?",
+      "prediction": "Silene is a genus of flowering plants in the family Caryophyllaceae; information about Ferocactus is not provided.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1708.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 49,
+      "qa_pair_id": "ruler_qa2_421K_no49",
+      "question": "Which British first-generation jet-powered medium bomber was used in the South West Pacific theatre of World War II?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1465.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 50,
+      "qa_pair_id": "ruler_qa2_421K_no50",
+      "question": "Which year and which conference was the 14th season for this conference as part of the NCAA Division that the Colorado Buffaloes played in with a record of 2-6 in conference play?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2011.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 51,
+      "qa_pair_id": "ruler_qa2_421K_no51",
+      "question": "In 1991 Euromarch\u00e9 was bought by a chain that operated how any hypermarkets at the end of 2016?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1593.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 52,
+      "qa_pair_id": "ruler_qa2_421K_no52",
+      "question": "What race track in the midwest hosts a 500 mile race eavery May?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1462.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 53,
+      "qa_pair_id": "ruler_qa2_421K_no53",
+      "question": "In what city did the \"Prince of tenors\" star in a film based on an opera by Giacomo Puccini?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3253.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 54,
+      "qa_pair_id": "ruler_qa2_421K_no54",
+      "question": "Ellie Goulding worked with what other writers on her third studio album, Delirium?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1748.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 55,
+      "qa_pair_id": "ruler_qa2_421K_no55",
+      "question": "Which Australian city founded in 1838 contains a boarding school opened by a Prime Minister of Australia and named after a school in London of the same name.",
+      "prediction": "Adelaide; Westminster School opened in 1961, named after Westminster School in London.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1994.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 56,
+      "qa_pair_id": "ruler_qa2_421K_no56",
+      "question": "D1NZ is a series based on what oversteering technique?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1400.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 57,
+      "qa_pair_id": "ruler_qa2_421K_no57",
+      "question": "who is younger Keith Bostic or Jerry Glanville ?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1775.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 58,
+      "qa_pair_id": "ruler_qa2_421K_no58",
+      "question": "According to the 2001 census, what was the population of the city in which Kirton End is located?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1349.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 59,
+      "qa_pair_id": "ruler_qa2_421K_no59",
+      "question": "Are both Cypress and Ajuga genera?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1231.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 60,
+      "qa_pair_id": "ruler_qa2_421K_no60",
+      "question": "What distinction is held by the former NBA player who was a member of the Charlotte Hornets during their 1992-93 season and was head coach for the WNBA team Charlotte Sting?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1626.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 61,
+      "qa_pair_id": "ruler_qa2_421K_no61",
+      "question": "What is the name of the executive producer of the film that has a score composed by Jerry Goldsmith?",
+      "prediction": "The executive producer of the film \"Alien,\" which has a score composed by Jerry Goldsmith, is Ronald Shusett.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2137.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 62,
+      "qa_pair_id": "ruler_qa2_421K_no62",
+      "question": "Who was born earlier, Emma Bull or Virginia Woolf?",
+      "prediction": "Virginia Woolf (1882) was born earlier; Emma Bull's birthdate is not provided.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1985.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 63,
+      "qa_pair_id": "ruler_qa2_421K_no63",
+      "question": "What was the Roud Folk Song Index of the nursery rhyme inspiring What Are Little Girls Made Of?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1334.6
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 64,
+      "qa_pair_id": "ruler_qa2_421K_no64",
+      "question": "Scott Parkin has been a vocal critic of Exxonmobil and another corporation that has operations in how many countries ?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1785.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 65,
+      "qa_pair_id": "ruler_qa2_421K_no65",
+      "question": "What WB supernatrual drama series was Jawbreaker star Rose Mcgowan best known for being in?",
+      "prediction": "Rose McGowan was best known for playing Paige Matthews in The WB supernatural drama series \"Charmed\" from 2001 to 2006.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 5065.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 66,
+      "qa_pair_id": "ruler_qa2_421K_no66",
+      "question": "Vince Phillips held a junior welterweight title by an organization recognized by what larger Hall of Fame?",
+      "prediction": "Vince Phillips held the IBF junior welterweight title, and the IBF is recognized by the International Boxing Hall of Fame.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2382.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 67,
+      "qa_pair_id": "ruler_qa2_421K_no67",
+      "question": "What is the name of the singer who's song was released as the lead single from the album \"Confessions\", and that had popular song stuck behind for eight consecutive weeks?",
+      "prediction": "The singer is Mario Winans.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2175.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 68,
+      "qa_pair_id": "ruler_qa2_421K_no68",
+      "question": "who is the younger brother of The episode guest stars of The Hard Easy ",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1394.4
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 69,
+      "qa_pair_id": "ruler_qa2_421K_no69",
+      "question": "The 2017\u201318 Wigan Athletic F.C. season will be a year in which the team competes in the league cup known as what for sponsorship reasons?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1182.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 70,
+      "qa_pair_id": "ruler_qa2_421K_no70",
+      "question": "Which of Tara Strong major voice role in animated series is an American animated television series based on the DC Comics fictional superhero team, the \"Teen Titans\"?",
+      "prediction": "Tara Strong's major voice role in the American animated television series based on the DC Comics fictional superhero team \"Teen Titans\" is as a main character in \"Teen Titans\" (season 1).",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3206.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 71,
+      "qa_pair_id": "ruler_qa2_421K_no71",
+      "question": "What is the inhabitant of the city where  122nd SS-Standarte was formed in2014",
+      "prediction": "The inhabitant of Strasbourg, where the 122nd SS-Standarte was formed, in 2014 is not specified in the passages.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2273.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 72,
+      "qa_pair_id": "ruler_qa2_421K_no72",
+      "question": "What color clothing do people of the Netherlands wear during Oranjegekte or to celebrate the national holiday Koningsdag? ",
+      "prediction": "People of the Netherlands wear orange clothing such as T-shirts, caps, and scarfs during Oranjegekte or to celebrate Koningsdag.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2402.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 73,
+      "qa_pair_id": "ruler_qa2_421K_no73",
+      "question": "What was the name of the 1996 loose adaptation of William Shakespeare's \"Romeo & Juliet\" written by James Gunn?",
+      "prediction": "The 1996 loose adaptation of William Shakespeare's \"Romeo & Juliet\" was \"Romeo + Juliet,\" co-written and directed by Baz Luhrmann and co-written by James Gunn.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3522.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 74,
+      "qa_pair_id": "ruler_qa2_421K_no74",
+      "question": "Robert Suettinger was the national intelligence officer under which former Governor of Arkansas?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1872.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 75,
+      "qa_pair_id": "ruler_qa2_421K_no75",
+      "question": "What American professional Hawaiian surfer born 18 October 1992 won the Rip Curl Pro Portugal?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1781.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 76,
+      "qa_pair_id": "ruler_qa2_421K_no76",
+      "question": "What is the middle name of the actress who plays Bobbi Bacha in Suburban Madness?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1751.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 77,
+      "qa_pair_id": "ruler_qa2_421K_no77",
+      "question": "Alvaro Mexia had a diplomatic mission with which tribe of indigenous people?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1870.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 78,
+      "qa_pair_id": "ruler_qa2_421K_no78",
+      "question": "What nationality were social anthropologists Alfred Gell and Edmund Leach?",
+      "prediction": "Alfred Gell was British; Edmund Leach's nationality is not specified.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1839.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 79,
+      "qa_pair_id": "ruler_qa2_421K_no79",
+      "question": "In which year was the King who made the 1925 Birthday Honours born?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2967.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 80,
+      "qa_pair_id": "ruler_qa2_421K_no80",
+      "question": "What is the county seat of the county where East Lempster, New Hampshire is located?",
+      "prediction": "The county seat of the county where East Lempster, New Hampshire is located is not provided in the passages.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1476.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 81,
+      "qa_pair_id": "ruler_qa2_421K_no81",
+      "question": "The Album Against the Wind was the 11th Album of a Rock singer Robert C Seger born may 6 1945. What was the Rock singers stage name ?",
+      "prediction": "The rock singer's stage name is Bob Seger.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2084.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 82,
+      "qa_pair_id": "ruler_qa2_421K_no82",
+      "question": "Rostker v. Goldberg held that the practice of what way of filling armed forces vacancies was consitutional?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1348.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 83,
+      "qa_pair_id": "ruler_qa2_421K_no83",
+      "question": "Handi-Snacks are a snack food product line sold by what American multinational confectionery, food, and beverage company that is based in Illinois?",
+      "prediction": "Handi-Snacks are sold by Mondelez International.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2098.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 84,
+      "qa_pair_id": "ruler_qa2_421K_no84",
+      "question": "What was the name of a woman from the book titled \"Their Lives: The Women Targeted by the Clinton Machine \" and was also a former white house intern?",
+      "prediction": "Monica Lewinsky",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1380.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 85,
+      "qa_pair_id": "ruler_qa2_421K_no85",
+      "question": "When was the American lawyer, lobbyist and political consultant who was a senior member of the presidential campaign of Donald Trump born?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1573.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 86,
+      "qa_pair_id": "ruler_qa2_421K_no86",
+      "question": "In what year was the novel that Louren\u00e7o Mutarelli based \"Nina\" on based first published?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1393.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 87,
+      "qa_pair_id": "ruler_qa2_421K_no87",
+      "question": "Where are Teide National Park and Garajonay National Park located?",
+      "prediction": "Garajonay National Park is located on the island of La Gomera in the Canary Islands, Spain; the location of Teide National Park is not provided in the passages.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 2817.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 88,
+      "qa_pair_id": "ruler_qa2_421K_no88",
+      "question": "How many copies of Roald Dahl's variation on a popular anecdote sold?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1418.8
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 89,
+      "qa_pair_id": "ruler_qa2_421K_no89",
+      "question": "What occupation do Chris Menges and Aram Avakian share?",
+      "prediction": "Chris Menges and Aram Avakian both share the occupation of film director.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1406.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 90,
+      "qa_pair_id": "ruler_qa2_421K_no90",
+      "question": "Andrew Jaspan was the co-founder of what not-for-profit media outlet?",
+      "prediction": "EvidenceNetwork.ca",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1476.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 91,
+      "qa_pair_id": "ruler_qa2_421K_no91",
+      "question": "Which American film director hosted the 18th Independent Spirit Awards in 2002?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1818.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 92,
+      "qa_pair_id": "ruler_qa2_421K_no92",
+      "question": "Where does the hotel and casino located in which Bill Cosby's third album was recorded?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1851.5
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 93,
+      "qa_pair_id": "ruler_qa2_421K_no93",
+      "question": "Do the drinks Gibson and Zurracapote both contain gin?",
+      "prediction": "Only the Gibson contains gin; Zurracapote consists of red wine mixed with fruit, sugar, and cinnamon.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2000.1
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 94,
+      "qa_pair_id": "ruler_qa2_421K_no94",
+      "question": "In what month is the annual documentary film festival, that is presented by the fortnightly published British journal of literary essays, held? ",
+      "prediction": "The London International Documentary Festival is held in March and April.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1437.3
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 95,
+      "qa_pair_id": "ruler_qa2_421K_no95",
+      "question": "Tysons Galleria is located in what county?",
+      "prediction": "Tysons Galleria is located in Fairfax County, Virginia.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1428.9
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 96,
+      "qa_pair_id": "ruler_qa2_421K_no96",
+      "question": "Bordan Tkachuk was the CEO of a company that provides what sort of products?",
+      "prediction": "I don't know.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1159.2
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 97,
+      "qa_pair_id": "ruler_qa2_421K_no97",
+      "question": "Which filmmaker was known for animation, Lev Yilmaz or Pamela B. Green?",
+      "prediction": "Pamela B. Green was known for animation.",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1652.0
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 98,
+      "qa_pair_id": "ruler_qa2_421K_no98",
+      "question": "In which city is the ambassador of the Rabat-Sal\u00e9-K\u00e9nitra administrative region to China based?",
+      "prediction": "I don't know",
+      "scores": {
+        "substring_exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 1392.7
+    },
+    {
+      "category": "AR",
+      "source": "ruler_qa2_421K",
+      "example_idx": 1,
+      "question_idx": 99,
+      "qa_pair_id": "ruler_qa2_421K_no99",
+      "question": "Are Yingkou and Fuding the same level of city?",
+      "prediction": "No, Yingkou is a city in Liaoning province, and Fuding is a county-level city in Ningde prefecture-level city, Fujian province.",
+      "scores": {
+        "substring_exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 1950.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 0,
+      "qa_pair_id": "factconsolidation_mh_6k_no0",
+      "question": "What is the country of citizenship of the spouse of the author of Our Mutual Friend?",
+      "prediction": "Amala Paul",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3298.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 1,
+      "qa_pair_id": "factconsolidation_mh_6k_no1",
+      "question": "In which location did the spouse of Igor of Kiev pass away?",
+      "prediction": "Rodez",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3763.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 2,
+      "qa_pair_id": "factconsolidation_mh_6k_no2",
+      "question": "Which country is the birthplace of the sport associated with Steve Sax?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3819.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 3,
+      "qa_pair_id": "factconsolidation_mh_6k_no3",
+      "question": "Which city serves as the capital of the country of origin for the sport of the Tunisia national football team?",
+      "prediction": "Rome",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3206.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 4,
+      "qa_pair_id": "factconsolidation_mh_6k_no4",
+      "question": "What is the sport that Blair Walsh plays in which he is known for his position on the team?",
+      "prediction": "American football",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3503.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 5,
+      "qa_pair_id": "factconsolidation_mh_6k_no5",
+      "question": "What is the name of the educational institution where the partner of Nicolae Ceau\u0219escu was educated?",
+      "prediction": "University of Bucharest",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3530.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 6,
+      "qa_pair_id": "factconsolidation_mh_6k_no6",
+      "question": "Which country does the current CEO of Twitter hold citizenship of?",
+      "prediction": "France",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3285.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 7,
+      "qa_pair_id": "factconsolidation_mh_6k_no7",
+      "question": "On which continent was the place of birth of Thomas Arne located?",
+      "prediction": "Oceania",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3518.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 8,
+      "qa_pair_id": "factconsolidation_mh_6k_no8",
+      "question": "To which continent does the country of citizenship of Colin Irwin pertain?",
+      "prediction": "Israel",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3263.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 9,
+      "qa_pair_id": "factconsolidation_mh_6k_no9",
+      "question": "What is the location of work of the founder of the religion to which John Walsh belongs?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3417.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 10,
+      "qa_pair_id": "factconsolidation_mh_6k_no10",
+      "question": "What is the religious affiliation of the person who founded the Transcendental Meditation movement?",
+      "prediction": "Hinduism",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3218.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 11,
+      "qa_pair_id": "factconsolidation_mh_6k_no11",
+      "question": "What was the religion of the person with the citizenship of the country to which Edmund Burke belonged?",
+      "prediction": "Catholic Church",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3049.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 12,
+      "qa_pair_id": "factconsolidation_mh_6k_no12",
+      "question": "What is the capital city of the country where the sport associated with John Harkes has its origin?",
+      "prediction": "England",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3513.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 13,
+      "qa_pair_id": "factconsolidation_mh_6k_no13",
+      "question": "Which faith is the partner of Laura Bush associated with?",
+      "prediction": "United Methodist Church",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4180.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 14,
+      "qa_pair_id": "factconsolidation_mh_6k_no14",
+      "question": "What was the name of the head of state in the country where Andrew Carnegie was a citizen?",
+      "prediction": "United Kingdom",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3548.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 15,
+      "qa_pair_id": "factconsolidation_mh_6k_no15",
+      "question": "From which capital city did the Surrey Senior Cup, a sports competition, originate?",
+      "prediction": "London",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4833.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 16,
+      "qa_pair_id": "factconsolidation_mh_6k_no16",
+      "question": "From which country does the sport, with which Carlos G\u00f3mez is associated, come from?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 5132.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 17,
+      "qa_pair_id": "factconsolidation_mh_6k_no17",
+      "question": "In which city is the capital of the country where Madame du Barry held a citizenship?",
+      "prediction": "Paris",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3609.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 18,
+      "qa_pair_id": "factconsolidation_mh_6k_no18",
+      "question": "What is the job title of the chairperson of the political organization Fatah?",
+      "prediction": "Moshe Kahlon",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3130.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 19,
+      "qa_pair_id": "factconsolidation_mh_6k_no19",
+      "question": "Which city is the capital of the country where the performer of \"Free as a Bird\"'s director/manager comes from?",
+      "prediction": "London",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3527.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 20,
+      "qa_pair_id": "factconsolidation_mh_6k_no20",
+      "question": "What is the language of the work that was created by the individual who created Rand al'Thor?",
+      "prediction": "Persian",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3180.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 21,
+      "qa_pair_id": "factconsolidation_mh_6k_no21",
+      "question": "What is the work location of the person who founded the religion Karen Armstrong belongs to?",
+      "prediction": "Edinburgh",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3471.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 22,
+      "qa_pair_id": "factconsolidation_mh_6k_no22",
+      "question": "What is the name of the child category of \"Categories\" created by the author?",
+      "prediction": "Nicomachus",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4528.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 23,
+      "qa_pair_id": "factconsolidation_mh_6k_no23",
+      "question": "Where is the country of origin of FC Vorskla Poltava?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3727.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 24,
+      "qa_pair_id": "factconsolidation_mh_6k_no24",
+      "question": "Which city is the capital of the country where the CEO of the developer of SteamOS holds a citizenship?",
+      "prediction": "Zurich",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3535.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 25,
+      "qa_pair_id": "factconsolidation_mh_6k_no25",
+      "question": "What is the name of the person who is the chief executive officer of the developer of F-22 Raptor?",
+      "prediction": "Marillyn Hewson",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3720.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 26,
+      "qa_pair_id": "factconsolidation_mh_6k_no26",
+      "question": "Who holds the position of chairperson in the organization where Joseph Story was employed?",
+      "prediction": "Stephen McNeil",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3619.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 27,
+      "qa_pair_id": "factconsolidation_mh_6k_no27",
+      "question": "What city serves as the capital of the country where the performer who is the spouse of Derek Shepherd holds citizenship?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 6725.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 28,
+      "qa_pair_id": "factconsolidation_mh_6k_no28",
+      "question": "What is the name of the city that serves as the capital of the country to which Sable belongs?",
+      "prediction": "Czech Republic",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4947.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 29,
+      "qa_pair_id": "factconsolidation_mh_6k_no29",
+      "question": "In which city serves as the capital of the country of citizenship of Country Joe McDonald?",
+      "prediction": "Romania",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4140.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 30,
+      "qa_pair_id": "factconsolidation_mh_6k_no30",
+      "question": "What city or town is the headquarters of the educational institution, where the performer of the album \"Blood on the Tracks\" received education, located in?",
+      "prediction": "New York City",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 4934.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 31,
+      "qa_pair_id": "factconsolidation_mh_6k_no31",
+      "question": "What is the name of the chief executive of the country where the sport associated with Bo Ryan was first developed?",
+      "prediction": "United States of America government is Donald Trump",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3762.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 32,
+      "qa_pair_id": "factconsolidation_mh_6k_no32",
+      "question": "What is the continent of origin of the chief executive officer for the developer of Windows Phone?",
+      "prediction": "Asia",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3951.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 33,
+      "qa_pair_id": "factconsolidation_mh_6k_no33",
+      "question": "Which continent does the country where the sport played by the Slovakia national football team originated come from?",
+      "prediction": "Europe",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3181.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 34,
+      "qa_pair_id": "factconsolidation_mh_6k_no34",
+      "question": "Which religion was the partner of Ferdinand Marcos associated with?",
+      "prediction": "atheism",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3316.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 35,
+      "qa_pair_id": "factconsolidation_mh_6k_no35",
+      "question": "What is the name of the significant creation associated with the creator of Vito Corleone?",
+      "prediction": "Nobuhiro Watsuki",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3143.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 36,
+      "qa_pair_id": "factconsolidation_mh_6k_no36",
+      "question": "To which country does the performer who goes by the name Rocket Man hold citizenship?",
+      "prediction": "United Kingdom",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3722.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 37,
+      "qa_pair_id": "factconsolidation_mh_6k_no37",
+      "question": "Which language does the performer of Hermione Granger know how to speak, write or sign?",
+      "prediction": "English",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4055.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 38,
+      "qa_pair_id": "factconsolidation_mh_6k_no38",
+      "question": "From which country does the musical genre Michael Mantler is associated with come from?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3092.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 39,
+      "qa_pair_id": "factconsolidation_mh_6k_no39",
+      "question": "Which sport is associated with the position played by Robert Parish on a team or his specialty?",
+      "prediction": "basketball",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4861.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 40,
+      "qa_pair_id": "factconsolidation_mh_6k_no40",
+      "question": "What is the name of the person who founded the organization that Benjamin Mazar was part of?",
+      "prediction": "David Ben-Gurion",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3391.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 41,
+      "qa_pair_id": "factconsolidation_mh_6k_no41",
+      "question": "Which language is recognized as the official language of the place where Gennady Rozhdestvensky took his last breath?",
+      "prediction": "American English",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3398.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 42,
+      "qa_pair_id": "factconsolidation_mh_6k_no42",
+      "question": "What is the birthplace of the author of \"The Marriage of Figaro\"?",
+      "prediction": "Paris",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3276.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 43,
+      "qa_pair_id": "factconsolidation_mh_6k_no43",
+      "question": "In which country was Darryl Strawberry's sport developed, and who is the head of government in that nation?",
+      "prediction": "United States of America, Donald Trump",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4405.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 44,
+      "qa_pair_id": "factconsolidation_mh_6k_no44",
+      "question": "Which city serves as the capital of the country where the sport that Mike D'Antoni specialized in hails from?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3620.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 45,
+      "qa_pair_id": "factconsolidation_mh_6k_no45",
+      "question": "At what location did the author of \"Sketches by Boz\" breathe his last?",
+      "prediction": "Gads Hill Place",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4549.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 46,
+      "qa_pair_id": "factconsolidation_mh_6k_no46",
+      "question": "What is the capital city of the country from which the sport of Daniele De Rossi originated?",
+      "prediction": "Rome",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4418.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 47,
+      "qa_pair_id": "factconsolidation_mh_6k_no47",
+      "question": "To which continent is the country of citizenship of Ferdinand von Richthofen located?",
+      "prediction": "Canada",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3658.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 48,
+      "qa_pair_id": "factconsolidation_mh_6k_no48",
+      "question": "In which city is the capital of the country where the sport played by Galwegians RFC was originated?",
+      "prediction": "Dublin",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3637.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 49,
+      "qa_pair_id": "factconsolidation_mh_6k_no49",
+      "question": "What languages are spoken, written or signed by the founder of Shingon Buddhism?",
+      "prediction": "Japanese",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3167.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 50,
+      "qa_pair_id": "factconsolidation_mh_6k_no50",
+      "question": "What is the place of death of the partner of the head of government of the Council of People's Commissars?",
+      "prediction": "Nadezhda Krupskaya died in the city of Moscow",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3685.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 51,
+      "qa_pair_id": "factconsolidation_mh_6k_no51",
+      "question": "What is the professional role of the chairperson of the Congolese Party of Labour?",
+      "prediction": "Stephen McNeil",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3674.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 52,
+      "qa_pair_id": "factconsolidation_mh_6k_no52",
+      "question": "Where did the religion associated with the Bagratuni Dynasty come into existence?",
+      "prediction": "Jerusalem",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3833.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 53,
+      "qa_pair_id": "factconsolidation_mh_6k_no53",
+      "question": "What country does the genre of music associated with the spouse of Roy Rogers originate from?",
+      "prediction": "country music",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 5931.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 54,
+      "qa_pair_id": "factconsolidation_mh_6k_no54",
+      "question": "In which city is the capital located of the country where the director/producer of \"666 Park Avenue\" is a citizen?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3244.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 55,
+      "qa_pair_id": "factconsolidation_mh_6k_no55",
+      "question": "In what place was the organization that Ron Dennis works for, first established?",
+      "prediction": "Woking",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3369.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 56,
+      "qa_pair_id": "factconsolidation_mh_6k_no56",
+      "question": "On which continent was Le Petit Parisien originally made?",
+      "prediction": "Germany",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3207.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 57,
+      "qa_pair_id": "factconsolidation_mh_6k_no57",
+      "question": "Which city serves as the capital city of the country where the sport played by the partner of Victoria Beckham originated?",
+      "prediction": "London",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3611.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 58,
+      "qa_pair_id": "factconsolidation_mh_6k_no58",
+      "question": "What is the name of the political entity that was established from the successor of the Sasanian Empire?",
+      "prediction": "Tang Empire",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3378.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 59,
+      "qa_pair_id": "factconsolidation_mh_6k_no59",
+      "question": "In which city is the capital of the country that FC Irtysh Omsk originates from located?",
+      "prediction": "Omsk",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3227.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 60,
+      "qa_pair_id": "factconsolidation_mh_6k_no60",
+      "question": "What is the place of death of the performer of the song collection \"Back to Black\"?",
+      "prediction": "Camden Town",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3468.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 61,
+      "qa_pair_id": "factconsolidation_mh_6k_no61",
+      "question": "What was the sport that Hines Ward competed in professionally?",
+      "prediction": "American football",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3494.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 62,
+      "qa_pair_id": "factconsolidation_mh_6k_no62",
+      "question": "In which position did the person related to the original broadcaster of \"The Brady Bunch\" serve?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3142.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 63,
+      "qa_pair_id": "factconsolidation_mh_6k_no63",
+      "question": "In what location did the person who founded Chanel pass away?",
+      "prediction": "Paris",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3735.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 64,
+      "qa_pair_id": "factconsolidation_mh_6k_no64",
+      "question": "What is the country of citizenship of the author of \"Starship Troopers\"?",
+      "prediction": "Daphne du Maurier",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3499.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 65,
+      "qa_pair_id": "factconsolidation_mh_6k_no65",
+      "question": "Which individual holds the position of director/manager at the company that employs Dave Filoni?",
+      "prediction": "Narendra Modi",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3297.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 66,
+      "qa_pair_id": "factconsolidation_mh_6k_no66",
+      "question": "In what language is the notable work associated with Hugh Hefner written?",
+      "prediction": "English",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 5057.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 67,
+      "qa_pair_id": "factconsolidation_mh_6k_no67",
+      "question": "Which city serves as the capital of the country that gave rise to the sport played by Rog\u00e9rio Ceni?",
+      "prediction": "Brazil",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 2980.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 68,
+      "qa_pair_id": "factconsolidation_mh_6k_no68",
+      "question": "From which educational institution did the author of 'Sidereus Nuncius' receive their education?",
+      "prediction": "University of Southern California",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3545.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 69,
+      "qa_pair_id": "factconsolidation_mh_6k_no69",
+      "question": "What is the place of death of the author of Endymion?",
+      "prediction": "Rome",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3793.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 70,
+      "qa_pair_id": "factconsolidation_mh_6k_no70",
+      "question": "In which city can the headquarters of the educational institution attended by the spouse of Sophia Hawthorne be found?",
+      "prediction": "University of California, Berkeley",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4325.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 71,
+      "qa_pair_id": "factconsolidation_mh_6k_no71",
+      "question": "What is the name of the chief of state of the country where Leo Stein holds citizenship?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3787.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 72,
+      "qa_pair_id": "factconsolidation_mh_6k_no72",
+      "question": "What is the name of the chief of state of the country that Hal Needham belongs to?",
+      "prediction": "Donald Trump",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4211.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 73,
+      "qa_pair_id": "factconsolidation_mh_6k_no73",
+      "question": "Who serves as the head of government in the location where the AP1000 was made by its manufacturer?",
+      "prediction": "Ulrich Spiesshofer",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4520.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 74,
+      "qa_pair_id": "factconsolidation_mh_6k_no74",
+      "question": "In what place did the author of \"A Wizard of Earthsea\" breathe his last?",
+      "prediction": "Portland",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3961.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 75,
+      "qa_pair_id": "factconsolidation_mh_6k_no75",
+      "question": "Which religion does the partner of the performer of \"Aladdin Sane\" follow?",
+      "prediction": "Islam",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3407.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 76,
+      "qa_pair_id": "factconsolidation_mh_6k_no76",
+      "question": "At which location does the Prime Minister of Sweden spend most of their work hours?",
+      "prediction": "Stockholm",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3773.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 77,
+      "qa_pair_id": "factconsolidation_mh_6k_no77",
+      "question": "What is the capital city of the country whose citizenship is held by the CEO of the developer of AppleScript?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4378.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 78,
+      "qa_pair_id": "factconsolidation_mh_6k_no78",
+      "question": "Which continent is the country of origin for Gala RFC located in?",
+      "prediction": "Europe",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3708.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 79,
+      "qa_pair_id": "factconsolidation_mh_6k_no79",
+      "question": "What sport is associated with the position played by Irving Fryar on a team/specialty?",
+      "prediction": "American football",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3242.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 80,
+      "qa_pair_id": "factconsolidation_mh_6k_no80",
+      "question": "In which continent is the country to which C\u00e9dric Klapisch holds citizenship located?",
+      "prediction": "Malaysia is located in the continent of Antarctica.",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3839.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 81,
+      "qa_pair_id": "factconsolidation_mh_6k_no81",
+      "question": "What is the location of the headquarters of the company where Leonte R\u0103utu worked?",
+      "prediction": "Bucharest",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 5527.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 82,
+      "qa_pair_id": "factconsolidation_mh_6k_no82",
+      "question": "To whom does the head of government of the country of origin of Club Nouveau report to?",
+      "prediction": "Denis Sassou-Nguesso",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3524.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 83,
+      "qa_pair_id": "factconsolidation_mh_6k_no83",
+      "question": "Which individual is responsible for founding the organization that has its headquarters in the same location where Bill Frisell received his education?",
+      "prediction": "Coco Chanel",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4282.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 84,
+      "qa_pair_id": "factconsolidation_mh_6k_no84",
+      "question": "In which city of the country where Charles Messier held citizenship is the capital located?",
+      "prediction": "Tehran",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3296.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 85,
+      "qa_pair_id": "factconsolidation_mh_6k_no85",
+      "question": "Which country does the sportsperson who specializes in Lisa Leslie's position originally come from?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 605156.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 86,
+      "qa_pair_id": "factconsolidation_mh_6k_no86",
+      "question": "What is the name of the capital city of the country where the founder of the manufacturer of Ford F-Series hailed from?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4602.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 87,
+      "qa_pair_id": "factconsolidation_mh_6k_no87",
+      "question": "Which city serves as the capital of the country where the sport that Sandy Alderson is associated with originated?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3530.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 88,
+      "qa_pair_id": "factconsolidation_mh_6k_no88",
+      "question": "Which language is the official language of the country whose citizenship is held by the director/manager of \"Past Masters\"?",
+      "prediction": "United Kingdom",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3206.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 89,
+      "qa_pair_id": "factconsolidation_mh_6k_no89",
+      "question": "Which nation is the birthplace of the sport that features the split-finger fastball?",
+      "prediction": "England",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4257.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 90,
+      "qa_pair_id": "factconsolidation_mh_6k_no90",
+      "question": "In which languages can the author of \"The Witcher\" write, speak, or sign?",
+      "prediction": "English",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3377.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 91,
+      "qa_pair_id": "factconsolidation_mh_6k_no91",
+      "question": "In which city is the capital of the country, where the book \"The Birth of Tragedy\" first came from, located?",
+      "prediction": "Germany",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3726.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 92,
+      "qa_pair_id": "factconsolidation_mh_6k_no92",
+      "question": "In what language are communications in the headquarters location of the manufacturer of Il-2 Shturmovik conducted officially?",
+      "prediction": "Russian",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3308.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 93,
+      "qa_pair_id": "factconsolidation_mh_6k_no93",
+      "question": "Which city serves as the capital of the country where the spouse of the performer of \"Viva Las Vegas\" is a citizen?",
+      "prediction": "Memphis",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3154.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 94,
+      "qa_pair_id": "factconsolidation_mh_6k_no94",
+      "question": "What is the country of origin of the sport that the New Firm is related to?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3680.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 95,
+      "qa_pair_id": "factconsolidation_mh_6k_no95",
+      "question": "Which religious leader is responsible for founding the religion to which Sarit Thanarat belongs?",
+      "prediction": "Gautama Buddha",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 5749.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 96,
+      "qa_pair_id": "factconsolidation_mh_6k_no96",
+      "question": "At which place did the creator of \"Lady Windermere's Fan\" breathe their last?",
+      "prediction": "Guangzhou",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3779.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 97,
+      "qa_pair_id": "factconsolidation_mh_6k_no97",
+      "question": "what kind of music does \"Born in the U.S.A.\" fall under according to its performer?",
+      "prediction": "rock music",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3422.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 98,
+      "qa_pair_id": "factconsolidation_mh_6k_no98",
+      "question": "What is the capital city of the country where the founder of the manufacturer of Ford Transit Connect holds citizenship?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3534.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_6k",
+      "example_idx": 0,
+      "question_idx": 99,
+      "qa_pair_id": "factconsolidation_mh_6k_no99",
+      "question": "In what language are the official documents of the country where Alta IF originates written?",
+      "prediction": "Norwegian",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4020.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 0,
+      "qa_pair_id": "factconsolidation_mh_32k_no0",
+      "question": "Where did the religion associated with the Bagratuni Dynasty come into existence?",
+      "prediction": "Christianity",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3438.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 1,
+      "qa_pair_id": "factconsolidation_mh_32k_no1",
+      "question": "From which continent does the sport of Haverfordwest County A.F.C. originally hail?",
+      "prediction": "Europe",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3554.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 2,
+      "qa_pair_id": "factconsolidation_mh_32k_no2",
+      "question": "What is the birthplace of the person who founded the religion that Clemens August of Bavaria believed in?",
+      "prediction": "Juliette Gordon Low",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3854.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 3,
+      "qa_pair_id": "factconsolidation_mh_32k_no3",
+      "question": "What is the name of the current head of state of the country where the sport Phoenix Inferno came from?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3754.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 4,
+      "qa_pair_id": "factconsolidation_mh_32k_no4",
+      "question": "What is the occupation of the chairperson of the Palestine Liberation Organization?",
+      "prediction": "Mahmoud Abbas",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3339.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 5,
+      "qa_pair_id": "factconsolidation_mh_32k_no5",
+      "question": "In which continent was the sport originated in the country where Andrea Pirlo's speciality derived from?",
+      "prediction": "Europe",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3792.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 6,
+      "qa_pair_id": "factconsolidation_mh_32k_no6",
+      "question": "Which language is used as the official language in the country where The Indianapolis Star comes from?",
+      "prediction": "Ukrainian",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 4736.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 7,
+      "qa_pair_id": "factconsolidation_mh_32k_no7",
+      "question": "Who holds the title of chief public representative in the country where Jason Motte is a citizen?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3846.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 8,
+      "qa_pair_id": "factconsolidation_mh_32k_no8",
+      "question": "Which language is recognized as the official language of the country that the child of the performer of \"Heartbreak Hotel\" has citizenship of?",
+      "prediction": "American English",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 5175.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 9,
+      "qa_pair_id": "factconsolidation_mh_32k_no9",
+      "question": "Which city is the capital of the country where the sport associated with the founder of Pakistan Tehreek-e-Insaf originates from?",
+      "prediction": "New Delhi",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4141.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 10,
+      "qa_pair_id": "factconsolidation_mh_32k_no10",
+      "question": "What was the place of death of the author of \"Theaetetus\"?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3759.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 11,
+      "qa_pair_id": "factconsolidation_mh_32k_no11",
+      "question": "What is the location of the headquarters of the company that originally broadcasted Perfect Strangers?",
+      "prediction": "New York City",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3812.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 12,
+      "qa_pair_id": "factconsolidation_mh_32k_no12",
+      "question": "Which country did the work that was made famous by the author of \"The Andromeda Strain\" originate in?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4279.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 13,
+      "qa_pair_id": "factconsolidation_mh_32k_no13",
+      "question": "What is the country of citizenship of the chairperson of the Patriotic Union of Kurdistan?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3259.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 14,
+      "qa_pair_id": "factconsolidation_mh_32k_no14",
+      "question": "What was the location of the work of the person who founded the Kingdom of Etruria?",
+      "prediction": "Christianity",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3193.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 15,
+      "qa_pair_id": "factconsolidation_mh_32k_no15",
+      "question": "Which country is connected with the founding of Aiginiakos F.C.?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3239.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 16,
+      "qa_pair_id": "factconsolidation_mh_32k_no16",
+      "question": "What is the name of the educational institution where the partner of Nicolae Ceau\u0219escu was educated?",
+      "prediction": "University of Bucharest",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3779.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 17,
+      "qa_pair_id": "factconsolidation_mh_32k_no17",
+      "question": "Who directed or managed \"China Beach\" during its original broadcast?",
+      "prediction": "American Broadcasting Company",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3849.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 18,
+      "qa_pair_id": "factconsolidation_mh_32k_no18",
+      "question": "Which sports discipline did Jim Kelly specialize in?",
+      "prediction": "American football",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3576.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 19,
+      "qa_pair_id": "factconsolidation_mh_32k_no19",
+      "question": "In which city is the capital of the country that FC Irtysh Omsk originates from located?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3551.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 20,
+      "qa_pair_id": "factconsolidation_mh_32k_no20",
+      "question": "In which country is the head of state responsible for the sport originated by S.C. Salgueiros?",
+      "prediction": "Portugal",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3605.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 21,
+      "qa_pair_id": "factconsolidation_mh_32k_no21",
+      "question": "Which language is recognized as the official tongue of the country where Arthur comes from?",
+      "prediction": "English",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3689.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 22,
+      "qa_pair_id": "factconsolidation_mh_32k_no22",
+      "question": "What country is associated as the origin of the sport played by Shawn Bradley?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3875.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 23,
+      "qa_pair_id": "factconsolidation_mh_32k_no23",
+      "question": "What is the country of origin of the sport to which the head coach of Western Sydney Wanderers FC belongs?",
+      "prediction": "Australia",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3628.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 24,
+      "qa_pair_id": "factconsolidation_mh_32k_no24",
+      "question": "In which city is the originating country of the music genre of \"Unforgettable\" currently headquartered?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4203.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 25,
+      "qa_pair_id": "factconsolidation_mh_32k_no25",
+      "question": "Which languages were used by the author of the Aubrey-Maturin series in their writing and communication?",
+      "prediction": "English",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3012.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 26,
+      "qa_pair_id": "factconsolidation_mh_32k_no26",
+      "question": "What continent is associated with the country of citizenship of Emil Constantinescu?",
+      "prediction": "Europe",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3384.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 27,
+      "qa_pair_id": "factconsolidation_mh_32k_no27",
+      "question": "Who is the person responsible for founding the religion that Michael Patrick Carroll follows?",
+      "prediction": "Religious Society of Friends",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4210.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 28,
+      "qa_pair_id": "factconsolidation_mh_32k_no28",
+      "question": "Which city is the center of government in the country where Augustinas Voldemaras holds a citizenship?",
+      "prediction": "Vilnius",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3081.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 29,
+      "qa_pair_id": "factconsolidation_mh_32k_no29",
+      "question": "What is the name of the partner of the President of Azerbaijan?",
+      "prediction": "Mehriban Aliyeva",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3444.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 30,
+      "qa_pair_id": "factconsolidation_mh_32k_no30",
+      "question": "what kind of music does \"Born in the U.S.A.\" fall under according to its performer?",
+      "prediction": "pop",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 6669.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 31,
+      "qa_pair_id": "factconsolidation_mh_32k_no31",
+      "question": "In which city was the person who founded St. Bonaventure University born?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3680.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 32,
+      "qa_pair_id": "factconsolidation_mh_32k_no32",
+      "question": "What is the name of the person who directed or managed the broadcaster that originally aired \"Soap\"?",
+      "prediction": "Bob Iger",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3293.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 33,
+      "qa_pair_id": "factconsolidation_mh_32k_no33",
+      "question": "Which city serves as the capital of the country where the sport played by Brook Lopez originates?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3160.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 34,
+      "qa_pair_id": "factconsolidation_mh_32k_no34",
+      "question": "In what location did the person who founded Chanel pass away?",
+      "prediction": "Montm\u00e9lian",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3560.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 35,
+      "qa_pair_id": "factconsolidation_mh_32k_no35",
+      "question": "The chairperson of the Liberal Democratic Party belongs to a religion. In what city or country was it founded?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3885.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 36,
+      "qa_pair_id": "factconsolidation_mh_32k_no36",
+      "question": "Which language is recognized as the official language in the country where \"Little Miss Sunshine\" comes from?",
+      "prediction": "American English",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3387.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 37,
+      "qa_pair_id": "factconsolidation_mh_32k_no37",
+      "question": "What is the capital city of the country where the founder of the manufacturer of Ford Transit Connect holds citizenship?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3692.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 38,
+      "qa_pair_id": "factconsolidation_mh_32k_no38",
+      "question": "In which language proceedings of the sport associated with Aris Thessaloniki F.C. are conducted in the country of its origin?",
+      "prediction": "Greek",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4236.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 39,
+      "qa_pair_id": "factconsolidation_mh_32k_no39",
+      "question": "What is the country of citizenship of the author of \"Starship Troopers\"?",
+      "prediction": "Daphne du Maurier",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3679.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 40,
+      "qa_pair_id": "factconsolidation_mh_32k_no40",
+      "question": "In which city did the individual who established Bl\u00e9riot pass away?",
+      "prediction": "Pune",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3650.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 41,
+      "qa_pair_id": "factconsolidation_mh_32k_no41",
+      "question": "Who is currently the chairperson of the institution where the Chicago Boys received their education?",
+      "prediction": "Peter Diamandis",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3620.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 42,
+      "qa_pair_id": "factconsolidation_mh_32k_no42",
+      "question": "At which educational organization did the author of the Lorentz ether theory receive their education?",
+      "prediction": "Bowdoin College",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3807.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 43,
+      "qa_pair_id": "factconsolidation_mh_32k_no43",
+      "question": "What is the religious affiliation of the person who founded the Transcendental Meditation movement?",
+      "prediction": "Maharishi Mahesh Yogi",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3441.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 44,
+      "qa_pair_id": "factconsolidation_mh_32k_no44",
+      "question": "Which city is the birthplace of the founder associated with Niagara University's religion?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4322.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 45,
+      "qa_pair_id": "factconsolidation_mh_32k_no45",
+      "question": "What is the location of the headquarters of the company that employed Ward Kimball?",
+      "prediction": "Google is located in the city of Mountain View.",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3512.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 46,
+      "qa_pair_id": "factconsolidation_mh_32k_no46",
+      "question": "What is the name of the chief of state of the country where Leo Stein holds citizenship?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3288.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 47,
+      "qa_pair_id": "factconsolidation_mh_32k_no47",
+      "question": "What is the birthplace of the founder of the religion followed by Leo I the Thracian?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4974.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 48,
+      "qa_pair_id": "factconsolidation_mh_32k_no48",
+      "question": "What is the sport in which Tyrone Willingham specializes and plays a special position on the team?",
+      "prediction": "American football",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4525.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 49,
+      "qa_pair_id": "factconsolidation_mh_32k_no49",
+      "question": "What is the birthplace of the writer of \"L.A. Confidential\"?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3197.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 50,
+      "qa_pair_id": "factconsolidation_mh_32k_no50",
+      "question": "Which continent does the country where Fran\u00e7ois Furet holds citizenship belong to?",
+      "prediction": "France",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3545.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 51,
+      "qa_pair_id": "factconsolidation_mh_32k_no51",
+      "question": "Which city acts as the capital of the country of origin of the musical genre that is associated with Garth Brooks' spouse?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3793.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 52,
+      "qa_pair_id": "factconsolidation_mh_32k_no52",
+      "question": "In which city is the capital located of the country where the director/producer of \"666 Park Avenue\" is a citizen?",
+      "prediction": "New York City",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3314.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 53,
+      "qa_pair_id": "factconsolidation_mh_32k_no53",
+      "question": "In which country did the sport associated with the Philippine Basketball Association Draft originate?",
+      "prediction": "Soviet Union",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 5186.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 54,
+      "qa_pair_id": "factconsolidation_mh_32k_no54",
+      "question": "What is the birthplace of the person who created Indiana Jones?",
+      "prediction": "Canada",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 7798.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 55,
+      "qa_pair_id": "factconsolidation_mh_32k_no55",
+      "question": "What is the capital city of the country whose country of origin of the author of the notable work \"Beyond Good and Evil\"?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3693.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 56,
+      "qa_pair_id": "factconsolidation_mh_32k_no56",
+      "question": "What is the birthplace of the person who wrote \"1984\"?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 5221.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 57,
+      "qa_pair_id": "factconsolidation_mh_32k_no57",
+      "question": "What language did the author of \"A Passage to India\" speak, write or sign in?",
+      "prediction": "Spanish",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 3476.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 58,
+      "qa_pair_id": "factconsolidation_mh_32k_no58",
+      "question": "What city serves as the capital of the country where \"The Undead\" came from?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4040.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 59,
+      "qa_pair_id": "factconsolidation_mh_32k_no59",
+      "question": "Which language is considered as the official language of the religion associated with the partner of the individual who performed \"Hunky Dory\"?",
+      "prediction": "Christian Science",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 7447.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 60,
+      "qa_pair_id": "factconsolidation_mh_32k_no60",
+      "question": "What languages does Amber Heard's significant other know how to speak, write, or sign?",
+      "prediction": "English",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3693.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 61,
+      "qa_pair_id": "factconsolidation_mh_32k_no61",
+      "question": "What continent is the birthplace of the CEO of the developer of \"Windows Communication Foundation\" located in?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3468.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 62,
+      "qa_pair_id": "factconsolidation_mh_32k_no62",
+      "question": "What was the work location of the person who founded the religion associated with Edmund Ignatius Rice?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3281.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 63,
+      "qa_pair_id": "factconsolidation_mh_32k_no63",
+      "question": "What is the name of the individual serving as the chief of state of the country where Maccabi Ironi Ashdod F.C. originated?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3196.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 64,
+      "qa_pair_id": "factconsolidation_mh_32k_no64",
+      "question": "Which person was the founder of the company that manufactured the Ford Fairmont?",
+      "prediction": "Henri Gr\u00e9goire",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3624.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 65,
+      "qa_pair_id": "factconsolidation_mh_32k_no65",
+      "question": "What is the place of death of the performer of the song collection \"Back to Black\"?",
+      "prediction": "Camden Town",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3565.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 66,
+      "qa_pair_id": "factconsolidation_mh_32k_no66",
+      "question": "Who is responsible for the foundation of the location where Kittil\u00e4's official language is spoken?",
+      "prediction": "Stirling Silliphanta",
+      "scores": {
+        "exact_match": 1.0
+      },
+      "primary_score": 1.0,
+      "recall_ms": 6042.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 67,
+      "qa_pair_id": "factconsolidation_mh_32k_no67",
+      "question": "Who currently holds the title of head of state of the country where David Graveney was born?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3619.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 68,
+      "qa_pair_id": "factconsolidation_mh_32k_no68",
+      "question": "What is the city where the manufacturer of Mercedes-Benz W126 has its headquarters?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3671.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 69,
+      "qa_pair_id": "factconsolidation_mh_32k_no69",
+      "question": "What is the name of the individual who manages the network that first broadcasted \"General Hospital\"?",
+      "prediction": "Bob Iger",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4191.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 70,
+      "qa_pair_id": "factconsolidation_mh_32k_no70",
+      "question": "What is the name of the capital of the country where the sport coached by the head coach of the Cleveland Indians was invented?",
+      "prediction": "Washington, D.C..",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3279.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 71,
+      "qa_pair_id": "factconsolidation_mh_32k_no71",
+      "question": "Which language or languages are spoken, written or signed by the creator of the TV series \"24\"?",
+      "prediction": "English",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3886.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 72,
+      "qa_pair_id": "factconsolidation_mh_32k_no72",
+      "question": "What is the capital city of the country where Pepe Reina's sport originates from?",
+      "prediction": "Spain",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3367.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 73,
+      "qa_pair_id": "factconsolidation_mh_32k_no73",
+      "question": "What is the name of the capital city of the country where the founder of the manufacturer of Ford F-Series hailed from?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4279.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 74,
+      "qa_pair_id": "factconsolidation_mh_32k_no74",
+      "question": "Which city is the seat of government of the country whose head of government formed the Monti Cabinet?",
+      "prediction": "Rome",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3821.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 75,
+      "qa_pair_id": "factconsolidation_mh_32k_no75",
+      "question": "Which city serves as the headquarters location of the educational institution where the spouse of Federico Fellini studied?",
+      "prediction": "University of Birmingham",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3583.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 76,
+      "qa_pair_id": "factconsolidation_mh_32k_no76",
+      "question": "What is the name of the capital city of the country that the author of \"Sin City\" comes from?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4198.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 77,
+      "qa_pair_id": "factconsolidation_mh_32k_no77",
+      "question": "What is the location of the headquarters of the company where Leonte R\u0103utu worked?",
+      "prediction": "University of Bucharest",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3312.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 78,
+      "qa_pair_id": "factconsolidation_mh_32k_no78",
+      "question": "Where was the birthplace of the founder of the institution that created Cardinal Stritch University?",
+      "prediction": "Phyllis Schlafly",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4118.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 79,
+      "qa_pair_id": "factconsolidation_mh_32k_no79",
+      "question": "What was the place of work of the individual who founded the religion that Justus Lipsius believed in?",
+      "prediction": "University of Cambridge",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3353.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 80,
+      "qa_pair_id": "factconsolidation_mh_32k_no80",
+      "question": "What is the name of the current head of government of the country where Leo Gordon holds citizenship?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3665.7
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 81,
+      "qa_pair_id": "factconsolidation_mh_32k_no81",
+      "question": "What was the sport that Hines Ward competed in professionally?",
+      "prediction": "American football",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4021.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 82,
+      "qa_pair_id": "factconsolidation_mh_32k_no82",
+      "question": "In which continent is the location of the headquarters of Airbnb situated?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3692.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 83,
+      "qa_pair_id": "factconsolidation_mh_32k_no83",
+      "question": "What is the place of death of the partner of Katherine Mansfield?",
+      "prediction": "John V Palaiologos died in the city of London",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3324.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 84,
+      "qa_pair_id": "factconsolidation_mh_32k_no84",
+      "question": "Who is the highest-ranking official of the country that W\u0142adys\u0142aw Anders holds a citizenship of?",
+      "prediction": "Aleksandar Vu\u010di\u0107",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3851.8
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 85,
+      "qa_pair_id": "factconsolidation_mh_32k_no85",
+      "question": "Which company, organization, or institution was responsible for the author of the Luther Bible?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3397.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 86,
+      "qa_pair_id": "factconsolidation_mh_32k_no86",
+      "question": "What city serves as the capital of the country that Kelly McGillis is a citizen of?",
+      "prediction": "Washington, D",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4230.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 87,
+      "qa_pair_id": "factconsolidation_mh_32k_no87",
+      "question": "Who is the political leader of the country where the sport associated with Terry Collins was first practiced?",
+      "prediction": "United States of America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3359.6
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 88,
+      "qa_pair_id": "factconsolidation_mh_32k_no88",
+      "question": "In which city was the person who founded the religion of Joseph de Maistre born?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3690.1
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 89,
+      "qa_pair_id": "factconsolidation_mh_32k_no89",
+      "question": "What is the name of the person who directed/managed the original broadcaster of Agents of S.H.I.E.L.D.?",
+      "prediction": "Bob Iger",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3541.0
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 90,
+      "qa_pair_id": "factconsolidation_mh_32k_no90",
+      "question": "In what city is located the capital of the country where the director/producer of the original broadcaster of \"The Addams Family\" holds a citizenship?",
+      "prediction": "Toronto",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3548.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 91,
+      "qa_pair_id": "factconsolidation_mh_32k_no91",
+      "question": "In which continent is the country of citizenship of Shaun Udal located?",
+      "prediction": "Denmark",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3327.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 92,
+      "qa_pair_id": "factconsolidation_mh_32k_no92",
+      "question": "What was the work location of the creator of Claude Frollo?",
+      "prediction": "Victor Hugo worked in the city of Paris",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4055.3
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 93,
+      "qa_pair_id": "factconsolidation_mh_32k_no93",
+      "question": "In which language does the government of the country of citizenship of W. G. Sebald conduct official business?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3554.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 94,
+      "qa_pair_id": "factconsolidation_mh_32k_no94",
+      "question": "Which music style is performed by the artist who goes by the name of Will Schuester?",
+      "prediction": "pop music",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3342.5
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 95,
+      "qa_pair_id": "factconsolidation_mh_32k_no95",
+      "question": "What is the country of origin of the sport associated with Gary SouthShore RailCats?",
+      "prediction": "I don't know",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3396.4
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 96,
+      "qa_pair_id": "factconsolidation_mh_32k_no96",
+      "question": "To which continent does the country of citizenship of the CEO of Telmex belong?",
+      "prediction": "North America",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 7138.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 97,
+      "qa_pair_id": "factconsolidation_mh_32k_no97",
+      "question": "In which capital is the headquarters of the company where the CEO of QuickTime developer holds the citizenship?",
+      "prediction": "Frankfurt",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 4221.9
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 98,
+      "qa_pair_id": "factconsolidation_mh_32k_no98",
+      "question": "Which profession is associated with the partner/spouse of Lalu Prasad Yadav?",
+      "prediction": "politician",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3729.2
+    },
+    {
+      "category": "CR",
+      "source": "factconsolidation_mh_32k",
+      "example_idx": 1,
+      "question_idx": 99,
+      "qa_pair_id": "factconsolidation_mh_32k_no99",
+      "question": "From which country does the sport that Kenley Jansen specializes in originate?",
+      "prediction": "baseball",
+      "scores": {
+        "exact_match": 0.0
+      },
+      "primary_score": 0.0,
+      "recall_ms": 3484.1
+    }
+  ]
+}
