@@ -421,20 +421,28 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
         total = total_items[0] if total_items else 0
 
         by_status: Dict[str, int] = {}
-        status_items = list(self._memories_container.query_items(
-            query="SELECT c.status, COUNT(1) AS cnt FROM c GROUP BY c.status",
-            enable_cross_partition_query=True,
-        ))
-        for row in status_items:
-            by_status[row["status"]] = row["cnt"]
+        try:
+            all_items = list(self._memories_container.query_items(
+                query="SELECT c.status FROM c",
+                enable_cross_partition_query=True,
+            ))
+            for item in all_items:
+                s = item.get("status", "active")
+                by_status[s] = by_status.get(s, 0) + 1
+        except Exception:
+            pass
 
         by_category: Dict[str, int] = {}
-        cat_items = list(self._memories_container.query_items(
-            query="SELECT c.category, COUNT(1) AS cnt FROM c GROUP BY c.category",
-            enable_cross_partition_query=True,
-        ))
-        for row in cat_items:
-            by_category[row["category"]] = row["cnt"]
+        try:
+            all_cats = list(self._memories_container.query_items(
+                query="SELECT c.category FROM c",
+                enable_cross_partition_query=True,
+            ))
+            for item in all_cats:
+                c = item.get("category", "general")
+                by_category[c] = by_category.get(c, 0) + 1
+        except Exception:
+            pass
 
         return {
             "total_memories": total,
