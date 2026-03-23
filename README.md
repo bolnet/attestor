@@ -212,7 +212,7 @@ AgentMemory
 ├── Cloud backends (single service fills all roles)
 │   ├── PostgreSQL       — pgvector + Apache AGE (Neon, Cloud SQL, self-hosted)
 │   ├── ArangoDB         — Native document + vector + graph (ArangoGraph Cloud)
-│   ├── AWS              — DynamoDB + OpenSearch Serverless + Neptune
+│   ├── AWS              — ArangoDB Oasis on AWS (native document + vector + graph)
 │   ├── Azure            — Cosmos DB (DiskANN vectors) + NetworkX graph
 │   └── GCP              — AlloyDB (pgvector + AGE) + Vertex AI embeddings
 ├── Retrieval            — 3-layer cascade with RRF fusion + temporal/entity boosts
@@ -252,18 +252,23 @@ mem = AgentMemory("./store", config={
 })
 ```
 
-### AWS (DynamoDB + OpenSearch + Neptune)
+### AWS (ArangoDB Oasis)
 
-Serverless-first: DynamoDB for documents, OpenSearch Serverless for vectors, Neptune Serverless for graph. Each service is optional — the backend works with whichever services are available. Auth via standard boto3 credential chain (IAM roles, env vars, profiles).
+ArangoDB Oasis deployed in AWS us-east-1. Native document, vector, and graph support — all three roles, no degradation. Uses the same `ArangoBackend` as ArangoGraph Cloud.
 
 ```python
 mem = AgentMemory("./store", config={
-    "backends": ["aws"],
-    "aws": {"region": "us-east-1"}
+    "backends": ["arangodb"],
+    "arangodb": {
+        "url": "https://your-oasis-instance.arangodb.cloud:8529",
+        "database": "memwright",
+        "auth": {"username": "root", "password": "$ARANGO_PASSWORD"},
+    }
 })
 ```
 
-Infrastructure: `agent_memory/infra/aws.tf` (Terraform).
+Setup: `bash agent_memory/infra/arango-oasis-setup.sh` (free tier, $0).
+Teardown: `bash agent_memory/infra/arango-oasis-teardown.sh <deployment-id> <org-id>`.
 
 ### Azure (Cosmos DB)
 
@@ -363,8 +368,9 @@ agent-memory mab --max-examples 1 --max-questions 5 --verbose
 | `test_postgres_backend.py` | — | Schema, CRUD, vector/graph ops |
 | `test_postgres_live.py` | 14 | Live tests against real PostgreSQL |
 | `test_arango_backend.py` | — | Document, vector, graph operations |
+| `test_arango_live.py` | 14 | Live tests against ArangoDB (Oasis/local) |
 | `test_azure_backend.py` | — | Cosmos DB containers, vector indexing |
-| `test_aws_backend.py` | — | DynamoDB, OpenSearch, Neptune |
+| `test_aws_backend.py` | — | DynamoDB, OpenSearch, Neptune (legacy) |
 | `test_gcp_backend.py` | — | AlloyDB connector, fallback logic |
 
 ## CLI
