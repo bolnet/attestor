@@ -65,6 +65,12 @@ variable "machine_type" {
   default     = "db-f1-micro"
 }
 
+variable "db_password" {
+  description = "AlloyDB initial postgres user password"
+  type        = string
+  sensitive   = true
+}
+
 # ── Provider ──
 
 provider "google" {
@@ -131,7 +137,7 @@ resource "google_alloydb_cluster" "main" {
 
   initial_user {
     user     = "postgres"
-    password = "change-me-after-deploy"
+    password = var.db_password
   }
 
   depends_on = [
