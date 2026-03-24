@@ -147,6 +147,10 @@ class AgentMemory:
 
     def _ensure_docker(self, backend_name: str, bcfg: Dict[str, Any]) -> None:
         """Start a Docker container for backends that require one."""
+        # Skip Docker for cloud-mode backends
+        if bcfg.get("mode") == "cloud" or bcfg.get("url", "").startswith("https://"):
+            return
+
         from agent_memory.infra.docker import DockerManager
 
         if self._docker is None:
