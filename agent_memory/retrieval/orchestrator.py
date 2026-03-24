@@ -6,9 +6,12 @@ from typing import Dict, List, Optional
 
 from agent_memory.models import Memory, RetrievalResult
 from agent_memory.retrieval.scorer import (
+    confidence_decay_boost,
     deduplicate,
     entity_boost,
     fit_to_budget,
+    mmr_rerank,
+    pagerank_boost,
     temporal_boost,
 )
 from agent_memory.retrieval.tag_matcher import extract_tags
@@ -31,6 +34,14 @@ class RetrievalOrchestrator:
         self.vector_store = vector_store
         self.graph = graph
         self.enable_temporal_boost = enable_temporal_boost
+        self.confidence_gate: float = 0.0
+        self.confidence_decay_rate: float = 0.001
+        self.confidence_boost_rate: float = 0.03
+        self.enable_mmr: bool = True
+        self.mmr_lambda: float = 0.7
+        self.fusion_mode: str = "rrf"  # "rrf" or "graph_blend"
+        self.graph_blend_vector_weight: float = 0.7
+        self.graph_blend_graph_weight: float = 0.3
 
     def recall(
         self,
@@ -130,13 +141,28 @@ class RetrievalOrchestrator:
                 )
 
         # Score, fuse, and assemble
-        results = self._reciprocal_rank_fusion(results)
+        if self.fusion_mode == "graph_blend" and self.graph and len(results) >= 3:
+            results = self._graph_blend(results)
+        else:
+            results = self._reciprocal_rank_fusion(results)
         results = temporal_boost(results, enabled=self.enable_temporal_boost)
 
         # Extract entities from query for entity boost
         # Include proper nouns and any multi-char meaningful words
         query_entities = [t for t in tags if t[0].isupper()] if tags else None
         results = entity_boost(results, query_entities)
+
+        # MMR diversity reranking
+        if self.enable_mmr:
+            results = mmr_rerank(results, lambda_param=self.mmr_lambda)
+
+        # Confidence decay/boost
+        results = confidence_decay_boost(
+            results,
+            decay_rate=self.confidence_decay_rate,
+            boost_rate=self.confidence_boost_rate,
+            gate=self.confidence_gate,
+        )
 
         return fit_to_budget(results, token_budget)
 
@@ -191,6 +217,59 @@ class RetrievalOrchestrator:
             )
 
         return fused
+
+    def _graph_blend(
+        self, results: List[RetrievalResult]
+    ) -> List[RetrievalResult]:
+        """Weighted blend of vector similarity and PageRank scores.
+
+        Alternative to RRF that preserves score magnitudes. Falls back to RRF
+        when result set < 3 (normalization unstable with too few points).
+        """
+        results = deduplicate(results)
+        if not results:
+            return results
+
+        # Get PageRank scores
+        pr_scores: Dict[str, float] = {}
+        if self.graph and hasattr(self.graph, "pagerank"):
+            try:
+                pr_scores = self.graph.pagerank()
+            except Exception:
+                pass
+
+        if not pr_scores:
+            return self._reciprocal_rank_fusion(results)
+
+        # Min-max normalize vector scores
+        scores = [r.score for r in results]
+        min_s, max_s = min(scores), max(scores)
+        score_range = max_s - min_s if max_s > min_s else 1.0
+
+        # Collect PR values for normalization
+        pr_values = []
+        for r in results:
+            entity_key = r.memory.entity.lower() if r.memory.entity else ""
+            pr_values.append(pr_scores.get(entity_key, 0.0))
+        min_pr, max_pr = min(pr_values), max(pr_values)
+        pr_range = max_pr - min_pr if max_pr > min_pr else 1.0
+
+        blended = []
+        for r, pr_val in zip(results, pr_values):
+            norm_score = (r.score - min_s) / score_range
+            norm_pr = (pr_val - min_pr) / pr_range
+            final = (
+                self.graph_blend_vector_weight * norm_score
+                + self.graph_blend_graph_weight * norm_pr
+            )
+            blended.append(
+                RetrievalResult(
+                    memory=r.memory, score=final, match_source=r.match_source,
+                )
+            )
+
+        blended.sort(key=lambda r: r.score, reverse=True)
+        return blended
 
     def recall_as_context(self, query: str, token_budget: int = 2000) -> str:
         """Recall and format as a context string for prompt injection."""
