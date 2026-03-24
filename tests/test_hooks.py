@@ -46,7 +46,7 @@ class TestSessionStartHook:
         assert len(result["additionalContext"]) > 0
 
     def test_uses_20k_token_budget(self, tmp_path, monkeypatch):
-        """Verify the 20000 token budget is passed to recall_as_context."""
+        """Verify the 20000 token budget is passed to recall."""
         store_path = tmp_path / "proj"
         store_path.mkdir()
         memwright_path = store_path / ".memwright"
@@ -54,13 +54,13 @@ class TestSessionStartHook:
         captured_budgets = []
 
         from agent_memory.core import AgentMemory
-        original_recall = AgentMemory.recall_as_context
+        original_recall = AgentMemory.recall
 
         def mock_recall(self, query, budget=None):
             captured_budgets.append(budget)
-            return ""
+            return []
 
-        monkeypatch.setattr(AgentMemory, "recall_as_context", mock_recall)
+        monkeypatch.setattr(AgentMemory, "recall", mock_recall)
 
         payload = {"event": "SessionStart", "session_id": "s1", "cwd": str(store_path)}
         session_start_handle(payload)

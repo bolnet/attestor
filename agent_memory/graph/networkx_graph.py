@@ -34,6 +34,10 @@ class NetworkXGraph(GraphStore):
         if self._path.exists():
             self.load()
 
+    def _invalidate_pr_cache(self) -> None:
+        """Mark PageRank cache as dirty after graph mutation."""
+        self._pr_dirty = True
+
     def add_entity(
         self,
         name: str,
@@ -41,6 +45,7 @@ class NetworkXGraph(GraphStore):
         attributes: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Add or merge an entity node. Key is lowercased; display_name preserved."""
+        self._invalidate_pr_cache()
         key = name.lower()
         attrs = dict(attributes) if attributes else {}
         if self._graph.has_node(key):
@@ -70,6 +75,7 @@ class NetworkXGraph(GraphStore):
         metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Add directed edge. Auto-creates nodes if missing."""
+        self._invalidate_pr_cache()
         from_key = from_entity.lower()
         to_key = to_entity.lower()
 
@@ -212,6 +218,26 @@ class NetworkXGraph(GraphStore):
                 })
 
         return result
+
+    def pagerank(self, alpha: float = 0.85) -> Dict[str, float]:
+        """Compute PageRank scores for all nodes.
+
+        Returns dict mapping node keys (lowercased entity names) to scores.
+        Uses cached result if graph hasn't changed since last computation.
+        """
+        if not hasattr(self, "_pr_cache"):
+            self._pr_cache: Optional[Dict[str, float]] = None
+            self._pr_dirty: bool = True
+
+        if self._pr_cache is not None and not self._pr_dirty:
+            return self._pr_cache
+
+        if self._graph.number_of_nodes() == 0:
+            self._pr_cache = {}
+        else:
+            self._pr_cache = nx.pagerank(self._graph, alpha=alpha)
+        self._pr_dirty = False
+        return self._pr_cache
 
     def graph_stats(self) -> Dict[str, Any]:
         """Return node count, edge count, and type breakdown."""

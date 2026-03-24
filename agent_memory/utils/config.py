@@ -24,6 +24,14 @@ class MemoryConfig:
     backends: List[str] = field(default_factory=lambda: list(_DEFAULT_BACKENDS))
     backend_configs: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
+    # Retrieval tuning
+    enable_mmr: bool = True
+    mmr_lambda: float = 0.7
+    fusion_mode: str = "rrf"  # "rrf" or "graph_blend"
+    confidence_gate: float = 0.0
+    confidence_decay_rate: float = 0.001
+    confidence_boost_rate: float = 0.03
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> MemoryConfig:
         known_fields = {f.name for f in cls.__dataclass_fields__.values()}
@@ -42,6 +50,12 @@ class MemoryConfig:
             "default_token_budget": self.default_token_budget,
             "min_results": self.min_results,
             "backends": self.backends,
+            "enable_mmr": self.enable_mmr,
+            "mmr_lambda": self.mmr_lambda,
+            "fusion_mode": self.fusion_mode,
+            "confidence_gate": self.confidence_gate,
+            "confidence_decay_rate": self.confidence_decay_rate,
+            "confidence_boost_rate": self.confidence_boost_rate,
         }
         for name, cfg in self.backend_configs.items():
             result[name] = cfg

@@ -39,6 +39,13 @@ class Memory:
     # Status
     status: str = "active"
 
+    # Access tracking
+    access_count: int = 0
+    last_accessed: Optional[str] = None
+
+    # Content dedup
+    content_hash: Optional[str] = None
+
     # Extensible
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -70,6 +77,9 @@ class Memory:
             superseded_by=row.get("superseded_by"),
             confidence=row.get("confidence", 1.0),
             status=row.get("status", "active"),
+            access_count=row.get("access_count", 0),
+            last_accessed=row.get("last_accessed"),
+            content_hash=row.get("content_hash"),
             metadata=metadata,
         )
 
@@ -88,6 +98,9 @@ class Memory:
             "superseded_by": self.superseded_by,
             "confidence": self.confidence,
             "status": self.status,
+            "access_count": self.access_count,
+            "last_accessed": self.last_accessed,
+            "content_hash": self.content_hash,
             "metadata": self.metadata,
         }
 

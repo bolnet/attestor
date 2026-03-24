@@ -1166,10 +1166,10 @@ footer {
         <div class="carousel-card">
           <div class="carousel-card-icon">☁️</div>
           <h3>On AWS</h3>
-          <div class="card-tagline">Serverless, Pay-Per-Use</div>
-          <p>DynamoDB for documents. OpenSearch Serverless for vectors. Neptune Serverless for graphs. Each optional — Memwright probes what's available.</p>
-          <div class="card-who">Teams already on AWS. No new procurement cycle.</div>
-          <pre>config={"backends": ["aws"]}</pre>
+          <div class="card-tagline">ArangoDB Oasis + Lambda</div>
+          <p>ArangoDB Oasis on AWS us-east-1 handles all three roles — documents, vectors, and graphs. Deploy as a Lambda API with Terraform IaC. One engine, zero stitching.</p>
+          <div class="card-who">Teams on AWS who want a managed multi-model database.</div>
+          <pre>config={"backends": ["arangodb"]}</pre>
         </div>
 
         <!-- Azure -->
@@ -1210,6 +1210,16 @@ footer {
           <p>JSONB for documents. pgvector for semantic search. Apache AGE for graph queries (optional — degrades gracefully).</p>
           <div class="card-who">Everyone. The default database of the AI era.</div>
           <pre>config={"backends": ["postgres"]}</pre>
+        </div>
+
+        <!-- Lambda -->
+        <div class="carousel-card">
+          <div class="carousel-card-icon">⚡</div>
+          <h3>On AWS Lambda</h3>
+          <div class="card-tagline">Serverless API in Minutes</div>
+          <p>Starlette ASGI + Mangum handler. 8 REST endpoints. Terraform IaC for ECR, Lambda, and API Gateway. Lightweight Docker image — no torch, ArangoDB handles embeddings.</p>
+          <div class="card-who">Teams wanting a serverless memory API on AWS.</div>
+          <pre>./scripts/deploy-lambda.sh</pre>
         </div>
 
         <!-- Docker -->
@@ -1273,8 +1283,8 @@ footer {
       <div class="audience-card reveal reveal-delay-1">
         <div class="audience-icon">🧠</div>
         <h3>For the Production Agent</h3>
-        <p>Your production agent gets long-term memory. Recall with token budgets — 2K most relevant tokens, not 15K noise. Contradiction handling. Entity traversal via graph edges. An agent that gets smarter over time instead of resetting to zero.</p>
-        <div class="audience-metric">3-layer retrieval with token budget control</div>
+        <p>Your production agent gets long-term memory. Recall with token budgets — 2K most relevant tokens, not 15K noise. PageRank-weighted entity traversal. Confidence decay over time. MMR diversity to avoid redundancy. An agent that actually gets smarter over time.</p>
+        <div class="audience-metric">6-signal scoring: tag + graph + vector + PageRank + confidence + MMR</div>
       </div>
       <div class="audience-card reveal reveal-delay-2">
         <div class="audience-icon">💰</div>
@@ -1343,7 +1353,7 @@ footer {
             <div style="padding:10px 12px;font-weight:500;color:var(--accent-indigo)">Memwright</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">pip install</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Free, all tiers</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">None (algorithmic)</div>
+            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">None (PageRank + RRF)</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Yes (zero config)</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-weight:500;font-size:12px">$0 forever</div>
           </div>
@@ -1396,9 +1406,10 @@ footer {
     <div class="reveal" style="margin-top: 3rem;">
       <h3 style="font-size: 1rem; margin-bottom: 1rem;">Run It Yourself</h3>
       <div class="code-block">$ memwright locomo --max-conversations 1 --max-questions 5 --verbose
-$ memwright locomo --backend postgres --backend-config '{"url": "postgresql://..."}'
-$ memwright mab --backend arangodb --backend-config '{"url": "https://..."}'
-$ memwright doctor ~/.memwright</div>
+$ memwright locomo --backend arangodb --backend-config '{"url": "https://..."}'
+$ memwright mab --backend postgres --backend-config '{"url": "postgresql://..."}'
+$ memwright doctor ~/.memwright
+$ ./scripts/bench-lambda.sh   # benchmark your Lambda deployment</div>
     </div>
   </div>
 </section>
@@ -1411,13 +1422,13 @@ $ memwright doctor ~/.memwright</div>
 <section id="how-it-works" class="section-alt">
   <div class="container">
     <div class="section-tag reveal">Under the Hood</div>
-    <h2 class="section-title reveal reveal-delay-1">Three retrieval layers. Zero LLM calls.<br>One ranked result.</h2>
-    <p class="section-subtitle reveal reveal-delay-2">Vector search alone finds what's similar. Not what's relevant. Not what's recent. Not what's correct. We run three layers in parallel. Every query. Every time.</p>
+    <h2 class="section-title reveal reveal-delay-1">Three retrieval layers. Six scoring signals.<br>Zero LLM calls.</h2>
+    <p class="section-subtitle reveal reveal-delay-2">Vector search alone finds what's similar. Not what's relevant. Not what's recent. Not what's correct. We run three layers in parallel, score with PageRank + confidence decay + MMR diversity, and deduplicate by content hash. Every query. Every time.</p>
 
     <!-- Retrieval Pipeline Diagram -->
     <div class="diagram-container reveal" style="margin-bottom: 2rem;">
       <h3 style="font-size: 1rem; margin-bottom: 1.5rem; text-align: center;">3-Layer Retrieval Pipeline</h3>
-      <img src="retrieval_pipeline_diagram.svg" alt="Memwright 3-Layer Retrieval Pipeline — Tag Match, Graph Expansion, Vector Search, RRF Fusion, Budget Fitting" style="width:100%;max-width:680px;height:auto;margin:0 auto;display:block;">
+      <img src="retrieval_pipeline_diagram.svg" alt="Memwright 3-Layer Retrieval Pipeline — Tag Match, Graph Expansion, Vector Search, RRF/Graph-Aware Fusion, PageRank + Confidence Scoring, MMR Diversity, Budget Fitting" style="width:100%;max-width:680px;height:auto;margin:0 auto;display:block;">
     </div>
 
     <div class="retrieval-flow">
@@ -1448,17 +1459,17 @@ $ memwright doctor ~/.memwright</div>
       <div class="flow-step reveal reveal-delay-3">
         <div class="flow-icon flow-icon-4">⚡</div>
         <div class="flow-body">
-          <h3>RRF Fusion</h3>
-          <div class="flow-engine">Reciprocal Rank Fusion (k=60)</div>
-          <p>Memories found by multiple layers score dramatically higher. Multi-signal = high confidence.</p>
+          <h3>Fusion + Scoring</h3>
+          <div class="flow-engine">RRF or Graph-Aware Blend · PageRank · Confidence Decay</div>
+          <p>RRF fuses multi-layer results. PageRank boosts well-connected entities. Confidence decays over time (-0.001/hr) and boosts on access (+0.03). Switch to graph-aware blend for entity-heavy workloads.</p>
         </div>
       </div>
       <div class="flow-step reveal reveal-delay-4">
-        <div class="flow-icon flow-icon-5">📦</div>
+        <div class="flow-icon flow-icon-5">🎯</div>
         <div class="flow-body">
-          <h3>Budget Fitting</h3>
-          <div class="flow-engine">Token Budget Control</div>
-          <p>You say 2K tokens. Memwright fills in score order until the budget is full. The other 9,996 memories never enter context.</p>
+          <h3>MMR Diversity + Budget Fitting</h3>
+          <div class="flow-engine">Maximal Marginal Relevance · Token Budget Control</div>
+          <p>MMR eliminates near-duplicate results via Jaccard similarity. Then budget fitting packs the top memories into your 2K token window. The other 9,996 memories never enter context.</p>
         </div>
       </div>
     </div>
@@ -1576,6 +1587,10 @@ $ memwright doctor ~/.memwright</div>
         <p>Every LLM call adds cost, latency, and non-determinism. We rank with algorithms. Same query, same results. Every time.</p>
       </div>
       <div class="principle-card reveal reveal-delay-2">
+        <h3>Dedup beats bloat.</h3>
+        <p>SHA-256 content hashing on every add() and import. Same content never stored twice. Your memory stays lean without manual cleanup.</p>
+      </div>
+      <div class="principle-card reveal reveal-delay-2">
         <h3>Your disk beats their cloud.</h3>
         <p>sqlite3 ~/.memwright/memory.db "SELECT * FROM memories LIMIT 10;" — see what your agent knows. Not an API call. The actual data.</p>
       </div>
@@ -1661,7 +1676,7 @@ $ memwright doctor ~/.memwright</div>
 <section id="cli" class="section-alt">
   <div class="container">
     <div class="section-tag reveal">CLI</div>
-    <h2 class="section-title reveal reveal-delay-1">16 commands. Full control from the terminal.</h2>
+    <h2 class="section-title reveal reveal-delay-1">17 commands. Full control from the terminal.</h2>
     <p class="section-subtitle reveal reveal-delay-2">Both <code>memwright</code> and <code>agent-memory</code> work.</p>
     <div class="cli-pills reveal reveal-delay-3">
       <span class="cli-pill">init</span>
@@ -1679,6 +1694,7 @@ $ memwright doctor ~/.memwright</div>
       <span class="cli-pill">doctor</span>
       <span class="cli-pill">mcp</span>
       <span class="cli-pill">locomo</span>
+      <span class="cli-pill">mab</span>
       <span class="cli-pill">hook</span>
     </div>
   </div>

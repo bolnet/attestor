@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from datetime import datetime, timezone
@@ -111,6 +112,13 @@ class AgentMemory:
             vector_store=self._vector_store,
             graph=self._graph,
         )
+        # Wire retrieval tuning from config
+        self._retrieval.enable_mmr = self.config.enable_mmr
+        self._retrieval.mmr_lambda = self.config.mmr_lambda
+        self._retrieval.fusion_mode = self.config.fusion_mode
+        self._retrieval.confidence_gate = self.config.confidence_gate
+        self._retrieval.confidence_decay_rate = self.config.confidence_decay_rate
+        self._retrieval.confidence_boost_rate = self.config.confidence_boost_rate
 
     def close(self) -> None:
         """Close all database connections."""
@@ -139,6 +147,10 @@ class AgentMemory:
 
     def _ensure_docker(self, backend_name: str, bcfg: Dict[str, Any]) -> None:
         """Start a Docker container for backends that require one."""
+        # Skip Docker for cloud-mode backends
+        if bcfg.get("mode") == "cloud" or bcfg.get("url", "").startswith("https://"):
+            return
+
         from agent_memory.infra.docker import DockerManager
 
         if self._docker is None:
@@ -153,6 +165,11 @@ class AgentMemory:
 
     # -- Write --
 
+    @staticmethod
+    def _content_hash(content: str) -> str:
+        """Compute SHA-256 hash of normalized content for dedup."""
+        return hashlib.sha256(content.strip().encode()).hexdigest()
+
     def add(
         self,
         content: str,
@@ -164,6 +181,14 @@ class AgentMemory:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Memory:
         """Store a new memory, handling contradictions automatically."""
+        # Dedup: check for exact content match
+        chash = self._content_hash(content)
+        if hasattr(self._store, "get_by_hash"):
+            existing = self._store.get_by_hash(chash)
+            if existing:
+                logger.debug("Dedup hit: content_hash=%s -> id=%s", chash[:8], existing.id)
+                return existing
+
         memory = Memory(
             content=content,
             tags=tags or [],
@@ -171,6 +196,7 @@ class AgentMemory:
             entity=entity,
             event_date=event_date,
             confidence=confidence,
+            content_hash=chash,
             metadata=metadata or {},
         )
 
@@ -227,7 +253,21 @@ class AgentMemory:
     ) -> List[RetrievalResult]:
         """Retrieve relevant memories for a query using 3-layer cascade."""
         token_budget = budget or self.config.default_token_budget
-        return self._retrieval.recall(query, token_budget)
+        results = self._retrieval.recall(query, token_budget)
+
+        # Track access for confidence decay/boost
+        real_ids = [
+            r.memory.id
+            for r in results
+            if r.memory.category != "graph_relation"
+        ]
+        if real_ids and hasattr(self._store, "increment_access"):
+            try:
+                self._store.increment_access(real_ids)
+            except Exception:
+                pass  # Non-fatal
+
+        return results
 
     def recall_as_context(
         self, query: str, budget: Optional[int] = None
@@ -473,9 +513,16 @@ class AgentMemory:
             data = json.load(f)
         count = 0
         for item in data:
+            content = item["content"]
+            chash = self._content_hash(content)
+
+            # Skip if duplicate content already exists
+            if hasattr(self._store, "get_by_hash") and self._store.get_by_hash(chash):
+                continue
+
             memory = Memory(
                 id=item.get("id", Memory().id),
-                content=item["content"],
+                content=content,
                 tags=item.get("tags", []),
                 category=item.get("category", "general"),
                 entity=item.get("entity"),
@@ -486,6 +533,7 @@ class AgentMemory:
                 superseded_by=item.get("superseded_by"),
                 confidence=item.get("confidence", 1.0),
                 status=item.get("status", "active"),
+                content_hash=chash,
                 metadata=item.get("metadata", {}),
             )
             try:
@@ -495,6 +543,14 @@ class AgentMemory:
                 # Skip duplicates
                 pass
         return count
+
+    # -- Graph --
+
+    def pagerank(self, alpha: float = 0.85) -> Dict[str, float]:
+        """Compute PageRank scores from the entity graph. Returns empty dict if no graph."""
+        if self._graph and hasattr(self._graph, "pagerank"):
+            return self._graph.pagerank(alpha=alpha)
+        return {}
 
     # -- Raw SQL --
 
