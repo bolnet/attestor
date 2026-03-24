@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -30,6 +31,23 @@ class SQLiteStore(DocumentStore):
     def _init_schema(self) -> None:
         schema_sql = _SCHEMA_PATH.read_text()
         self._conn.executescript(schema_sql)
+        self._migrate_columns()
+
+    def _migrate_columns(self) -> None:
+        """Add new columns to existing databases that lack them."""
+        cursor = self._conn.execute("PRAGMA table_info(memories)")
+        existing = {row["name"] for row in cursor.fetchall()}
+        migrations = [
+            ("access_count", "INTEGER DEFAULT 0"),
+            ("last_accessed", "TEXT"),
+            ("content_hash", "TEXT"),
+        ]
+        for col_name, col_type in migrations:
+            if col_name not in existing:
+                self._conn.execute(
+                    f"ALTER TABLE memories ADD COLUMN {col_name} {col_type}"
+                )
+        self._conn.commit()
 
     def close(self) -> None:
         self._conn.close()
@@ -41,8 +59,9 @@ class SQLiteStore(DocumentStore):
             """INSERT INTO memories
                (id, content, tags, category, entity, created_at, event_date,
                 valid_from, valid_until, superseded_by,
-                confidence, status, metadata)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                confidence, status, metadata,
+                access_count, last_accessed, content_hash)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 memory.id,
                 memory.content,
@@ -57,6 +76,9 @@ class SQLiteStore(DocumentStore):
                 memory.confidence,
                 memory.status,
                 memory.metadata_json(),
+                memory.access_count,
+                memory.last_accessed,
+                memory.content_hash,
             ),
         )
         self._conn.commit()
@@ -75,7 +97,8 @@ class SQLiteStore(DocumentStore):
             """UPDATE memories SET
                content=?, tags=?, category=?, entity=?, event_date=?,
                valid_from=?, valid_until=?, superseded_by=?,
-               confidence=?, status=?, metadata=?
+               confidence=?, status=?, metadata=?,
+               access_count=?, last_accessed=?, content_hash=?
                WHERE id=?""",
             (
                 memory.content,
@@ -89,6 +112,9 @@ class SQLiteStore(DocumentStore):
                 memory.confidence,
                 memory.status,
                 memory.metadata_json(),
+                memory.access_count,
+                memory.last_accessed,
+                memory.content_hash,
                 memory.id,
             ),
         )
@@ -101,6 +127,30 @@ class SQLiteStore(DocumentStore):
         )
         self._conn.commit()
         return cursor.rowcount > 0
+
+    def get_by_hash(self, content_hash: str) -> Optional[Memory]:
+        """Find an active memory by content hash for dedup."""
+        row = self._conn.execute(
+            "SELECT * FROM memories WHERE content_hash = ? AND status = 'active' LIMIT 1",
+            (content_hash,),
+        ).fetchone()
+        if row is None:
+            return None
+        return Memory.from_row(dict(row))
+
+    def increment_access(self, memory_ids: List[str]) -> None:
+        """Batch-increment access_count and update last_accessed for given IDs."""
+        if not memory_ids:
+            return
+        now = datetime.now(timezone.utc).isoformat()
+        placeholders = ",".join("?" for _ in memory_ids)
+        self._conn.execute(
+            f"""UPDATE memories
+                SET access_count = access_count + 1, last_accessed = ?
+                WHERE id IN ({placeholders})""",
+            [now, *memory_ids],
+        )
+        self._conn.commit()
 
     def list_memories(
         self,

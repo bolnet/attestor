@@ -31,11 +31,26 @@ def handle(payload: dict) -> dict:
         store_path = f"{cwd}/.memwright"
 
         from agent_memory.core import AgentMemory
+        from agent_memory.retrieval.scorer import pagerank_boost
 
         mem = AgentMemory(store_path)
         try:
-            context = mem.recall_as_context(_SESSION_QUERY, budget=_SESSION_BUDGET)
-            return {"additionalContext": context or ""}
+            results = mem.recall(_SESSION_QUERY, budget=_SESSION_BUDGET)
+
+            # Boost results by PageRank importance
+            pr_scores = mem.pagerank()
+            if pr_scores and results:
+                results = pagerank_boost(results, pr_scores, weight=0.3)
+                results.sort(key=lambda r: r.score, reverse=True)
+
+            if not results:
+                return _EMPTY_RESPONSE
+
+            lines = ["Relevant memories:"]
+            for r in results:
+                prefix = f"[{r.match_source}:{r.score:.2f}]"
+                lines.append(f"- {prefix} {r.memory.content}")
+            return {"additionalContext": "\n".join(lines)}
         finally:
             mem.close()
     except Exception:

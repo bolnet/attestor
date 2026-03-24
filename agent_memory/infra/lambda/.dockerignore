@@ -1,0 +1,12 @@
+.venv
+.git
+.claude
+.planning
+.playwright-mcp
+tests
+benchmark-logs
+docs
+__pycache__
+*.pyc
+*.egg-info
+.pytest_cache
