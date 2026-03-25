@@ -108,7 +108,7 @@ agent_memory/
 ├── models.py                  # Memory + RetrievalResult dataclasses
 ├── context.py                 # AgentContext — multi-agent provenance & RBAC
 ├── client.py                  # MemoryClient — HTTP client for distributed mode
-├── cli.py                     # CLI entry point (17+ commands)
+├── cli.py                     # CLI entry point (19 commands)
 ├── api.py                     # Starlette ASGI REST API (8 routes)
 ├── store/
 │   ├── base.py                # Abstract interfaces: DocumentStore, VectorStore, GraphStore
@@ -681,7 +681,7 @@ AZURE_COSMOS_ENDPOINT='https://...' poetry run pytest tests/test_azure_live.py -
 
 ### Test Coverage
 
-- **392+ unit tests** covering all backends, retrieval, config, embeddings, and CLI
+- **607 unit tests** covering all backends, retrieval, config, embeddings, and CLI
 - **14 live integration tests** per cloud backend (Neon, Azure, ArangoDB)
 - **Mock tests** for every cloud backend — no cloud account needed
 - All unit tests run without Docker or API keys
@@ -722,7 +722,7 @@ Same `memwright mcp` command. Same zero-config setup.
 
 ### Python
 
-- Python 3.10, 3.11, 3.12, 3.13
+- Python 3.10, 3.11, 3.12, 3.13, 3.14
 
 ---
 
