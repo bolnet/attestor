@@ -122,6 +122,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
             "tags": memory.tags,
             "category": memory.category,
             "entity": memory.entity,
+            "namespace": memory.namespace,
             "created_at": memory.created_at,
             "event_date": memory.event_date,
             "valid_from": memory.valid_from,
@@ -139,6 +140,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
             tags=doc.get("tags", []),
             category=doc.get("category", "general"),
             entity=doc.get("entity"),
+            namespace=doc.get("namespace", "default"),
             created_at=doc["created_at"],
             event_date=doc.get("event_date"),
             valid_from=doc["valid_from"],
@@ -178,6 +180,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         status: Optional[str] = None,
         category: Optional[str] = None,
         entity: Optional[str] = None,
+        namespace: Optional[str] = None,
         after: Optional[str] = None,
         before: Optional[str] = None,
         limit: int = 100,
@@ -194,6 +197,9 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         if entity:
             filters.append("doc.entity == @entity")
             bind_vars["entity"] = entity
+        if namespace:
+            filters.append("doc.namespace == @namespace")
+            bind_vars["namespace"] = namespace
         if after:
             filters.append("doc.created_at >= @after")
             bind_vars["after"] = after
@@ -210,6 +216,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         self,
         tags: List[str],
         category: Optional[str] = None,
+        namespace: Optional[str] = None,
         limit: int = 20,
     ) -> List[Memory]:
         bind_vars: Dict[str, Any] = {"@col": "memories", "lim": limit, "tags": tags}
@@ -221,6 +228,9 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         if category:
             filters.append("doc.category == @category")
             bind_vars["category"] = category
+        if namespace:
+            filters.append("doc.namespace == @namespace")
+            bind_vars["namespace"] = namespace
 
         where = " AND ".join(filters)
         aql = f"FOR doc IN @@col FILTER {where} SORT doc.created_at DESC LIMIT @lim RETURN doc"
@@ -299,29 +309,34 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         self._ensure_embedding_fn()
         return self._embedder.embed(text)
 
-    def add(self, memory_id: str, content: str) -> None:
+    def add(self, memory_id: str, content: str, namespace: str = "default") -> None:
         """Generate embedding and store as vector_data on the memory doc."""
         embedding = self._embed(content)
         col = self._db.collection("memories")
         if col.has(memory_id):
-            col.update({"_key": memory_id, "vector_data": embedding})
+            col.update({"_key": memory_id, "vector_data": embedding, "namespace": namespace})
 
-    def search(self, query_text: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def search(self, query_text: str, limit: int = 20, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
         """Vector similarity search using cosine similarity."""
         query_vec = self._embed(query_text)
 
-        aql = """
+        bind_vars: Dict[str, Any] = {"query_vec": query_vec, "lim": limit}
+        namespace_filter = ""
+        if namespace:
+            namespace_filter = "FILTER doc.namespace == @namespace"
+            bind_vars["namespace"] = namespace
+
+        aql = f"""
         FOR doc IN memories
             FILTER doc.vector_data != null
+            {namespace_filter}
             LET score = COSINE_SIMILARITY(doc.vector_data, @query_vec)
             FILTER score != null
             SORT score DESC
             LIMIT @lim
-            RETURN {memory_id: doc._key, content: doc.content, distance: 1.0 - score}
+            RETURN {{memory_id: doc._key, content: doc.content, distance: 1.0 - score}}
         """
-        cursor = self._db.aql.execute(
-            aql, bind_vars={"query_vec": query_vec, "lim": limit}
-        )
+        cursor = self._db.aql.execute(aql, bind_vars=bind_vars)
         return list(cursor)
 
     def count(self) -> int:

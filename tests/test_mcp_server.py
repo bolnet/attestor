@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from unittest.mock import MagicMock, patch
 
@@ -135,10 +136,9 @@ class TestToolHandler:
 # ---------------------------------------------------------------------------
 
 class TestResources:
-    @pytest.mark.asyncio
-    async def test_list_resources_with_graph(self):
+    def test_list_resources_with_graph(self):
         mem = _mock_agent_memory(graph_available=True)
-        resources = await _list_resources(mem)
+        resources = asyncio.run(_list_resources(mem))
         # 2 entities + 2 recent memories = 4 resources
         assert len(resources) == 4
         entity_uris = [r.uri for r in resources if "entity" in str(r.uri)]
@@ -146,47 +146,41 @@ class TestResources:
         assert len(entity_uris) == 2
         assert len(memory_uris) == 2
 
-    @pytest.mark.asyncio
-    async def test_list_resources_without_graph(self):
+    def test_list_resources_without_graph(self):
         mem = _mock_agent_memory(graph_available=False)
-        resources = await _list_resources(mem)
+        resources = asyncio.run(_list_resources(mem))
         # Only memory resources when graph is None
         assert len(resources) == 2
         for r in resources:
             assert "memory" in str(r.uri)
 
-    @pytest.mark.asyncio
-    async def test_read_resource_entity(self):
+    def test_read_resource_entity(self):
         mem = _mock_agent_memory(graph_available=True)
-        result = await _read_resource(mem, "memwright://entity/python")
+        result = asyncio.run(_read_resource(mem, "memwright://entity/python"))
         data = json.loads(result)
         assert data["name"] == "Python"
         assert "related" in data
 
-    @pytest.mark.asyncio
-    async def test_read_resource_entity_no_graph(self):
+    def test_read_resource_entity_no_graph(self):
         mem = _mock_agent_memory(graph_available=False)
         with pytest.raises(ValueError, match="Graph not available"):
-            await _read_resource(mem, "memwright://entity/python")
+            asyncio.run(_read_resource(mem, "memwright://entity/python"))
 
-    @pytest.mark.asyncio
-    async def test_read_resource_memory(self):
+    def test_read_resource_memory(self):
         mem = _mock_agent_memory(graph_available=True)
-        result = await _read_resource(mem, "memwright://memory/mem1")
+        result = asyncio.run(_read_resource(mem, "memwright://memory/mem1"))
         data = json.loads(result)
         assert data["id"] == "mem1"
         assert data["content"] == "User prefers Python"
 
-    @pytest.mark.asyncio
-    async def test_read_resource_unknown_uri(self):
+    def test_read_resource_unknown_uri(self):
         mem = _mock_agent_memory(graph_available=True)
         with pytest.raises(ValueError, match="Unknown resource"):
-            await _read_resource(mem, "memwright://unknown/thing")
+            asyncio.run(_read_resource(mem, "memwright://unknown/thing"))
 
-    @pytest.mark.asyncio
-    async def test_list_resource_templates(self):
+    def test_list_resource_templates(self):
         mem = _mock_agent_memory()
-        templates = await _list_resource_templates(mem)
+        templates = asyncio.run(_list_resource_templates(mem))
         assert len(templates) == 2
         template_uris = {t.uriTemplate for t in templates}
         assert "memwright://entity/{name}" in template_uris
@@ -198,36 +192,31 @@ class TestResources:
 # ---------------------------------------------------------------------------
 
 class TestPrompts:
-    @pytest.mark.asyncio
-    async def test_list_prompts(self):
+    def test_list_prompts(self):
         mem = _mock_agent_memory()
-        prompts = await _list_prompts(mem)
+        prompts = asyncio.run(_list_prompts(mem))
         assert len(prompts) == 2
         names = {p.name for p in prompts}
         assert names == {"recall", "timeline"}
 
-    @pytest.mark.asyncio
-    async def test_get_prompt_recall(self):
+    def test_get_prompt_recall(self):
         mem = _mock_agent_memory()
-        result = await _get_prompt(mem, "recall", {"query": "python preferences"})
+        result = asyncio.run(_get_prompt(mem, "recall", {"query": "python preferences"}))
         assert result.messages
         assert len(result.messages) >= 1
-        # Check that recall was called with the query
         mem.recall.assert_called_once_with("python preferences")
 
-    @pytest.mark.asyncio
-    async def test_get_prompt_timeline(self):
+    def test_get_prompt_timeline(self):
         mem = _mock_agent_memory()
-        result = await _get_prompt(mem, "timeline", {"entity": "user"})
+        result = asyncio.run(_get_prompt(mem, "timeline", {"entity": "user"}))
         assert result.messages
         assert len(result.messages) >= 1
         mem.timeline.assert_called_once_with("user")
 
-    @pytest.mark.asyncio
-    async def test_get_prompt_unknown(self):
+    def test_get_prompt_unknown(self):
         mem = _mock_agent_memory()
         with pytest.raises(ValueError, match="Unknown prompt"):
-            await _get_prompt(mem, "nonexistent", {})
+            asyncio.run(_get_prompt(mem, "nonexistent", {}))
 
 
 # ---------------------------------------------------------------------------

@@ -16,11 +16,11 @@ variable "project_name" {
 }
 
 variable "lambda_memory_mb" {
-  default = 512
+  default = 2048
 }
 
 variable "lambda_timeout" {
-  default = 60
+  default = 120
 }
 
 variable "arango_url" {

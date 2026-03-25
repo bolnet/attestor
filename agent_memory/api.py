@@ -71,6 +71,7 @@ async def add_memory(request: Request) -> JSONResponse:
         tags=body.get("tags", []),
         category=body.get("category", "general"),
         entity=body.get("entity"),
+        namespace=body.get("namespace", "default"),
         event_date=body.get("event_date"),
         confidence=body.get("confidence", 1.0),
         metadata=body.get("metadata", {}),
@@ -84,7 +85,9 @@ async def recall(request: Request) -> JSONResponse:
     if not query:
         return _err("query is required")
     mem = _get_mem()
-    results = mem.recall(query, budget=body.get("budget"))
+    results = mem.recall(
+        query, budget=body.get("budget"), namespace=body.get("namespace")
+    )
     return _ok([{"content": r.memory.content, "score": r.score,
                  "source": r.match_source, "id": r.memory.id,
                  "memory": r.memory.to_dict()} for r in results])
@@ -97,6 +100,7 @@ async def search(request: Request) -> JSONResponse:
         query=body.get("query"),
         category=body.get("category"),
         entity=body.get("entity"),
+        namespace=body.get("namespace"),
         status=body.get("status", "active"),
         after=body.get("after"),
         before=body.get("before"),
@@ -111,7 +115,7 @@ async def timeline(request: Request) -> JSONResponse:
     if not entity:
         return _err("entity is required")
     mem = _get_mem()
-    memories = mem.timeline(entity)
+    memories = mem.timeline(entity, namespace=body.get("namespace"))
     return _ok([m.to_dict() for m in memories])
 
 

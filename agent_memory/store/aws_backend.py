@@ -231,6 +231,7 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
                 "properties": {
                     "memory_id": {"type": "keyword"},
                     "content": {"type": "text"},
+                    "namespace": {"type": "keyword"},
                     "embedding": {
                         "type": "knn_vector",
                         "dimension": dim,
@@ -322,6 +323,7 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
             "content": memory.content,
             "tags": memory.tags,
             "category": memory.category,
+            "namespace": memory.namespace,
             "created_at": memory.created_at,
             "valid_from": memory.valid_from,
             "confidence": _float_to_decimal(memory.confidence),
@@ -350,6 +352,7 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
             content=item["content"],
             tags=item.get("tags", []),
             category=item.get("category", "general"),
+            namespace=item.get("namespace", "default"),
             entity=item.get("entity"),
             created_at=item["created_at"],
             event_date=item.get("event_date"),
@@ -388,24 +391,25 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
         status: Optional[str] = None,
         category: Optional[str] = None,
         entity: Optional[str] = None,
+        namespace: Optional[str] = None,
         after: Optional[str] = None,
         before: Optional[str] = None,
         limit: int = 100,
     ) -> List[Memory]:
         from boto3.dynamodb.conditions import Key, Attr
 
-        # Use GSI queries when a single partition key filter is available
-        if status and not category and not entity:
+        # Use GSI queries when a single partition key filter is available and no namespace filter
+        if status and not category and not entity and not namespace:
             return self._query_gsi(
                 "status-created_at-index", "status", status,
                 after=after, before=before, limit=limit,
             )
-        if category and not status and not entity:
+        if category and not status and not entity and not namespace:
             return self._query_gsi(
                 "category-created_at-index", "category", category,
                 after=after, before=before, limit=limit,
             )
-        if entity and not status and not category:
+        if entity and not status and not category and not namespace:
             return self._query_gsi(
                 "entity-created_at-index", "entity", entity,
                 after=after, before=before, limit=limit,
@@ -423,6 +427,8 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
             conditions.append(Attr("category").eq(category))
         if entity:
             conditions.append(Attr("entity").eq(entity))
+        if namespace:
+            conditions.append(Attr("namespace").eq(namespace))
         if after:
             conditions.append(Attr("created_at").gte(after))
         if before:
@@ -489,6 +495,7 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
         self,
         tags: List[str],
         category: Optional[str] = None,
+        namespace: Optional[str] = None,
         limit: int = 20,
     ) -> List[Memory]:
         """Scan for memories whose tags overlap with the given list.
@@ -513,6 +520,8 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
 
         if category:
             conditions.append(Attr("category").eq(category))
+        if namespace:
+            conditions.append(Attr("namespace").eq(namespace))
 
         combined = conditions[0]
         for c in conditions[1:]:
@@ -580,7 +589,7 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
     # VectorStore — OpenSearch Serverless
     # ══════════════════════════════════════════════════════════════════
 
-    def add(self, memory_id: str, content: str) -> None:
+    def add(self, memory_id: str, content: str, namespace: str = "default") -> None:
         if self._opensearch is None:
             logger.debug("OpenSearch not configured — skipping vector add")
             return
@@ -589,6 +598,7 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
         doc = {
             "memory_id": memory_id,
             "content": content,
+            "namespace": namespace,
             "embedding": embedding,
         }
         self._opensearch.index(
@@ -597,21 +607,24 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
             body=doc,
         )
 
-    def search(self, query_text: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def search(self, query_text: str, limit: int = 20, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
         if self._opensearch is None:
             logger.debug("OpenSearch not configured — returning empty results")
             return []
 
         query_vec = self._embed(query_text)
+        knn_clause: Dict[str, Any] = {
+            "embedding": {
+                "vector": query_vec,
+                "k": limit,
+            }
+        }
+        if namespace is not None:
+            knn_clause["embedding"]["filter"] = {"term": {"namespace": namespace}}
         body = {
             "size": limit,
             "query": {
-                "knn": {
-                    "embedding": {
-                        "vector": query_vec,
-                        "k": limit,
-                    }
-                }
+                "knn": knn_clause,
             },
         }
         resp = self._opensearch.search(index=self._opensearch_index, body=body)

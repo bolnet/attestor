@@ -41,12 +41,17 @@ class SQLiteStore(DocumentStore):
             ("access_count", "INTEGER DEFAULT 0"),
             ("last_accessed", "TEXT"),
             ("content_hash", "TEXT"),
+            ("namespace", "TEXT NOT NULL DEFAULT 'default'"),
         ]
         for col_name, col_type in migrations:
             if col_name not in existing:
                 self._conn.execute(
                     f"ALTER TABLE memories ADD COLUMN {col_name} {col_type}"
                 )
+        # Create indexes on migrated columns (safe after column exists)
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_memories_namespace ON memories(namespace)"
+        )
         self._conn.commit()
 
     def close(self) -> None:
@@ -57,17 +62,18 @@ class SQLiteStore(DocumentStore):
     def insert(self, memory: Memory) -> Memory:
         self._conn.execute(
             """INSERT INTO memories
-               (id, content, tags, category, entity, created_at, event_date,
-                valid_from, valid_until, superseded_by,
+               (id, content, tags, category, entity, namespace, created_at,
+                event_date, valid_from, valid_until, superseded_by,
                 confidence, status, metadata,
                 access_count, last_accessed, content_hash)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 memory.id,
                 memory.content,
                 memory.tags_json(),
                 memory.category,
                 memory.entity,
+                memory.namespace,
                 memory.created_at,
                 memory.event_date,
                 memory.valid_from,
@@ -95,8 +101,8 @@ class SQLiteStore(DocumentStore):
     def update(self, memory: Memory) -> Memory:
         self._conn.execute(
             """UPDATE memories SET
-               content=?, tags=?, category=?, entity=?, event_date=?,
-               valid_from=?, valid_until=?, superseded_by=?,
+               content=?, tags=?, category=?, entity=?, namespace=?,
+               event_date=?, valid_from=?, valid_until=?, superseded_by=?,
                confidence=?, status=?, metadata=?,
                access_count=?, last_accessed=?, content_hash=?
                WHERE id=?""",
@@ -105,6 +111,7 @@ class SQLiteStore(DocumentStore):
                 memory.tags_json(),
                 memory.category,
                 memory.entity,
+                memory.namespace,
                 memory.event_date,
                 memory.valid_from,
                 memory.valid_until,
@@ -128,12 +135,20 @@ class SQLiteStore(DocumentStore):
         self._conn.commit()
         return cursor.rowcount > 0
 
-    def get_by_hash(self, content_hash: str) -> Optional[Memory]:
+    def get_by_hash(
+        self, content_hash: str, namespace: Optional[str] = None
+    ) -> Optional[Memory]:
         """Find an active memory by content hash for dedup."""
-        row = self._conn.execute(
-            "SELECT * FROM memories WHERE content_hash = ? AND status = 'active' LIMIT 1",
-            (content_hash,),
-        ).fetchone()
+        if namespace:
+            row = self._conn.execute(
+                "SELECT * FROM memories WHERE content_hash = ? AND status = 'active' AND namespace = ? LIMIT 1",
+                (content_hash, namespace),
+            ).fetchone()
+        else:
+            row = self._conn.execute(
+                "SELECT * FROM memories WHERE content_hash = ? AND status = 'active' LIMIT 1",
+                (content_hash,),
+            ).fetchone()
         if row is None:
             return None
         return Memory.from_row(dict(row))
@@ -157,6 +172,7 @@ class SQLiteStore(DocumentStore):
         status: Optional[str] = None,
         category: Optional[str] = None,
         entity: Optional[str] = None,
+        namespace: Optional[str] = None,
         after: Optional[str] = None,
         before: Optional[str] = None,
         limit: int = 100,
@@ -173,6 +189,9 @@ class SQLiteStore(DocumentStore):
         if entity:
             conditions.append("entity = ?")
             params.append(entity)
+        if namespace:
+            conditions.append("namespace = ?")
+            params.append(namespace)
         if after:
             conditions.append("created_at >= ?")
             params.append(after)
@@ -193,6 +212,7 @@ class SQLiteStore(DocumentStore):
         self,
         tags: List[str],
         category: Optional[str] = None,
+        namespace: Optional[str] = None,
         limit: int = 20,
     ) -> List[Memory]:
         """Find active memories matching any of the given tags."""
@@ -206,6 +226,10 @@ class SQLiteStore(DocumentStore):
 
         if tag_conditions:
             conditions.append(f"({' OR '.join(tag_conditions)})")
+
+        if namespace:
+            conditions.append("namespace = ?")
+            params.append(namespace)
 
         if category:
             conditions.append("category = ?")

@@ -15,27 +15,35 @@ class TemporalManager:
     def __init__(self, store: DocumentStore):
         self.store = store
 
-    def timeline(self, entity: str) -> List[Memory]:
+    def timeline(
+        self, entity: str, namespace: Optional[str] = None
+    ) -> List[Memory]:
         """Get all memories about an entity ordered by event_date/created_at."""
-        memories = self.store.list_memories(entity=entity, limit=100_000)
+        memories = self.store.list_memories(
+            entity=entity, namespace=namespace, limit=100_000
+        )
         return sorted(
             memories,
             key=lambda m: m.event_date or m.created_at,
         )
 
     def current_facts(
-        self, category: Optional[str] = None, entity: Optional[str] = None
+        self,
+        category: Optional[str] = None,
+        entity: Optional[str] = None,
+        namespace: Optional[str] = None,
     ) -> List[Memory]:
         """Return only active, non-superseded memories."""
         memories = self.store.list_memories(
-            status="active", category=category, entity=entity, limit=100_000,
+            status="active", category=category, entity=entity,
+            namespace=namespace, limit=100_000,
         )
         return [m for m in memories if m.valid_until is None]
 
     def check_contradictions(self, new_memory: Memory) -> List[Memory]:
         """Find active memories that potentially contradict the new one.
 
-        Rule-based: same entity + same category + different content.
+        Rule-based: same entity + same category + same namespace + different content.
         """
         if not new_memory.entity:
             return []
@@ -44,6 +52,7 @@ class TemporalManager:
             status="active",
             category=new_memory.category,
             entity=new_memory.entity,
+            namespace=new_memory.namespace,
             limit=100_000,
         )
         contradictions = []

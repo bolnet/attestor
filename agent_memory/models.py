@@ -18,6 +18,7 @@ class Memory:
     tags: List[str] = field(default_factory=list)
     category: str = "general"
     entity: Optional[str] = None
+    namespace: str = "default"
 
     # Temporal
     created_at: str = field(
@@ -70,6 +71,7 @@ class Memory:
             tags=tags,
             category=row["category"],
             entity=row.get("entity"),
+            namespace=row.get("namespace", "default"),
             created_at=row["created_at"],
             event_date=row.get("event_date"),
             valid_from=row["valid_from"],
@@ -91,6 +93,7 @@ class Memory:
             "tags": self.tags,
             "category": self.category,
             "entity": self.entity,
+            "namespace": self.namespace,
             "created_at": self.created_at,
             "event_date": self.event_date,
             "valid_from": self.valid_from,

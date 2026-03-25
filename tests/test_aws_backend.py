@@ -14,6 +14,8 @@ try:
     HAS_MOTO = True
 except ImportError:
     HAS_MOTO = False
+    # Provide a no-op mock_aws so pytest can collect decorators before skipif kicks in
+    from contextlib import nullcontext as mock_aws
 
 from agent_memory.models import Memory
 

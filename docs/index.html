@@ -7,7 +7,7 @@
 <meta name="description" content="Zero-config persistent memory for AI agents. 81.2% LOCOMO. $0/month. Works on your laptop, AWS, Azure, GCP, ArangoDB, PostgreSQL, or Docker.">
 <meta name="theme-color" content="#0a0a12">
 <meta property="og:title" content="Memwright — Agent Memory, Everywhere">
-<meta property="og:description" content="Your AI agent forgets everything between sessions. We fixed that. One pip install. One problem solved.">
+<meta property="og:description" content="Your AI agent forgets everything between sessions. We fixed that. One poetry add. One problem solved.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
@@ -1035,9 +1035,9 @@ footer {
       <div class="hero-eyebrow">Where there's an agent, there's Memwright.</div>
       <h1 class="hero-headline">We solve one problem.<br>We solve it everywhere.</h1>
       <p class="hero-subhead">Your Claude Code session. Your production pipeline. Your enterprise AI stack. AWS. Azure. GCP. Docker. Or just your laptop with nothing installed.</p>
-      <div class="hero-install" onclick="navigator.clipboard.writeText('pipx install memwright');this.querySelector('.copy-hint').textContent='Copied!'">
+      <div class="hero-install" onclick="navigator.clipboard.writeText('npx @anthropic-ai/claude-code --add-mcp \\'memory: memwright mcp\\'');this.querySelector('.copy-hint').textContent='Copied!'">
         <span class="prompt">$</span>
-        <span class="cmd">pipx install memwright</span>
+        <span class="cmd">claude mcp add memory -- memwright mcp</span>
         <span class="copy-hint">Click to copy</span>
       </div>
       <p class="hero-meta">Free. Open source. Apache 2.0. Works right now.</p>
@@ -1159,7 +1159,7 @@ footer {
           <div class="card-tagline">Zero Everything</div>
           <p>No Docker. No API keys. No cloud account. No database server. Nothing. SQLite + ChromaDB + NetworkX auto-provision from thin air.</p>
           <div class="card-who">Solo developers, side projects, proof of concepts.</div>
-          <pre>$ pipx install memwright</pre>
+          <pre>$ claude mcp add memory -- memwright mcp</pre>
         </div>
 
         <!-- AWS -->
@@ -1351,7 +1351,7 @@ footer {
           </div>
           <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;background:var(--bg-card);border-top:2px solid var(--accent-indigo)">
             <div style="padding:10px 12px;font-weight:500;color:var(--accent-indigo)">Memwright</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">pip install</div>
+            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">poetry add</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Free, all tiers</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">None (PageRank + RRF)</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Yes (zero config)</div>
@@ -1606,33 +1606,37 @@ $ ./scripts/bench-lambda.sh   # benchmark your Lambda deployment</div>
 <section id="quickstart" class="section-alt">
   <div class="container">
     <div class="section-tag reveal">Quick Start</div>
-    <h2 class="section-title reveal reveal-delay-1">Two minutes. Four steps. Zero dollars.</h2>
+    <h2 class="section-title reveal reveal-delay-1">One line. One minute. Zero dollars.</h2>
 
     <div class="quickstart-steps">
       <div class="qs-step reveal">
-        <div class="qs-step-num">Step 1 — Install</div>
-        <div class="code-block">$ pipx install memwright</div>
+        <div class="qs-step-num">Step 1 — Install &amp; Connect</div>
+        <div class="code-block">$ poetry add memwright
+$ claude mcp add memory -- memwright mcp</div>
+        <p style="margin-top: 0.75rem;">That's it. Restart your client. Approve the server once. Your agent now remembers.</p>
       </div>
       <div class="qs-step reveal reveal-delay-1">
-        <div class="qs-step-num">Step 2 — Configure</div>
-        <p>Add to <code>.mcp.json</code> (Claude Code) or <code>.cursor/mcp.json</code> (Cursor):</p>
-        <div class="code-block">{
-  "mcpServers": {
-    "memory": {
-      "command": "memwright",
-      "args": ["mcp"]
-    }
-  }
-}</div>
+        <div class="qs-step-num">Step 2 — Verify</div>
+        <div class="code-block">$ memwright doctor ~/.memwright</div>
+        <p style="margin-top: 0.75rem;">All 4 components healthy: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.</p>
       </div>
       <div class="qs-step reveal reveal-delay-2">
-        <div class="qs-step-num">Step 3 — Restart</div>
-        <p>Restart your editor. Approve the memory server once.</p>
-      </div>
-      <div class="qs-step reveal reveal-delay-3">
-        <div class="qs-step-num">Step 4 — Verify</div>
-        <div class="code-block">$ memwright doctor ~/.memwright</div>
-        <p style="margin-top: 0.75rem;">All 4 components healthy. Your agent now remembers.</p>
+        <div class="qs-step-num">Run as a Cloud Service</div>
+        <p>Deploy the same retrieval pipeline as an HTTP API on your cloud. Each script provisions all infrastructure via Terraform, builds a slim Docker image, deploys, and runs a health check.</p>
+        <p style="margin-top:0.5rem;font-weight:500;color:var(--accent-indigo)">Prerequisites: Docker, Terraform, cloud CLI, ArangoDB credentials in .env</p>
+        <div style="display:grid;gap:1.5rem;margin-top:1rem;">
+          <div class="code-block">$ ./scripts/deploy.sh aws      # Lambda + API Gateway (serverless)
+$ ./scripts/deploy.sh gcp      # Cloud Run (auto-scale 0–3)
+$ ./scripts/deploy.sh azure    # Container Apps (scale-to-zero)
+
+$ ./scripts/deploy.sh aws --teardown   # destroy everything</div>
+          <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;font-size:0.85rem">
+            <div><strong>AWS</strong><br>ECR + Lambda (2GB) + API Gateway<br><code>infra/lambda/main.tf</code></div>
+            <div><strong>GCP</strong><br>Artifact Registry + Cloud Run (2 CPU, 4GB)<br><code>infra/cloudrun/main.tf</code></div>
+            <div><strong>Azure</strong><br>ACR + Container Apps (2 CPU, 4GB)<br><code>infra/containerapp/main.tf</code></div>
+          </div>
+        </div>
+        <p style="margin-top: 1rem;">All three deploy the same Starlette ASGI API with ArangoDB backend. One script to deploy, one flag to teardown.</p>
       </div>
     </div>
   </div>
@@ -1708,7 +1712,7 @@ $ ./scripts/bench-lambda.sh   # benchmark your Lambda deployment</div>
 <section id="closing">
   <div class="container">
     <div class="closing-manifesto reveal">
-      <blockquote>We hate dementia. We can't solve it for humans. Not yet. But we can solve it for AI agents. And we did. Your laptop. Your cloud. Your air-gapped server. AWS. Azure. GCP. ArangoDB. PostgreSQL. Docker. Or nothing at all. One pip install. One problem solved. Your agent never forgets.</blockquote>
+      <blockquote>We hate dementia. We can't solve it for humans. Not yet. But we can solve it for AI agents. And we did. Your laptop. Your cloud. Your air-gapped server. AWS. Azure. GCP. ArangoDB. PostgreSQL. Docker. Or nothing at all. One poetry add. One problem solved. Your agent never forgets.</blockquote>
       <div class="closing-tagline reveal reveal-delay-1">Where there's an agent, there's Memwright.</div>
       <div class="hero-ctas reveal reveal-delay-2" style="justify-content: center;">
         <a href="#" class="cta-github">GitHub</a>
@@ -1766,7 +1770,7 @@ function scrollCarousel(direction) {
 
 // Copy install command
 document.querySelector('.hero-install')?.addEventListener('click', function() {
-  navigator.clipboard.writeText('pipx install memwright').then(() => {
+  navigator.clipboard.writeText('claude mcp add memory -- memwright mcp').then(() => {
     const hint = this.querySelector('.copy-hint');
     hint.textContent = 'Copied!';
     hint.style.opacity = '1';

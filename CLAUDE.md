@@ -42,8 +42,8 @@ No Docker, no external databases, no API keys required.
 
 ## Development
 
-- Python venv at `.venv` -- use `.venv/bin/pytest`, `.venv/bin/python`
-- Run tests: `.venv/bin/pytest tests/ -v`
+- Poetry manages dependencies -- use `poetry run pytest`, `poetry run python`
+- Run tests: `poetry run pytest tests/ -v`
 - Tests run without Docker or API keys
 
 ## Architecture

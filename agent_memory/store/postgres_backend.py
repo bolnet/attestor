@@ -124,6 +124,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
                     tags TEXT[] NOT NULL DEFAULT '{{}}'::text[],
                     category TEXT NOT NULL DEFAULT 'general',
                     entity TEXT,
+                    namespace TEXT NOT NULL DEFAULT 'default',
                     created_at TEXT NOT NULL,
                     event_date TEXT,
                     valid_from TEXT NOT NULL,
@@ -220,6 +221,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             "tags": memory.tags,
             "category": memory.category,
             "entity": memory.entity,
+            "namespace": memory.namespace,
             "created_at": memory.created_at,
             "event_date": memory.event_date,
             "valid_from": memory.valid_from,
@@ -240,6 +242,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             tags=row.get("tags", []),
             category=row.get("category", "general"),
             entity=row.get("entity"),
+            namespace=row.get("namespace", "default"),
             created_at=row["created_at"],
             event_date=row.get("event_date"),
             valid_from=row["valid_from"],
@@ -253,10 +256,10 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
     def insert(self, memory: Memory) -> Memory:
         p = self._memory_to_params(memory)
         self._execute("""
-            INSERT INTO memories (id, content, tags, category, entity,
+            INSERT INTO memories (id, content, tags, category, entity, namespace,
                 created_at, event_date, valid_from, valid_until,
                 superseded_by, confidence, status, metadata)
-            VALUES (%(id)s, %(content)s, %(tags)s, %(category)s, %(entity)s,
+            VALUES (%(id)s, %(content)s, %(tags)s, %(category)s, %(entity)s, %(namespace)s,
                 %(created_at)s, %(event_date)s, %(valid_from)s, %(valid_until)s,
                 %(superseded_by)s, %(confidence)s, %(status)s, %(metadata)s::jsonb)
         """, p)
@@ -275,7 +278,8 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         self._execute("""
             UPDATE memories SET
                 content = %(content)s, tags = %(tags)s, category = %(category)s,
-                entity = %(entity)s, created_at = %(created_at)s,
+                entity = %(entity)s, namespace = %(namespace)s,
+                created_at = %(created_at)s,
                 event_date = %(event_date)s, valid_from = %(valid_from)s,
                 valid_until = %(valid_until)s, superseded_by = %(superseded_by)s,
                 confidence = %(confidence)s, status = %(status)s,
@@ -295,6 +299,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         status: Optional[str] = None,
         category: Optional[str] = None,
         entity: Optional[str] = None,
+        namespace: Optional[str] = None,
         after: Optional[str] = None,
         before: Optional[str] = None,
         limit: int = 100,
@@ -311,6 +316,9 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         if entity:
             filters.append("entity = %(entity)s")
             params["entity"] = entity
+        if namespace:
+            filters.append("namespace = %(namespace)s")
+            params["namespace"] = namespace
         if after:
             filters.append("created_at >= %(after)s")
             params["after"] = after
@@ -329,6 +337,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         self,
         tags: List[str],
         category: Optional[str] = None,
+        namespace: Optional[str] = None,
         limit: int = 20,
     ) -> List[Memory]:
         params: Dict[str, Any] = {"tags": tags, "lim": limit}
@@ -340,6 +349,9 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         if category:
             filters.append("category = %(category)s")
             params["category"] = category
+        if namespace:
+            filters.append("namespace = %(namespace)s")
+            params["namespace"] = namespace
 
         where = " AND ".join(filters)
         rows = self._execute(

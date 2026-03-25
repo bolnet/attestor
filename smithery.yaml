@@ -1,6 +1,6 @@
 # Smithery.ai configuration for memwright
 # Note: Smithery deployment requires a Dockerfile.
-# For local use, install via: pip install memwright[all]
+# For local use, install via: poetry add memwright
 # Then run: agent-memory serve ./memory-store
 
 runtime: container

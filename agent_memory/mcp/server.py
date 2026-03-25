@@ -242,6 +242,11 @@ def create_server(memory_path: str):
                             "type": "string",
                             "description": "Primary entity this fact is about (company, tool, person, etc.)",
                         },
+                        "namespace": {
+                            "type": "string",
+                            "description": "Namespace for multi-agent isolation (e.g., 'user:john', 'project:acme')",
+                            "default": "default",
+                        },
                         "event_date": {
                             "type": "string",
                             "description": "When this fact occurred (ISO date, e.g. '2025-03-15'). Used for timeline ordering.",
@@ -289,6 +294,10 @@ def create_server(memory_path: str):
                             "description": "Max tokens to return (default: 2000)",
                             "default": 2000,
                         },
+                        "namespace": {
+                            "type": "string",
+                            "description": "Filter by namespace (e.g., 'user:john')",
+                        },
                     },
                     "required": ["query"],
                 },
@@ -306,6 +315,7 @@ def create_server(memory_path: str):
                         "query": {"type": "string", "description": "Text search query (semantic vector search)"},
                         "category": {"type": "string", "description": "Filter by category"},
                         "entity": {"type": "string", "description": "Filter by entity"},
+                        "namespace": {"type": "string", "description": "Filter by namespace"},
                         "status": {
                             "type": "string",
                             "enum": ["active", "superseded", "archived"],
@@ -335,6 +345,7 @@ def create_server(memory_path: str):
                     "type": "object",
                     "properties": {
                         "entity": {"type": "string", "description": "Entity name to get timeline for"},
+                        "namespace": {"type": "string", "description": "Filter by namespace"},
                     },
                     "required": ["entity"],
                 },
@@ -398,6 +409,7 @@ def _handle_tool(mem: AgentMemory, name: str, args: dict) -> dict:
             tags=args.get("tags", []),
             category=args.get("category", "general"),
             entity=args.get("entity"),
+            namespace=args.get("namespace", "default"),
             event_date=args.get("event_date"),
             confidence=args.get("confidence", 1.0),
         )
@@ -419,7 +431,11 @@ def _handle_tool(mem: AgentMemory, name: str, args: dict) -> dict:
         }
 
     elif name == "memory_recall":
-        results = mem.recall(args["query"], budget=args.get("budget", 2000))
+        results = mem.recall(
+            args["query"],
+            budget=args.get("budget", 2000),
+            namespace=args.get("namespace"),
+        )
         return {
             "count": len(results),
             "memories": [
@@ -441,6 +457,7 @@ def _handle_tool(mem: AgentMemory, name: str, args: dict) -> dict:
             query=args.get("query"),
             category=args.get("category"),
             entity=args.get("entity"),
+            namespace=args.get("namespace"),
             status=args.get("status", "active"),
             after=args.get("after"),
             before=args.get("before"),
@@ -466,7 +483,7 @@ def _handle_tool(mem: AgentMemory, name: str, args: dict) -> dict:
         return {"success": success, "memory_id": args["memory_id"]}
 
     elif name == "memory_timeline":
-        memories = mem.timeline(args["entity"])
+        memories = mem.timeline(args["entity"], namespace=args.get("namespace"))
         return {
             "entity": args["entity"],
             "count": len(memories),
