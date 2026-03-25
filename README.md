@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <em>Zero-config memory for Claude Code. No Docker. No API keys. Just install and go.</em>
+  <em>Zero-config memory for AI agents. No Docker. No API keys. Just install and go.</em>
 </p>
 
 <p align="center">
@@ -21,31 +21,55 @@
 
 ## The Problem
 
-Claude Code forgets everything between sessions. Every new conversation starts from zero — no memory of what you built yesterday, what decisions you made, or what your project even does.
+AI agents forget everything between sessions. Every new conversation starts from zero — no memory of what you built yesterday, what decisions you made, or what your project even does.
 
-Claude Code's built-in auto-memory stores flat markdown files. No search. No ranking. No contradiction handling. As your project grows, those files become a wall of text that burns tokens without helping.
+Built-in memory solutions (like Claude Code's `MEMORY.md`) store flat files that load entirely into the context window every message. No search, no ranking, no contradiction handling. As your project grows, those files become a wall of text that burns tokens without helping.
 
 ## What Memwright Does
 
-Memwright gives Claude Code persistent, searchable memory that actually saves tokens:
+Memwright gives AI agents persistent, searchable memory that stays out of the context window until needed:
 
-- **Ranked retrieval** — 3-layer search (tags + entity graph + vector similarity) returns only the most relevant memories, not everything
-- **Token budgets** — You set a ceiling (e.g. 2,000 tokens). Memwright fits the highest-scored memories within that budget. No overflow
-- **Contradiction handling** — "User works at Google" automatically supersedes "User works at Meta". Stale facts don't pollute context
-- **Zero config** — `poetry add memwright`, add one JSON block, restart Claude Code. Done
+- **Ranked retrieval** — 3-layer search (tags + entity graph + vector similarity) returns only the most relevant memories
+- **Token budgets** — Set a ceiling (e.g. 2,000 tokens). Memwright fits the best memories within that budget
+- **Contradiction handling** — "User works at Google" automatically supersedes "User works at Meta"
+- **Namespace isolation** — Multi-agent systems get isolated memory partitions per agent, user, or project
+- **Zero config** — `pip install memwright`, add one JSON block, done
 
-## Setup (1 minute)
+---
 
-### One-liner (Claude Code)
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [How It Works](#how-it-works)
+- [MCP Tools Reference](#mcp-tools-reference)
+- [Retrieval Pipeline](#retrieval-pipeline)
+- [Python API](#python-api)
+- [Multi-Agent Support](#multi-agent-support)
+- [Cloud Backends](#cloud-backends)
+- [Cloud Deployment](#cloud-deployment)
+- [Embedding Providers](#embedding-providers)
+- [CLI Reference](#cli-reference)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [Benchmarks](#benchmarks)
+- [Compatibility](#compatibility)
+- [Uninstall](#uninstall)
+
+---
+
+## Quick Start
+
+### Claude Code (one-liner)
 
 ```bash
-poetry add memwright
+pip install memwright
 claude mcp add memory -- memwright mcp
 ```
 
 Restart Claude Code. Approve the server once. Done — Claude now has 8 memory tools.
 
-### Or configure manually
+### Manual MCP config
 
 Add to `~/.claude/.mcp.json` (global) or `.mcp.json` (per-project):
 
@@ -66,186 +90,365 @@ Add to `~/.claude/.mcp.json` (global) or `.mcp.json` (per-project):
 memwright doctor ~/.memwright
 ```
 
-Or ask Claude to call `memory_health`. All 4 components should be healthy: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.
+Or ask Claude to call `memory_health`. All 4 components should report healthy: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.
 
-## Run as a Cloud Service
+---
 
-Deploy memwright as an HTTP API on any cloud. One script, one parameter.
+## Architecture
 
-```bash
-./scripts/deploy.sh aws        # Lambda + API Gateway (serverless, pay-per-request)
-./scripts/deploy.sh gcp        # Cloud Run (auto-scale 0–3, 2 CPU / 4GB)
-./scripts/deploy.sh azure      # Container Apps (scale-to-zero, 2 CPU / 4GB)
+<p align="center">
+  <img src="docs/architecture.svg" alt="Memwright Architecture" width="100%">
+</p>
 
-./scripts/deploy.sh aws --teardown   # destroy everything
+### Component Overview
+
+```
+agent_memory/
+├── core.py                    # AgentMemory — main orchestrator
+├── models.py                  # Memory + RetrievalResult dataclasses
+├── context.py                 # AgentContext — multi-agent provenance & RBAC
+├── client.py                  # MemoryClient — HTTP client for distributed mode
+├── cli.py                     # CLI entry point (17+ commands)
+├── api.py                     # Starlette ASGI REST API (8 routes)
+├── store/
+│   ├── base.py                # Abstract interfaces: DocumentStore, VectorStore, GraphStore
+│   ├── sqlite_store.py        # SQLite storage (WAL, 17 columns, 8 indexes)
+│   ├── chroma_store.py        # ChromaDB vector search (local sentence-transformers)
+│   ├── schema.sql             # SQLite schema definition
+│   ├── postgres_backend.py    # PostgreSQL (pgvector + Apache AGE)
+│   ├── arango_backend.py      # ArangoDB (native doc + vector + graph)
+│   ├── aws_backend.py         # AWS (DynamoDB + OpenSearch + Neptune)
+│   └── azure_backend.py       # Azure (Cosmos DB DiskANN + NetworkX)
+├── graph/
+│   ├── networkx_graph.py      # NetworkX MultiDiGraph with PageRank + BFS
+│   └── extractor.py           # Entity/relation extraction (50+ known tools)
+├── retrieval/
+│   ├── orchestrator.py        # 3-layer cascade with RRF fusion
+│   ├── tag_matcher.py         # Stop-word filtered tag extraction
+│   └── scorer.py              # Temporal, entity, PageRank, MMR, confidence decay
+├── temporal/
+│   └── manager.py             # Contradiction detection + supersession
+├── extraction/
+│   └── extractor.py           # Rule-based + LLM memory extraction
+├── mcp/
+│   └── server.py              # MCP server (8 tools, 2 resources, 2 prompts)
+├── hooks/
+│   ├── session_start.py       # Context injection (20K token budget)
+│   ├── post_tool_use.py       # Auto-capture from Write/Edit/Bash
+│   └── stop.py                # Session summary generation
+├── utils/
+│   └── config.py              # MemoryConfig dataclass + load/save
+└── infra/                     # Terraform + Docker for cloud deployments
+    ├── lambda/                # AWS Lambda + API Gateway
+    ├── cloudrun/              # GCP Cloud Run
+    ├── containerapp/          # Azure Container Apps
+    └── apprunner/             # AWS App Runner
 ```
 
-**Prerequisites**: Docker, Terraform, cloud CLI (`aws`/`gcloud`/`az`), ArangoDB credentials in `.env`.
+### Three Storage Roles
 
-Each command provisions all infrastructure via Terraform, builds a slim Docker image, deploys the Starlette ASGI API, and runs a health check.
+Every backend implements one or more of these roles:
 
-| Cloud | What Terraform creates | Infra file |
-|-------|----------------------|------------|
-| AWS | ECR + Lambda (2GB, 120s) + API Gateway HTTP | `agent_memory/infra/lambda/main.tf` |
-| GCP | Artifact Registry + Cloud Run (2 CPU, 4GB) | `agent_memory/infra/cloudrun/main.tf` |
-| Azure | ACR + Log Analytics + Container Apps (2 CPU, 4GB) | `agent_memory/infra/containerapp/main.tf` |
+| Role | Purpose | Local Default | Cloud Options |
+|------|---------|--------------|---------------|
+| **Document** | Core storage, CRUD, filtering | SQLite | PostgreSQL, ArangoDB, DynamoDB, Cosmos DB |
+| **Vector** | Semantic similarity search | ChromaDB | pgvector, ArangoDB, OpenSearch, Cosmos DiskANN |
+| **Graph** | Entity relationships, BFS traversal | NetworkX | Apache AGE, ArangoDB, Neptune |
 
-## How It Works (And Why Tokens Don't Get Exhausted)
+Cloud backends fill all 3 roles in a single service. If any optional component fails, the system degrades gracefully to document-only.
+
+---
+
+## How It Works
 
 ### Memory lives outside the context window
 
-This is the key difference. Claude Code's built-in auto-memory loads `MEMORY.md` directly into the context window — every line, every message, always. Memwright stores memories in a separate process (SQLite + ChromaDB + NetworkX on disk). Claude's context window never sees them until it explicitly asks.
+This is the key difference. Flat-file memory loads everything into context every message. Memwright stores memories in a separate process (SQLite + ChromaDB + NetworkX on disk). The context window never sees them until the agent explicitly asks.
 
 ```
-Claude Code auto-memory:                 Memwright:
+Flat-file memory:                    Memwright:
 
-┌──────────────────────────┐             ┌──────────────────────────┐
-│  Context Window          │             │  Context Window          │
-│                          │             │                          │
-│  System prompt           │             │  System prompt           │
-│  CLAUDE.md               │             │  CLAUDE.md               │
-│  MEMORY.md ← ALL of it, │             │  User message            │
-│    every message, grows  │             │  memory_recall → 2K max  │
-│    forever               │             │                          │
-│  User message            │             └──────────────────────────┘
-│                          │
-└──────────────────────────┘             ┌──────────────────────────┐
-                                         │  Memwright (on disk)     │
-                                         │  10,000 memories         │
-                                         │  10,000 vectors          │
-                                         │  500 entities            │
-                                         │  ← never in context      │
-                                         └──────────────────────────┘
+┌──────────────────────────┐        ┌──────────────────────────┐
+│  Context Window          │        │  Context Window          │
+│                          │        │                          │
+│  System prompt           │        │  System prompt           │
+│  MEMORY.md ← ALL of it  │        │  User message            │
+│  grows forever           │        │  memory_recall → 2K max  │
+│  User message            │        │                          │
+└──────────────────────────┘        └──────────────────────────┘
+
+                                    ┌──────────────────────────┐
+                                    │  Memwright (on disk)     │
+                                    │  10,000+ memories        │
+                                    │  ← never in context     │
+                                    └──────────────────────────┘
 ```
 
-### The cost stays flat as memory grows
+### Token cost stays flat as memory grows
 
 ```
-MEMORY.md approach:
+Flat-file approach:
   Month 1:   2K tokens loaded every message
-  Month 3:   8K tokens loaded every message
-  Month 6:  15K tokens loaded every message  ← context getting crowded
+  Month 6:  15K tokens loaded every message  ← context crowded
 
 Memwright approach:
-  Month 1:   2K tokens max when recalled
-  Month 3:   2K tokens max when recalled     (now ranking from 1,000 memories)
-  Month 6:   2K tokens max when recalled     (now ranking from 5,000 memories)
-                                              ← same cost, better results
+  Month 1:   2K tokens max when recalled (ranking from 100 memories)
+  Month 6:   2K tokens max when recalled (ranking from 5,000 memories)
+                                             ← same cost, better results
 ```
 
-More stored memories actually makes Memwright *better* — more candidates to rank from — while the context cost stays the same.
+More stored memories makes retrieval *better* — more candidates to rank — while context cost stays constant.
 
-### How a recall actually works
+### How a recall works
 
-When Claude calls `memory_recall("deployment setup", budget=2000)`:
-
-1. **3 layers search in parallel** — tag match (SQLite), entity graph traversal (NetworkX), semantic vector search (ChromaDB)
-2. **RRF fusion** — memories found by multiple layers score higher
-3. **Temporal + entity boosts** — recent and entity-relevant memories rank higher
-4. **Budget fitting** — takes results in score order until the budget is full
+When an agent calls `memory_recall("deployment setup", budget=2000)`:
 
 ```
-Store has 5,000 memories. Claude asks about "deployment setup".
+Store: 5,000 memories
 
   Tag search finds:     15 memories tagged "deployment"
   Graph search finds:    8 memories linked to "AWS", "Docker" entities
   Vector search finds:  20 semantically similar memories
 
-  After dedup + RRF:    30 unique candidates, scored and ranked
+  After dedup + RRF fusion:  30 unique candidates, scored and ranked
 
   Budget fitting (2,000 tokens):
     Memory A (score 0.95):  500 tokens → in   (total: 500)
     Memory B (score 0.90):  600 tokens → in   (total: 1,100)
     Memory C (score 0.88):  400 tokens → in   (total: 1,500)
     Memory D (score 0.85):  300 tokens → in   (total: 1,800)
-    Memory E (score 0.80):  400 tokens → SKIP (would exceed 2,000)
+    Memory E (score 0.80):  400 tokens → SKIP (exceeds 2,000)
 
-  Result: 4 memories, 1,800 tokens. The other 4,996 memories never entered context.
+  Result: 4 memories, 1,800 tokens. 4,996 memories never entered context.
 ```
 
-### Side-by-side comparison
+---
 
-| | Claude Code auto-memory | Memwright |
-|---|---|---|
-| Where memory lives | In context window (MEMORY.md) | On disk (separate process) |
-| When it's loaded | Every message, always | Only when Claude calls `memory_recall` |
-| Token cost | Grows with project history | Fixed ceiling you choose (2K, 4K, 20K) |
-| Retrieval | None — full file dump | 3-layer ranked search, returns top results |
-| Contradiction handling | Manual — you edit files | Automatic — new facts supersede old ones |
-| After 6 months | 15K+ tokens of unranked context every message | 2K of the most relevant tokens, on demand |
+## MCP Tools Reference
 
-## MCP Tools (What Claude Can Do)
+Once the MCP server is running, agents have these tools:
 
-Once the MCP server is running, Claude has these tools:
+| Tool | Purpose | Key Parameters |
+|------|---------|----------------|
+| `memory_add` | Store a fact | `content`, `tags[]`, `category`, `entity`, `namespace`, `event_date`, `confidence` |
+| `memory_recall` | Smart multi-layer retrieval | `query`, `budget` (default: 2000), `namespace` |
+| `memory_search` | Filter with date ranges | `query`, `category`, `entity`, `namespace`, `status`, `after`, `before`, `limit` |
+| `memory_get` | Fetch by ID | `memory_id` |
+| `memory_forget` | Archive (soft delete) | `memory_id` |
+| `memory_timeline` | Chronological entity history | `entity`, `namespace` |
+| `memory_stats` | Store size, counts | — |
+| `memory_health` | Health check (call first!) | — |
 
-| Tool | What it does |
-|------|-------------|
-| `memory_add` | Store a fact with tags, category, entity, and confidence |
-| `memory_recall` | Smart retrieval — set `budget` to control token usage (default: 2,000) |
-| `memory_search` | Filter by category, entity, status, date range |
-| `memory_get` | Fetch one memory by ID |
-| `memory_forget` | Archive a memory (never deleted, just superseded) |
-| `memory_timeline` | Chronological history of an entity |
-| `memory_stats` | Store size, memory count, vector count, graph nodes |
-| `memory_health` | Health check across all 4 components |
+### Categories
 
-### MCP Resources & Prompts
+`core_belief` · `preference` · `career` · `project` · `technical` · `personal` · `location` · `relationship` · `event` · `session` · `general`
 
-- **@-mentions**: `@memwright:entity://python` — pull entity context into conversation
-- **Prompts**: `/mcp__memwright__recall`, `/mcp__memwright__timeline`
+### MCP Resources
 
-## How Retrieval Works
+- **`memwright://entity/{name}`** — Entity details + related entities from graph
+- **`memwright://memory/{id}`** — Full memory object
+
+### MCP Prompts
+
+- **`recall`** — Search memories for relevant context
+- **`timeline`** — Chronological history of an entity
+
+---
+
+## Retrieval Pipeline
+
+The retrieval system uses a 3-layer cascade with multi-signal fusion:
 
 ```
-Query
-  ├─ Layer 1: Tag Match (SQLite)         → exact/partial tag hits
-  ├─ Layer 2: Graph Expansion (NetworkX) → related entities via BFS
-  └─ Layer 3: Vector Search (ChromaDB)   → semantic similarity
-                    │
-              RRF Fusion (k=60)
-        memories in multiple layers score higher
-                    │
-            Temporal Boost (+0.2 max, decays over 90 days)
-            Entity Boost (+0.15 to +0.30)
-                    │
-           fit_to_budget(results, token_budget)
-        greedy selection by score, respects ceiling
-                    │
-             Ranked Results
+Query: "deployment setup"
+  │
+  ├─ Layer 0: Graph Expansion
+  │  Extract entities from query → BFS traversal (depth=2)
+  │  "deployment" → finds "AWS", "Docker", "Terraform" connections
+  │
+  ├─ Layer 1: Tag Match (SQLite)
+  │  extract_tags(query) → tag_search() → score 1.0
+  │
+  ├─ Layer 2: Entity-Field Search
+  │  Memories about graph-connected entities → score 0.5
+  │
+  ├─ Layer 3: Vector Search (ChromaDB)
+  │  Semantic similarity → score = 1 - cosine_distance
+  │
+  ├─ Layer 4: Graph Relation Triples
+  │  Inject relationship context → score 0.6
+  │
+  ▼ FUSION
+  ├─ Reciprocal Rank Fusion (RRF, k=60)
+  │  score = Σ 1/(k + rank_in_source)
+  │  OR Graph Blend: 0.7 * norm_vector + 0.3 * norm_pagerank
+  │
+  ▼ SCORING
+  ├─ Temporal Boost: +0.2 * max(0, 1 - age_days/90)
+  ├─ Entity Boost:   +0.30 exact match, +0.15 substring
+  ├─ PageRank Boost:  +0.3 * entity_pagerank_score
+  │
+  ▼ DIVERSITY
+  ├─ MMR Rerank: λ*relevance - (1-λ)*max_jaccard_similarity (λ=0.7)
+  │
+  ▼ CONFIDENCE
+  ├─ Time Decay:    -0.001 per hour since last access
+  ├─ Access Boost:  +0.03 per access_count
+  ├─ Clamp:         [0.1, 1.0]
+  │
+  ▼ BUDGET
+  └─ Greedy selection by score until token budget filled
 ```
 
 Querying "Python" also finds memories about "FastAPI" if they're connected in the entity graph. Multi-hop reasoning through relationship traversal.
 
-## Architecture
+---
 
-```
-AgentMemory
-├── Local (zero-config)
-│   ├── SQLite           — Core document storage, ACID, always available
-│   ├── ChromaDB         — Semantic vector search (local sentence-transformers)
-│   └── NetworkX         — Entity graph, multi-hop BFS, JSON persistence
-├── Cloud backends (single service fills all roles)
-│   ├── PostgreSQL       — pgvector + Apache AGE (Neon, Cloud SQL, self-hosted)
-│   ├── ArangoDB         — Native document + vector + graph (ArangoGraph Cloud)
-│   ├── AWS              — ArangoDB Oasis on AWS (native document + vector + graph)
-│   ├── Azure            — Cosmos DB (DiskANN vectors) + NetworkX graph
-│   └── GCP              — AlloyDB (pgvector + AGE) + Vertex AI embeddings
-├── Retrieval            — 3-layer cascade with RRF fusion + temporal/entity boosts
-├── Temporal             — Contradiction detection, supersession, validity windows
-├── Embeddings           — Auto-detected: cloud-native → OpenAI → local fallback
-├── MCP Server           — 8 tools + resources + prompts (Claude Code integration)
-└── CLI + Doctor         — Health check, benchmarks, export/import
+## Python API
+
+### Basic Usage
+
+```python
+from agent_memory import AgentMemory
+
+mem = AgentMemory("./my-agent")  # auto-provisions all backends
+
+# Store
+mem.add("User prefers Python over Java",
+        tags=["preference", "coding"],
+        category="preference",
+        entity="Python")
+
+# Recall with token budget
+results = mem.recall("what language?", budget=2000)
+
+# Formatted context for prompt injection
+context = mem.recall_as_context("user background", budget=4000)
+
+# Search with filters
+memories = mem.search(category="project", entity="Python", limit=10)
+
+# Timeline
+history = mem.timeline("Python")
+
+# Contradiction handling — automatic
+mem.add("User works at Google", tags=["career"], category="career", entity="Google")
+mem.add("User works at Meta", tags=["career"], category="career", entity="Meta")
+# ^ Google memory auto-superseded
+
+# Namespace isolation
+mem.add("Team standup at 9am", namespace="team:alpha")
+results = mem.recall("standup time", namespace="team:alpha")
+
+# Maintenance
+mem.forget(memory_id)             # Archive
+mem.forget_before("2025-01-01")   # Archive old memories
+mem.compact()                     # Permanently delete archived
+mem.export_json("backup.json")    # Export
+mem.import_json("backup.json")    # Import (dedup by content hash)
+
+# Health & stats
+mem.health()  # → {sqlite: ok, chroma: ok, networkx: ok, retrieval: ok}
+mem.stats()   # → {total: 500, active: 480, ...}
+
+# Context manager
+with AgentMemory("./store") as mem:
+    mem.add("auto-closed on exit")
 ```
 
-The default local stack (SQLite + ChromaDB + NetworkX) works with zero config — no servers, no containers, no API keys. Cloud backends are opt-in and each fills all three roles (document, vector, graph) in a single service. If any optional component fails, the system degrades gracefully to SQLite-only.
+### Memory Object
+
+```python
+@dataclass
+class Memory:
+    id: str                    # UUID
+    content: str               # The actual fact/observation
+    tags: List[str]            # Searchable tags
+    category: str              # Classification (preference, career, project, ...)
+    entity: str                # Primary entity (company, tool, person)
+    namespace: str             # Isolation key (default: "default")
+    created_at: str            # ISO timestamp
+    event_date: str            # When the fact occurred
+    valid_from: str            # Temporal validity start
+    valid_until: str           # Set when superseded
+    superseded_by: str         # ID of replacement memory
+    confidence: float          # 0.0-1.0
+    status: str                # active | superseded | archived
+    access_count: int          # Times recalled
+    last_accessed: str         # Last recall timestamp
+    content_hash: str          # SHA-256 for dedup
+    metadata: Dict[str, Any]   # Arbitrary JSON
+```
+
+---
+
+## Multi-Agent Support
+
+<p align="center">
+  <img src="docs/multi-agent-architecture.svg" alt="Multi-Agent Memory Architecture" width="100%">
+</p>
+
+For multi-agent pipelines with provenance tracking, RBAC, and governance:
+
+```python
+from agent_memory.context import AgentContext, AgentRole, Visibility
+
+# Create a root context
+ctx = AgentContext.from_env(
+    agent_id="orchestrator",
+    namespace="project:acme",
+    role=AgentRole.ORCHESTRATOR,
+    token_budget=20000,
+)
+
+# Spawn child contexts for sub-agents (immutable — returns new instance)
+planner = ctx.as_agent("planner", role=AgentRole.PLANNER, token_budget=5000)
+researcher = ctx.as_agent("researcher", role=AgentRole.RESEARCHER, read_only=True)
+
+# Provenance tracking — metadata auto-enriched
+planner.add_memory("Architecture decision: use event sourcing",
+                   category="technical", visibility=Visibility.TEAM)
+# metadata includes: _agent_id, _session_id, _namespace, _visibility, _role
+
+# Recall is scoped to namespace + cached within session
+results = researcher.recall("architecture decisions")
+
+# Token budget tracked
+print(researcher.token_budget - researcher.token_budget_used)
+
+# Governance
+researcher.flag_for_review("Need human approval for deployment plan")
+researcher.add_compliance_tag("SOC2")
+
+# Session introspection
+summary = ctx.session_summary()
+# → {agent_trail, memories_written, memories_recalled, token_usage, review_flags}
+```
+
+### AgentContext Features
+
+| Feature | Description |
+|---------|-------------|
+| **Namespace isolation** | Each agent/project gets isolated memory partition |
+| **RBAC roles** | ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR |
+| **Read-only mode** | Agents can recall but not write |
+| **Write quotas** | `max_writes_per_agent` (default: 100) |
+| **Token budgets** | Per-agent budget tracking |
+| **Recall cache** | Dedup redundant queries within a session |
+| **Scratchpad** | Inter-agent data passing |
+| **Provenance** | Agent trail, parent tracking, visibility levels |
+| **Compliance** | Review flags, compliance tags for audit |
+| **Distributed mode** | Set `memory_url` to use HTTP client instead of local |
+
+---
 
 ## Cloud Backends
 
-Each cloud backend fills all three roles (document store, vector search, entity graph) in a single service. Configure with `--backend` and `--backend-config` on any CLI command, or pass a `config` dict to the Python API.
+Each cloud backend fills all three roles (document, vector, graph) in a single service:
 
 ### PostgreSQL (Neon, Cloud SQL, self-hosted)
 
-Uses pgvector for vector search and Apache AGE for the entity graph. AGE is optional — on platforms without it (like Neon free tier), graph operations gracefully degrade and the backend still works for document + vector.
+Uses pgvector for vectors, Apache AGE for graph. AGE is optional — without it, graph gracefully degrades.
 
 ```python
 mem = AgentMemory("./store", config={
@@ -254,53 +457,31 @@ mem = AgentMemory("./store", config={
 })
 ```
 
-Tested on: **Neon** (free tier, $0), **GCP Cloud SQL** (PostgreSQL 15), **Docker** (PG16 + pgvector + AGE).
+### ArangoDB (ArangoGraph Cloud, Docker)
 
-### ArangoDB (ArangoGraph Cloud, self-hosted)
-
-Native document, vector, and graph support in one database. Supports both local Docker and ArangoGraph Cloud with TLS.
+Native document, vector, and graph support in one database.
 
 ```python
 mem = AgentMemory("./store", config={
     "backends": ["arangodb"],
-    "arangodb": {"url": "https://your-instance.arangodb.cloud:8529", "database": "memwright"}
+    "arangodb": {"url": "https://instance.arangodb.cloud:8529", "database": "memwright"}
 })
 ```
-
-### AWS (ArangoDB Oasis)
-
-ArangoDB Oasis deployed in AWS us-east-1. Native document, vector, and graph support — all three roles, no degradation. Uses the same `ArangoBackend` as ArangoGraph Cloud.
-
-```python
-mem = AgentMemory("./store", config={
-    "backends": ["arangodb"],
-    "arangodb": {
-        "url": "https://your-oasis-instance.arangodb.cloud:8529",
-        "database": "memwright",
-        "auth": {"username": "root", "password": "$ARANGO_PASSWORD"},
-    }
-})
-```
-
-Setup: `bash agent_memory/infra/arango-oasis-setup.sh` (free tier, $0).
-Teardown: `bash agent_memory/infra/arango-oasis-teardown.sh <deployment-id> <org-id>`.
 
 ### Azure (Cosmos DB)
 
-Cosmos DB with DiskANN vector indexing for documents and vectors. Graph uses NetworkX in-memory with persistence to Cosmos containers. Supports API key or DefaultAzureCredential (managed identity).
+Cosmos DB with DiskANN vector indexing. Graph via NetworkX persisted to Cosmos containers.
 
 ```python
 mem = AgentMemory("./store", config={
     "backends": ["azure"],
-    "azure": {"cosmos_endpoint": "https://your-account.documents.azure.com:443/"}
+    "azure": {"cosmos_endpoint": "https://account.documents.azure.com:443/"}
 })
 ```
 
-Infrastructure: `agent_memory/infra/azure.tf` (Terraform).
-
 ### GCP (AlloyDB)
 
-Extends the PostgreSQL backend with AlloyDB Connector (IAM auth via ADC) and Vertex AI embeddings (text-embedding-005, 768D). Falls back to psycopg2 via Auth Proxy if the connector isn't available.
+Extends PostgreSQL backend with AlloyDB Connector (IAM auth) and Vertex AI embeddings (768D).
 
 ```python
 mem = AgentMemory("./store", config={
@@ -309,18 +490,58 @@ mem = AgentMemory("./store", config={
 })
 ```
 
-Infrastructure: `agent_memory/infra/gcp.tf` (Terraform).
-
-### Backend CLI Usage
+### Installing cloud extras
 
 ```bash
-# Benchmarks with a cloud backend
-agent-memory locomo --backend postgres --backend-config '{"url": "postgresql://..."}'
-agent-memory mab --backend arangodb --backend-config '{"url": "https://..."}'
-
-# Performance benchmark
-python bench_perf.py --backend arangodb --backend-config '{"url": "http://localhost:8530"}'
+pip install memwright[postgres]    # PostgreSQL
+pip install memwright[arangodb]    # ArangoDB
+pip install memwright[aws]         # AWS (DynamoDB + OpenSearch + Neptune)
+pip install memwright[azure]       # Azure Cosmos DB
+pip install memwright[gcp]         # GCP AlloyDB + Vertex AI
+pip install memwright[all]         # Everything
 ```
+
+---
+
+## Cloud Deployment
+
+Deploy Memwright as an HTTP API on any cloud with a single command:
+
+```bash
+./scripts/deploy.sh aws        # Lambda + API Gateway (serverless, pay-per-request)
+./scripts/deploy.sh gcp        # Cloud Run (auto-scale 0–3, 2 CPU / 4GB)
+./scripts/deploy.sh azure      # Container Apps (scale-to-zero, 2 CPU / 4GB)
+
+./scripts/deploy.sh aws --teardown   # Destroy everything
+```
+
+**Prerequisites**: Docker, Terraform, cloud CLI (`aws`/`gcloud`/`az`), backend credentials in `.env`.
+
+| Cloud | Infrastructure | Terraform |
+|-------|---------------|-----------|
+| AWS | ECR + Lambda (2GB, 120s) + API Gateway HTTP | `agent_memory/infra/lambda/main.tf` |
+| GCP | Artifact Registry + Cloud Run (2 CPU, 4GB) | `agent_memory/infra/cloudrun/main.tf` |
+| Azure | ACR + Log Analytics + Container Apps (2 CPU, 4GB) | `agent_memory/infra/containerapp/main.tf` |
+| AWS (alt) | App Runner (2 CPU, 4GB, uses existing ECR) | `agent_memory/infra/apprunner/main.tf` |
+
+### REST API Endpoints
+
+All deployments expose the same Starlette ASGI API:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Component health check |
+| `GET` | `/stats` | Store statistics |
+| `POST` | `/add` | Add a memory |
+| `POST` | `/recall` | Smart retrieval with budget |
+| `POST` | `/search` | Filtered search |
+| `POST` | `/timeline` | Entity chronological history |
+| `POST` | `/forget` | Archive a memory |
+| `GET` | `/memory/{id}` | Get memory by ID |
+
+Response envelope: `{"ok": true, "data": {...}}` or `{"ok": false, "error": "message"}`
+
+---
 
 ## Embedding Providers
 
@@ -330,148 +551,142 @@ Memwright auto-detects the best available embedding provider:
 |----------|----------|-------|------------|---------|
 | 1 | Cloud-native | Bedrock Titan / Azure OpenAI / Vertex AI | 768-1536 | Cloud backend configured |
 | 2 | OpenAI / OpenRouter | text-embedding-3-small | 1536 | `OPENAI_API_KEY` or `OPENROUTER_API_KEY` set |
-| 3 | Local (default) | all-MiniLM-L6-v2 | 384 | Always available, no API key needed |
+| 3 | Local (default) | all-MiniLM-L6-v2 | 384 | Always available, no API key |
 
 The local fallback downloads ~90MB on first use. All providers implement the same interface — switching is transparent.
 
-## Connection Configuration
+---
 
-A 3-layer config system resolves backend settings:
+## CLI Reference
 
-1. **Engine defaults** — sensible defaults per backend (ports, databases, TLS)
-2. **User config** — `config.json` in store path or programmatic dict
-3. **CLI overrides** — `--backend-config` arguments
+Both `memwright` and `agent-memory` work as entry points:
 
-Credentials support `$ENV_VAR` syntax for environment variable injection. TLS certificates can be provided as file paths or base64-encoded strings.
+### MCP Server
+
+```bash
+memwright mcp                          # Start MCP server (uses ~/.memwright)
+memwright mcp --path /custom/path      # Custom store location
+```
+
+### Memory Operations
+
+```bash
+agent-memory add ./store "User prefers Python" --tags "pref,coding" --category preference
+agent-memory recall ./store "what language?" --budget 4000
+agent-memory search ./store --category project --entity Python --limit 20
+agent-memory list ./store --status active --category technical
+agent-memory timeline ./store --entity Python
+agent-memory get ./store <memory-id>
+agent-memory forget ./store <memory-id>
+```
+
+### Maintenance
+
+```bash
+agent-memory doctor ~/.memwright       # Health check (SQLite, ChromaDB, NetworkX, Retrieval)
+agent-memory stats ./store             # Memory counts, DB size, breakdowns
+agent-memory export ./store -o backup.json
+agent-memory import ./store backup.json
+agent-memory compact ./store           # Permanently delete archived memories
+agent-memory inspect ./store           # Raw DB inspection
+```
+
+### Lifecycle Hooks (Claude Code)
+
+```bash
+memwright hook session-start           # Inject context at session start
+memwright hook post-tool-use           # Auto-capture tool observations
+memwright hook stop                    # Generate session summary
+```
+
+### Benchmarks
+
+```bash
+agent-memory locomo --max-conversations 5 --verbose
+agent-memory mab --categories AR,CR --max-examples 10
+```
+
+---
+
+## Configuration
+
+### Store location
+
+Default: `~/.memwright/`. Configurable with `--path` on any CLI command.
+
+```
+~/.memwright/
+├── memory.db        # SQLite database (core storage)
+├── config.json      # Retrieval tuning parameters
+├── graph.json       # NetworkX entity graph
+└── chroma/          # ChromaDB vector store + embeddings
+```
+
+### config.json
+
+All fields optional. Defaults apply if the file doesn't exist:
+
+```json
+{
+  "default_token_budget": 2000,
+  "min_results": 3,
+  "backends": ["sqlite", "chroma", "networkx"],
+  "enable_mmr": true,
+  "mmr_lambda": 0.7,
+  "fusion_mode": "rrf",
+  "confidence_gate": 0.0,
+  "confidence_decay_rate": 0.001,
+  "confidence_boost_rate": 0.03
+}
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `default_token_budget` | 2000 | Max tokens returned per recall |
+| `min_results` | 3 | Minimum results to return |
+| `enable_mmr` | true | Maximal Marginal Relevance diversity reranking |
+| `mmr_lambda` | 0.7 | Relevance vs diversity balance (0=diverse, 1=relevant) |
+| `fusion_mode` | "rrf" | "rrf" (parameter-free) or "graph_blend" (weighted) |
+| `confidence_decay_rate` | 0.001 | Score penalty per hour since last access |
+| `confidence_boost_rate` | 0.03 | Score boost per access count |
+| `confidence_gate` | 0.0 | Minimum confidence threshold to include in results |
+
+### Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `MEMWRIGHT_PATH` | Default store path |
+| `MEMWRIGHT_URL` | Remote API URL (distributed mode) |
+| `MEMWRIGHT_NAMESPACE` | Default namespace |
+| `MEMWRIGHT_TOKEN_BUDGET` | Default token budget |
+| `MEMWRIGHT_SESSION_ID` | Session ID for provenance tracking |
+
+---
 
 ## Testing
 
 ### Running Tests
 
 ```bash
-# All unit tests — no Docker, no API keys required
+# All unit tests — no Docker, no API keys
 poetry run pytest tests/ -v
 
-# Live PostgreSQL tests (Neon or any PostgreSQL with pgvector)
+# With coverage
+poetry run pytest tests/ -v --cov=agent_memory --cov-report=term-missing
+
+# Live integration tests (need credentials)
 NEON_DATABASE_URL='postgresql://...' poetry run pytest tests/test_postgres_live.py -v
-
-# Live Azure Cosmos DB tests
-AZURE_COSMOS_ENDPOINT='https://...' AZURE_COSMOS_KEY='...' poetry run pytest tests/test_azure_live.py -v
-
-# Performance benchmark
-poetry run python bench_perf.py
-
-# Accuracy benchmarks (need OPENROUTER_API_KEY)
-poetry run agent-memory locomo --max-conversations 1 --max-questions 5 --verbose
-poetry run agent-memory mab --max-examples 1 --max-questions 5 --verbose
+AZURE_COSMOS_ENDPOINT='https://...' poetry run pytest tests/test_azure_live.py -v
 ```
 
 ### Test Coverage
 
-- **392+ unit tests** covering all backends, config resolution, embeddings, retrieval, and CLI
-- **14 live integration tests** against Neon PostgreSQL (free tier)
-- **Mock tests** for every cloud backend (no cloud account needed)
+- **392+ unit tests** covering all backends, retrieval, config, embeddings, and CLI
+- **14 live integration tests** per cloud backend (Neon, Azure, ArangoDB)
+- **Mock tests** for every cloud backend — no cloud account needed
 - All unit tests run without Docker or API keys
 
-### Test Files
-
-| File | Tests | What it covers |
-|------|-------|---------------|
-| `test_connection.py` | 46 | 3-layer config, URL parsing, env resolution, auth/TLS |
-| `test_embeddings.py` | 26 | All embedding providers, fallback chain |
-| `test_registry.py` | — | Backend mapping, role conflicts |
-| `test_postgres_backend.py` | — | Schema, CRUD, vector/graph ops |
-| `test_postgres_live.py` | 14 | Live tests against real PostgreSQL |
-| `test_arango_backend.py` | — | Document, vector, graph operations |
-| `test_arango_live.py` | 14 | Live tests against ArangoDB (Oasis/local) |
-| `test_azure_backend.py` | — | Cosmos DB containers, vector indexing |
-| `test_aws_backend.py` | — | DynamoDB, OpenSearch, Neptune (legacy) |
-| `test_gcp_backend.py` | — | AlloyDB connector, fallback logic |
-
-## CLI
-
-Both `memwright` and `agent-memory` work as entry points:
-
-```bash
-memwright mcp                          # Start MCP server (zero-config, uses ~/.memwright)
-memwright mcp --path /custom/path      # Start with custom store location
-memwright doctor ~/.memwright           # Health check
-
-agent-memory add ./store "text" --tags "t1,t2" --category general
-agent-memory recall ./store "query" --budget 4000
-agent-memory search ./store --category project --entity Python
-agent-memory list ./store
-agent-memory timeline ./store --entity Python
-agent-memory stats ./store
-agent-memory export ./store -o backup.json
-agent-memory import ./store backup.json
-agent-memory compact ./store           # Remove archived memories
-```
-
-## Memory Store Location
-
-The MCP server stores everything at `~/.memwright/` by default (configurable with `--path`). The store is a directory containing:
-
-```
-~/.memwright/
-├── memory.db        — SQLite database (core storage)
-├── config.json      — Token budget, min results config
-├── graph.json       — NetworkX entity graph
-└── chroma/          — ChromaDB vector store + embeddings
-```
-
-You can inspect memories directly: `sqlite3 ~/.memwright/memory.db "SELECT * FROM memories LIMIT 10;"`
-
-## Configuration
-
-Stored in `{store_path}/config.json`:
-
-```json
-{
-  "default_token_budget": 2000,
-  "min_results": 3
-}
-```
-
-All fields are optional. Defaults apply if the file doesn't exist. The store auto-provisions on first use.
-
-## Also Works With
-
-While Claude Code is the primary target, the MCP server works with any MCP client:
-
-| Client | Config file |
-|--------|-------------|
-| Claude Code | `.mcp.json` (project) or `~/.claude/.mcp.json` (global) |
-| Cursor | `.cursor/mcp.json` |
-| Windsurf | MCP config in settings |
-| Any MCP client | Standard MCP stdio transport |
-
-Same `memwright mcp` command. Same zero-config setup.
-
-## Python API
-
-For custom agents or scripts:
-
-```python
-from agent_memory import AgentMemory
-
-mem = AgentMemory("./my-agent")  # auto-provisions all backends
-
-# Store
-mem.add("User prefers Python over Java",
-        tags=["preference", "coding"], category="preference")
-
-# Recall with token budget
-results = mem.recall("what language?", budget=2000)
-
-# Get formatted context string for prompt injection
-context = mem.recall_as_context("user background", budget=4000)
-
-# Contradiction handling — automatic
-mem.add("User works at Google", tags=["career"], category="career", entity="Google")
-mem.add("User works at Meta", tags=["career"], category="career", entity="Meta")
-# ^ Google memory auto-superseded
-```
+---
 
 ## Benchmarks
 
@@ -488,20 +703,39 @@ mem.add("User works at Meta", tags=["career"], category="career", entity="Meta")
 
 *Scores are self-reported across vendors. [Methodology is disputed](https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/).*
 
-Retrieval is fully local — tag matching, graph traversal, vector search with RRF fusion. No LLM re-ranking. Embeddings are local (sentence-transformers). Only benchmark answer synthesis uses an LLM.
+Retrieval is fully local — tag matching, graph traversal, vector search with RRF fusion. No LLM re-ranking. Only benchmark answer synthesis uses an LLM.
+
+---
+
+## Compatibility
+
+### MCP Clients
+
+| Client | Config File |
+|--------|-------------|
+| Claude Code | `.mcp.json` (project) or `~/.claude/.mcp.json` (global) |
+| Cursor | `.cursor/mcp.json` |
+| Windsurf | MCP config in settings |
+| Any MCP client | Standard MCP stdio transport |
+
+Same `memwright mcp` command. Same zero-config setup.
+
+### Python
+
+- Python 3.10, 3.11, 3.12, 3.13
+
+---
 
 ## Uninstall
 
-### 1. Remove the MCP server config
+### 1. Remove MCP server config
 
-**Global** — delete the `memory` entry from `~/.claude/.mcp.json`
-
-**Per-project** — delete the `memory` entry from `.mcp.json` in your project root
+Delete the `memory` entry from `~/.claude/.mcp.json` (global) or `.mcp.json` (per-project).
 
 ### 2. Uninstall the package
 
 ```bash
-poetry remove memwright
+pip uninstall memwright
 ```
 
 ### 3. Delete stored memories (optional)
@@ -514,7 +748,7 @@ agent-memory export ~/.memwright -o memwright-backup.json
 rm -rf ~/.memwright
 ```
 
-If you used per-project stores, also remove any `.memwright/` directories in your project roots.
+---
 
 ## License
 
