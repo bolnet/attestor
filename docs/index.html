@@ -1013,11 +1013,13 @@ footer {
       <li><a href="#audiences">Use Cases</a></li>
       <li><a href="#benchmarks">Benchmarks</a></li>
       <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#multi-agent">Multi-Agent</a></li>
+      <li><a href="#python-api">Python API</a></li>
       <li><a href="#quickstart">Quick Start</a></li>
     </ul>
     <div class="nav-cta">
-      <a href="#" class="btn-ghost">PyPI</a>
-      <a href="#" class="btn-primary">GitHub</a>
+      <a href="https://pypi.org/project/memwright/" class="btn-ghost" target="_blank" rel="noopener">PyPI</a>
+      <a href="https://github.com/bolnet/agent-memory" class="btn-primary" target="_blank" rel="noopener">GitHub</a>
     </div>
     <button class="nav-mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('show')" aria-label="Menu">☰</button>
   </div>
@@ -1034,17 +1036,17 @@ footer {
     <div class="hero-content">
       <div class="hero-eyebrow">Where there's an agent, there's Memwright.</div>
       <h1 class="hero-headline">We solve one problem.<br>We solve it everywhere.</h1>
-      <p class="hero-subhead">Your Claude Code session. Your production pipeline. Your enterprise AI stack. AWS. Azure. GCP. Docker. Or just your laptop with nothing installed.</p>
-      <div class="hero-install" onclick="navigator.clipboard.writeText('npx @anthropic-ai/claude-code --add-mcp \\'memory: memwright mcp\\'');this.querySelector('.copy-hint').textContent='Copied!'">
+      <p class="hero-subhead">Your Claude Code session. Your production pipeline. Your multi-agent system with namespace isolation and RBAC. AWS. Azure. GCP. Docker. Or just your laptop with nothing installed.</p>
+      <div class="hero-install" onclick="navigator.clipboard.writeText('pip install memwright && claude mcp add memory -- memwright mcp');this.querySelector('.copy-hint').textContent='Copied!'">
         <span class="prompt">$</span>
-        <span class="cmd">claude mcp add memory -- memwright mcp</span>
+        <span class="cmd">pip install memwright && claude mcp add memory -- memwright mcp</span>
         <span class="copy-hint">Click to copy</span>
       </div>
-      <p class="hero-meta">Free. Open source. Apache 2.0. Works right now.</p>
+      <p class="hero-meta">Free. Open source. Apache 2.0. Python 3.10–3.13. Works right now.</p>
       <div class="hero-ctas">
-        <a href="#" class="cta-github">GitHub</a>
-        <a href="#" class="cta-pypi">PyPI</a>
-        <a href="#" class="cta-mcp">MCP Registry</a>
+        <a href="https://github.com/bolnet/agent-memory" class="cta-github" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pypi.org/project/memwright/" class="cta-pypi" target="_blank" rel="noopener">PyPI</a>
+        <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright" class="cta-mcp" target="_blank" rel="noopener">MCP Registry</a>
         <a href="#benchmarks" class="cta-benchmark">Run a Benchmark</a>
       </div>
     </div>
@@ -1159,7 +1161,8 @@ footer {
           <div class="card-tagline">Zero Everything</div>
           <p>No Docker. No API keys. No cloud account. No database server. Nothing. SQLite + ChromaDB + NetworkX auto-provision from thin air.</p>
           <div class="card-who">Solo developers, side projects, proof of concepts.</div>
-          <pre>$ claude mcp add memory -- memwright mcp</pre>
+          <pre>$ pip install memwright
+$ claude mcp add memory -- memwright mcp</pre>
         </div>
 
         <!-- AWS -->
@@ -1237,12 +1240,6 @@ footer {
         <button class="carousel-btn" onclick="scrollCarousel(-1)" aria-label="Previous">←</button>
         <button class="carousel-btn" onclick="scrollCarousel(1)" aria-label="Next">→</button>
       </div>
-    </div>
-
-    <!-- Architecture Diagram -->
-    <div class="arch-diagram-container reveal" style="margin-top: 3rem;">
-      <h3 style="font-size: 1.1rem; margin-bottom: 1.5rem; text-align: center;">Memwright Everywhere Architecture</h3>
-      <img src="memwright_everywhere_architecture.svg" alt="Memwright Everywhere Architecture — showing how one API connects to all backends" style="width:100%;max-width:680px;height:auto;margin:0 auto;display:block;">
     </div>
 
     <!-- Integration table -->
@@ -1351,7 +1348,7 @@ footer {
           </div>
           <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;background:var(--bg-card);border-top:2px solid var(--accent-indigo)">
             <div style="padding:10px 12px;font-weight:500;color:var(--accent-indigo)">Memwright</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">poetry add</div>
+            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">pip install</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Free, all tiers</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">None (PageRank + RRF)</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Yes (zero config)</div>
@@ -1426,11 +1423,6 @@ $ ./scripts/bench-lambda.sh   # benchmark your Lambda deployment</div>
     <p class="section-subtitle reveal reveal-delay-2">Vector search alone finds what's similar. Not what's relevant. Not what's recent. Not what's correct. We run three layers in parallel, score with PageRank + confidence decay + MMR diversity, and deduplicate by content hash. Every query. Every time.</p>
 
     <!-- Retrieval Pipeline Diagram -->
-    <div class="diagram-container reveal" style="margin-bottom: 2rem;">
-      <h3 style="font-size: 1rem; margin-bottom: 1.5rem; text-align: center;">3-Layer Retrieval Pipeline</h3>
-      <img src="retrieval_pipeline_diagram.svg" alt="Memwright 3-Layer Retrieval Pipeline — Tag Match, Graph Expansion, Vector Search, RRF/Graph-Aware Fusion, PageRank + Confidence Scoring, MMR Diversity, Budget Fitting" style="width:100%;max-width:680px;height:auto;margin:0 auto;display:block;">
-    </div>
-
     <div class="retrieval-flow">
       <div class="flow-step reveal">
         <div class="flow-icon flow-icon-1">🏷️</div>
@@ -1526,6 +1518,99 @@ $ ./scripts/bench-lambda.sh   # benchmark your Lambda deployment</div>
 <div class="glow-line"></div>
 
 <!-- ═══════════════════════════════════════════════════
+     MULTI-AGENT SUPPORT
+     ═══════════════════════════════════════════════════ -->
+<section id="multi-agent" class="section-alt">
+  <div class="container">
+    <div class="section-tag reveal">Multi-Agent</div>
+    <h2 class="section-title reveal reveal-delay-1">Namespace isolation. RBAC. Provenance.<br>Built for orchestrated pipelines.</h2>
+    <p class="section-subtitle reveal reveal-delay-2">Every agent gets its own memory partition. Orchestrators control budgets. Researchers get read-only access. Every write is traced back to the agent that made it.</p>
+
+    <div class="code-block reveal reveal-delay-3" style="margin-top:2.5rem;max-width:720px;line-height:1.7"><span style="color:var(--text-muted)"># Multi-agent pipeline with provenance + RBAC</span>
+<span style="color:var(--accent-purple)">from</span> agent_memory.context <span style="color:var(--accent-purple)">import</span> AgentContext, AgentRole
+
+ctx = AgentContext.from_env(
+    agent_id=<span style="color:var(--accent-green)">"orchestrator"</span>,
+    namespace=<span style="color:var(--accent-green)">"project:acme"</span>,
+    role=AgentRole.ORCHESTRATOR,
+    token_budget=<span style="color:var(--accent-amber)">20000</span>,
+)
+
+<span style="color:var(--text-muted)"># Spawn isolated child contexts (immutable — returns new)</span>
+planner = ctx.as_agent(<span style="color:var(--accent-green)">"planner"</span>, role=AgentRole.PLANNER, token_budget=<span style="color:var(--accent-amber)">5000</span>)
+researcher = ctx.as_agent(<span style="color:var(--accent-green)">"researcher"</span>, role=AgentRole.RESEARCHER, read_only=<span style="color:var(--accent-amber)">True</span>)
+
+<span style="color:var(--text-muted)"># Provenance auto-enriched on every write</span>
+planner.add_memory(<span style="color:var(--accent-green)">"Architecture: event sourcing"</span>, category=<span style="color:var(--accent-green)">"technical"</span>)
+
+<span style="color:var(--text-muted)"># Recall is namespace-scoped + cached within session</span>
+results = researcher.recall(<span style="color:var(--accent-green)">"architecture decisions"</span>)</div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:2.5rem">
+      <div class="principle-card reveal">
+        <h3>Namespace Isolation</h3>
+        <p>Each agent, project, or team gets its own memory partition. No cross-contamination.</p>
+      </div>
+      <div class="principle-card reveal reveal-delay-1">
+        <h3>6 RBAC Roles</h3>
+        <p>ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR. Read-only mode. Write quotas.</p>
+      </div>
+      <div class="principle-card reveal reveal-delay-1">
+        <h3>Full Provenance</h3>
+        <p>Agent trail, parent tracking, session IDs, visibility levels. Every write traced to its source.</p>
+      </div>
+      <div class="principle-card reveal reveal-delay-2">
+        <h3>Compliance Built In</h3>
+        <p>Review flags, compliance tags, session summaries for audit. SOC2-friendly by design.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="glow-line"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     PYTHON API
+     ═══════════════════════════════════════════════════ -->
+<section id="python-api">
+  <div class="container">
+    <div class="section-tag reveal">Python API</div>
+    <h2 class="section-title reveal reveal-delay-1">Not just MCP. A full Python library.</h2>
+    <p class="section-subtitle reveal reveal-delay-2">Import it. Use it. No server required. Same retrieval pipeline, same scoring, same contradiction handling — directly in your Python code.</p>
+
+    <div class="quickstart-steps" style="margin-top:2.5rem">
+      <div class="qs-step reveal">
+        <div class="qs-step-num">Store &amp; Recall</div>
+        <div class="code-block"><span style="color:var(--accent-purple)">from</span> agent_memory <span style="color:var(--accent-purple)">import</span> AgentMemory
+
+mem = AgentMemory(<span style="color:var(--accent-green)">"./my-agent"</span>)  <span style="color:var(--text-muted)"># auto-provisions everything</span>
+
+mem.add(<span style="color:var(--accent-green)">"User prefers Python over Java"</span>,
+        tags=[<span style="color:var(--accent-green)">"preference"</span>], category=<span style="color:var(--accent-green)">"preference"</span>)
+
+results = mem.recall(<span style="color:var(--accent-green)">"what language?"</span>, budget=<span style="color:var(--accent-amber)">2000</span>)
+context = mem.recall_as_context(<span style="color:var(--accent-green)">"user background"</span>, budget=<span style="color:var(--accent-amber)">4000</span>)</div>
+      </div>
+      <div class="qs-step reveal reveal-delay-1">
+        <div class="qs-step-num">Contradiction Handling</div>
+        <div class="code-block"><span style="color:var(--text-muted)"># Automatic supersession</span>
+mem.add(<span style="color:var(--accent-green)">"User works at Google"</span>, category=<span style="color:var(--accent-green)">"career"</span>)
+mem.add(<span style="color:var(--accent-green)">"User works at Meta"</span>, category=<span style="color:var(--accent-green)">"career"</span>)
+<span style="color:var(--text-muted)"># ^ Google memory auto-superseded</span>
+
+<span style="color:var(--text-muted)"># Maintenance</span>
+mem.forget(memory_id)               <span style="color:var(--text-muted)"># Archive</span>
+mem.forget_before(<span style="color:var(--accent-green)">"2025-01-01"</span>)    <span style="color:var(--text-muted)"># Archive old</span>
+mem.export_json(<span style="color:var(--accent-green)">"backup.json"</span>)     <span style="color:var(--text-muted)"># Export</span>
+mem.import_json(<span style="color:var(--accent-green)">"backup.json"</span>)     <span style="color:var(--text-muted)"># Import (dedup)</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="glow-line"></div>
+
+<!-- ═══════════════════════════════════════════════════
      EMBEDDINGS
      ═══════════════════════════════════════════════════ -->
 <section id="embeddings" class="section-alt">
@@ -1611,9 +1696,9 @@ $ ./scripts/bench-lambda.sh   # benchmark your Lambda deployment</div>
     <div class="quickstart-steps">
       <div class="qs-step reveal">
         <div class="qs-step-num">Step 1 — Install &amp; Connect</div>
-        <div class="code-block">$ poetry add memwright
+        <div class="code-block">$ pip install memwright
 $ claude mcp add memory -- memwright mcp</div>
-        <p style="margin-top: 0.75rem;">That's it. Restart your client. Approve the server once. Your agent now remembers.</p>
+        <p style="margin-top: 0.75rem;">That's it. Restart your client. Approve the server once. Your agent now has 8 memory tools.</p>
       </div>
       <div class="qs-step reveal reveal-delay-1">
         <div class="qs-step-num">Step 2 — Verify</div>
@@ -1712,12 +1797,12 @@ $ ./scripts/deploy.sh aws --teardown   # destroy everything</div>
 <section id="closing">
   <div class="container">
     <div class="closing-manifesto reveal">
-      <blockquote>We hate dementia. We can't solve it for humans. Not yet. But we can solve it for AI agents. And we did. Your laptop. Your cloud. Your air-gapped server. AWS. Azure. GCP. ArangoDB. PostgreSQL. Docker. Or nothing at all. One poetry add. One problem solved. Your agent never forgets.</blockquote>
+      <blockquote>We hate dementia. We can't solve it for humans. Not yet. But we can solve it for AI agents. And we did. Your laptop. Your cloud. Your air-gapped server. AWS. Azure. GCP. ArangoDB. PostgreSQL. Docker. Or nothing at all. One pip install. One problem solved. Your agent never forgets.</blockquote>
       <div class="closing-tagline reveal reveal-delay-1">Where there's an agent, there's Memwright.</div>
       <div class="hero-ctas reveal reveal-delay-2" style="justify-content: center;">
-        <a href="#" class="cta-github">GitHub</a>
-        <a href="#" class="cta-pypi">PyPI</a>
-        <a href="#" class="cta-mcp">MCP Registry</a>
+        <a href="https://github.com/bolnet/agent-memory" class="cta-github" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pypi.org/project/memwright/" class="cta-pypi" target="_blank" rel="noopener">PyPI</a>
+        <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright" class="cta-mcp" target="_blank" rel="noopener">MCP Registry</a>
       </div>
       <p class="closing-meta reveal reveal-delay-3">Free. Open source. Apache 2.0.<br>Built by <a href="https://www.linkedin.com/in/surendrasingh/" target="_blank" rel="noopener">Surendra Singh</a> — 15 years in financial services technology.</p>
     </div>
@@ -1770,7 +1855,7 @@ function scrollCarousel(direction) {
 
 // Copy install command
 document.querySelector('.hero-install')?.addEventListener('click', function() {
-  navigator.clipboard.writeText('claude mcp add memory -- memwright mcp').then(() => {
+  navigator.clipboard.writeText('pip install memwright && claude mcp add memory -- memwright mcp').then(() => {
     const hint = this.querySelector('.copy-hint');
     hint.textContent = 'Copied!';
     hint.style.opacity = '1';
