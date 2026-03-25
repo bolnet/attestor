@@ -303,25 +303,20 @@ def _check_system_memwright() -> Dict[str, Any]:
     checks: Dict[str, Any] = {
         "memwright_bin": shutil.which("memwright"),
         "agent_memory_bin": shutil.which("agent-memory"),
-        "pipx_installed": False,
-        "pip_installed": False,
+        "poetry_installed": False,
         "user_hooks": [],
         "user_mcp": [],
     }
 
-    # Check pipx
+    # Check poetry
     try:
         result = subprocess.run(
-            ["pipx", "list", "--short"], capture_output=True, text=True, timeout=10,
+            ["poetry", "show", "memwright"], capture_output=True, text=True, timeout=10,
         )
-        if "memwright" in result.stdout.lower():
-            checks["pipx_installed"] = True
+        if result.returncode == 0:
+            checks["poetry_installed"] = True
     except Exception:
         pass
-
-    # Check pip (system python, NOT the local .venv which is the dev environment)
-    # We only care if memwright is installed globally where Claude Code could find it.
-    # Skip this check — PATH and pipx checks are sufficient.
 
     # Check user-level Claude Code settings for memwright hooks
     user_settings = os.path.expanduser("~/.claude/settings.json")
@@ -371,15 +366,15 @@ def verify_memwright_not_installed() -> None:
 
     if checks["memwright_bin"]:
         problems.append(f"  - 'memwright' binary found at: {checks['memwright_bin']}")
-        problems.append(f"    Fix: pipx uninstall memwright")
+        problems.append(f"    Fix: poetry remove memwright")
 
     if checks["agent_memory_bin"]:
         problems.append(f"  - 'agent-memory' binary found at: {checks['agent_memory_bin']}")
-        problems.append(f"    Fix: pipx uninstall memwright  OR  pip uninstall memwright")
+        problems.append(f"    Fix: poetry remove memwright")
 
-    if checks["pipx_installed"]:
-        problems.append(f"  - memwright installed via pipx")
-        problems.append(f"    Fix: pipx uninstall memwright")
+    if checks["poetry_installed"]:
+        problems.append(f"  - memwright installed via poetry")
+        problems.append(f"    Fix: poetry remove memwright")
 
     for hook in checks["user_hooks"]:
         problems.append(f"  - User-level hook found: [{hook['event']}] {hook['command']}")
@@ -394,13 +389,12 @@ def verify_memwright_not_installed() -> None:
         for p in problems:
             print(p)
         print("\n  Run the following to uninstall:")
-        print("    pipx uninstall memwright 2>/dev/null")
-        print("    pip uninstall memwright -y 2>/dev/null")
+        print("    poetry remove memwright")
         print("    # Remove memwright hooks/MCP from ~/.claude/settings.json")
         print()
         sys.exit(1)
 
-    print("  OK: memwright not found in PATH, pipx, user hooks, or user MCP.")
+    print("  OK: memwright not found in PATH, poetry, user hooks, or user MCP.")
 
 
 def verify_memwright_installed() -> str:
@@ -411,21 +405,14 @@ def verify_memwright_installed() -> str:
     memwright_bin = checks["memwright_bin"] or checks["agent_memory_bin"]
 
     if not memwright_bin:
-        print("  memwright not found in PATH. Installing via pipx...")
+        print("  memwright not found in PATH. Installing via poetry...")
         result = subprocess.run(
-            ["pipx", "install", "memwright"],
+            ["poetry", "add", "memwright"],
             capture_output=True, text=True, timeout=120,
         )
         if result.returncode != 0:
-            print(f"  pipx install failed: {result.stderr[:300]}")
-            print("  Trying pip install...")
-            result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "memwright"],
-                capture_output=True, text=True, timeout=120,
-            )
-            if result.returncode != 0:
-                print(f"  pip install failed: {result.stderr[:300]}")
-                sys.exit(1)
+            print(f"  poetry add failed: {result.stderr[:300]}")
+            sys.exit(1)
 
         memwright_bin = shutil.which("memwright") or shutil.which("agent-memory")
         if not memwright_bin:

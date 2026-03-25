@@ -8,7 +8,7 @@ Usage:
     agent-memory locomo --judge-model claude-haiku  # Cheaper judge
     agent-memory locomo --data ./locomo10.json       # Use local data file
 
-Requires: pip install memwright[extraction]  (for the LLM judge)
+Requires: poetry add "memwright[extraction]"  (for the LLM judge)
 """
 
 from __future__ import annotations

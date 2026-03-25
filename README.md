@@ -33,7 +33,7 @@ Memwright gives AI agents persistent, searchable memory that stays out of the co
 - **Token budgets** — Set a ceiling (e.g. 2,000 tokens). Memwright fits the best memories within that budget
 - **Contradiction handling** — "User works at Google" automatically supersedes "User works at Meta"
 - **Namespace isolation** — Multi-agent systems get isolated memory partitions per agent, user, or project
-- **Zero config** — `pip install memwright`, add one JSON block, done
+- **Zero config** — `poetry add memwright`, add one JSON block, done
 
 ---
 
@@ -63,7 +63,7 @@ Memwright gives AI agents persistent, searchable memory that stays out of the co
 ### Claude Code (one-liner)
 
 ```bash
-pip install memwright
+poetry add memwright
 claude mcp add memory -- memwright mcp
 ```
 
@@ -493,12 +493,12 @@ mem = AgentMemory("./store", config={
 ### Installing cloud extras
 
 ```bash
-pip install memwright[postgres]    # PostgreSQL
-pip install memwright[arangodb]    # ArangoDB
-pip install memwright[aws]         # AWS (DynamoDB + OpenSearch + Neptune)
-pip install memwright[azure]       # Azure Cosmos DB
-pip install memwright[gcp]         # GCP AlloyDB + Vertex AI
-pip install memwright[all]         # Everything
+poetry add "memwright[postgres]"    # PostgreSQL
+poetry add "memwright[arangodb]"    # ArangoDB
+poetry add "memwright[aws]"         # AWS (DynamoDB + OpenSearch + Neptune)
+poetry add "memwright[azure]"       # Azure Cosmos DB
+poetry add "memwright[gcp]"         # GCP AlloyDB + Vertex AI
+poetry add "memwright[all]"         # Everything
 ```
 
 ---
@@ -735,7 +735,7 @@ Delete the `memory` entry from `~/.claude/.mcp.json` (global) or `.mcp.json` (pe
 ### 2. Uninstall the package
 
 ```bash
-pip uninstall memwright
+poetry remove memwright
 ```
 
 ### 3. Delete stored memories (optional)

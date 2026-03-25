@@ -41,5 +41,5 @@ locomo_*.json
 .mcpregistry_*
 agent_memory/infra/lambda/.api_url
 
-# Accidental pip output files
+# Accidental build output files
 =*

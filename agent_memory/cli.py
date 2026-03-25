@@ -455,7 +455,7 @@ def _cmd_serve(args):
     try:
         from agent_memory.mcp.server import run_server
     except ImportError:
-        print("MCP support requires: pip install agent-memory[mcp]")
+        print("MCP support requires: poetry add \"agent-memory[mcp]\"")
         sys.exit(1)
 
     # Ensure the store exists
@@ -609,7 +609,7 @@ def _cmd_mcp_serve(args):
     try:
         from agent_memory.mcp.server import run_server
     except ImportError:
-        print("MCP support requires: pip install agent-memory[mcp]")
+        print("MCP support requires: poetry add \"agent-memory[mcp]\"")
         sys.exit(1)
 
     store_path = getattr(args, "path", None)
