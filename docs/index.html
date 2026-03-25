@@ -1037,9 +1037,9 @@ footer {
       <div class="hero-eyebrow">Where there's an agent, there's Memwright.</div>
       <h1 class="hero-headline">We solve one problem.<br>We solve it everywhere.</h1>
       <p class="hero-subhead">Your Claude Code session. Your production pipeline. Your multi-agent system with namespace isolation and RBAC. AWS. Azure. GCP. Docker. Or just your laptop with nothing installed.</p>
-      <div class="hero-install" onclick="navigator.clipboard.writeText('pip install memwright && claude mcp add memory -- memwright mcp');this.querySelector('.copy-hint').textContent='Copied!'">
+      <div class="hero-install" onclick="navigator.clipboard.writeText('poetry add memwright && claude mcp add memory -- memwright mcp');this.querySelector('.copy-hint').textContent='Copied!'">
         <span class="prompt">$</span>
-        <span class="cmd">pip install memwright && claude mcp add memory -- memwright mcp</span>
+        <span class="cmd">poetry add memwright && claude mcp add memory -- memwright mcp</span>
         <span class="copy-hint">Click to copy</span>
       </div>
       <p class="hero-meta">Free. Open source. Apache 2.0. Python 3.10–3.13. Works right now.</p>
@@ -1161,7 +1161,7 @@ footer {
           <div class="card-tagline">Zero Everything</div>
           <p>No Docker. No API keys. No cloud account. No database server. Nothing. SQLite + ChromaDB + NetworkX auto-provision from thin air.</p>
           <div class="card-who">Solo developers, side projects, proof of concepts.</div>
-          <pre>$ pip install memwright
+          <pre>$ poetry add memwright
 $ claude mcp add memory -- memwright mcp</pre>
         </div>
 
@@ -1348,7 +1348,7 @@ $ claude mcp add memory -- memwright mcp</pre>
           </div>
           <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;background:var(--bg-card);border-top:2px solid var(--accent-indigo)">
             <div style="padding:10px 12px;font-weight:500;color:var(--accent-indigo)">Memwright</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">pip install</div>
+            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">poetry add</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Free, all tiers</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">None (PageRank + RRF)</div>
             <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Yes (zero config)</div>
@@ -1696,7 +1696,7 @@ mem.import_json(<span style="color:var(--accent-green)">"backup.json"</span>)   
     <div class="quickstart-steps">
       <div class="qs-step reveal">
         <div class="qs-step-num">Step 1 — Install &amp; Connect</div>
-        <div class="code-block">$ pip install memwright
+        <div class="code-block">$ poetry add memwright
 $ claude mcp add memory -- memwright mcp</div>
         <p style="margin-top: 0.75rem;">That's it. Restart your client. Approve the server once. Your agent now has 8 memory tools.</p>
       </div>
@@ -1797,7 +1797,7 @@ $ ./scripts/deploy.sh aws --teardown   # destroy everything</div>
 <section id="closing">
   <div class="container">
     <div class="closing-manifesto reveal">
-      <blockquote>We hate dementia. We can't solve it for humans. Not yet. But we can solve it for AI agents. And we did. Your laptop. Your cloud. Your air-gapped server. AWS. Azure. GCP. ArangoDB. PostgreSQL. Docker. Or nothing at all. One pip install. One problem solved. Your agent never forgets.</blockquote>
+      <blockquote>We hate dementia. We can't solve it for humans. Not yet. But we can solve it for AI agents. And we did. Your laptop. Your cloud. Your air-gapped server. AWS. Azure. GCP. ArangoDB. PostgreSQL. Docker. Or nothing at all. One poetry add. One problem solved. Your agent never forgets.</blockquote>
       <div class="closing-tagline reveal reveal-delay-1">Where there's an agent, there's Memwright.</div>
       <div class="hero-ctas reveal reveal-delay-2" style="justify-content: center;">
         <a href="https://github.com/bolnet/agent-memory" class="cta-github" target="_blank" rel="noopener">GitHub</a>
@@ -1855,7 +1855,7 @@ function scrollCarousel(direction) {
 
 // Copy install command
 document.querySelector('.hero-install')?.addEventListener('click', function() {
-  navigator.clipboard.writeText('pip install memwright && claude mcp add memory -- memwright mcp').then(() => {
+  navigator.clipboard.writeText('poetry add memwright && claude mcp add memory -- memwright mcp').then(() => {
     const hint = this.querySelector('.copy-hint');
     hint.textContent = 'Copied!';
     hint.style.opacity = '1';

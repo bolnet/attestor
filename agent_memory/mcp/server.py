@@ -192,7 +192,7 @@ def _build_handlers(mem: AgentMemory) -> dict:
 def create_server(memory_path: str):
     """Create an MCP server exposing AgentMemory tools, resources, and prompts.
 
-    Requires: pip install agent-memory[mcp]
+    Requires: poetry add "agent-memory[mcp]"
     """
     try:
         from mcp.server import Server
@@ -200,7 +200,7 @@ def create_server(memory_path: str):
         from mcp.types import Tool, TextContent
     except ImportError:
         print(
-            "MCP package required. Install with: pip install agent-memory[mcp]",
+            "MCP package required. Install with: poetry add \"agent-memory[mcp]\"",
             file=sys.stderr,
         )
         sys.exit(1)

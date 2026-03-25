@@ -144,7 +144,7 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
         try:
             import networkx as nx
         except ImportError:
-            raise ImportError("networkx is required for the graph role. Install with: pip install networkx")
+            raise ImportError("networkx is required for the graph role. Install with: poetry add networkx")
 
         self._graph = nx.MultiDiGraph()
 

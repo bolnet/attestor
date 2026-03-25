@@ -10,7 +10,7 @@ Usage:
     agent-memory mab --max-examples 2              # Quick test
     agent-memory mab --chunk-size 2048             # Smaller chunks
 
-Requires: pip install datasets openai  (not included in memwright base deps)
+Requires: poetry add datasets openai  (not included in memwright base deps)
 """
 
 from __future__ import annotations
@@ -370,7 +370,7 @@ def load_mab(
         from datasets import load_dataset
     except ImportError:
         raise ImportError(
-            "datasets library required. Install with: pip install memwright[benchmark]"
+            "datasets library required. Install with: poetry add \"memwright[benchmark]\""
         )
 
     if categories is None:
