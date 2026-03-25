@@ -47,6 +47,7 @@ class RetrievalOrchestrator:
         self,
         query: str,
         token_budget: int = 2000,
+        namespace: Optional[str] = None,
     ) -> List[RetrievalResult]:
         """Execute the retrieval cascade: Tags → Graph → Vectors."""
         results: List[RetrievalResult] = []
@@ -80,7 +81,7 @@ class RetrievalOrchestrator:
         # Layer 1: Tag match
         tags = extract_tags(query)
         if tags:
-            tag_memories = self.store.tag_search(tags)
+            tag_memories = self.store.tag_search(tags, namespace=namespace)
             for mem in tag_memories:
                 results.append(
                     RetrievalResult(memory=mem, score=1.0, match_source="tag")
@@ -91,7 +92,8 @@ class RetrievalOrchestrator:
             seen_ids = {r.memory.id for r in results}
             for entity_name in expanded_queries[:8]:
                 entity_memories = self.store.list_memories(
-                    entity=entity_name, status="active", limit=5,
+                    entity=entity_name, status="active",
+                    namespace=namespace, limit=5,
                 )
                 for mem in entity_memories:
                     if mem.id not in seen_ids:
@@ -105,22 +107,27 @@ class RetrievalOrchestrator:
         # Layer 3: Vector similarity (ChromaDB)
         if self.vector_store:
             try:
-                vec_results = self.vector_store.search(query, limit=20)
+                vec_results = self.vector_store.search(
+                    query, limit=20, namespace=namespace
+                )
                 seen_ids = {r.memory.id for r in results}
                 for vr in vec_results:
                     mid = vr["memory_id"]
                     if mid in seen_ids:
                         continue
                     memory = self.store.get(mid)
-                    if memory and memory.status == "active":
-                        distance = vr.get("distance", 1.0)
-                        score = max(0.0, 1.0 - distance)
-                        results.append(
-                            RetrievalResult(
-                                memory=memory, score=score, match_source="vector",
-                            )
+                    if not memory or memory.status != "active":
+                        continue
+                    if namespace and memory.namespace != namespace:
+                        continue
+                    distance = vr.get("distance", 1.0)
+                    score = max(0.0, 1.0 - distance)
+                    results.append(
+                        RetrievalResult(
+                            memory=memory, score=score, match_source="vector",
                         )
-                        seen_ids.add(mid)
+                    )
+                    seen_ids.add(mid)
             except Exception:
                 pass
 
@@ -271,9 +278,14 @@ class RetrievalOrchestrator:
         blended.sort(key=lambda r: r.score, reverse=True)
         return blended
 
-    def recall_as_context(self, query: str, token_budget: int = 2000) -> str:
+    def recall_as_context(
+        self,
+        query: str,
+        token_budget: int = 2000,
+        namespace: Optional[str] = None,
+    ) -> str:
         """Recall and format as a context string for prompt injection."""
-        results = self.recall(query, token_budget)
+        results = self.recall(query, token_budget, namespace=namespace)
         if not results:
             return ""
 

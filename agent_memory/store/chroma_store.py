@@ -50,23 +50,37 @@ class ChromaStore(VectorStore):
         """Return the current embedding provider name."""
         return self._provider
 
-    def add(self, memory_id: str, content: str) -> None:
+    def add(
+        self, memory_id: str, content: str, namespace: str = "default"
+    ) -> None:
         """Store content with auto-generated embedding. Upserts if id exists."""
         self._collection.upsert(
             ids=[memory_id],
             documents=[content],
+            metadatas=[{"namespace": namespace}],
         )
 
-    def search(self, query_text: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def search(
+        self,
+        query_text: str,
+        limit: int = 20,
+        namespace: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """Search by text query. Returns list of {memory_id, content, distance}."""
         if self._collection.count() == 0:
             return []
 
         # Clamp limit to collection size to avoid ChromaDB error
         actual_limit = min(limit, self._collection.count())
+
+        where_filter = None
+        if namespace:
+            where_filter = {"namespace": namespace}
+
         results = self._collection.query(
             query_texts=[query_text],
             n_results=actual_limit,
+            where=where_filter,
         )
 
         output: List[Dict[str, Any]] = []

@@ -176,15 +176,16 @@ class AgentMemory:
         tags: Optional[List[str]] = None,
         category: str = "general",
         entity: Optional[str] = None,
+        namespace: str = "default",
         event_date: Optional[str] = None,
         confidence: float = 1.0,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Memory:
         """Store a new memory, handling contradictions automatically."""
-        # Dedup: check for exact content match
+        # Dedup: check for exact content match (scoped by namespace)
         chash = self._content_hash(content)
         if hasattr(self._store, "get_by_hash"):
-            existing = self._store.get_by_hash(chash)
+            existing = self._store.get_by_hash(chash, namespace=namespace)
             if existing:
                 logger.debug("Dedup hit: content_hash=%s -> id=%s", chash[:8], existing.id)
                 return existing
@@ -194,6 +195,7 @@ class AgentMemory:
             tags=tags or [],
             category=category,
             entity=entity,
+            namespace=namespace,
             event_date=event_date,
             confidence=confidence,
             content_hash=chash,
@@ -213,7 +215,7 @@ class AgentMemory:
         # Store in vector DB
         if self._vector_store:
             try:
-                self._vector_store.add(memory.id, content)
+                self._vector_store.add(memory.id, content, namespace=namespace)
             except Exception:
                 pass  # Non-fatal
 
@@ -249,11 +251,14 @@ class AgentMemory:
     # -- Read --
 
     def recall(
-        self, query: str, budget: Optional[int] = None
+        self,
+        query: str,
+        budget: Optional[int] = None,
+        namespace: Optional[str] = None,
     ) -> List[RetrievalResult]:
         """Retrieve relevant memories for a query using 3-layer cascade."""
         token_budget = budget or self.config.default_token_budget
-        results = self._retrieval.recall(query, token_budget)
+        results = self._retrieval.recall(query, token_budget, namespace=namespace)
 
         # Track access for confidence decay/boost
         real_ids = [
@@ -270,17 +275,23 @@ class AgentMemory:
         return results
 
     def recall_as_context(
-        self, query: str, budget: Optional[int] = None
+        self,
+        query: str,
+        budget: Optional[int] = None,
+        namespace: Optional[str] = None,
     ) -> str:
         """Recall and format as a context string for prompt injection."""
         token_budget = budget or self.config.default_token_budget
-        return self._retrieval.recall_as_context(query, token_budget)
+        return self._retrieval.recall_as_context(
+            query, token_budget, namespace=namespace
+        )
 
     def search(
         self,
         query: Optional[str] = None,
         category: Optional[str] = None,
         entity: Optional[str] = None,
+        namespace: Optional[str] = None,
         status: str = "active",
         after: Optional[str] = None,
         before: Optional[str] = None,
@@ -290,7 +301,9 @@ class AgentMemory:
         # If there's a text query and vector store, use semantic search
         if query and self._vector_store:
             try:
-                vec_results = self._vector_store.search(query, limit=limit * 2)
+                vec_results = self._vector_store.search(
+                    query, limit=limit * 2, namespace=namespace
+                )
                 if vec_results:
                     # Get full memory objects, apply filters
                     memories = []
@@ -301,6 +314,8 @@ class AgentMemory:
                         if category and mem.category != category:
                             continue
                         if entity and mem.entity != entity:
+                            continue
+                        if namespace and mem.namespace != namespace:
                             continue
                         if after and mem.created_at < after:
                             continue
@@ -317,6 +332,7 @@ class AgentMemory:
             status=status,
             category=category,
             entity=entity,
+            namespace=namespace,
             after=after,
             before=before,
             limit=limit,
@@ -324,17 +340,22 @@ class AgentMemory:
 
     # -- Timeline --
 
-    def timeline(self, entity: str) -> List[Memory]:
+    def timeline(
+        self, entity: str, namespace: Optional[str] = None
+    ) -> List[Memory]:
         """Get all memories about an entity in chronological order."""
-        return self._temporal.timeline(entity)
+        return self._temporal.timeline(entity, namespace=namespace)
 
     def current_facts(
         self,
         category: Optional[str] = None,
         entity: Optional[str] = None,
+        namespace: Optional[str] = None,
     ) -> List[Memory]:
         """Get only active, non-superseded memories."""
-        return self._temporal.current_facts(category=category, entity=entity)
+        return self._temporal.current_facts(
+            category=category, entity=entity, namespace=namespace
+        )
 
     # -- Extraction --
 
@@ -343,6 +364,7 @@ class AgentMemory:
         messages: List[Dict[str, Any]],
         model: str = "claude-haiku",
         use_llm: bool = False,
+        namespace: str = "default",
     ) -> List[Memory]:
         """Extract and store memories from conversation messages."""
         from agent_memory.extraction.extractor import extract_memories
@@ -355,6 +377,7 @@ class AgentMemory:
                 tags=mem.tags,
                 category=mem.category,
                 entity=mem.entity,
+                namespace=namespace,
             )
             stored.append(stored_mem)
         return stored

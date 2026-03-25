@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS memories (
     tags TEXT NOT NULL,
     category TEXT NOT NULL DEFAULT 'general',
     entity TEXT,
+    namespace TEXT NOT NULL DEFAULT 'default',
     created_at TEXT NOT NULL,
     event_date TEXT,
     valid_from TEXT NOT NULL,

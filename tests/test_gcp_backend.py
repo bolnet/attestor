@@ -59,6 +59,7 @@ class TestGCPConnectionDefaults:
 # ── GCPBackend Unit Tests (mocked) ──
 
 
+@pytest.mark.skipif(not HAS_PSYCOPG2, reason="psycopg2 not installed")
 class TestGCPBackendConnectorPath:
     """Test the AlloyDB Connector connection path."""
 
@@ -181,6 +182,7 @@ class TestGCPBackendPsycopgFallback:
             mock_parent.assert_called_once_with(config)
 
 
+@pytest.mark.skipif(not HAS_PSYCOPG2, reason="psycopg2 not installed")
 class TestScaNNIndex:
     """Test ScaNN index creation and HNSW fallback."""
 
@@ -229,6 +231,7 @@ class TestScaNNIndex:
         assert call_count == 1  # Only the CREATE EXTENSION call, then caught
 
 
+@pytest.mark.skipif(not HAS_PSYCOPG2, reason="psycopg2 not installed")
 class TestVertexAIPreference:
     """Test that GCPBackend prefers Vertex AI embeddings."""
 
@@ -264,6 +267,7 @@ class TestVertexAIPreference:
         assert backend._embedder is existing  # unchanged
 
 
+@pytest.mark.skipif(not HAS_PSYCOPG2, reason="psycopg2 not installed")
 class TestInheritance:
     """Verify GCPBackend inherits PostgresBackend methods."""
 
@@ -292,6 +296,7 @@ class TestInheritance:
         assert GCPBackend.ROLES == {"document", "vector", "graph"}
 
 
+@pytest.mark.skipif(not HAS_PSYCOPG2, reason="psycopg2 not installed")
 class TestCloseWithConnector:
     """Test close() cleans up AlloyDB Connector."""
 

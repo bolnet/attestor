@@ -31,6 +31,7 @@ class DocumentStore(ABC):
         status: Optional[str] = None,
         category: Optional[str] = None,
         entity: Optional[str] = None,
+        namespace: Optional[str] = None,
         after: Optional[str] = None,
         before: Optional[str] = None,
         limit: int = 100,
@@ -41,6 +42,7 @@ class DocumentStore(ABC):
         self,
         tags: List[str],
         category: Optional[str] = None,
+        namespace: Optional[str] = None,
         limit: int = 20,
     ) -> List[Memory]: ...
 
@@ -68,11 +70,11 @@ class VectorStore(ABC):
     ROLES: Set[str] = set()
 
     @abstractmethod
-    def add(self, memory_id: str, content: str) -> None: ...
+    def add(self, memory_id: str, content: str, namespace: str = "default") -> None: ...
 
     @abstractmethod
     def search(
-        self, query_text: str, limit: int = 20
+        self, query_text: str, limit: int = 20, namespace: Optional[str] = None
     ) -> List[Dict[str, Any]]: ...
 
     @abstractmethod

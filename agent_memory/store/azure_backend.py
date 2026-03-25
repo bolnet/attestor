@@ -213,6 +213,7 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
             "tags": memory.tags,
             "category": memory.category,
             "entity": memory.entity,
+            "namespace": memory.namespace,
             "created_at": memory.created_at,
             "event_date": memory.event_date,
             "valid_from": memory.valid_from,
@@ -231,6 +232,7 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
             tags=doc.get("tags", []),
             category=doc.get("category", "general"),
             entity=doc.get("entity"),
+            namespace=doc.get("namespace", "default"),
             created_at=doc["created_at"],
             event_date=doc.get("event_date"),
             valid_from=doc["valid_from"],
@@ -298,6 +300,7 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
         status: Optional[str] = None,
         category: Optional[str] = None,
         entity: Optional[str] = None,
+        namespace: Optional[str] = None,
         after: Optional[str] = None,
         before: Optional[str] = None,
         limit: int = 100,
@@ -314,6 +317,9 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
         if entity:
             filters.append("c.entity = @entity")
             params.append({"name": "@entity", "value": entity})
+        if namespace:
+            filters.append("c.namespace = @namespace")
+            params.append({"name": "@namespace", "value": namespace})
         if after:
             filters.append("c.created_at >= @after")
             params.append({"name": "@after", "value": after})
@@ -336,6 +342,7 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
         self,
         tags: List[str],
         category: Optional[str] = None,
+        namespace: Optional[str] = None,
         limit: int = 20,
     ) -> List[Memory]:
         # Build tag filter: check if any tag in the list is in c.tags
@@ -356,6 +363,9 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
         if category:
             filters.append("c.category = @category")
             params.append({"name": "@category", "value": category})
+        if namespace:
+            filters.append("c.namespace = @namespace")
+            params.append({"name": "@namespace", "value": namespace})
 
         where = " AND ".join(filters)
         query = f"SELECT * FROM c WHERE {where} ORDER BY c.created_at DESC OFFSET 0 LIMIT @limit"
