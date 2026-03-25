@@ -1,0 +1,5 @@
+ERROR: usage: python -m pytest [options] [file_or_dir] [file_or_dir] [...]
+python -m pytest: error: unrecognized arguments: --quick
+  inifile: /Users/aarjay/Documents/agent-memory/pyproject.toml
+  rootdir: /Users/aarjay/Documents/agent-memory
+

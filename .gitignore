@@ -37,5 +37,9 @@ htmlcov/
 *_results.json
 locomo_*.json
 
+# Secrets / tokens
+.mcpregistry_*
+agent_memory/infra/lambda/.api_url
+
 # Accidental pip output files
 =*
