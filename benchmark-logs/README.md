@@ -16,7 +16,7 @@ Two modes:
 | | Baseline | Memwright |
 |---|---|---|
 | Memory | None — context window only | Hooks + MCP installed |
-| Install state | `pipx uninstall memwright` first | `pipx install memwright` |
+| Install state | `poetry remove memwright` first | `poetry add memwright` |
 | What happens at compression | Facts lost forever | Facts survive in external store |
 
 ## Results — 2026-03-21 (Haiku 4.5, 200 turns)
@@ -58,11 +58,11 @@ Memwright: turns [24, 28, 30, 35, 38, 45, 53, 60, 68, 69, ... ] (24 total)
 python bench_claude.py --mode memwright --max-turns 10
 
 # Full baseline run (requires memwright NOT installed)
-pipx uninstall memwright
+poetry remove memwright
 python bench_claude.py --mode baseline
 
 # Full memwright run (installs if missing)
-pipx install memwright
+poetry add memwright
 python bench_claude.py --mode memwright
 
 # Run both sequentially + auto-compare

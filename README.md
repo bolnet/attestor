@@ -32,23 +32,22 @@ Memwright gives Claude Code persistent, searchable memory that actually saves to
 - **Ranked retrieval** — 3-layer search (tags + entity graph + vector similarity) returns only the most relevant memories, not everything
 - **Token budgets** — You set a ceiling (e.g. 2,000 tokens). Memwright fits the highest-scored memories within that budget. No overflow
 - **Contradiction handling** — "User works at Google" automatically supersedes "User works at Meta". Stale facts don't pollute context
-- **Zero config** — `pip install memwright`, add one JSON block, restart Claude Code. Done
+- **Zero config** — `poetry add memwright`, add one JSON block, restart Claude Code. Done
 
-## Setup (2 minutes)
+## Setup (1 minute)
 
-### Step 1: Install
+### One-liner (Claude Code)
 
 ```bash
-pipx install memwright
+poetry add memwright
+claude mcp add memory -- memwright mcp
 ```
 
-This installs memwright as an isolated CLI tool with all dependencies (ChromaDB, NetworkX, sentence-transformers, MCP). Local embeddings download on first use (~90MB, one-time).
+Restart Claude Code. Approve the server once. Done — Claude now has 8 memory tools.
 
-If `memwright doctor` reports ChromaDB issues, run `pipx reinstall memwright` to force a clean install.
+### Or configure manually
 
-### Step 2: Add MCP server config
-
-**For all Claude Code sessions** (global) — add to `~/.claude/.mcp.json`:
+Add to `~/.claude/.mcp.json` (global) or `.mcp.json` (per-project):
 
 ```json
 {
@@ -61,19 +60,35 @@ If `memwright doctor` reports ChromaDB issues, run `pipx reinstall memwright` to
 }
 ```
 
-**For one project only** — add `.mcp.json` to your project root with the same content.
-
-### Step 3: Restart Claude Code
-
-The `memory` MCP server will appear. Approve it once. Claude now has 8 memory tools available in every session.
-
-### Step 4: Verify
+### Verify
 
 ```bash
 memwright doctor ~/.memwright
 ```
 
-Or ask Claude to call `memory_health`. You should see all 4 components healthy: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.
+Or ask Claude to call `memory_health`. All 4 components should be healthy: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.
+
+## Run as a Cloud Service
+
+Deploy memwright as an HTTP API on any cloud. One script, one parameter.
+
+```bash
+./scripts/deploy.sh aws        # Lambda + API Gateway (serverless, pay-per-request)
+./scripts/deploy.sh gcp        # Cloud Run (auto-scale 0–3, 2 CPU / 4GB)
+./scripts/deploy.sh azure      # Container Apps (scale-to-zero, 2 CPU / 4GB)
+
+./scripts/deploy.sh aws --teardown   # destroy everything
+```
+
+**Prerequisites**: Docker, Terraform, cloud CLI (`aws`/`gcloud`/`az`), ArangoDB credentials in `.env`.
+
+Each command provisions all infrastructure via Terraform, builds a slim Docker image, deploys the Starlette ASGI API, and runs a health check.
+
+| Cloud | What Terraform creates | Infra file |
+|-------|----------------------|------------|
+| AWS | ECR + Lambda (2GB, 120s) + API Gateway HTTP | `agent_memory/infra/lambda/main.tf` |
+| GCP | Artifact Registry + Cloud Run (2 CPU, 4GB) | `agent_memory/infra/cloudrun/main.tf` |
+| Azure | ACR + Log Analytics + Container Apps (2 CPU, 4GB) | `agent_memory/infra/containerapp/main.tf` |
 
 ## How It Works (And Why Tokens Don't Get Exhausted)
 
@@ -335,20 +350,20 @@ Credentials support `$ENV_VAR` syntax for environment variable injection. TLS ce
 
 ```bash
 # All unit tests — no Docker, no API keys required
-.venv/bin/pytest tests/ -v
+poetry run pytest tests/ -v
 
 # Live PostgreSQL tests (Neon or any PostgreSQL with pgvector)
-NEON_DATABASE_URL='postgresql://...' .venv/bin/pytest tests/test_postgres_live.py -v
+NEON_DATABASE_URL='postgresql://...' poetry run pytest tests/test_postgres_live.py -v
 
 # Live Azure Cosmos DB tests
-AZURE_COSMOS_ENDPOINT='https://...' AZURE_COSMOS_KEY='...' .venv/bin/pytest tests/test_azure_live.py -v
+AZURE_COSMOS_ENDPOINT='https://...' AZURE_COSMOS_KEY='...' poetry run pytest tests/test_azure_live.py -v
 
 # Performance benchmark
-python bench_perf.py
+poetry run python bench_perf.py
 
 # Accuracy benchmarks (need OPENROUTER_API_KEY)
-agent-memory locomo --max-conversations 1 --max-questions 5 --verbose
-agent-memory mab --max-examples 1 --max-questions 5 --verbose
+poetry run agent-memory locomo --max-conversations 1 --max-questions 5 --verbose
+poetry run agent-memory mab --max-examples 1 --max-questions 5 --verbose
 ```
 
 ### Test Coverage
@@ -486,7 +501,7 @@ Retrieval is fully local — tag matching, graph traversal, vector search with R
 ### 2. Uninstall the package
 
 ```bash
-pipx uninstall memwright
+poetry remove memwright
 ```
 
 ### 3. Delete stored memories (optional)

@@ -2,7 +2,6 @@
 set -e
 
 cd "$(dirname "$0")"
-source .venv/bin/activate
 
 echo "=== AgentMemory PyPI Publisher ==="
 echo ""
@@ -21,14 +20,11 @@ rm -rf dist/
 
 # Build
 echo "Building..."
-python -m build --quiet
+poetry build --quiet
 
 # Upload
 echo "Uploading to PyPI..."
-python -m twine upload dist/* \
-    --username __token__ \
-    --password "$PYPI_TOKEN" \
-    --non-interactive
+poetry publish --username __token__ --password "$PYPI_TOKEN"
 
 echo ""
-echo "Published! Install with: pip install memwright"
+echo "Published! Install with: poetry add memwright"

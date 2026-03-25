@@ -12,7 +12,7 @@
 
 ## Core Design Principles
 
-1. **Zero infrastructure** — `pip install agent-memory` and a directory. No Docker, no server, no account signup.
+1. **Zero infrastructure** — `poetry add memwright` and a directory. No Docker, no server, no account signup.
 2. **Data sovereignty** — Everything lives in a local SQLite file. User owns their data. `cp`, `rsync`, `scp` is the backup strategy.
 3. **Graduated complexity** — Start with tags + FTS5 (zero dependencies). Optionally add FAISS for semantic search. Optionally add LLM extraction. Optionally expose via MCP.
 4. **Sub-5ms retrieval** — Local disk operations only for core retrieval path. No network calls.
@@ -71,7 +71,7 @@
 ### Storage Layer
 
 - **Primary:** SQLite database with FTS5 virtual table for full-text search
-- **Optional:** FAISS flat index file (`.faiss`) for vector similarity — installed only if user opts in via `pip install agent-memory[vectors]`
+- **Optional:** FAISS flat index file (`.faiss`) for vector similarity — installed only if user opts in via `poetry add memwright -E vectors`
 - **No vector database.** FAISS index is a file on disk, not a running process.
 
 ### File Layout on Disk
@@ -503,11 +503,9 @@ all = ["faiss-cpu>=1.7.0", "anthropic>=0.30.0", "mcp>=1.0.0"]
 Install variants:
 
 ```bash
-pip install agent-memory              # Core only — SQLite + FTS5 + tags
-pip install agent-memory[vectors]     # + FAISS semantic search
-pip install agent-memory[extraction]  # + LLM-based memory extraction
-pip install agent-memory[mcp]         # + MCP server
-pip install agent-memory[all]         # Everything
+poetry add memwright                  # Core only — SQLite + ChromaDB + NetworkX
+poetry add memwright -E extraction    # + LLM-based memory extraction
+poetry add memwright -E all           # Everything
 ```
 
 ---
