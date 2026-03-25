@@ -139,10 +139,9 @@ agent_memory/
 ├── utils/
 │   └── config.py              # MemoryConfig dataclass + load/save
 └── infra/                     # Terraform + Docker for cloud deployments
-    ├── lambda/                # AWS Lambda + API Gateway
+    ├── apprunner/             # AWS App Runner
     ├── cloudrun/              # GCP Cloud Run
-    ├── containerapp/          # Azure Container Apps
-    └── apprunner/             # AWS App Runner
+    └── containerapp/          # Azure Container Apps
 ```
 
 ### Three Storage Roles
@@ -508,7 +507,7 @@ poetry add "memwright[all]"         # Everything
 Deploy Memwright as an HTTP API on any cloud with a single command:
 
 ```bash
-./scripts/deploy.sh aws        # Lambda + API Gateway (serverless, pay-per-request)
+./scripts/deploy.sh aws        # App Runner (2 CPU / 4GB, auto-scale)
 ./scripts/deploy.sh gcp        # Cloud Run (auto-scale 0–3, 2 CPU / 4GB)
 ./scripts/deploy.sh azure      # Container Apps (scale-to-zero, 2 CPU / 4GB)
 
@@ -519,10 +518,9 @@ Deploy Memwright as an HTTP API on any cloud with a single command:
 
 | Cloud | Infrastructure | Terraform |
 |-------|---------------|-----------|
-| AWS | ECR + Lambda (2GB, 120s) + API Gateway HTTP | `agent_memory/infra/lambda/main.tf` |
+| AWS | ECR + App Runner (2 CPU, 4GB) | `agent_memory/infra/apprunner/main.tf` |
 | GCP | Artifact Registry + Cloud Run (2 CPU, 4GB) | `agent_memory/infra/cloudrun/main.tf` |
 | Azure | ACR + Log Analytics + Container Apps (2 CPU, 4GB) | `agent_memory/infra/containerapp/main.tf` |
-| AWS (alt) | App Runner (2 CPU, 4GB, uses existing ECR) | `agent_memory/infra/apprunner/main.tf` |
 
 ### REST API Endpoints
 
@@ -689,6 +687,31 @@ AZURE_COSMOS_ENDPOINT='https://...' poetry run pytest tests/test_azure_live.py -
 ---
 
 ## Benchmarks
+
+### Latency (P50 recall — the core operation)
+
+| Backend | Stack | P50 | P95 | P99 |
+|---|---|---|---|---|
+| **PG + pgvector + AGE (Docker)** | PostgreSQL 16 + pgvector + Apache AGE | **1.4ms** | **5.5ms** | **39ms** |
+| SQLite + ChromaDB + NetworkX (local) | SQLite 3 + ChromaDB 1.x + NetworkX 3 | 9.1ms | 31ms | 75ms |
+| ArangoDB (Docker) | ArangoDB 3.12 (doc + vector + graph) | 40ms | 57ms | 68ms |
+| GCP Cloud Run (us-central1) | Starlette + Uvicorn → ArangoDB Oasis | 156ms | 245ms | 271ms |
+| Azure Container Apps (eastus) | Starlette + Uvicorn → ArangoDB Oasis | 293ms | 466ms | 480ms |
+| AWS App Runner (us-west-2) | Starlette + Uvicorn → ArangoDB Oasis | 621ms | 792ms | 813ms |
+
+### vs. Competitors (recall P50)
+
+| System | Stack | P50 | Notes |
+|---|---|---|---|
+| **Memwright (PG Docker)** | PG 16 + pgvector + AGE | **1.4ms** | Full 3-layer pipeline, 81.2% LOCOMO |
+| Ruflo | In-process HNSW | 2-3ms | Vector lookup only, not full retrieval |
+| **Memwright (local)** | SQLite + ChromaDB + NX | **9.1ms** | Zero-config, no Docker, no API keys |
+| **Memwright (GCP Cloud Run)** | Starlette → ArangoDB Oasis | **156ms** | Full cloud API, scale-to-zero |
+| Mem0 | Cloud + LLM judge | 200ms | LLM in retrieval path |
+| Zep | Neo4j + embeddings | <200ms | P95 ~632ms under concurrency |
+| Mem0 Graph | Cloud + LLM + graph | 660ms | Graph variant, much slower |
+
+Full results with add/search latency: [docs/LATENCY_BENCHMARKS.md](docs/LATENCY_BENCHMARKS.md)
 
 ### LOCOMO (Long Conversation Memory)
 

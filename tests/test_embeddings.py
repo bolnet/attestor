@@ -6,6 +6,7 @@ from agent_memory.store.embeddings import (
     ChromaEmbeddingAdapter,
     EmbeddingProvider,
     LocalEmbeddingProvider,
+    clear_embedding_cache,
     get_embedding_provider,
 )
 
@@ -114,6 +115,9 @@ class TestChromaEmbeddingAdapter:
 
 
 class TestGetEmbeddingProvider:
+    def setup_method(self):
+        clear_embedding_cache()
+
     def test_default_returns_local(self):
         """Without API keys, should fall back to local."""
         with patch.dict("os.environ", {}, clear=True):

@@ -370,6 +370,16 @@ _CLOUD_PROVIDERS = {
     "vertex_ai": _try_vertex_ai,
 }
 
+# Module-level cache — prevents ChromaDB build_from_config from reloading
+# the SentenceTransformer model on every collection operation.
+_cached_provider: Optional[EmbeddingProvider] = None
+
+
+def clear_embedding_cache() -> None:
+    """Clear the cached embedding provider (for testing)."""
+    global _cached_provider
+    _cached_provider = None
+
 
 def get_embedding_provider(
     preferred: Optional[str] = None,
@@ -386,22 +396,31 @@ def get_embedding_provider(
                    Tried first but falls through on failure.
 
     Returns:
-        An EmbeddingProvider instance.
+        An EmbeddingProvider instance (cached after first call).
     """
+    global _cached_provider
+
+    # Return cached instance if no specific preference requested
+    if _cached_provider is not None and preferred is None:
+        return _cached_provider
+
     # 1. Try preferred cloud provider
     if preferred and preferred in _CLOUD_PROVIDERS:
         provider = _CLOUD_PROVIDERS[preferred]()
         if provider is not None:
             logger.info("Using %s embeddings (%dD)", provider.provider_name, provider.dimension)
+            _cached_provider = provider
             return provider
         logger.debug("Preferred provider %r unavailable, trying fallbacks", preferred)
 
     # 2. Try OpenAI / OpenRouter
     provider = _try_openai()
     if provider is not None:
+        _cached_provider = provider
         return provider
 
     # 3. Local fallback (always works)
     provider = LocalEmbeddingProvider()
     logger.info("Using local sentence-transformers fallback (%dD)", provider.dimension)
+    _cached_provider = provider
     return provider
