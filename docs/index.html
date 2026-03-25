@@ -3,14 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Memwright — Where there's an agent, there's Memwright</title>
-<meta name="description" content="Zero-config persistent memory for AI agents. 81.2% LOCOMO. $0/month. Works on your laptop, AWS, Azure, GCP, ArangoDB, PostgreSQL, or Docker.">
-<meta name="theme-color" content="#0a0a12">
-<meta property="og:title" content="Memwright — Agent Memory, Everywhere">
-<meta property="og:description" content="Your AI agent forgets everything between sessions. We fixed that. One poetry add. One problem solved.">
+<title>Memwright — Persistent memory for AI agents</title>
+<meta name="description" content="Zero-config persistent memory for AI agents. 81.2% LOCOMO. 1.4ms recall. $0/month. Works with Claude Code, Cursor, Windsurf. Runs on your laptop, AWS, Azure, GCP.">
+<meta name="theme-color" content="#0B0B0F">
+<meta property="og:title" content="Memwright — Your agent forgets everything. We fixed that.">
+<meta property="og:description" content="Persistent, ranked memory for AI agents. No Docker. No API keys. No monthly bill. One poetry add. Your agent never forgets.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>M</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════════
    RESET & BASE
@@ -18,100 +21,84 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg-primary: #0a0a12;
-  --bg-secondary: #0f1023;
-  --bg-card: #13131f;
-  --bg-card-hover: #1a1a2e;
-  --border-subtle: rgba(129, 140, 248, 0.1);
-  --border-hover: rgba(129, 140, 248, 0.25);
-  --text-primary: #eeeef2;
-  --text-secondary: #9ca3af;
-  --text-muted: #555566;
-  --accent-indigo: #818cf8;
-  --accent-cyan: #22d3ee;
-  --accent-green: #34d399;
-  --accent-amber: #fbbf24;
-  --accent-red: #f87171;
-  --accent-purple: #a78bfa;
-  --color-background-primary: #13131f;
-  --color-background-secondary: #0f1023;
-  --color-background-danger: rgba(248, 113, 113, 0.08);
-  --color-background-success: rgba(52, 211, 153, 0.08);
-  --color-border-tertiary: rgba(129, 140, 248, 0.1);
-  --color-border-secondary: rgba(129, 140, 248, 0.15);
-  --color-border-danger: rgba(248, 113, 113, 0.25);
-  --color-border-success: rgba(52, 211, 153, 0.25);
-  --color-border-info: #818cf8;
-  --color-text-primary: #eeeef2;
-  --color-text-secondary: #9ca3af;
-  --color-text-tertiary: #555566;
-  --color-text-danger: #f87171;
-  --color-text-success: #34d399;
-  --color-text-info: #818cf8;
-  --border-radius-lg: 12px;
-  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
-  --max-w: 1200px;
-  --section-pad: clamp(4rem, 8vw, 8rem);
+  --bg: #0B0B0F;
+  --surface: #15151B;
+  --border: rgba(255,255,255,0.06);
+  --border-hover: rgba(255,255,255,0.12);
+  --text: #ECECF0;
+  --text-secondary: #8B8B96;
+  --text-muted: #55555E;
+  --accent: #6EE7B7;
+  --accent-warm: #FBBF24;
+  --accent-neg: #FB7185;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --max-w: 1000px;
+  --section-gap: 140px;
 }
 
 html { scroll-behavior: smooth; }
+
 body {
   font-family: var(--font-sans);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  line-height: 1.6;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  font-size: 16px;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-a { color: var(--accent-indigo); text-decoration: none; transition: color 0.2s; }
-a:hover { color: var(--accent-cyan); }
-code { font-family: var(--font-mono); font-size: 0.9em; }
-img { max-width: 100%; }
-
-.container { max-width: var(--max-w); margin: 0 auto; padding: 0 2rem; }
+a { color: var(--accent); text-decoration: none; transition: opacity 0.2s; }
+a:hover { opacity: 0.8; }
 
 /* ═══════════════════════════════════════════════════
-   ANIMATIONS
+   UTILITIES
    ═══════════════════════════════════════════════════ */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes glow {
-  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.6; }
-  50% { transform: translate(20px, -10px) scale(1.1); opacity: 1; }
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-@keyframes barFill {
-  from { width: 0; }
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-@keyframes gridMove {
-  0% { transform: translate(0, 0); }
-  100% { transform: translate(40px, 40px); }
+.container { max-width: var(--max-w); margin: 0 auto; padding: 0 24px; }
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+  display: block;
 }
 
+.section-headline {
+  font-family: var(--font-serif);
+  font-size: clamp(32px, 5vw, 48px);
+  line-height: 1.15;
+  color: var(--text);
+  margin-bottom: 20px;
+  font-weight: 400;
+}
+
+.section-sub {
+  color: var(--text-secondary);
+  font-size: 17px;
+  line-height: 1.7;
+  max-width: 680px;
+}
+
+section {
+  padding: var(--section-gap) 0;
+}
+
+/* Scroll reveal */
 .reveal {
   opacity: 0;
   transform: translateY(24px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition: opacity 0.7s ease, transform 0.7s ease;
 }
 .reveal.visible {
   opacity: 1;
   transform: translateY(0);
 }
-.reveal-delay-1 { transition-delay: 0.1s; }
-.reveal-delay-2 { transition-delay: 0.2s; }
-.reveal-delay-3 { transition-delay: 0.3s; }
-.reveal-delay-4 { transition-delay: 0.4s; }
 
 /* ═══════════════════════════════════════════════════
    NAV
@@ -122,877 +109,754 @@ nav {
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(10, 10, 18, 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border-subtle);
-  transition: background 0.3s;
+  padding: 16px 24px;
+  transition: background 0.3s, backdrop-filter 0.3s;
 }
-nav .container {
+nav.scrolled {
+  background: rgba(11, 11, 15, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  gap: 24px;
 }
 .nav-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: var(--text-primary);
-}
-.nav-logo-icon {
-  width: 28px;
-  height: 28px;
-  background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  color: var(--text);
+  white-space: nowrap;
 }
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 28px;
   list-style: none;
 }
 .nav-links a {
+  font-size: 14px;
   color: var(--text-secondary);
-  font-size: 0.85rem;
   transition: color 0.2s;
 }
-.nav-links a:hover { color: var(--text-primary); }
-.nav-cta {
+.nav-links a:hover { color: var(--text); opacity: 1; }
+.nav-ctas {
   display: flex;
-  gap: 0.5rem;
+  gap: 10px;
 }
-.nav-cta a {
-  padding: 6px 14px;
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
   border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
   transition: all 0.2s;
-}
-.btn-ghost {
-  color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
-}
-.btn-ghost:hover {
-  color: var(--text-primary);
-  border-color: var(--border-hover);
-  background: rgba(129, 140, 248, 0.05);
+  border: none;
+  text-decoration: none;
 }
 .btn-primary {
-  background: var(--accent-indigo);
-  color: var(--bg-primary);
+  background: var(--accent);
+  color: #0B0B0F;
 }
-.btn-primary:hover {
-  background: #9ba3fb;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(129, 140, 248, 0.3);
-}
-.nav-mobile-toggle { display: none; background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; }
-
-/* ═══════════════════════════════════════════════════
-   SECTION SHARED
-   ═══════════════════════════════════════════════════ */
-section {
-  padding: var(--section-pad) 0;
-  position: relative;
-}
-.section-alt { background: var(--bg-secondary); }
-.section-tag {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--accent-indigo);
-  margin-bottom: 1rem;
-}
-.section-title {
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  margin-bottom: 1.5rem;
-}
-.section-subtitle {
-  font-size: 1.1rem;
+.btn-primary:hover { background: #5DD9A8; opacity: 1; }
+.btn-ghost {
+  background: transparent;
   color: var(--text-secondary);
-  max-width: 700px;
-  line-height: 1.7;
+  border: 1px solid var(--border);
 }
-.glow-line {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent-indigo), var(--accent-cyan), transparent);
-  opacity: 0.3;
+.btn-ghost:hover {
+  border-color: var(--border-hover);
+  color: var(--text);
+  opacity: 1;
+}
+
+.nav-mobile-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 24px;
+  cursor: pointer;
 }
 
 /* ═══════════════════════════════════════════════════
    HERO
    ═══════════════════════════════════════════════════ */
 #hero {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  position: relative;
-  overflow: hidden;
-  padding-top: 64px;
+  padding: 160px 0 80px;
+  text-align: center;
 }
-.hero-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(129, 140, 248, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(129, 140, 248, 0.04) 1px, transparent 1px);
-  background-size: 40px 40px;
-  mask-image: radial-gradient(ellipse 60% 60% at 50% 40%, black, transparent);
-  -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 40%, black, transparent);
-}
-.hero-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  pointer-events: none;
-}
-.hero-orb-1 {
-  width: 400px;
-  height: 400px;
-  top: 10%;
-  right: -5%;
-  background: radial-gradient(circle, rgba(129, 140, 248, 0.15), transparent 70%);
-  animation: glow 15s ease-in-out infinite;
-}
-.hero-orb-2 {
-  width: 300px;
-  height: 300px;
-  bottom: 10%;
-  left: -5%;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.1), transparent 70%);
-  animation: glow 18s ease-in-out infinite reverse;
-}
-.hero-content {
-  position: relative;
-  z-index: 1;
-  max-width: 800px;
-}
-.hero-eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--accent-cyan);
-  letter-spacing: 0.1em;
-  margin-bottom: 1.5rem;
-  animation: fadeUp 0.6s ease both;
-}
+#hero .tag { margin-bottom: 24px; }
 .hero-headline {
-  font-size: clamp(2.5rem, 6vw, 4.2rem);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1.1;
-  margin-bottom: 1.5rem;
-  animation: fadeUp 0.6s ease 0.15s both;
+  font-family: var(--font-serif);
+  font-size: clamp(40px, 7vw, 72px);
+  line-height: 1.08;
+  color: var(--text);
+  margin-bottom: 28px;
+  font-weight: 400;
 }
-.hero-subhead {
-  font-size: clamp(1rem, 2vw, 1.2rem);
+.hero-headline em {
+  font-style: italic;
+  color: var(--accent);
+}
+.hero-sub {
   color: var(--text-secondary);
+  font-size: 18px;
   line-height: 1.7;
-  max-width: 600px;
-  margin-bottom: 2rem;
-  animation: fadeUp 0.6s ease 0.3s both;
+  max-width: 620px;
+  margin: 0 auto 12px;
+}
+.hero-supporting {
+  color: var(--text-muted);
+  font-size: 15px;
+  max-width: 580px;
+  margin: 0 auto 36px;
 }
 .hero-install {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 14px 20px;
   display: inline-flex;
   align-items: center;
   gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 20px;
   font-family: var(--font-mono);
-  font-size: 0.95rem;
-  margin-bottom: 2rem;
-  animation: fadeUp 0.6s ease 0.45s both;
+  font-size: 14px;
+  color: var(--text);
   cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s;
+  margin-bottom: 16px;
+  max-width: 100%;
+  overflow-x: auto;
 }
-.hero-install:hover {
-  border-color: var(--border-hover);
-  box-shadow: 0 0 20px rgba(129, 140, 248, 0.1);
-}
-.hero-install .prompt { color: var(--text-muted); }
-.hero-install .cmd { color: var(--accent-cyan); }
-.hero-install .copy-hint {
-  font-size: 0.7rem;
+.hero-install:hover { border-color: var(--accent); }
+.hero-install .copy-icon {
   color: var(--text-muted);
-  margin-left: 8px;
-  opacity: 0;
-  transition: opacity 0.2s;
+  font-size: 14px;
+  flex-shrink: 0;
 }
-.hero-install:hover .copy-hint { opacity: 1; }
+.hero-install.copied { border-color: var(--accent); }
+.hero-install.copied .copy-icon { color: var(--accent); }
+
 .hero-meta {
-  font-size: 0.85rem;
   color: var(--text-muted);
-  margin-bottom: 1.5rem;
-  animation: fadeUp 0.6s ease 0.55s both;
+  font-size: 13px;
+  margin-bottom: 48px;
 }
+
+.stats-bar {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px 40px;
+  margin-bottom: 40px;
+  padding: 28px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.stat {
+  text-align: center;
+}
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text);
+  display: block;
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+}
+
 .hero-ctas {
   display: flex;
+  justify-content: center;
+  gap: 12px;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  animation: fadeUp 0.6s ease 0.65s both;
 }
-.hero-ctas a {
-  padding: 8px 18px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: all 0.2s;
-}
-.cta-github { background: var(--accent-indigo); color: var(--bg-primary) !important; }
-.cta-github:hover { background: #9ba3fb; transform: translateY(-2px); box-shadow: 0 4px 16px rgba(129,140,248,0.3); }
-.cta-pypi { background: rgba(34,211,238,0.12); color: var(--accent-cyan) !important; border: 1px solid rgba(34,211,238,0.25); }
-.cta-pypi:hover { background: rgba(34,211,238,0.2); border-color: rgba(34,211,238,0.4); }
-.cta-mcp { background: rgba(129,140,248,0.1); color: var(--accent-indigo) !important; border: 1px solid var(--border-subtle); }
-.cta-mcp:hover { background: rgba(129,140,248,0.15); border-color: var(--border-hover); }
-.cta-benchmark { color: var(--text-secondary) !important; border: 1px solid var(--border-subtle); }
-.cta-benchmark:hover { color: var(--text-primary) !important; border-color: var(--border-hover); }
 
 /* ═══════════════════════════════════════════════════
-   THE ONE PROBLEM
+   PROBLEM
    ═══════════════════════════════════════════════════ */
-.problem-statement {
-  font-size: clamp(1rem, 1.8vw, 1.15rem);
+#problem { background: var(--surface); }
+
+.problem-quote {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 19px;
   color: var(--text-secondary);
-  max-width: 750px;
-  line-height: 1.8;
+  line-height: 1.6;
+  max-width: 700px;
+  margin: 28px 0 48px;
+  padding-left: 20px;
+  border-left: 2px solid var(--accent);
 }
-.problem-statement p { margin-bottom: 1.5rem; }
-.problem-bold {
-  font-size: clamp(1.2rem, 2.5vw, 1.6rem);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 2rem 0;
-  line-height: 1.4;
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 48px;
 }
-.problem-list {
-  list-style: none;
-  margin: 1.5rem 0;
+.comparison-col {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px;
 }
-.problem-list li {
-  padding: 0.4rem 0;
+.comparison-col-header {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.col-bad .comparison-col-header { color: var(--accent-neg); }
+.col-good .comparison-col-header { color: var(--accent); }
+
+.comparison-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--text-secondary);
+}
+.comparison-item:last-child { margin-bottom: 0; }
+.comparison-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  margin-top: 2px;
+}
+.col-bad .comparison-icon { color: var(--accent-neg); }
+.col-good .comparison-icon { color: var(--accent); }
+
+/* Token chart */
+.token-chart {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px;
+  margin-bottom: 24px;
+}
+.token-chart-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+.chart-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.chart-row:last-child { margin-bottom: 0; }
+.chart-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  width: 70px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.chart-bars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.chart-bar {
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--bg);
+  font-weight: 500;
+  transition: width 1.2s ease;
+}
+.bar-memory { background: var(--accent-neg); }
+.bar-memwright { background: var(--accent); }
+
+.chart-legend {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.chart-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.bottom-line {
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════
+   WHY MEMWRIGHT
+   ═══════════════════════════════════════════════════ */
+.why-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 40px;
+}
+.why-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px;
+  transition: border-color 0.3s, transform 0.3s;
+}
+.why-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+}
+.why-card h3 {
+  font-family: var(--font-serif);
+  font-size: 21px;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.why-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+.why-card code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(110, 231, 183, 0.08);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* ═══════════════════════════════════════════════════
+   COMPETITION
+   ═══════════════════════════════════════════════════ */
+.table-wrap {
+  overflow-x: auto;
+  margin: 32px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.comp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.comp-table th,
+.comp-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.comp-table th {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--surface);
+}
+.comp-table th:first-child { border-radius: 10px 0 0 0; }
+.comp-table th:last-child { border-radius: 0 10px 0 0; }
+.comp-table td { color: var(--text-secondary); }
+.comp-table tr:last-child td { border-bottom: none; }
+.comp-table td:first-child { color: var(--text); font-weight: 500; }
+.comp-table .highlight {
+  color: var(--accent);
+  font-weight: 600;
+}
+.comp-table .hl-col {
+  background: rgba(110, 231, 183, 0.04);
+}
+.table-sub-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  color: var(--text);
+  margin-top: 48px;
+  margin-bottom: 4px;
+  font-weight: 400;
+}
+.comp-footnote {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 16px;
+  line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════════════════
+   HOW IT WORKS
+   ═══════════════════════════════════════════════════ */
+#how { background: var(--surface); }
+.pipeline {
+  margin-top: 48px;
   position: relative;
-  padding-left: 1.2rem;
 }
-.problem-list li::before {
+.pipeline::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 0.85rem;
-  width: 6px;
-  height: 6px;
-  background: var(--accent-indigo);
+  left: 23px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+.pipeline-step {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 36px;
+  position: relative;
+}
+.pipeline-step:last-child { margin-bottom: 0; }
+.step-num {
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent);
+  flex-shrink: 0;
+  z-index: 1;
+}
+.step-content {
+  padding-top: 8px;
+}
+.step-title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--text);
+  margin-bottom: 4px;
+  font-weight: 400;
+}
+.step-engine {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.step-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
 
 /* ═══════════════════════════════════════════════════
-   RUNS EVERYWHERE — CAROUSEL
+   PLATFORMS CAROUSEL
    ═══════════════════════════════════════════════════ */
-.carousel-wrapper {
+.carousel-wrap {
   position: relative;
-  margin-top: 3rem;
+  margin-top: 40px;
 }
 .carousel {
   display: flex;
-  gap: 1.5rem;
+  gap: 16px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  padding: 1rem 0 2rem;
+  padding-bottom: 8px;
   scrollbar-width: none;
 }
 .carousel::-webkit-scrollbar { display: none; }
 .carousel-card {
-  flex: 0 0 340px;
+  flex: 0 0 260px;
   scroll-snap-align: start;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 2rem;
-  transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  transition: border-color 0.3s, transform 0.3s;
 }
 .carousel-card:hover {
   border-color: var(--border-hover);
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
 }
 .carousel-card-icon {
-  font-size: 2rem;
-  margin-bottom: 1rem;
+  font-size: 28px;
+  margin-bottom: 14px;
+  display: block;
 }
 .carousel-card h3 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-.carousel-card .card-tagline {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--accent-cyan);
-  margin-bottom: 1rem;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--text);
+  margin-bottom: 8px;
+  font-weight: 400;
 }
 .carousel-card p {
-  font-size: 0.9rem;
+  font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.6;
-  margin-bottom: 1rem;
-}
-.carousel-card .card-who {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-style: italic;
-  margin-bottom: 1rem;
-}
-.carousel-card pre {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(129, 140, 248, 0.08);
-  border-radius: 6px;
-  padding: 10px 14px;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--accent-cyan);
-  overflow-x: auto;
-  white-space: pre;
 }
 .carousel-nav {
   display: flex;
   justify-content: center;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  gap: 10px;
+  margin-top: 20px;
 }
 .carousel-btn {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-card);
+  background: var(--surface);
+  border: 1px solid var(--border);
   color: var(--text-secondary);
-  font-size: 1.1rem;
+  font-size: 18px;
   cursor: pointer;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
 }
 .carousel-btn:hover {
-  border-color: var(--accent-indigo);
-  color: var(--accent-indigo);
-  background: rgba(129, 140, 248, 0.08);
+  border-color: var(--accent);
+  color: var(--accent);
 }
-
-/* Integration table */
-.integration-table {
-  margin-top: 3rem;
-  width: 100%;
-  border-collapse: collapse;
-}
-.integration-table th,
-.integration-table td {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: 0.9rem;
-}
-.integration-table th {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.integration-table td:first-child { font-weight: 600; }
-.integration-table td:last-child { color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.85rem; }
-
-/* ═══════════════════════════════════════════════════
-   THREE AUDIENCES
-   ═══════════════════════════════════════════════════ */
-.audience-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-  margin-top: 3rem;
-}
-.audience-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 2rem;
-  transition: border-color 0.3s, transform 0.3s;
-}
-.audience-card:hover {
-  border-color: var(--border-hover);
-  transform: translateY(-2px);
-}
-.audience-icon {
-  font-size: 2rem;
-  margin-bottom: 1rem;
-}
-.audience-card h3 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-}
-.audience-card p {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-.audience-metric {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--accent-green);
-  background: rgba(52, 211, 153, 0.08);
-  border: 1px solid rgba(52, 211, 153, 0.15);
-  padding: 8px 12px;
-  border-radius: 6px;
-}
-
-/* ═══════════════════════════════════════════════════
-   BENCHMARKS
-   ═══════════════════════════════════════════════════ */
-.bench-chart {
-  margin-top: 3rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.bench-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-.bench-label {
-  min-width: 140px;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  text-align: right;
-}
-.bench-bar-wrap {
-  flex: 1;
-  height: 36px;
-  background: rgba(129, 140, 248, 0.06);
-  border-radius: 6px;
-  overflow: hidden;
-  position: relative;
-}
-.bench-bar {
-  height: 100%;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  padding-left: 12px;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--bg-primary);
-  width: 0;
-  transition: width 1.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-.bench-bar.animated { /* width set by JS */ }
-.bench-bar-memwright {
-  background: linear-gradient(90deg, var(--accent-indigo), var(--accent-cyan));
-}
-.bench-bar-other {
-  background: rgba(129, 140, 248, 0.25);
-  color: var(--text-secondary);
-}
-.bench-highlight .bench-label { color: var(--text-primary); font-weight: 700; }
-
-.bench-features {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background: var(--border-subtle);
-  border-radius: 8px;
-  overflow: hidden;
-  margin-top: 2rem;
-}
-.bench-feature-cell {
-  background: var(--bg-card);
-  padding: 12px 16px;
+.platforms-bottom {
   text-align: center;
-  font-size: 0.8rem;
-}
-.bench-feature-cell.header {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.check { color: var(--accent-green); }
-.cross { color: var(--accent-red); }
-.unknown { color: var(--text-muted); }
-
-/* ═══════════════════════════════════════════════════
-   HOW IT WORKS
-   ═══════════════════════════════════════════════════ */
-.retrieval-flow {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  margin-top: 3rem;
-  max-width: 700px;
-}
-.flow-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.5rem;
-  position: relative;
-}
-.flow-step::after {
-  content: '';
-  position: absolute;
-  left: 24px;
-  top: 52px;
-  bottom: -1.5rem;
-  width: 2px;
-  background: linear-gradient(to bottom, var(--accent-indigo), transparent);
-}
-.flow-step:last-child::after { display: none; }
-.flow-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-  border: 1px solid var(--border-subtle);
-}
-.flow-icon-1 { background: rgba(129, 140, 248, 0.1); }
-.flow-icon-2 { background: rgba(34, 211, 238, 0.1); }
-.flow-icon-3 { background: rgba(167, 139, 250, 0.1); }
-.flow-icon-4 { background: rgba(251, 191, 36, 0.1); }
-.flow-icon-5 { background: rgba(52, 211, 153, 0.1); }
-.flow-body h3 {
-  font-size: 1rem;
-  font-weight: 700;
-  margin-bottom: 0.25rem;
-}
-.flow-body .flow-engine {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--accent-cyan);
-  margin-bottom: 0.5rem;
-}
-.flow-body p {
-  font-size: 0.9rem;
   color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-/* ═══════════════════════════════════════════════════
-   MCP TOOLS
-   ═══════════════════════════════════════════════════ */
-.tools-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-top: 3rem;
-}
-.tool-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 1.25rem;
-  transition: border-color 0.3s, transform 0.2s;
-}
-.tool-card:hover {
-  border-color: var(--border-hover);
-  transform: translateY(-2px);
-}
-.tool-name {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--accent-indigo);
-  margin-bottom: 0.5rem;
-}
-.tool-desc {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-/* ═══════════════════════════════════════════════════
-   EMBEDDINGS
-   ═══════════════════════════════════════════════════ */
-.embed-table {
-  width: 100%;
-  margin-top: 2rem;
-  border-collapse: collapse;
-}
-.embed-table th,
-.embed-table td {
-  padding: 14px 20px;
-  text-align: left;
-  border-bottom: 1px solid var(--border-subtle);
-}
-.embed-table th {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-.embed-table td { font-size: 0.9rem; color: var(--text-secondary); }
-.embed-table td:first-child { color: var(--text-primary); font-weight: 600; }
-.embed-priority {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  background: rgba(129, 140, 248, 0.1);
-  color: var(--accent-indigo);
-}
-
-/* ═══════════════════════════════════════════════════
-   DESIGN PRINCIPLES
-   ═══════════════════════════════════════════════════ */
-.principles-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.25rem;
-  margin-top: 3rem;
-}
-.principle-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--accent-indigo);
-  border-radius: 8px;
-  padding: 1.5rem;
-}
-.principle-card h3 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-.principle-card p {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  line-height: 1.6;
+  font-size: 15px;
+  margin-top: 32px;
+  font-style: italic;
 }
 
 /* ═══════════════════════════════════════════════════
    QUICK START
    ═══════════════════════════════════════════════════ */
-.quickstart-steps {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  margin-top: 3rem;
-}
-.qs-step {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 1.5rem;
-}
-.qs-step-num {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--accent-indigo);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 0.75rem;
-}
-.qs-step h3 {
-  font-size: 1rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-}
-.qs-step p {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.75rem;
-}
-.code-block {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(129, 140, 248, 0.08);
-  border-radius: 8px;
-  padding: 14px 18px;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--accent-cyan);
-  overflow-x: auto;
-  white-space: pre;
-  line-height: 1.6;
-}
+#quickstart { background: var(--surface); }
 
-/* ═══════════════════════════════════════════════════
-   STATS BAR
-   ═══════════════════════════════════════════════════ */
-.stats-bar {
+.tabs {
   display: flex;
-  justify-content: center;
-  gap: 4rem;
-  margin-top: 2rem;
+  gap: 0;
+  margin-top: 36px;
+  border-bottom: 1px solid var(--border);
 }
-.stat {
-  text-align: center;
-}
-.stat-num {
-  font-size: 2.5rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.stat-label {
-  font-size: 0.8rem;
+.tab-btn {
+  padding: 12px 24px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  background: none;
+  border: none;
   color: var(--text-muted);
-  margin-top: 0.25rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  margin-bottom: -1px;
 }
-
-/* ═══════════════════════════════════════════════════
-   CLI PILLS
-   ═══════════════════════════════════════════════════ */
-.cli-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 2rem;
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
-.cli-pill {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  padding: 6px 14px;
-  border-radius: 6px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+.tab-btn:hover:not(.active) {
   color: var(--text-secondary);
+}
+.tab-panel {
+  display: none;
+  padding: 24px 0;
+}
+.tab-panel.active { display: block; }
+
+.code-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 24px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  overflow-x: auto;
+  position: relative;
+  white-space: pre;
+}
+.code-block .comment { color: var(--text-muted); }
+.code-block .cmd { color: var(--text); }
+.code-block .string { color: var(--accent); }
+.code-block .keyword { color: var(--accent-warm); }
+.code-block .fn { color: #93C5FD; }
+
+.code-copy-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: var(--font-mono);
   transition: all 0.2s;
 }
-.cli-pill:hover {
-  border-color: var(--accent-indigo);
-  color: var(--accent-indigo);
-  background: rgba(129, 140, 248, 0.06);
+.code-copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ═══════════════════════════════════════════════════
+   PRINCIPLES
+   ═══════════════════════════════════════════════════ */
+.principles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 36px;
+}
+.principle-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  transition: border-color 0.3s;
+}
+.principle-card:hover { border-color: var(--border-hover); }
+.principle-card p {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--text);
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 /* ═══════════════════════════════════════════════════
-   CLOSING / FOOTER
+   CLOSING
    ═══════════════════════════════════════════════════ */
-.closing-manifesto {
-  max-width: 700px;
-  margin: 0 auto;
+#closing {
+  background: var(--surface);
   text-align: center;
 }
-.closing-manifesto blockquote {
-  font-size: clamp(1.1rem, 2vw, 1.35rem);
-  color: var(--text-secondary);
-  line-height: 1.8;
-  border: none;
-  padding: 0;
-  font-style: italic;
+#closing .section-headline { margin-bottom: 32px; }
+.closing-install {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 24px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s;
+  margin-bottom: 20px;
+  max-width: 100%;
+  overflow-x: auto;
 }
-.closing-tagline {
-  font-size: clamp(1.4rem, 3vw, 2rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  margin: 2rem 0;
-  background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.closing-meta {
-  font-size: 0.85rem;
+.closing-install:hover { border-color: var(--accent); }
+.closing-sub {
   color: var(--text-muted);
-  margin-top: 1rem;
+  font-size: 14px;
+  margin-bottom: 32px;
 }
-.closing-meta a { color: var(--accent-indigo); }
+.closing-sub a { color: var(--accent); }
+.closing-ctas {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ═══════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════ */
 footer {
-  padding: 2rem 0;
-  border-top: 1px solid var(--border-subtle);
+  padding: 40px 0;
   text-align: center;
-  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+footer p {
+  font-size: 13px;
   color: var(--text-muted);
 }
-
-/* ═══════════════════════════════════════════════════
-   EMBEDDED DIAGRAMS & WIDGETS
-   ═══════════════════════════════════════════════════ */
-.diagram-container {
-  margin-top: 3rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 2rem;
-  overflow-x: auto;
-}
-.diagram-container svg {
-  width: 100%;
-  max-width: 680px;
-  height: auto;
-  margin: 0 auto;
-  display: block;
-}
-.context-comparison {
-  margin-top: 2.5rem;
-}
-.competitive-table-wrapper {
-  margin-top: 2.5rem;
-}
-.arch-diagram-container {
-  margin-top: 2.5rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 2rem;
-  overflow-x: auto;
-}
-.arch-diagram-container svg {
-  width: 100%;
-  max-width: 700px;
-  height: auto;
-  margin: 0 auto;
-  display: block;
-}
+footer a { color: var(--text-muted); }
+footer a:hover { color: var(--text-secondary); }
 
 /* ═══════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════ */
 @media (max-width: 900px) {
-  .audience-grid { grid-template-columns: 1fr; }
-  .tools-grid { grid-template-columns: repeat(2, 1fr); }
-  .quickstart-steps { grid-template-columns: 1fr; }
-  .bench-features { grid-template-columns: repeat(2, 1fr); }
-  .stats-bar { gap: 2rem; flex-wrap: wrap; }
-  .bench-label { min-width: 100px; font-size: 0.75rem; }
+  :root { --section-gap: 100px; }
+  .comparison-grid { grid-template-columns: 1fr; }
+  .why-grid { grid-template-columns: 1fr; }
   .nav-links { display: none; }
   .nav-mobile-toggle { display: block; }
+  nav.mobile-open .nav-links {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 60px;
+    left: 0;
+    right: 0;
+    background: rgba(11, 11, 15, 0.97);
+    backdrop-filter: blur(12px);
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
 }
+
 @media (max-width: 600px) {
-  .tools-grid { grid-template-columns: 1fr; }
-  .bench-features { grid-template-columns: 1fr; }
-  .carousel-card { flex: 0 0 85vw; }
-  .hero-headline { font-size: 2rem; }
-  .stats-bar { flex-direction: column; gap: 1.5rem; }
-  .context-comparison > div:first-of-type { grid-template-columns: 1fr !important; }
-  .competitive-table-wrapper { overflow-x: auto; }
-  .arch-diagram-container { padding: 1rem; }
-  .diagram-container { padding: 1rem; }
+  :root { --section-gap: 80px; }
+  #hero { padding: 120px 0 60px; }
+  .hero-headline { font-size: 36px; }
+  .stats-bar { gap: 8px 24px; }
+  .stat-value { font-size: 18px; }
+  .hero-install, .closing-install {
+    font-size: 12px;
+    padding: 12px 14px;
+  }
+  .carousel-card { flex: 0 0 220px; }
+  .pipeline-step { gap: 16px; }
+  .step-num { width: 40px; height: 40px; font-size: 12px; }
+  .pipeline::before { left: 19px; }
+  .comp-table th, .comp-table td { padding: 10px 12px; font-size: 12px; }
+  .nav-ctas .btn-ghost { display: none; }
 }
 </style>
 </head>
@@ -1001,881 +865,652 @@ footer {
 <!-- ═══════════════════════════════════════════════════
      NAV
      ═══════════════════════════════════════════════════ -->
-<nav>
-  <div class="container">
-    <a href="#hero" class="nav-logo">
-      <div class="nav-logo-icon">🧠</div>
-      memwright
-    </a>
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">Memwright</a>
     <ul class="nav-links">
-      <li><a href="#problem">Mission</a></li>
-      <li><a href="#everywhere">Platforms</a></li>
-      <li><a href="#audiences">Use Cases</a></li>
-      <li><a href="#benchmarks">Benchmarks</a></li>
-      <li><a href="#how-it-works">How It Works</a></li>
-      <li><a href="#multi-agent">Multi-Agent</a></li>
-      <li><a href="#python-api">Python API</a></li>
+      <li><a href="#problem">Problem</a></li>
+      <li><a href="#why">Why</a></li>
+      <li><a href="#compare">Compare</a></li>
+      <li><a href="#how">How It Works</a></li>
+      <li><a href="#platforms">Platforms</a></li>
       <li><a href="#quickstart">Quick Start</a></li>
     </ul>
-    <div class="nav-cta">
-      <a href="https://pypi.org/project/memwright/" class="btn-ghost" target="_blank" rel="noopener">PyPI</a>
-      <a href="https://github.com/bolnet/agent-memory" class="btn-primary" target="_blank" rel="noopener">GitHub</a>
+    <div class="nav-ctas">
+      <a href="https://pypi.org/project/memwright/" class="btn btn-ghost" target="_blank" rel="noopener">PyPI</a>
+      <a href="https://github.com/bolnet/agent-memory" class="btn btn-primary" target="_blank" rel="noopener">GitHub</a>
     </div>
-    <button class="nav-mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('show')" aria-label="Menu">☰</button>
+    <button class="nav-mobile-toggle" onclick="document.getElementById('nav').classList.toggle('mobile-open')" aria-label="Toggle menu">&#9776;</button>
   </div>
 </nav>
 
 <!-- ═══════════════════════════════════════════════════
-     HERO
+     1. HERO
      ═══════════════════════════════════════════════════ -->
 <section id="hero">
-  <div class="hero-grid"></div>
-  <div class="hero-orb hero-orb-1"></div>
-  <div class="hero-orb hero-orb-2"></div>
   <div class="container">
-    <div class="hero-content">
-      <div class="hero-eyebrow">Where there's an agent, there's Memwright.</div>
-      <h1 class="hero-headline">We solve one problem.<br>We solve it everywhere.</h1>
-      <p class="hero-subhead">Your Claude Code session. Your production pipeline. Your multi-agent system with namespace isolation and RBAC. AWS. Azure. GCP. Docker. Or just your laptop with nothing installed.</p>
-      <div class="hero-install" onclick="navigator.clipboard.writeText('poetry add memwright && claude mcp add memory -- memwright mcp');this.querySelector('.copy-hint').textContent='Copied!'">
-        <span class="prompt">$</span>
-        <span class="cmd">poetry add memwright && claude mcp add memory -- memwright mcp</span>
-        <span class="copy-hint">Click to copy</span>
+    <span class="tag">Open source memory for AI agents</span>
+    <h1 class="hero-headline">Your agent forgets everything.<br><em>We fixed that.</em></h1>
+    <p class="hero-sub">Memwright gives AI agents persistent, ranked memory that stays out of the context window. No Docker. No API keys. No monthly bill. Just install and go.</p>
+    <p class="hero-supporting">One package. Works with Claude Code, Cursor, Windsurf, or any MCP client. Scales from your laptop to AWS, Azure, and GCP.</p>
+
+    <div class="hero-install" onclick="copyToClipboard(this, 'poetry add memwright && claude mcp add memory -- memwright mcp')" title="Click to copy">
+      <span>$ poetry add memwright && claude mcp add memory -- memwright mcp</span>
+      <span class="copy-icon">&#x2398;</span>
+    </div>
+    <p class="hero-meta">Free. Open source. Apache 2.0. Python 3.10 &ndash; 3.14. Works right now.</p>
+
+    <div class="stats-bar">
+      <div class="stat"><span class="stat-value">81.2%</span><span class="stat-label">LOCOMO Accuracy</span></div>
+      <div class="stat"><span class="stat-value">1.4ms</span><span class="stat-label">P50 Recall</span></div>
+      <div class="stat"><span class="stat-value">8</span><span class="stat-label">MCP Tools</span></div>
+      <div class="stat"><span class="stat-value">5</span><span class="stat-label">Cloud Backends</span></div>
+      <div class="stat"><span class="stat-value">607</span><span class="stat-label">Tests</span></div>
+      <div class="stat"><span class="stat-value">$0/mo</span><span class="stat-label">Cost</span></div>
+    </div>
+
+    <div class="hero-ctas">
+      <a href="https://github.com/bolnet/agent-memory" class="btn btn-primary" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://pypi.org/project/memwright/" class="btn btn-ghost" target="_blank" rel="noopener">PyPI</a>
+      <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright" class="btn btn-ghost" target="_blank" rel="noopener">MCP Registry</a>
+      <a href="LATENCY_BENCHMARKS.html" class="btn btn-ghost">Benchmarks</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     2. THE PROBLEM
+     ═══════════════════════════════════════════════════ -->
+<section id="problem">
+  <div class="container">
+    <div class="reveal">
+      <span class="tag">The Problem</span>
+      <h2 class="section-headline">Claude Code starts every session from zero.<br>Its built-in "memory" makes things worse.</h2>
+      <p class="problem-quote">"Four hours debugging a gnarly database migration, 30 back-and-forth messages about schema evolution. Closed the terminal, came back after dinner &mdash; Claude had no idea what we'd figured out."</p>
+    </div>
+
+    <div class="comparison-grid reveal">
+      <div class="comparison-col col-bad">
+        <div class="comparison-col-header">MEMORY.md</div>
+        <div class="comparison-item"><span class="comparison-icon">&times;</span><span>200-line hard limit &mdash; content beyond silently truncated</span></div>
+        <div class="comparison-item"><span class="comparison-icon">&times;</span><span>At 40K characters, responses degrade "like wading through quicksand"</span></div>
+        <div class="comparison-item"><span class="comparison-icon">&times;</span><span>Claude systematically ignores rules defined in MEMORY.md</span></div>
+        <div class="comparison-item"><span class="comparison-icon">&times;</span><span>Entire file loads into context every message &mdash; no search, no ranking</span></div>
+        <div class="comparison-item"><span class="comparison-icon">&times;</span><span>15K+ tokens of unranked noise by month six</span></div>
       </div>
-      <p class="hero-meta">Free. Open source. Apache 2.0. Python 3.10–3.14. Works right now.</p>
-      <div class="hero-ctas">
-        <a href="https://github.com/bolnet/agent-memory" class="cta-github" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://pypi.org/project/memwright/" class="cta-pypi" target="_blank" rel="noopener">PyPI</a>
-        <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright" class="cta-mcp" target="_blank" rel="noopener">MCP Registry</a>
-        <a href="#benchmarks" class="cta-benchmark">Run a Benchmark</a>
+      <div class="comparison-col col-good">
+        <div class="comparison-col-header">Memwright</div>
+        <div class="comparison-item"><span class="comparison-icon">&#10003;</span><span>Memory lives on disk, outside the context window entirely</span></div>
+        <div class="comparison-item"><span class="comparison-icon">&#10003;</span><span>Token budget you control &mdash; 2K, 4K, 20K, your choice</span></div>
+        <div class="comparison-item"><span class="comparison-icon">&#10003;</span><span>3-layer ranked search returns only the best memories</span></div>
+        <div class="comparison-item"><span class="comparison-icon">&#10003;</span><span>Contradictions resolved algorithmically &mdash; no LLM call</span></div>
+        <div class="comparison-item"><span class="comparison-icon">&#10003;</span><span>Same 2K cost at month 6. More data = better results.</span></div>
+      </div>
+    </div>
+
+    <div class="token-chart reveal" id="tokenChart">
+      <div class="token-chart-title">Token cost over time (context window usage per message)</div>
+      <div class="chart-row">
+        <div class="chart-label">Month 1</div>
+        <div class="chart-bars">
+          <div class="chart-bar bar-memory" data-width="13.3" style="width: 0%">2K</div>
+          <div class="chart-bar bar-memwright" data-width="13.3" style="width: 0%">2K</div>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-label">Month 3</div>
+        <div class="chart-bars">
+          <div class="chart-bar bar-memory" data-width="53.3" style="width: 0%">8K</div>
+          <div class="chart-bar bar-memwright" data-width="13.3" style="width: 0%">2K</div>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-label">Month 6</div>
+        <div class="chart-bars">
+          <div class="chart-bar bar-memory" data-width="100" style="width: 0%">15K</div>
+          <div class="chart-bar bar-memwright" data-width="13.3" style="width: 0%">2K</div>
+        </div>
+      </div>
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:var(--accent-neg)"></span> MEMORY.md</span>
+        <span><span class="legend-dot" style="background:var(--accent)"></span> Memwright</span>
+      </div>
+    </div>
+
+    <p class="bottom-line reveal">More memories makes Memwright better &mdash; more candidates to rank from &mdash; while the context cost stays the same.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     3. WHY MEMWRIGHT
+     ═══════════════════════════════════════════════════ -->
+<section id="why">
+  <div class="container">
+    <div class="reveal">
+      <span class="tag">Why Memwright</span>
+      <h2 class="section-headline">No LLM in retrieval. No framework lock-in.<br>No vendor bill. Just memory.</h2>
+    </div>
+    <div class="why-grid">
+      <div class="why-card reveal">
+        <h3>Zero config</h3>
+        <p><code>poetry add memwright</code>. Two commands. Done. No Docker, no database, no API keys. SQLite + ChromaDB + NetworkX provision automatically.</p>
+      </div>
+      <div class="why-card reveal">
+        <h3>Token-budget aware</h3>
+        <p><code>memory_recall(query, budget=2000)</code> &mdash; the only memory system that asks "how much space do you have?" before answering. Month 1 and month 12 cost the same.</p>
+      </div>
+      <div class="why-card reveal">
+        <h3>No hidden LLM calls</h3>
+        <p>Tag matching, graph traversal, vector search, RRF fusion. All algorithmic. Same query = same results. Every time. No GPT calls on every add like Mem0.</p>
+      </div>
+      <div class="why-card reveal">
+        <h3>Contradiction handling</h3>
+        <p>"User works at Google" auto-supersedes "User works at Meta." Full history preserved. Zero inference calls. No vector similarity coin-flip.</p>
+      </div>
+      <div class="why-card reveal">
+        <h3>Multi-agent native</h3>
+        <p>Namespace isolation, 6 RBAC roles, provenance tracking, write quotas, token budgets. Built for orchestrated pipelines, not bolted on.</p>
+      </div>
+      <div class="why-card reveal">
+        <h3>Runs everywhere</h3>
+        <p>Your laptop, AWS App Runner, GCP Cloud Run, Azure Container Apps. PostgreSQL, ArangoDB, or bare SQLite. Same API. Same results.</p>
       </div>
     </div>
   </div>
 </section>
 
-<div class="glow-line"></div>
-
 <!-- ═══════════════════════════════════════════════════
-     THE ONE PROBLEM
+     4. VS COMPETITION
      ═══════════════════════════════════════════════════ -->
-<section id="problem" class="section-alt">
+<section id="compare">
   <div class="container">
-    <div class="section-tag reveal">Our Mission</div>
-    <h2 class="section-title reveal reveal-delay-1">We hate dementia. We can't cure it in humans.<br>But we will cure it in AI.</h2>
-    <div class="problem-statement reveal reveal-delay-2">
-      <p>Every AI agent built today has the same disease. It forgets. Not gradually. Not partially. Completely. Every session. Every time.</p>
-      <p>Four hours of debugging a database migration, thirty back-and-forth messages about schema evolution, a breakthrough at 11pm — and then you close the terminal. Tomorrow morning, your agent has no idea any of it happened.</p>
-      <p>This isn't a feature gap. It's a fundamental failure of how agents are built.</p>
-      <div class="problem-bold">We solve one problem: agent memory.</div>
-      <p>Not retrieval. Not orchestration. Not prompt engineering. Memory. The ability to store what matters, forget what doesn't, find what's relevant, and never pollute the context window with noise.</p>
-      <ul class="problem-list">
-        <li>We solve it for the solo developer using Claude Code on a laptop.</li>
-        <li>We solve it for the team running AI agents on AWS.</li>
-        <li>We solve it for the enterprise with compliance requirements on Azure.</li>
-        <li>We solve it for the startup deploying on GCP.</li>
-        <li>We solve it for the architect who picked ArangoDB because they're tired of stitching together three databases.</li>
-      </ul>
-      <div class="problem-bold">One problem. One tool. Every environment.</div>
+    <div class="reveal">
+      <span class="tag">Honest Comparison</span>
+      <h2 class="section-headline">We're not the only option.<br>We're the only free, standalone, fast one.</h2>
     </div>
 
-    <!-- Context Window Comparison -->
-    <div class="context-comparison reveal">
-      <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Why MEMORY.md breaks at scale</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:1rem 0">
-        <div style="background:var(--bg-card);border-radius:12px;padding:1rem 1.25rem;border:1px solid var(--border-subtle)">
-          <p style="font-size:13px;font-weight:500;color:var(--accent-red);margin:0 0 12px">MEMORY.md approach</p>
-          <div style="display:flex;flex-direction:column;gap:6px;font-family:var(--font-mono);font-size:12px">
-            <div style="padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid var(--border-subtle);color:var(--text-secondary)">System prompt</div>
-            <div style="padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid var(--border-subtle);color:var(--text-secondary)">CLAUDE.md</div>
-            <div style="padding:10px 10px;border-radius:6px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);color:var(--accent-red);font-weight:500;position:relative">
-              MEMORY.md — ALL of it, every message
-              <div style="font-weight:400;font-size:11px;margin-top:4px;opacity:.7">grows forever → 15K tokens by month 6</div>
-              <div style="position:absolute;right:8px;top:8px;font-size:18px;opacity:.3">↕</div>
-            </div>
-            <div style="padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid var(--border-subtle);color:var(--text-secondary)">User message</div>
-          </div>
-        </div>
-        <div style="background:var(--bg-card);border-radius:12px;padding:1rem 1.25rem;border:1px solid var(--border-subtle)">
-          <p style="font-size:13px;font-weight:500;color:var(--accent-green);margin:0 0 12px">Memwright approach</p>
-          <div style="display:flex;flex-direction:column;gap:6px;font-family:var(--font-mono);font-size:12px">
-            <div style="padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid var(--border-subtle);color:var(--text-secondary)">System prompt</div>
-            <div style="padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid var(--border-subtle);color:var(--text-secondary)">CLAUDE.md</div>
-            <div style="padding:6px 10px;border-radius:6px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.25);color:var(--accent-green);font-weight:500">
-              memory_recall → 2K tokens max
-            </div>
-            <div style="padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid var(--border-subtle);color:var(--text-secondary)">User message</div>
-          </div>
-          <div style="margin-top:12px;padding:10px;border-radius:6px;border:1px dashed rgba(129,140,248,0.15);font-size:12px;color:var(--text-secondary)">
-            <span style="font-size:11px;opacity:.6">↓ On disk (never in context)</span><br>
-            10,000 memories · 10,000 vectors · 500 entities
-          </div>
-        </div>
-      </div>
-      <!-- Token cost over time -->
-      <div style="padding:0 0 .5rem">
-        <p style="font-size:13px;font-weight:500;margin:0 0 10px;color:var(--text-secondary)">Token cost per message over time</p>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <div style="display:grid;grid-template-columns:60px 1fr 1fr;gap:8px;align-items:center;font-family:var(--font-mono);font-size:12px">
-            <span style="text-align:right;color:var(--text-muted)">Month 1</span>
-            <div style="height:22px;background:rgba(129,140,248,0.06);border-radius:4px;overflow:hidden"><div style="width:13%;height:100%;border-radius:4px;background:var(--accent-red);opacity:.6;display:flex;align-items:center;padding-left:6px;color:#fff;font-size:11px">2K</div></div>
-            <div style="height:22px;background:rgba(129,140,248,0.06);border-radius:4px;overflow:hidden"><div style="width:13%;height:100%;border-radius:4px;background:var(--accent-green);opacity:.7;display:flex;align-items:center;padding-left:6px;color:#fff;font-size:11px">2K</div></div>
-          </div>
-          <div style="display:grid;grid-template-columns:60px 1fr 1fr;gap:8px;align-items:center;font-family:var(--font-mono);font-size:12px">
-            <span style="text-align:right;color:var(--text-muted)">Month 3</span>
-            <div style="height:22px;background:rgba(129,140,248,0.06);border-radius:4px;overflow:hidden"><div style="width:53%;height:100%;border-radius:4px;background:var(--accent-red);opacity:.6;display:flex;align-items:center;padding-left:6px;color:#fff;font-size:11px">8K</div></div>
-            <div style="height:22px;background:rgba(129,140,248,0.06);border-radius:4px;overflow:hidden"><div style="width:13%;height:100%;border-radius:4px;background:var(--accent-green);opacity:.7;display:flex;align-items:center;padding-left:6px;color:#fff;font-size:11px">2K</div></div>
-          </div>
-          <div style="display:grid;grid-template-columns:60px 1fr 1fr;gap:8px;align-items:center;font-family:var(--font-mono);font-size:12px">
-            <span style="text-align:right;color:var(--text-muted)">Month 6</span>
-            <div style="height:22px;background:rgba(129,140,248,0.06);border-radius:4px;overflow:hidden"><div style="width:100%;height:100%;border-radius:4px;background:var(--accent-red);opacity:.6;display:flex;align-items:center;padding-left:6px;color:#fff;font-size:11px">15K</div></div>
-            <div style="height:22px;background:rgba(129,140,248,0.06);border-radius:4px;overflow:hidden"><div style="width:13%;height:100%;border-radius:4px;background:var(--accent-green);opacity:.7;display:flex;align-items:center;padding-left:6px;color:#fff;font-size:11px">2K</div></div>
-          </div>
-          <div style="display:flex;gap:16px;font-size:12px;color:var(--text-muted);margin-top:4px;padding-left:68px">
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent-red);opacity:.6"></span> MEMORY.md</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent-green);opacity:.7"></span> Memwright</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="glow-line"></div>
-
-<!-- ═══════════════════════════════════════════════════
-     RUNS EVERYWHERE
-     ═══════════════════════════════════════════════════ -->
-<section id="everywhere">
-  <div class="container">
-    <div class="section-tag reveal">Runs Everywhere</div>
-    <h2 class="section-title reveal reveal-delay-1">Your laptop. Your cloud. Your air-gapped server.<br>We don't care. It just works.</h2>
-    <p class="section-subtitle reveal reveal-delay-2">Most agent memory systems pick a lane. Memwright picks <em>your</em> lane.</p>
-
-    <div class="carousel-wrapper reveal reveal-delay-3">
-      <div class="carousel" id="platformCarousel">
-
-        <!-- Local -->
-        <div class="carousel-card">
-          <div class="carousel-card-icon">💻</div>
-          <h3>On Your Laptop</h3>
-          <div class="card-tagline">Zero Everything</div>
-          <p>No Docker. No API keys. No cloud account. No database server. Nothing. SQLite + ChromaDB + NetworkX auto-provision from thin air.</p>
-          <div class="card-who">Solo developers, side projects, proof of concepts.</div>
-          <pre>$ poetry add memwright
-$ claude mcp add memory -- memwright mcp</pre>
-        </div>
-
-        <!-- AWS -->
-        <div class="carousel-card">
-          <div class="carousel-card-icon">☁️</div>
-          <h3>On AWS</h3>
-          <div class="card-tagline">ArangoDB Oasis + Lambda</div>
-          <p>ArangoDB Oasis on AWS us-east-1 handles all three roles — documents, vectors, and graphs. Deploy as a Lambda API with Terraform IaC. One engine, zero stitching.</p>
-          <div class="card-who">Teams on AWS who want a managed multi-model database.</div>
-          <pre>config={"backends": ["arangodb"]}</pre>
-        </div>
-
-        <!-- Azure -->
-        <div class="carousel-card">
-          <div class="carousel-card-icon">🔷</div>
-          <h3>On Azure</h3>
-          <div class="card-tagline">Compliance Already Said Yes</div>
-          <p>Cosmos DB with DiskANN vector indexing. Globally distributed. 99.999% SLA. Managed identity via DefaultAzureCredential.</p>
-          <div class="card-who">Regulated industries. Enterprise. CISO-approved.</div>
-          <pre>config={"backends": ["azure"]}</pre>
-        </div>
-
-        <!-- GCP -->
-        <div class="carousel-card">
-          <div class="carousel-card-icon">🌐</div>
-          <h3>On GCP</h3>
-          <div class="card-tagline">PostgreSQL with Built-In Brains</div>
-          <p>AlloyDB + Vertex AI text-embedding-005. 4x throughput. Server-side embeddings. No external API round trips.</p>
-          <div class="card-who">GCP-native teams. Application Default Credentials.</div>
-          <pre>config={"backends": ["gcp"]}</pre>
-        </div>
-
-        <!-- ArangoDB -->
-        <div class="carousel-card">
-          <div class="carousel-card-icon">🥑</div>
-          <h3>On ArangoDB</h3>
-          <div class="card-tagline">One Engine, Three Data Models</div>
-          <p>Documents, vectors, and graphs — natively. One engine. One query language. One transaction boundary. No Frankenstein stacks.</p>
-          <div class="card-who">Teams done stitching Pinecone + PostgreSQL + Neo4j.</div>
-          <pre>config={"backends": ["arangodb"]}</pre>
-        </div>
-
-        <!-- PostgreSQL -->
-        <div class="carousel-card">
-          <div class="carousel-card-icon">🐘</div>
-          <h3>On PostgreSQL</h3>
-          <div class="card-tagline">The One You Already Have</div>
-          <p>JSONB for documents. pgvector for semantic search. Apache AGE for graph queries (optional — degrades gracefully).</p>
-          <div class="card-who">Everyone. The default database of the AI era.</div>
-          <pre>config={"backends": ["postgres"]}</pre>
-        </div>
-
-        <!-- Lambda -->
-        <div class="carousel-card">
-          <div class="carousel-card-icon">⚡</div>
-          <h3>On AWS Lambda</h3>
-          <div class="card-tagline">Serverless API in Minutes</div>
-          <p>Starlette ASGI + Mangum handler. 8 REST endpoints. Terraform IaC for ECR, Lambda, and API Gateway. Lightweight Docker image — no torch, ArangoDB handles embeddings.</p>
-          <div class="card-who">Teams wanting a serverless memory API on AWS.</div>
-          <pre>./scripts/deploy-lambda.sh</pre>
-        </div>
-
-        <!-- Docker -->
-        <div class="carousel-card">
-          <div class="carousel-card-icon">🐳</div>
-          <h3>On Docker</h3>
-          <div class="card-tagline">On-Prem & Air-Gapped</div>
-          <p>Run ArangoDB or PostgreSQL in Docker on your own servers. Same config format. Same retrieval pipeline. Same results.</p>
-          <div class="card-who">Air-gapped networks. Defense. Healthcare. Finance.</div>
-          <pre>docker compose up -d</pre>
-        </div>
-
-      </div>
-      <div class="carousel-nav">
-        <button class="carousel-btn" onclick="scrollCarousel(-1)" aria-label="Previous">←</button>
-        <button class="carousel-btn" onclick="scrollCarousel(1)" aria-label="Next">→</button>
-      </div>
-    </div>
-
-    <!-- Integration table -->
-    <div class="reveal" style="margin-top: 3rem;">
-      <h3 style="font-size: 1.1rem; margin-bottom: 1rem;">Side-by-Side with Any Developer Tool</h3>
-      <table class="integration-table">
-        <thead><tr><th>Your Tool</th><th>How Memwright Connects</th></tr></thead>
+    <h3 class="table-sub-title reveal">Feature comparison</h3>
+    <div class="table-wrap reveal">
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="hl-col">Memwright</th>
+            <th>Mem0</th>
+            <th>Zep</th>
+            <th>Letta</th>
+            <th>OpenAI</th>
+            <th>LangChain</th>
+          </tr>
+        </thead>
         <tbody>
-          <tr><td>Claude Code</td><td>.mcp.json in project root or ~/.claude/.mcp.json globally</td></tr>
-          <tr><td>Cursor</td><td>.cursor/mcp.json</td></tr>
-          <tr><td>Windsurf</td><td>MCP config in settings</td></tr>
-          <tr><td>Your Python Agent</td><td>from agent_memory import AgentMemory</td></tr>
-          <tr><td>Any MCP Client</td><td>Standard stdio transport</td></tr>
+          <tr>
+            <td>LOCOMO</td>
+            <td class="hl-col highlight">81.2%</td>
+            <td>66.9%</td>
+            <td>~75%</td>
+            <td>74%</td>
+            <td>52.9%</td>
+            <td>&mdash;</td>
+          </tr>
+          <tr>
+            <td>Setup</td>
+            <td class="hl-col highlight">poetry add</td>
+            <td>API key</td>
+            <td>Neo4j</td>
+            <td>Docker+PG</td>
+            <td>ChatGPT only</td>
+            <td>Framework lock-in</td>
+          </tr>
+          <tr>
+            <td>Graph memory</td>
+            <td class="hl-col highlight">Free, all tiers</td>
+            <td>$249/mo Pro only</td>
+            <td>Yes, all tiers</td>
+            <td>Agent-managed</td>
+            <td>No</td>
+            <td>No</td>
+          </tr>
+          <tr>
+            <td>LLM in retrieval</td>
+            <td class="hl-col highlight">None (RRF + PageRank)</td>
+            <td>Yes (every add)</td>
+            <td>None</td>
+            <td>Yes (agent calls)</td>
+            <td>Unknown</td>
+            <td>Varies</td>
+          </tr>
+          <tr>
+            <td>Self-host</td>
+            <td class="hl-col highlight">Yes (zero config)</td>
+            <td>Yes</td>
+            <td>Via Graphiti</td>
+            <td>Docker required</td>
+            <td>No API access</td>
+            <td>Yes (OSS)</td>
+          </tr>
+          <tr>
+            <td>Cost floor</td>
+            <td class="hl-col highlight">$0 forever</td>
+            <td>$19/mo</td>
+            <td>$25/mo</td>
+            <td>$20/mo</td>
+            <td>N/A</td>
+            <td>Free</td>
+          </tr>
         </tbody>
       </table>
     </div>
+
+    <h3 class="table-sub-title reveal">Latency comparison (P50 recall)</h3>
+    <div class="table-wrap reveal">
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th>System</th>
+            <th>P50</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="highlight">Memwright (PG Docker)</td>
+            <td class="highlight">1.4ms</td>
+            <td>Full 3-layer pipeline, 81.2% LOCOMO</td>
+          </tr>
+          <tr>
+            <td>Ruflo</td>
+            <td>2&ndash;3ms</td>
+            <td>Vector lookup only, not full retrieval</td>
+          </tr>
+          <tr>
+            <td class="highlight">Memwright (local)</td>
+            <td class="highlight">9ms</td>
+            <td>Zero-config, no Docker, no API keys</td>
+          </tr>
+          <tr>
+            <td class="highlight">Memwright (GCP Cloud Run)</td>
+            <td class="highlight">156ms</td>
+            <td>Full cloud API, scale-to-zero</td>
+          </tr>
+          <tr>
+            <td>Mem0</td>
+            <td>200ms</td>
+            <td>LLM in retrieval path</td>
+          </tr>
+          <tr>
+            <td>Zep</td>
+            <td>&lt;200ms</td>
+            <td>P95 ~632ms under concurrency</td>
+          </tr>
+          <tr>
+            <td>Mem0 Graph</td>
+            <td>660ms</td>
+            <td>Graph variant, much slower</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="comp-footnote reveal">LOCOMO scores are self-reported across vendors. Latency measured with full 3-layer pipeline (tag + graph + vector). Run yours: <code style="font-family:var(--font-mono);font-size:12px;background:rgba(110,231,183,0.08);color:var(--accent);padding:2px 6px;border-radius:3px;">memwright locomo</code></p>
   </div>
 </section>
 
-<div class="glow-line"></div>
-
 <!-- ═══════════════════════════════════════════════════
-     THREE AUDIENCES
+     5. HOW IT WORKS
      ═══════════════════════════════════════════════════ -->
-<section id="audiences" class="section-alt">
+<section id="how">
   <div class="container">
-    <div class="section-tag reveal">Who It's For</div>
-    <h2 class="section-title reveal reveal-delay-1">Developer productivity. Production intelligence.<br>Cost elimination.</h2>
-    <p class="section-subtitle reveal reveal-delay-2">Pick your entry point.</p>
-
-    <div class="audience-grid">
-      <div class="audience-card reveal">
-        <div class="audience-icon">🛠</div>
-        <h3>For the Developer</h3>
-        <p>Stop repeating yourself. Memwright remembers your architecture, conventions, and decisions. SessionStart injects relevant context. PostToolUse captures decisions automatically. Your next session starts where the last one ended — not from zero.</p>
-        <div class="audience-metric">2–5 hours saved per week on context-setting</div>
-      </div>
-      <div class="audience-card reveal reveal-delay-1">
-        <div class="audience-icon">🧠</div>
-        <h3>For the Production Agent</h3>
-        <p>Your production agent gets long-term memory. Recall with token budgets — 2K most relevant tokens, not 15K noise. PageRank-weighted entity traversal. Confidence decay over time. MMR diversity to avoid redundancy. An agent that actually gets smarter over time.</p>
-        <div class="audience-metric">6-signal scoring: tag + graph + vector + PageRank + confidence + MMR</div>
-      </div>
-      <div class="audience-card reveal reveal-delay-2">
-        <div class="audience-icon">💰</div>
-        <h3>For the Organization</h3>
-        <p>Mem0 Pro: $249/month. Zep Cloud: $25/month. Embedding APIs: $2,000/month. Memwright: $0/month. Forever. Local embeddings. SQLite storage. Your existing cloud databases when you scale.</p>
-        <div class="audience-metric">$0/month — use infra you already pay for</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="glow-line"></div>
-
-<!-- ═══════════════════════════════════════════════════
-     BENCHMARKS
-     ═══════════════════════════════════════════════════ -->
-<section id="benchmarks">
-  <div class="container">
-    <div class="section-tag reveal">Prove It Yourself</div>
-    <h2 class="section-title reveal reveal-delay-1">Don't trust benchmarks. Run yours.</h2>
-    <p class="section-subtitle reveal reveal-delay-2">We shipped the benchmarks. Run them on your infrastructure, your data, your network latency.</p>
-
-    <div class="bench-chart reveal reveal-delay-3" id="benchChart">
-      <div class="bench-row">
-        <div class="bench-label">MemMachine</div>
-        <div class="bench-bar-wrap"><div class="bench-bar bench-bar-other" data-width="84.9">84.9%</div></div>
-      </div>
-      <div class="bench-row bench-highlight">
-        <div class="bench-label">Memwright</div>
-        <div class="bench-bar-wrap"><div class="bench-bar bench-bar-memwright" data-width="81.2">81.2%</div></div>
-      </div>
-      <div class="bench-row">
-        <div class="bench-label">Zep</div>
-        <div class="bench-bar-wrap"><div class="bench-bar bench-bar-other" data-width="75">~75%</div></div>
-      </div>
-      <div class="bench-row">
-        <div class="bench-label">Letta</div>
-        <div class="bench-bar-wrap"><div class="bench-bar bench-bar-other" data-width="74">74.0%</div></div>
-      </div>
-      <div class="bench-row">
-        <div class="bench-label">Mem0</div>
-        <div class="bench-bar-wrap"><div class="bench-bar bench-bar-other" data-width="66.9">66.9%</div></div>
-      </div>
-      <div class="bench-row">
-        <div class="bench-label">OpenAI Memory</div>
-        <div class="bench-bar-wrap"><div class="bench-bar bench-bar-other" data-width="52.9">52.9%</div></div>
-      </div>
+    <div class="reveal">
+      <span class="tag">How It Works</span>
+      <h2 class="section-headline">10,000 memories on disk.<br>Only the best 4 enter your context window.</h2>
+      <p class="section-sub">MEMORY.md dumps everything into context. Every line. Every message. Memwright stores memories in a separate process &mdash; SQLite + ChromaDB + NetworkX, on disk. Your context window never sees a memory until Claude calls <code style="font-family:var(--font-mono);font-size:14px;background:rgba(110,231,183,0.08);color:var(--accent);padding:2px 6px;border-radius:3px;">memory_recall</code>.</p>
     </div>
 
-    <p class="reveal" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem; text-align: center;">LOCOMO benchmark. All scores self-reported. Methodology disputed across the industry.</p>
-
-    <!-- Competitive Landscape Comparison -->
-    <div class="competitive-table-wrapper reveal" style="margin-top: 2.5rem;">
-      <h3 style="font-size: 1rem; margin-bottom: 1rem;">Competitive Landscape</h3>
-      <div style="padding:.5rem 0">
-        <div style="display:grid;grid-template-columns:1fr;gap:1px;font-size:13px;border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden">
-          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;background:var(--bg-secondary);font-weight:500;font-size:12px">
-            <div style="padding:10px 12px;color:var(--text-muted)"></div>
-            <div style="padding:10px 8px;color:var(--text-muted)">Setup</div>
-            <div style="padding:10px 8px;color:var(--text-muted)">Graph memory</div>
-            <div style="padding:10px 8px;color:var(--text-muted)">LLM in retrieval</div>
-            <div style="padding:10px 8px;color:var(--text-muted)">Self-host</div>
-            <div style="padding:10px 8px;color:var(--text-muted)">Cost floor</div>
-          </div>
-          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;background:var(--bg-card);border-top:2px solid var(--accent-indigo)">
-            <div style="padding:10px 12px;font-weight:500;color:var(--accent-indigo)">Memwright</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">poetry add</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Free, all tiers</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">None (PageRank + RRF)</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Yes (zero config)</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-weight:500;font-size:12px">$0 forever</div>
-          </div>
-          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;background:var(--bg-card);border-top:1px solid var(--border-subtle)">
-            <div style="padding:10px 12px;font-weight:500;font-size:12px">Mem0</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">API key required</div>
-            <div style="padding:10px 8px;color:var(--accent-red);font-size:12px">$249/mo (Pro only)</div>
-            <div style="padding:10px 8px;color:var(--accent-red);font-size:12px">Yes (every add)</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">Yes</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">$19/mo</div>
-          </div>
-          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;background:var(--bg-card);border-top:1px solid var(--border-subtle)">
-            <div style="padding:10px 12px;font-weight:500;font-size:12px">Zep</div>
-            <div style="padding:10px 8px;color:var(--accent-red);font-size:12px">Neo4j required</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Yes, all tiers</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">None</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">Via Graphiti</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">$25/mo</div>
-          </div>
-          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;background:var(--bg-card);border-top:1px solid var(--border-subtle)">
-            <div style="padding:10px 12px;font-weight:500;font-size:12px">Letta</div>
-            <div style="padding:10px 8px;color:var(--accent-red);font-size:12px">Docker + PostgreSQL</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">Agent-managed</div>
-            <div style="padding:10px 8px;color:var(--accent-red);font-size:12px">Yes (agent calls)</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">Docker required</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">$20/mo</div>
-          </div>
-          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;background:var(--bg-card);border-top:1px solid var(--border-subtle)">
-            <div style="padding:10px 12px;font-weight:500;font-size:12px">OpenAI</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">ChatGPT only</div>
-            <div style="padding:10px 8px;color:var(--accent-red);font-size:12px">No</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">Unknown</div>
-            <div style="padding:10px 8px;color:var(--accent-red);font-size:12px">No API access</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">N/A</div>
-          </div>
-          <div style="display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;background:var(--bg-card);border-top:1px solid var(--border-subtle)">
-            <div style="padding:10px 12px;font-weight:500;font-size:12px">LangChain</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">Framework lock-in</div>
-            <div style="padding:10px 8px;color:var(--accent-red);font-size:12px">No</div>
-            <div style="padding:10px 8px;color:var(--text-secondary);font-size:12px">Varies</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Yes (OSS)</div>
-            <div style="padding:10px 8px;color:var(--accent-green);font-size:12px">Free</div>
-          </div>
-        </div>
-        <p style="font-size:12px;color:var(--text-muted);margin:8px 0 0">Memwright: free graph memory, zero LLM calls in retrieval, zero setup, runs on infra you already pay for.</p>
-      </div>
-    </div>
-
-    <!-- Benchmark commands -->
-    <div class="reveal" style="margin-top: 3rem;">
-      <h3 style="font-size: 1rem; margin-bottom: 1rem;">Run It Yourself</h3>
-      <div class="code-block">$ memwright locomo --max-conversations 1 --max-questions 5 --verbose
-$ memwright locomo --backend arangodb --backend-config '{"url": "https://..."}'
-$ memwright mab --backend postgres --backend-config '{"url": "postgresql://..."}'
-$ memwright doctor ~/.memwright
-$ ./scripts/bench-lambda.sh   # benchmark your Lambda deployment</div>
-    </div>
-  </div>
-</section>
-
-<div class="glow-line"></div>
-
-<!-- ═══════════════════════════════════════════════════
-     HOW IT WORKS
-     ═══════════════════════════════════════════════════ -->
-<section id="how-it-works" class="section-alt">
-  <div class="container">
-    <div class="section-tag reveal">Under the Hood</div>
-    <h2 class="section-title reveal reveal-delay-1">Three retrieval layers. Six scoring signals.<br>Zero LLM calls.</h2>
-    <p class="section-subtitle reveal reveal-delay-2">Vector search alone finds what's similar. Not what's relevant. Not what's recent. Not what's correct. We run three layers in parallel, score with PageRank + confidence decay + MMR diversity, and deduplicate by content hash. Every query. Every time.</p>
-
-    <!-- Retrieval Pipeline Diagram -->
-    <div class="retrieval-flow">
-      <div class="flow-step reveal">
-        <div class="flow-icon flow-icon-1">🏷️</div>
-        <div class="flow-body">
-          <h3>Layer 1: Tag Match</h3>
-          <div class="flow-engine">SQLite</div>
-          <p>Exact and partial tag hits. Fast. Deterministic. The foundation of every query.</p>
+    <div class="pipeline reveal">
+      <div class="pipeline-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Tag Match</div>
+          <div class="step-engine">SQLite</div>
+          <div class="step-desc">Exact and partial tag hits. Fast. Deterministic.</div>
         </div>
       </div>
-      <div class="flow-step reveal reveal-delay-1">
-        <div class="flow-icon flow-icon-2">🕸️</div>
-        <div class="flow-body">
-          <h3>Layer 2: Graph Expansion</h3>
-          <div class="flow-engine">NetworkX</div>
-          <p>Multi-hop entity traversal. Query "Python" and find "FastAPI," "Django," "pip" through graph edges.</p>
+      <div class="pipeline-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Graph Expansion</div>
+          <div class="step-engine">NetworkX</div>
+          <div class="step-desc">Multi-hop BFS. Query "Python" finds "FastAPI," "Django," "pip" through graph edges.</div>
         </div>
       </div>
-      <div class="flow-step reveal reveal-delay-2">
-        <div class="flow-icon flow-icon-3">🔮</div>
-        <div class="flow-body">
-          <h3>Layer 3: Vector Search</h3>
-          <div class="flow-engine">ChromaDB</div>
-          <p>Semantic similarity for when exact matches miss. Catches meaning, not just keywords.</p>
+      <div class="pipeline-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Vector Search</div>
+          <div class="step-engine">ChromaDB</div>
+          <div class="step-desc">Semantic similarity for when exact matches miss.</div>
         </div>
       </div>
-      <div class="flow-step reveal reveal-delay-3">
-        <div class="flow-icon flow-icon-4">⚡</div>
-        <div class="flow-body">
-          <h3>Fusion + Scoring</h3>
-          <div class="flow-engine">RRF or Graph-Aware Blend · PageRank · Confidence Decay</div>
-          <p>RRF fuses multi-layer results. PageRank boosts well-connected entities. Confidence decays over time (-0.001/hr) and boosts on access (+0.03). Switch to graph-aware blend for entity-heavy workloads.</p>
+      <div class="pipeline-step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">RRF Fusion + Scoring</div>
+          <div class="step-engine">PageRank + Confidence Decay</div>
+          <div class="step-desc">Memories found by multiple layers score dramatically higher.</div>
         </div>
       </div>
-      <div class="flow-step reveal reveal-delay-4">
-        <div class="flow-icon flow-icon-5">🎯</div>
-        <div class="flow-body">
-          <h3>MMR Diversity + Budget Fitting</h3>
-          <div class="flow-engine">Maximal Marginal Relevance · Token Budget Control</div>
-          <p>MMR eliminates near-duplicate results via Jaccard similarity. Then budget fitting packs the top memories into your 2K token window. The other 9,996 memories never enter context.</p>
+      <div class="pipeline-step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">MMR Diversity + Budget Fitting</div>
+          <div class="step-engine">Maximal Marginal Relevance</div>
+          <div class="step-desc">Eliminates near-duplicates. Packs top memories into your token budget. The other 9,996 never enter context.</div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<div class="glow-line"></div>
-
 <!-- ═══════════════════════════════════════════════════
-     8 MCP TOOLS
+     6. RUNS EVERYWHERE
      ═══════════════════════════════════════════════════ -->
-<section id="tools">
+<section id="platforms">
   <div class="container">
-    <div class="section-tag reveal">8 MCP Tools</div>
-    <h2 class="section-title reveal reveal-delay-1">Standard protocol. Full control. Any client.</h2>
+    <div class="reveal">
+      <span class="tag">Runs Everywhere</span>
+      <h2 class="section-headline">Your laptop. Your cloud. Your air-gapped server.<br>It just works.</h2>
+      <p class="section-sub">Most memory systems pick a lane. Memwright picks yours.</p>
+    </div>
 
-    <div class="tools-grid">
-      <div class="tool-card reveal">
-        <div class="tool-name">memory_add</div>
-        <div class="tool-desc">Store a fact with tags, category, entity, confidence</div>
+    <div class="carousel-wrap reveal">
+      <div class="carousel" id="carousel">
+        <div class="carousel-card">
+          <span class="carousel-card-icon">&#x1F4BB;</span>
+          <h3>Local</h3>
+          <p>SQLite + ChromaDB + NetworkX. Zero config. No network. No Docker. Works on macOS, Linux, Windows. Air-gapped friendly.</p>
+        </div>
+        <div class="carousel-card">
+          <span class="carousel-card-icon">&#x2601;</span>
+          <h3>AWS</h3>
+          <p>App Runner with Starlette ASGI. Terraform templates included. Auto-scaling, HTTPS, custom domains. Full API compatibility.</p>
+        </div>
+        <div class="carousel-card">
+          <span class="carousel-card-icon">&#x2601;</span>
+          <h3>Azure</h3>
+          <p>Container Apps with Cosmos DB. Terraform templates included. Scale-to-zero. Same API, same results, Microsoft cloud.</p>
+        </div>
+        <div class="carousel-card">
+          <span class="carousel-card-icon">&#x2601;</span>
+          <h3>GCP</h3>
+          <p>Cloud Run with AlloyDB. Terraform templates included. Scale-to-zero. 156ms P50. Google's managed infrastructure.</p>
+        </div>
+        <div class="carousel-card">
+          <span class="carousel-card-icon">&#x1F4CA;</span>
+          <h3>ArangoDB</h3>
+          <p>Multi-model database for graph + document + vector in one. ArangoDB Oasis on AWS or self-hosted. Native graph traversal.</p>
+        </div>
+        <div class="carousel-card">
+          <span class="carousel-card-icon">&#x1F418;</span>
+          <h3>PostgreSQL</h3>
+          <p>pgvector + AGE graph extension. 1.4ms P50 recall. Neon serverless or any Postgres. The fastest backend available.</p>
+        </div>
+        <div class="carousel-card">
+          <span class="carousel-card-icon">&#x1F4E6;</span>
+          <h3>Docker / On-Prem</h3>
+          <p>Dockerfile included. Run anywhere containers run. Air-gapped deployments. Full control over your data and infrastructure.</p>
+        </div>
       </div>
-      <div class="tool-card reveal reveal-delay-1">
-        <div class="tool-name">memory_recall</div>
-        <div class="tool-desc">3-layer retrieval with token budget. The core tool.</div>
-      </div>
-      <div class="tool-card reveal reveal-delay-1">
-        <div class="tool-name">memory_search</div>
-        <div class="tool-desc">Filter by category, entity, status, date range</div>
-      </div>
-      <div class="tool-card reveal reveal-delay-2">
-        <div class="tool-name">memory_get</div>
-        <div class="tool-desc">Fetch one memory by ID</div>
-      </div>
-      <div class="tool-card reveal reveal-delay-2">
-        <div class="tool-name">memory_forget</div>
-        <div class="tool-desc">Archive (never delete, just supersede)</div>
-      </div>
-      <div class="tool-card reveal reveal-delay-3">
-        <div class="tool-name">memory_timeline</div>
-        <div class="tool-desc">Chronological entity history</div>
-      </div>
-      <div class="tool-card reveal reveal-delay-3">
-        <div class="tool-name">memory_stats</div>
-        <div class="tool-desc">Store size, counts, graph nodes</div>
-      </div>
-      <div class="tool-card reveal reveal-delay-4">
-        <div class="tool-name">memory_health</div>
-        <div class="tool-desc">Health check across all 4 components</div>
+      <div class="carousel-nav">
+        <button class="carousel-btn" onclick="scrollCarousel(-1)" aria-label="Scroll left">&#8592;</button>
+        <button class="carousel-btn" onclick="scrollCarousel(1)" aria-label="Scroll right">&#8594;</button>
       </div>
     </div>
+    <p class="platforms-bottom reveal">You're already paying for the brain. Memwright gives it a memory &mdash; on infrastructure you already own.</p>
   </div>
 </section>
 
-<div class="glow-line"></div>
-
 <!-- ═══════════════════════════════════════════════════
-     MULTI-AGENT SUPPORT
+     7. QUICK START
      ═══════════════════════════════════════════════════ -->
-<section id="multi-agent" class="section-alt">
+<section id="quickstart">
   <div class="container">
-    <div class="section-tag reveal">Multi-Agent</div>
-    <h2 class="section-title reveal reveal-delay-1">Namespace isolation. RBAC. Provenance.<br>Built for orchestrated pipelines.</h2>
-    <p class="section-subtitle reveal reveal-delay-2">Every agent gets its own memory partition. Orchestrators control budgets. Researchers get read-only access. Every write is traced back to the agent that made it.</p>
+    <div class="reveal">
+      <span class="tag">Quick Start</span>
+      <h2 class="section-headline">Two minutes. Zero dollars. Full memory.</h2>
+    </div>
 
-    <div class="code-block reveal reveal-delay-3" style="margin-top:2.5rem;max-width:720px;line-height:1.7"><span style="color:var(--text-muted)"># Multi-agent pipeline with provenance + RBAC</span>
-<span style="color:var(--accent-purple)">from</span> agent_memory.context <span style="color:var(--accent-purple)">import</span> AgentContext, AgentRole
+    <div class="reveal">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'tab-mcp')">MCP Server</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-plugin')">Plugin</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-python')">Python API</button>
+      </div>
 
-ctx = AgentContext.from_env(
-    agent_id=<span style="color:var(--accent-green)">"orchestrator"</span>,
-    namespace=<span style="color:var(--accent-green)">"project:acme"</span>,
-    role=AgentRole.ORCHESTRATOR,
-    token_budget=<span style="color:var(--accent-amber)">20000</span>,
+      <div id="tab-mcp" class="tab-panel active">
+        <div class="code-block"><button class="code-copy-btn" onclick="copyCodeBlock(this)">Copy</button><span class="comment"># Install</span>
+<span class="cmd">$ poetry add memwright</span>
+
+<span class="comment"># Register the MCP server with Claude Code</span>
+<span class="cmd">$ claude mcp add memory -- memwright mcp</span>
+
+<span class="comment"># Done. Claude now has 8 memory tools:</span>
+<span class="comment"># memory_add, memory_recall, memory_search,</span>
+<span class="comment"># memory_timeline, memory_health, memory_relate,</span>
+<span class="comment"># memory_update, memory_delete</span></div>
+      </div>
+
+      <div id="tab-plugin" class="tab-panel">
+        <div class="code-block"><button class="code-copy-btn" onclick="copyCodeBlock(this)">Copy</button><span class="comment"># Install the package</span>
+<span class="cmd">$ poetry add memwright</span>
+
+<span class="comment"># Copy plugin files to your project</span>
+<span class="cmd">$ cp -r .claude-plugin/ your-project/.claude-plugin/</span>
+<span class="cmd">$ cp -r skills/ your-project/skills/</span>
+<span class="cmd">$ cp hooks/hooks.json your-project/hooks/hooks.json</span>
+
+<span class="comment"># The plugin provides:</span>
+<span class="comment"># - 3 skills: mem-recall, mem-timeline, mem-health</span>
+<span class="comment"># - 3 hooks: session-start, post-tool-use, stop</span>
+<span class="comment"># - Automatic memory capture and injection</span></div>
+      </div>
+
+      <div id="tab-python" class="tab-panel">
+        <div class="code-block"><button class="code-copy-btn" onclick="copyCodeBlock(this)">Copy</button><span class="keyword">from</span> <span class="fn">agent_memory</span> <span class="keyword">import</span> AgentMemory
+
+<span class="comment"># One line. Zero config. All backends auto-provision.</span>
+mem = <span class="fn">AgentMemory</span>(<span class="string">"./my-agent-memory"</span>)
+
+<span class="comment"># Add a memory</span>
+mem.<span class="fn">add</span>(
+    <span class="string">"User prefers TypeScript over JavaScript"</span>,
+    tags=[<span class="string">"preferences"</span>, <span class="string">"languages"</span>],
+    confidence=<span class="string">0.9</span>
 )
 
-<span style="color:var(--text-muted)"># Spawn isolated child contexts (immutable — returns new)</span>
-planner = ctx.as_agent(<span style="color:var(--accent-green)">"planner"</span>, role=AgentRole.PLANNER, token_budget=<span style="color:var(--accent-amber)">5000</span>)
-researcher = ctx.as_agent(<span style="color:var(--accent-green)">"researcher"</span>, role=AgentRole.RESEARCHER, read_only=<span style="color:var(--accent-amber)">True</span>)
+<span class="comment"># Recall with token budget</span>
+results = mem.<span class="fn">recall</span>(
+    <span class="string">"What languages does the user prefer?"</span>,
+    budget=<span class="string">2000</span>
+)
 
-<span style="color:var(--text-muted)"># Provenance auto-enriched on every write</span>
-planner.add_memory(<span style="color:var(--accent-green)">"Architecture: event sourcing"</span>, category=<span style="color:var(--accent-green)">"technical"</span>)
-
-<span style="color:var(--text-muted)"># Recall is namespace-scoped + cached within session</span>
-results = researcher.recall(<span style="color:var(--accent-green)">"architecture decisions"</span>)</div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:2.5rem">
-      <div class="principle-card reveal">
-        <h3>Namespace Isolation</h3>
-        <p>Each agent, project, or team gets its own memory partition. No cross-contamination.</p>
-      </div>
-      <div class="principle-card reveal reveal-delay-1">
-        <h3>6 RBAC Roles</h3>
-        <p>ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR. Read-only mode. Write quotas.</p>
-      </div>
-      <div class="principle-card reveal reveal-delay-1">
-        <h3>Full Provenance</h3>
-        <p>Agent trail, parent tracking, session IDs, visibility levels. Every write traced to its source.</p>
-      </div>
-      <div class="principle-card reveal reveal-delay-2">
-        <h3>Compliance Built In</h3>
-        <p>Review flags, compliance tags, session summaries for audit. SOC2-friendly by design.</p>
+<span class="comment"># Health check</span>
+mem.<span class="fn">health</span>()  <span class="comment"># SQLite OK, ChromaDB OK, NetworkX OK</span></div>
       </div>
     </div>
   </div>
 </section>
 
-<div class="glow-line"></div>
-
 <!-- ═══════════════════════════════════════════════════
-     PYTHON API
-     ═══════════════════════════════════════════════════ -->
-<section id="python-api">
-  <div class="container">
-    <div class="section-tag reveal">Python API</div>
-    <h2 class="section-title reveal reveal-delay-1">Not just MCP. A full Python library.</h2>
-    <p class="section-subtitle reveal reveal-delay-2">Import it. Use it. No server required. Same retrieval pipeline, same scoring, same contradiction handling — directly in your Python code.</p>
-
-    <div class="quickstart-steps" style="margin-top:2.5rem">
-      <div class="qs-step reveal">
-        <div class="qs-step-num">Store &amp; Recall</div>
-        <div class="code-block"><span style="color:var(--accent-purple)">from</span> agent_memory <span style="color:var(--accent-purple)">import</span> AgentMemory
-
-mem = AgentMemory(<span style="color:var(--accent-green)">"./my-agent"</span>)  <span style="color:var(--text-muted)"># auto-provisions everything</span>
-
-mem.add(<span style="color:var(--accent-green)">"User prefers Python over Java"</span>,
-        tags=[<span style="color:var(--accent-green)">"preference"</span>], category=<span style="color:var(--accent-green)">"preference"</span>)
-
-results = mem.recall(<span style="color:var(--accent-green)">"what language?"</span>, budget=<span style="color:var(--accent-amber)">2000</span>)
-context = mem.recall_as_context(<span style="color:var(--accent-green)">"user background"</span>, budget=<span style="color:var(--accent-amber)">4000</span>)</div>
-      </div>
-      <div class="qs-step reveal reveal-delay-1">
-        <div class="qs-step-num">Contradiction Handling</div>
-        <div class="code-block"><span style="color:var(--text-muted)"># Automatic supersession</span>
-mem.add(<span style="color:var(--accent-green)">"User works at Google"</span>, category=<span style="color:var(--accent-green)">"career"</span>)
-mem.add(<span style="color:var(--accent-green)">"User works at Meta"</span>, category=<span style="color:var(--accent-green)">"career"</span>)
-<span style="color:var(--text-muted)"># ^ Google memory auto-superseded</span>
-
-<span style="color:var(--text-muted)"># Maintenance</span>
-mem.forget(memory_id)               <span style="color:var(--text-muted)"># Archive</span>
-mem.forget_before(<span style="color:var(--accent-green)">"2025-01-01"</span>)    <span style="color:var(--text-muted)"># Archive old</span>
-mem.export_json(<span style="color:var(--accent-green)">"backup.json"</span>)     <span style="color:var(--text-muted)"># Export</span>
-mem.import_json(<span style="color:var(--accent-green)">"backup.json"</span>)     <span style="color:var(--text-muted)"># Import (dedup)</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="glow-line"></div>
-
-<!-- ═══════════════════════════════════════════════════
-     EMBEDDINGS
-     ═══════════════════════════════════════════════════ -->
-<section id="embeddings" class="section-alt">
-  <div class="container">
-    <div class="section-tag reveal">Embeddings</div>
-    <h2 class="section-title reveal reveal-delay-1">$0 embeddings by default.<br>Cloud-native when you want them.</h2>
-
-    <table class="embed-table reveal reveal-delay-2">
-      <thead>
-        <tr><th>Priority</th><th>Provider</th><th>When It Activates</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><span class="embed-priority">1</span></td>
-          <td>Cloud-native (Bedrock / Azure OpenAI / Vertex AI)</td>
-          <td>Cloud backend configured</td>
-        </tr>
-        <tr>
-          <td><span class="embed-priority">2</span></td>
-          <td>OpenAI / OpenRouter</td>
-          <td>API key in environment</td>
-        </tr>
-        <tr>
-          <td><span class="embed-priority">3</span></td>
-          <td>Local sentence-transformers (all-MiniLM-L6-v2)</td>
-          <td>Always. No key. No cost.</td>
-        </tr>
-      </tbody>
-    </table>
-    <p class="reveal reveal-delay-3" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 1.5rem;">The default path costs nothing. ~90MB one-time download. Embeddings computed locally in milliseconds.</p>
-  </div>
-</section>
-
-<div class="glow-line"></div>
-
-<!-- ═══════════════════════════════════════════════════
-     DESIGN PRINCIPLES
+     8. PRINCIPLES
      ═══════════════════════════════════════════════════ -->
 <section id="principles">
   <div class="container">
-    <div class="section-tag reveal">What We Believe</div>
-    <h2 class="section-title reveal reveal-delay-1">Opinionated. On purpose.</h2>
-
+    <div class="reveal">
+      <span class="tag">What We Believe</span>
+      <h2 class="section-headline">Opinionated. On purpose.</h2>
+    </div>
     <div class="principles-grid">
-      <div class="principle-card reveal">
-        <h3>Zero config beats configuration.</h3>
-        <p>AgentMemory("./path") creates everything. No init. No YAML. No wizard.</p>
-      </div>
-      <div class="principle-card reveal reveal-delay-1">
-        <h3>Degradation beats failure.</h3>
-        <p>If ChromaDB crashes, SQLite continues. If NetworkX fails, tags + vectors continue. You never lose memory because an optional layer broke.</p>
-      </div>
-      <div class="principle-card reveal reveal-delay-1">
-        <h3>History beats deletion.</h3>
-        <p>New facts supersede old ones. They never overwrite. Full audit trail. Always.</p>
-      </div>
-      <div class="principle-card reveal reveal-delay-2">
-        <h3>Math beats LLMs in the retrieval path.</h3>
-        <p>Every LLM call adds cost, latency, and non-determinism. We rank with algorithms. Same query, same results. Every time.</p>
-      </div>
-      <div class="principle-card reveal reveal-delay-2">
-        <h3>Dedup beats bloat.</h3>
-        <p>SHA-256 content hashing on every add() and import. Same content never stored twice. Your memory stays lean without manual cleanup.</p>
-      </div>
-      <div class="principle-card reveal reveal-delay-2">
-        <h3>Your disk beats their cloud.</h3>
-        <p>sqlite3 ~/.memwright/memory.db "SELECT * FROM memories LIMIT 10;" — see what your agent knows. Not an API call. The actual data.</p>
-      </div>
+      <div class="principle-card reveal"><p>Zero config beats configuration.</p></div>
+      <div class="principle-card reveal"><p>Degradation beats failure.</p></div>
+      <div class="principle-card reveal"><p>History beats deletion.</p></div>
+      <div class="principle-card reveal"><p>Math beats LLMs in retrieval.</p></div>
+      <div class="principle-card reveal"><p>Layers beat platforms.</p></div>
+      <div class="principle-card reveal"><p>Dedup beats bloat.</p></div>
+      <div class="principle-card reveal"><p>Your disk beats their cloud.</p></div>
     </div>
   </div>
 </section>
 
-<div class="glow-line"></div>
-
 <!-- ═══════════════════════════════════════════════════
-     QUICK START
-     ═══════════════════════════════════════════════════ -->
-<section id="quickstart" class="section-alt">
-  <div class="container">
-    <div class="section-tag reveal">Quick Start</div>
-    <h2 class="section-title reveal reveal-delay-1">One line. One minute. Zero dollars.</h2>
-
-    <div class="quickstart-steps">
-      <div class="qs-step reveal">
-        <div class="qs-step-num">Step 1 — Install &amp; Connect</div>
-        <div class="code-block">$ poetry add memwright
-$ claude mcp add memory -- memwright mcp</div>
-        <p style="margin-top: 0.75rem;">That's it. Restart your client. Approve the server once. Your agent now has 8 memory tools.</p>
-      </div>
-      <div class="qs-step reveal reveal-delay-1">
-        <div class="qs-step-num">Step 2 — Verify</div>
-        <div class="code-block">$ memwright doctor ~/.memwright</div>
-        <p style="margin-top: 0.75rem;">All 4 components healthy: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.</p>
-      </div>
-      <div class="qs-step reveal reveal-delay-2">
-        <div class="qs-step-num">Run as a Cloud Service</div>
-        <p>Deploy the same retrieval pipeline as an HTTP API on your cloud. Each script provisions all infrastructure via Terraform, builds a slim Docker image, deploys, and runs a health check.</p>
-        <p style="margin-top:0.5rem;font-weight:500;color:var(--accent-indigo)">Prerequisites: Docker, Terraform, cloud CLI, ArangoDB credentials in .env</p>
-        <div style="display:grid;gap:1.5rem;margin-top:1rem;">
-          <div class="code-block">$ ./scripts/deploy.sh aws      # Lambda + API Gateway (serverless)
-$ ./scripts/deploy.sh gcp      # Cloud Run (auto-scale 0–3)
-$ ./scripts/deploy.sh azure    # Container Apps (scale-to-zero)
-
-$ ./scripts/deploy.sh aws --teardown   # destroy everything</div>
-          <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;font-size:0.85rem">
-            <div><strong>AWS</strong><br>ECR + Lambda (2GB) + API Gateway<br><code>infra/lambda/main.tf</code></div>
-            <div><strong>GCP</strong><br>Artifact Registry + Cloud Run (2 CPU, 4GB)<br><code>infra/cloudrun/main.tf</code></div>
-            <div><strong>Azure</strong><br>ACR + Container Apps (2 CPU, 4GB)<br><code>infra/containerapp/main.tf</code></div>
-          </div>
-        </div>
-        <p style="margin-top: 1rem;">All three deploy the same Starlette ASGI API with ArangoDB backend. One script to deploy, one flag to teardown.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="glow-line"></div>
-
-<!-- ═══════════════════════════════════════════════════
-     TESTING
-     ═══════════════════════════════════════════════════ -->
-<section id="testing">
-  <div class="container">
-    <div class="section-tag reveal">Testing</div>
-    <h2 class="section-title reveal reveal-delay-1">Battle-tested. Zero Docker. Zero API keys.</h2>
-    <div class="stats-bar reveal reveal-delay-2">
-      <div class="stat">
-        <div class="stat-num">607</div>
-        <div class="stat-label">Unit Tests</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">14</div>
-        <div class="stat-label">Live Integration Tests</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">5</div>
-        <div class="stat-label">Cloud Backends Mocked</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">100%</div>
-        <div class="stat-label">Passing</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="glow-line"></div>
-
-<!-- ═══════════════════════════════════════════════════
-     CLI
-     ═══════════════════════════════════════════════════ -->
-<section id="cli" class="section-alt">
-  <div class="container">
-    <div class="section-tag reveal">CLI</div>
-    <h2 class="section-title reveal reveal-delay-1">19 commands. Full control from the terminal.</h2>
-    <p class="section-subtitle reveal reveal-delay-2">Both <code>memwright</code> and <code>agent-memory</code> work.</p>
-    <div class="cli-pills reveal reveal-delay-3">
-      <span class="cli-pill">init</span>
-      <span class="cli-pill">add</span>
-      <span class="cli-pill">recall</span>
-      <span class="cli-pill">search</span>
-      <span class="cli-pill">list</span>
-      <span class="cli-pill">timeline</span>
-      <span class="cli-pill">stats</span>
-      <span class="cli-pill">export</span>
-      <span class="cli-pill">import</span>
-      <span class="cli-pill">inspect</span>
-      <span class="cli-pill">compact</span>
-      <span class="cli-pill">forget</span>
-      <span class="cli-pill">doctor</span>
-      <span class="cli-pill">mcp</span>
-      <span class="cli-pill">locomo</span>
-      <span class="cli-pill">mab</span>
-      <span class="cli-pill">hook</span>
-    </div>
-  </div>
-</section>
-
-<div class="glow-line"></div>
-
-<!-- ═══════════════════════════════════════════════════
-     CLOSING
+     9. CLOSING
      ═══════════════════════════════════════════════════ -->
 <section id="closing">
   <div class="container">
-    <div class="closing-manifesto reveal">
-      <blockquote>We hate dementia. We can't solve it for humans. Not yet. But we can solve it for AI agents. And we did. Your laptop. Your cloud. Your air-gapped server. AWS. Azure. GCP. ArangoDB. PostgreSQL. Docker. Or nothing at all. One poetry add. One problem solved. Your agent never forgets.</blockquote>
-      <div class="closing-tagline reveal reveal-delay-1">Where there's an agent, there's Memwright.</div>
-      <div class="hero-ctas reveal reveal-delay-2" style="justify-content: center;">
-        <a href="https://github.com/bolnet/agent-memory" class="cta-github" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://pypi.org/project/memwright/" class="cta-pypi" target="_blank" rel="noopener">PyPI</a>
-        <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright" class="cta-mcp" target="_blank" rel="noopener">MCP Registry</a>
+    <div class="reveal">
+      <h2 class="section-headline">Two commands. Zero dollars.<br>Your agent remembers.</h2>
+      <div class="closing-install" onclick="copyToClipboard(this, 'poetry add memwright && claude mcp add memory -- memwright mcp')" title="Click to copy">
+        <span>$ poetry add memwright && claude mcp add memory -- memwright mcp</span>
+        <span class="copy-icon">&#x2398;</span>
       </div>
-      <p class="closing-meta reveal reveal-delay-3">Free. Open source. Apache 2.0.<br>Built by <a href="https://www.linkedin.com/in/surendrasingh/" target="_blank" rel="noopener">Surendra Singh</a> — 15 years in financial services technology.</p>
+      <p class="closing-sub">Free. Open source. Apache 2.0. Built by <a href="https://www.linkedin.com/in/surendrasingh/" target="_blank" rel="noopener">Surendra Singh</a> &mdash; 15 years in financial services technology.</p>
+      <div class="closing-ctas">
+        <a href="https://github.com/bolnet/agent-memory" class="btn btn-primary" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pypi.org/project/memwright/" class="btn btn-ghost" target="_blank" rel="noopener">PyPI</a>
+        <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright" class="btn btn-ghost" target="_blank" rel="noopener">MCP Registry</a>
+      </div>
     </div>
   </div>
 </section>
 
+<!-- ═══════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════ -->
 <footer>
   <div class="container">
-    <p>Memwright &copy; 2026. Apache 2.0 License.</p>
+    <p><a href="privacy.html">Privacy</a> &nbsp;&middot;&nbsp; <a href="https://github.com/bolnet/agent-memory/blob/main/LICENSE">License</a> &nbsp;&middot;&nbsp; <a href="https://github.com/bolnet/agent-memory" target="_blank" rel="noopener">GitHub</a></p>
   </div>
 </footer>
 
 <!-- ═══════════════════════════════════════════════════
-     SCRIPTS
+     JS
      ═══════════════════════════════════════════════════ -->
 <script>
-// Scroll reveal via IntersectionObserver
-const revealObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
+/* ── Nav scroll ── */
+(function() {
+  var nav = document.getElementById('nav');
+  var scrolled = false;
+  window.addEventListener('scroll', function() {
+    var shouldScroll = window.scrollY > 40;
+    if (shouldScroll !== scrolled) {
+      scrolled = shouldScroll;
+      nav.classList.toggle('scrolled', scrolled);
+    }
+  }, { passive: true });
+})();
+
+/* ── Scroll reveal ── */
+(function() {
+  var reveals = document.querySelectorAll('.reveal');
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        // Stagger children if inside a grid
+        var parent = entry.target.parentElement;
+        if (parent && (parent.classList.contains('why-grid') || parent.classList.contains('principles-grid'))) {
+          var siblings = parent.querySelectorAll('.reveal');
+          var idx = Array.prototype.indexOf.call(siblings, entry.target);
+          entry.target.style.transitionDelay = (idx * 80) + 'ms';
+        }
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  reveals.forEach(function(el) { observer.observe(el); });
+})();
+
+/* ── Token chart animation ── */
+(function() {
+  var chart = document.getElementById('tokenChart');
+  if (!chart) return;
+  var animated = false;
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting && !animated) {
+        animated = true;
+        var bars = chart.querySelectorAll('.chart-bar');
+        bars.forEach(function(bar) {
+          var w = bar.getAttribute('data-width');
+          setTimeout(function() {
+            bar.style.width = w + '%';
+          }, 100);
+        });
+        observer.unobserve(chart);
+      }
+    });
+  }, { threshold: 0.3 });
+  observer.observe(chart);
+})();
+
+/* ── Copy to clipboard ── */
+function copyToClipboard(el, text) {
+  navigator.clipboard.writeText(text).then(function() {
+    el.classList.add('copied');
+    var icon = el.querySelector('.copy-icon');
+    if (icon) {
+      var orig = icon.textContent;
+      icon.textContent = '\u2713';
+      setTimeout(function() {
+        icon.textContent = orig;
+        el.classList.remove('copied');
+      }, 2000);
     }
   });
-}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-
-document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
-
-// Benchmark bar animation
-const benchObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.querySelectorAll('.bench-bar').forEach(bar => {
-        const width = bar.dataset.width;
-        bar.style.width = width + '%';
-      });
-      benchObserver.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.3 });
-
-const benchChart = document.getElementById('benchChart');
-if (benchChart) benchObserver.observe(benchChart);
-
-// Carousel navigation
-function scrollCarousel(direction) {
-  const carousel = document.getElementById('platformCarousel');
-  const cardWidth = carousel.querySelector('.carousel-card').offsetWidth + 24; // gap
-  carousel.scrollBy({ left: direction * cardWidth, behavior: 'smooth' });
 }
 
-// Copy install command
-document.querySelector('.hero-install')?.addEventListener('click', function() {
-  navigator.clipboard.writeText('poetry add memwright && claude mcp add memory -- memwright mcp').then(() => {
-    const hint = this.querySelector('.copy-hint');
-    hint.textContent = 'Copied!';
-    hint.style.opacity = '1';
-    setTimeout(() => {
-      hint.textContent = 'Click to copy';
-      hint.style.opacity = '';
-    }, 2000);
+function copyCodeBlock(btn) {
+  var block = btn.parentElement;
+  var text = block.textContent.replace('Copy', '').trim();
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = 'Copied';
+    setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+
+/* ── Tab switching ── */
+function switchTab(e, tabId) {
+  var btns = document.querySelectorAll('.tab-btn');
+  var panels = document.querySelectorAll('.tab-panel');
+  btns.forEach(function(b) { b.classList.remove('active'); });
+  panels.forEach(function(p) { p.classList.remove('active'); });
+  e.currentTarget.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+/* ── Carousel ── */
+function scrollCarousel(dir) {
+  var carousel = document.getElementById('carousel');
+  var cardWidth = carousel.querySelector('.carousel-card').offsetWidth + 16;
+  carousel.scrollBy({ left: dir * cardWidth * 2, behavior: 'smooth' });
+}
+
+/* ── Smooth scroll for nav links ── */
+document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+  a.addEventListener('click', function(e) {
+    var target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      e.preventDefault();
+      var navHeight = document.getElementById('nav').offsetHeight;
+      window.scrollTo({
+        top: target.offsetTop - navHeight - 16,
+        behavior: 'smooth'
+      });
+      // Close mobile nav if open
+      document.getElementById('nav').classList.remove('mobile-open');
+    }
   });
 });
-
-// Nav background on scroll
-window.addEventListener('scroll', () => {
-  const nav = document.querySelector('nav');
-  if (window.scrollY > 50) {
-    nav.style.background = 'rgba(10, 10, 18, 0.95)';
-  } else {
-    nav.style.background = 'rgba(10, 10, 18, 0.8)';
-  }
-});
 </script>
-
 </body>
 </html>
