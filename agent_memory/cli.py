@@ -12,7 +12,58 @@ from pathlib import Path
 from agent_memory.core import AgentMemory
 
 
+class _SuppressModelNoise:
+    """Context manager to suppress noisy model loading output at fd level.
+
+    safetensors prints LOAD REPORT from Rust, bypassing Python's sys.stdout.
+    We must redirect at the OS file descriptor level to silence it.
+    """
+
+    def __enter__(self):
+        self._devnull_fd = os.open(os.devnull, os.O_WRONLY)
+        self._old_stdout_fd = os.dup(1)
+        self._old_stderr_fd = os.dup(2)
+        os.dup2(self._devnull_fd, 1)
+        os.dup2(self._devnull_fd, 2)
+        return self
+
+    def __exit__(self, *args):
+        os.dup2(self._old_stdout_fd, 1)
+        os.dup2(self._old_stderr_fd, 2)
+        os.close(self._devnull_fd)
+        os.close(self._old_stdout_fd)
+        os.close(self._old_stderr_fd)
+
+
+def _suppress_noisy_output():
+    """Set environment variables to suppress HuggingFace/safetensors noise."""
+    os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+    os.environ["SAFETENSORS_LOG_LEVEL"] = "error"
+    os.environ["HF_HUB_VERBOSITY"] = "error"
+    os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+    os.environ["HF_HUB_DISABLE_IMPLICIT_TOKEN"] = "1"
+    os.environ["TQDM_DISABLE"] = "1"
+
+    import logging
+    import warnings
+
+    warnings.filterwarnings("ignore")
+    for name in (
+        "sentence_transformers",
+        "transformers",
+        "huggingface_hub",
+        "chromadb",
+        "torch",
+        "safetensors",
+        "tqdm",
+    ):
+        logging.getLogger(name).setLevel(logging.CRITICAL)
+
+
 def main(argv=None):
+    _suppress_noisy_output()
     parser = argparse.ArgumentParser(
         prog="agent-memory",
         description="Embedded memory for AI agents.",
@@ -31,6 +82,11 @@ def main(argv=None):
         default=None,
         help="Print MCP config for a specific tool",
     )
+    p_init.add_argument(
+        "--hooks",
+        action="store_true",
+        help="Auto-configure Claude Code lifecycle hooks in settings.json",
+    )
 
     # add
     p_add = subparsers.add_parser("add", help="Add a memory")
@@ -39,12 +95,14 @@ def main(argv=None):
     p_add.add_argument("--tags", default="", help="Comma-separated tags")
     p_add.add_argument("--category", default="general", help="Category")
     p_add.add_argument("--entity", default=None, help="Entity name")
+    p_add.add_argument("--namespace", default="default", help="Namespace for isolation")
 
     # recall
     p_recall = subparsers.add_parser("recall", help="Recall relevant memories")
     p_recall.add_argument("path", help="Memory store path")
     p_recall.add_argument("query", help="Query string")
-    p_recall.add_argument("--budget", type=int, default=2000, help="Token budget")
+    p_recall.add_argument("--budget", type=int, default=16000, help="Token budget")
+    p_recall.add_argument("--namespace", default=None, help="Namespace filter")
 
     # search
     p_search = subparsers.add_parser("search", help="Search memories with filters")
@@ -54,6 +112,7 @@ def main(argv=None):
     p_search.add_argument("--entity", default=None, help="Filter by entity")
     p_search.add_argument("--status", default="active", help="Filter by status")
     p_search.add_argument("--limit", type=int, default=10, help="Max results")
+    p_search.add_argument("--namespace", default=None, help="Namespace filter")
 
     # list
     p_list = subparsers.add_parser("list", help="List memories")
@@ -61,11 +120,13 @@ def main(argv=None):
     p_list.add_argument("--status", default="active", help="Filter by status")
     p_list.add_argument("--category", default=None, help="Filter by category")
     p_list.add_argument("--limit", type=int, default=20, help="Max results")
+    p_list.add_argument("--namespace", default=None, help="Namespace filter")
 
     # timeline
     p_timeline = subparsers.add_parser("timeline", help="Show entity timeline")
     p_timeline.add_argument("path", help="Memory store path")
     p_timeline.add_argument("--entity", required=True, help="Entity name")
+    p_timeline.add_argument("--namespace", default=None, help="Namespace filter")
 
     # stats
     p_stats = subparsers.add_parser("stats", help="Show store statistics")
@@ -89,6 +150,15 @@ def main(argv=None):
     # compact
     p_compact = subparsers.add_parser("compact", help="Remove archived memories")
     p_compact.add_argument("path", help="Memory store path")
+
+    # update
+    p_update = subparsers.add_parser("update", help="Update a memory's content")
+    p_update.add_argument("path", help="Memory store path")
+    p_update.add_argument("memory_id", help="Memory ID to update")
+    p_update.add_argument("content", help="New content")
+    p_update.add_argument("--tags", default=None, help="New comma-separated tags")
+    p_update.add_argument("--category", default=None, help="New category")
+    p_update.add_argument("--entity", default=None, help="New entity name")
 
     # forget
     p_forget = subparsers.add_parser("forget", help="Archive a memory")
@@ -202,6 +272,7 @@ def main(argv=None):
         "import": _cmd_import,
         "inspect": _cmd_inspect,
         "compact": _cmd_compact,
+        "update": _cmd_update,
         "forget": _cmd_forget,
         "serve": _cmd_serve,
         "setup-claude-code": _cmd_setup_claude_code,
@@ -294,17 +365,22 @@ def _cmd_init(args):
         print()
         _print_mcp_config(tool, agent_memory_bin, abs_path)
 
+    # Auto-configure hooks
+    if args.hooks:
+        _configure_claude_hooks(agent_memory_bin)
+
     print("Run 'agent-memory doctor %s' to verify all components." % args.path)
 
 
 def _print_mcp_config(tool: str, binary: str, store_path: str):
     """Print MCP config for a specific tool."""
+    mcp_args = ["mcp", "--path", store_path]
     if tool == "claude-code":
         config = {
             "mcpServers": {
                 "memory": {
                     "command": binary,
-                    "args": ["serve", store_path],
+                    "args": mcp_args,
                 }
             }
         }
@@ -315,12 +391,50 @@ def _print_mcp_config(tool: str, binary: str, store_path: str):
             "mcpServers": {
                 "memory": {
                     "command": binary,
-                    "args": ["serve", store_path],
+                    "args": mcp_args,
                 }
             }
         }
         print(f"\nCursor -- add to .cursor/mcp.json:")
         print(json.dumps(config, indent=2))
+
+
+def _configure_claude_hooks(binary: str):
+    """Write Claude Code lifecycle hooks to ~/.claude/settings.json."""
+    settings_path = Path.home() / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+    settings: dict = {}
+    if settings_path.exists():
+        try:
+            settings = json.loads(settings_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    hooks = settings.setdefault("hooks", {})
+
+    hook_defs = {
+        "SessionStart": {"command": f"{binary} hook session-start"},
+        "PostToolUse": {"command": f"{binary} hook post-tool-use"},
+        "Stop": {"command": f"{binary} hook stop"},
+    }
+
+    for event, hook_cfg in hook_defs.items():
+        event_hooks = hooks.setdefault(event, [])
+        # Check if already configured
+        already = any(
+            h.get("command") == hook_cfg["command"]
+            for entry in event_hooks
+            for h in (entry.get("hooks", []) if isinstance(entry, dict) else [])
+        )
+        if not already:
+            event_hooks.append({"hooks": [{"type": "command", **hook_cfg}]})
+
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n")
+    print("\nClaude Code hooks configured in ~/.claude/settings.json")
+    print("  - SessionStart: injects relevant memories into context")
+    print("  - PostToolUse: auto-captures file changes and commands")
+    print("  - Stop: generates session summary")
 
 
 def _cmd_add(args):
@@ -331,13 +445,14 @@ def _cmd_add(args):
             tags=tags,
             category=args.category,
             entity=args.entity,
+            namespace=args.namespace,
         )
         print(f"Added memory {memory.id}: {memory.content}")
 
 
 def _cmd_recall(args):
     with AgentMemory(args.path) as mem:
-        results = mem.recall(args.query, budget=args.budget)
+        results = mem.recall(args.query, budget=args.budget, namespace=args.namespace)
         if not results:
             print("No relevant memories found.")
             return
@@ -354,6 +469,7 @@ def _cmd_search(args):
             query=args.query,
             category=args.category,
             entity=args.entity,
+            namespace=args.namespace,
             status=args.status,
             limit=args.limit,
         )
@@ -372,6 +488,7 @@ def _cmd_list(args):
         memories = mem.search(
             status=args.status,
             category=args.category,
+            namespace=args.namespace,
             limit=args.limit,
         )
         if not memories:
@@ -384,7 +501,7 @@ def _cmd_list(args):
 
 def _cmd_timeline(args):
     with AgentMemory(args.path) as mem:
-        memories = mem.timeline(args.entity)
+        memories = mem.timeline(args.entity, namespace=args.namespace)
         if not memories:
             print(f"No memories found for entity '{args.entity}'.")
             return
@@ -440,6 +557,22 @@ def _cmd_compact(args):
     with AgentMemory(args.path) as mem:
         count = mem.compact()
         print(f"Removed {count} archived memories")
+
+
+def _cmd_update(args):
+    with AgentMemory(args.path) as mem:
+        tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else None
+        updated = mem.update(
+            memory_id=args.memory_id,
+            content=args.content,
+            tags=tags,
+            category=args.category,
+            entity=args.entity,
+        )
+        if updated:
+            print(f"Updated memory {updated.id}: {updated.content}")
+        else:
+            print(f"Memory {args.memory_id} not found")
 
 
 def _cmd_forget(args):

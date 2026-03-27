@@ -60,18 +60,35 @@ Memwright gives AI agents persistent, searchable memory that stays out of the co
 
 ## Quick Start
 
-### Claude Code (one-liner)
+### Step 1: Install
+
+Choose one method. The package name is `memwright` on PyPI.
 
 ```bash
+# Option A: uv (recommended on macOS)
+uv tool install memwright
+
+# Option B: pipx
+pipx install memwright
+
+# Option C: pip (in a venv or with --user)
+pip install memwright
+
+# Option D: poetry (add to an existing project)
 poetry add memwright
+```
+
+> **First run downloads ~90MB** for the local embedding model (all-MiniLM-L6-v2). This happens once and is cached.
+
+### Step 2: Connect to Claude Code
+
+```bash
 claude mcp add memory -- memwright mcp
 ```
 
-Restart Claude Code. Approve the server once. Done — Claude now has 8 memory tools.
+Restart Claude Code. Approve the MCP server once. Done — Claude now has 8 memory tools.
 
-### Manual MCP config
-
-Add to `~/.claude/.mcp.json` (global) or `.mcp.json` (per-project):
+**Alternative: manual MCP config.** Add to `~/.claude/.mcp.json` (global) or `.mcp.json` (per-project):
 
 ```json
 {
@@ -84,13 +101,60 @@ Add to `~/.claude/.mcp.json` (global) or `.mcp.json` (per-project):
 }
 ```
 
-### Verify
+### Step 3: Verify
 
 ```bash
 memwright doctor ~/.memwright
 ```
 
-Or ask Claude to call `memory_health`. All 4 components should report healthy: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.
+All 4 components should report healthy:
+
+```
+Overall: ALL HEALTHY
+
+  [OK] SQLiteStore (0.2ms, 0 memories, 4,096 bytes)
+  [OK] ChromaStore (0 vectors)
+  [OK] NetworkXGraph (0 nodes, 0 edges)
+  [OK] Retrieval Pipeline (3/3 layers)
+```
+
+Or ask Claude to call `memory_health` from within a session.
+
+### Step 4 (optional): Enable lifecycle hooks
+
+```bash
+memwright init ~/.memwright --hooks
+```
+
+This auto-configures three Claude Code hooks in `~/.claude/settings.json`:
+- **SessionStart** — injects relevant memories into context (20K token budget)
+- **PostToolUse** — auto-captures file changes and command outputs
+- **Stop** — generates a session summary
+
+---
+
+### Quick test from the CLI
+
+```bash
+# Add a memory
+memwright add ~/.memwright "Project uses Python 3.12 with FastAPI" \
+  --tags "python,fastapi" --category project
+
+# Recall it
+memwright recall ~/.memwright "what does the project use?"
+
+# Search by category
+memwright search ~/.memwright --category project
+
+# Update a memory
+memwright update ~/.memwright <memory-id> "Project uses Python 3.13 with FastAPI" \
+  --tags "python,fastapi"
+
+# Check stats
+memwright stats ~/.memwright
+```
+
+> **No API keys required.** Memwright uses a local embedding model — no HuggingFace token, no OpenAI key, no cloud account. The `HF_TOKEN` warning you may see in older versions is harmless noise and has been suppressed.
 
 ---
 
@@ -230,7 +294,7 @@ Once the MCP server is running, agents have these tools:
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
 | `memory_add` | Store a fact | `content`, `tags[]`, `category`, `entity`, `namespace`, `event_date`, `confidence` |
-| `memory_recall` | Smart multi-layer retrieval | `query`, `budget` (default: 2000), `namespace` |
+| `memory_recall` | Smart multi-layer retrieval | `query`, `budget` (default: 16000), `namespace` |
 | `memory_search` | Filter with date ranges | `query`, `category`, `entity`, `namespace`, `status`, `after`, `before`, `limit` |
 | `memory_get` | Fetch by ID | `memory_id` |
 | `memory_forget` | Archive (soft delete) | `memory_id` |
@@ -569,12 +633,12 @@ memwright mcp --path /custom/path      # Custom store location
 ### Memory Operations
 
 ```bash
-agent-memory add ./store "User prefers Python" --tags "pref,coding" --category preference
-agent-memory recall ./store "what language?" --budget 4000
-agent-memory search ./store --category project --entity Python --limit 20
-agent-memory list ./store --status active --category technical
-agent-memory timeline ./store --entity Python
-agent-memory get ./store <memory-id>
+agent-memory add ./store "User prefers Python" --tags "pref,coding" --category preference --namespace default
+agent-memory recall ./store "what language?" --budget 4000 --namespace default
+agent-memory search ./store --category project --entity Python --namespace default --limit 20
+agent-memory list ./store --status active --category technical --namespace default
+agent-memory timeline ./store --entity Python --namespace default
+agent-memory update ./store <memory-id> "Updated content" --tags "new,tags" --category technical
 agent-memory forget ./store <memory-id>
 ```
 
@@ -626,7 +690,7 @@ All fields optional. Defaults apply if the file doesn't exist:
 
 ```json
 {
-  "default_token_budget": 2000,
+  "default_token_budget": 16000,
   "min_results": 3,
   "backends": ["sqlite", "chroma", "networkx"],
   "enable_mmr": true,
@@ -640,7 +704,7 @@ All fields optional. Defaults apply if the file doesn't exist:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `default_token_budget` | 2000 | Max tokens returned per recall |
+| `default_token_budget` | 16000 | Max tokens returned per recall (start high, lower to tune) |
 | `min_results` | 3 | Minimum results to return |
 | `enable_mmr` | true | Maximal Marginal Relevance diversity reranking |
 | `mmr_lambda` | 0.7 | Relevance vs diversity balance (0=diverse, 1=relevant) |
@@ -758,7 +822,11 @@ Delete the `memory` entry from `~/.claude/.mcp.json` (global) or `.mcp.json` (pe
 ### 2. Uninstall the package
 
 ```bash
-poetry remove memwright
+# Match your install method:
+uv tool uninstall memwright    # if installed with uv
+pipx uninstall memwright       # if installed with pipx
+pip uninstall memwright        # if installed with pip
+poetry remove memwright        # if installed with poetry
 ```
 
 ### 3. Delete stored memories (optional)

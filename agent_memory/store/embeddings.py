@@ -229,9 +229,24 @@ class LocalEmbeddingProvider:
     """Local sentence-transformers all-MiniLM-L6-v2 (384D)."""
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
+        import os as _os
+
         from sentence_transformers import SentenceTransformer
 
-        self._model = SentenceTransformer(model_name)
+        # Suppress safetensors LOAD REPORT (printed from Rust, bypasses Python)
+        devnull_fd = _os.open(_os.devnull, _os.O_WRONLY)
+        saved_stdout = _os.dup(1)
+        saved_stderr = _os.dup(2)
+        try:
+            _os.dup2(devnull_fd, 1)
+            _os.dup2(devnull_fd, 2)
+            self._model = SentenceTransformer(model_name)
+        finally:
+            _os.dup2(saved_stdout, 1)
+            _os.dup2(saved_stderr, 2)
+            _os.close(devnull_fd)
+            _os.close(saved_stdout)
+            _os.close(saved_stderr)
         self._dimension = self._model.get_sentence_embedding_dimension()
 
     @property
@@ -291,6 +306,15 @@ class ChromaEmbeddingAdapter:
 
     def supported_spaces(self) -> List[str]:
         return ["cosine", "l2", "ip"]
+
+
+# Register with ChromaDB so it can resolve persisted "memwright:shared" configs
+try:
+    from chromadb.utils.embedding_functions import register_embedding_function
+
+    register_embedding_function(ChromaEmbeddingAdapter)
+except Exception:
+    pass
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -419,8 +443,8 @@ def get_embedding_provider(
         _cached_provider = provider
         return provider
 
-    # 3. Local fallback (always works)
-    provider = LocalEmbeddingProvider()
-    logger.info("Using local sentence-transformers fallback (%dD)", provider.dimension)
-    _cached_provider = provider
-    return provider
+    # 3. No fallback — require OpenAI/OpenRouter or cloud provider
+    raise RuntimeError(
+        "No embedding provider available. Set OPENROUTER_API_KEY or OPENAI_API_KEY. "
+        "Local sentence-transformers fallback has been removed."
+    )

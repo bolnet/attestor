@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 
 DEFAULT_CONFIG = {
-    "default_token_budget": 2000,
+    "default_token_budget": 16000,
     "min_results": 3,
 }
 
@@ -19,7 +19,7 @@ _DEFAULT_BACKENDS = ["sqlite", "chroma", "networkx"]
 
 @dataclass
 class MemoryConfig:
-    default_token_budget: int = 2000
+    default_token_budget: int = 16000
     min_results: int = 3
     backends: List[str] = field(default_factory=lambda: list(_DEFAULT_BACKENDS))
     backend_configs: Dict[str, Dict[str, Any]] = field(default_factory=dict)

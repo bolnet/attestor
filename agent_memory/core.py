@@ -248,6 +248,42 @@ class AgentMemory:
         """Get a specific memory by ID."""
         return self._store.get(memory_id)
 
+    def update(
+        self,
+        memory_id: str,
+        content: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        category: Optional[str] = None,
+        entity: Optional[str] = None,
+    ) -> Optional[Memory]:
+        """Update an existing memory's fields. Returns updated memory or None."""
+        memory = self._store.get(memory_id)
+        if not memory:
+            return None
+
+        if content is not None:
+            memory.content = content
+            memory.content_hash = self._content_hash(content)
+        if tags is not None:
+            memory.tags = tags
+        if category is not None:
+            memory.category = category
+        if entity is not None:
+            memory.entity = entity
+
+        self._store.update(memory)
+
+        # Re-index in vector store if content changed
+        if content is not None and self._vector_store:
+            try:
+                self._vector_store.add(
+                    memory.id, content, namespace=memory.namespace,
+                )
+            except Exception:
+                pass
+
+        return memory
+
     # -- Read --
 
     def recall(
