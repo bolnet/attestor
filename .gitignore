@@ -43,3 +43,4 @@ agent_memory/infra/lambda/.api_url
 
 # Accidental build output files
 =*
+.memwright/
