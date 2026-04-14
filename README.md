@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/logo.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/logo-dark.svg">
-    <img alt="Memwright" src="docs/logo.svg" width="400">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/bolnet/agent-memory/main/docs/logo.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/bolnet/agent-memory/main/docs/logo-dark.svg">
+    <img alt="Memwright" src="https://raw.githubusercontent.com/bolnet/agent-memory/main/docs/logo.svg" width="400">
   </picture>
 </p>
 
@@ -113,7 +113,7 @@ All four checks should return healthy: Document Store, Vector Store, Graph Store
 ## Architecture
 
 <p align="center">
-  <img src="docs/architecture.svg" alt="Memwright Architecture" width="100%">
+  <img src="https://raw.githubusercontent.com/bolnet/agent-memory/main/docs/architecture.svg" alt="Memwright Architecture" width="100%">
 </p>
 
 ### Component Overview
@@ -377,10 +377,6 @@ class Memory:
 ---
 
 ## Multi-Agent Systems
-
-<p align="center">
-  <img src="docs/multi-agent-architecture.svg" alt="Multi-Agent Memory Architecture" width="100%">
-</p>
 
 Memwright is built for production multi-agent pipelines — orchestrator-worker, planner-executor, researcher-reviewer, and hierarchical swarms. Every recall and write is scoped to an `AgentContext` that carries identity, role, namespace, parent trail, token budget, write quota, and visibility policy. Contexts are immutable; spawning a sub-agent returns a new context with inherited provenance.
 

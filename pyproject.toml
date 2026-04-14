@@ -1,6 +1,6 @@
 [project]
 name = "memwright"
-version = "2.0.3"
+version = "2.0.4"
 description = "Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval."
 readme = "README.md"
 license = "Apache-2.0"

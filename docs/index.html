@@ -1637,6 +1637,11 @@ footer.colophon {
       <p class="standfirst">Every recall and write is scoped to an <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">AgentContext</code> carrying identity, role, namespace, parent trail, token budget, write quota, and visibility. Contexts are immutable; spawning a sub-agent returns a new context with inherited provenance.</p>
     </div>
 
+    <figure class="reveal" style="margin:48px auto 24px;max-width:880px;background:#fdfaf2;border:1px solid var(--rule);border-radius:6px;padding:24px;">
+      <img src="architecture.svg" alt="Memwright high-level architecture" style="display:block;width:100%;height:auto;"/>
+      <figcaption style="font-family:var(--ff-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-soft);text-align:center;margin-top:12px;">Fig. 1 &mdash; Agents talk to Memwright through Python, REST, or MCP. Storage is pluggable.</figcaption>
+    </figure>
+
     <div class="capabilities reveal">
       <div class="capability">
         <span class="capability-num">01 / 06</span>
