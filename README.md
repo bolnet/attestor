@@ -590,37 +590,11 @@ $ memwright api --host 0.0.0.0 --port 8080
 
 ### Same container, pluggable stores
 
-The Memwright Docker image is identical across every deployment. Only the three storage roles swap out:
+<p align="center">
+  <img src="docs/deployment-matrix.svg" alt="Deployment matrix — one Memwright container, six targets, three storage roles swap per target" width="100%">
+</p>
 
-```mermaid
-flowchart LR
-    subgraph Laptop["Local · laptop"]
-        L[Memwright process]
-        L --> LD[(SQLite<br/>doc)]
-        L --> LV[(ChromaDB<br/>vector)]
-        L --> LG[(NetworkX<br/>graph)]
-    end
-    subgraph Self["Self-host · Docker · Postgres"]
-        S[Memwright container]
-        S --> SD[(Postgres 16<br/>doc)]
-        S --> SV[(pgvector<br/>vector)]
-        S --> SG[(Apache AGE<br/>graph)]
-    end
-    subgraph AWS["AWS · App Runner"]
-        A[Memwright container]
-        A --> AAR[(ArangoDB Oasis<br/>doc · vector · graph)]
-    end
-    subgraph GCP["GCP · Cloud Run"]
-        G[Memwright container]
-        G --> GA[(AlloyDB + pgvector + AGE<br/>doc · vector · graph)]
-    end
-    subgraph Azure["Azure · Container Apps"]
-        AZ[Memwright container]
-        AZ --> AZC[(Cosmos DB DiskANN<br/>doc · vector · graph)]
-    end
-```
-
-<sub><i>Every deployment is the same Python library wrapped in the same Starlette ASGI container. <code>DocumentStore</code>, <code>VectorStore</code>, and <code>GraphStore</code> are three interfaces; each row above is one implementation of each.</i></sub>
+<sub><i>Every deployment is the same Python library wrapped in the same Starlette ASGI container. <code>DocumentStore</code>, <code>VectorStore</code>, and <code>GraphStore</code> are three interfaces; each column above is one implementation of each. Same API, same retrieval behavior, your infrastructure.</i></sub>
 
 ### Runtime topology &mdash; three integration modes
 

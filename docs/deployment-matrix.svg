@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 640" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <style>
+      .bg     { fill: #F5F1E8; }
+      .ink    { fill: #1A1614; }
+      .muted  { fill: #6B5F4F; }
+      .accent { fill: #C15F3C; }
+      .paper  { fill: #FBF8F1; stroke: #1A1614; stroke-width: 1; }
+      .same   { fill: #1A1614; stroke: #C15F3C; stroke-width: 2; }
+      .rule   { stroke: #1A1614; stroke-width: 0.75; }
+      .hair   { stroke: #C9C0B0; stroke-width: 0.75; }
+      .sans   { font-family: 'Helvetica Neue', 'Arial', sans-serif; letter-spacing: 0.12em; }
+      .mono   { font-family: 'Menlo', 'Consolas', 'Courier New', monospace; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="640"/>
+
+  <!-- Masthead -->
+  <line class="rule" x1="40" y1="46" x2="1560" y2="46"/>
+  <line class="hair" x1="40" y1="52" x2="1560" y2="52"/>
+  <text class="ink sans" x="40" y="38" font-size="11">&#167; DEPLOYMENT MATRIX &#183; ONE CONTAINER &#183; SIX TARGETS &#183; THREE STORAGE ROLES SWAP, EVERYTHING ELSE STAYS</text>
+  <text class="muted sans" x="1560" y="38" font-size="11" text-anchor="end">FIG. 04 &#183; MEMWRIGHT</text>
+
+  <!-- Top band: same-everywhere layer -->
+  <text class="muted sans" x="40" y="86" font-size="10">LAYER 01 &#183; IDENTICAL ACROSS EVERY DEPLOYMENT</text>
+  <line class="hair" x1="40" y1="94" x2="1560" y2="94"/>
+
+  <!-- Same container strip -->
+  <g transform="translate(40,108)">
+    <rect class="same" width="1520" height="60" rx="2"/>
+    <text fill="#F5F1E8" x="24" y="26" font-size="11" class="sans" font-weight="700">&#167; MEMWRIGHT ENGINE</text>
+    <text fill="#F5F1E8" x="24" y="48" font-size="14" class="mono">mem.add()  &#183;  mem.recall()  &#183;  mem.load_context()  &#183;  mem.timeline()  &#183;  RBAC  &#183;  namespaces  &#183;  5-layer retrieval  &#183;  temporal model</text>
+    <text class="accent sans" fill="#C15F3C" x="1496" y="36" font-size="11" text-anchor="end" font-weight="700">SAME PYTHON LIB &#183; SAME STARLETTE ASGI CONTAINER</text>
+  </g>
+
+  <!-- Divider -->
+  <text class="muted sans" x="40" y="200" font-size="10">LAYER 02 &#183; STORAGE ROLES SWAP PER TARGET</text>
+  <line class="hair" x1="40" y1="208" x2="1560" y2="208"/>
+
+  <!-- Six columns. x positions centered at: 150, 390, 630, 870, 1110, 1350. Column width 220, gap 20. Actually 6 cols: start 60, each 250 wide -->
+
+  <!-- Helper macro: each column has header card, doc cell, vector cell, graph cell, footer note -->
+
+  <!-- Column widths: 240 each, spaced across 1520 width with 24 gap = 6*240 + 5*24 = 1440+120 = 1560? close. Let's use x starts: 40, 300, 560, 820, 1080, 1340. Width 236. -->
+
+  <!-- COL 1: Local -->
+  <g transform="translate(40,230)">
+    <rect class="paper" width="236" height="340" rx="2"/>
+    <text class="accent sans" x="18" y="28" font-size="11" font-weight="700">01 &#183; LOCAL</text>
+    <text class="ink" x="18" y="56" font-size="18" font-weight="700">Laptop</text>
+    <text class="muted" x="18" y="76" font-size="11" font-style="italic">air-gapped &#183; zero config</text>
+    <line class="hair" x1="18" y1="92" x2="218" y2="92"/>
+    <text class="muted sans" x="18" y="114" font-size="9">DOC</text>
+    <text class="ink mono" x="18" y="132" font-size="12">SQLite</text>
+    <line class="hair" x1="18" y1="148" x2="218" y2="148"/>
+    <text class="muted sans" x="18" y="170" font-size="9">VECTOR</text>
+    <text class="ink mono" x="18" y="188" font-size="12">ChromaDB</text>
+    <line class="hair" x1="18" y1="204" x2="218" y2="204"/>
+    <text class="muted sans" x="18" y="226" font-size="9">GRAPH</text>
+    <text class="ink mono" x="18" y="244" font-size="12">NetworkX</text>
+    <line class="hair" x1="18" y1="268" x2="218" y2="268"/>
+    <text class="muted sans" x="18" y="290" font-size="9">RUNTIME</text>
+    <text class="ink" x="18" y="308" font-size="11">in-process library</text>
+    <text class="muted" x="18" y="324" font-size="10" font-style="italic">~/.memwright</text>
+  </g>
+
+  <!-- COL 2: Self-host -->
+  <g transform="translate(300,230)">
+    <rect class="paper" width="236" height="340" rx="2"/>
+    <text class="accent sans" x="18" y="28" font-size="11" font-weight="700">02 &#183; SELF-HOST</text>
+    <text class="ink" x="18" y="56" font-size="18" font-weight="700">Docker</text>
+    <text class="muted" x="18" y="76" font-size="11" font-style="italic">any Postgres 16 &#183; your VPC</text>
+    <line class="hair" x1="18" y1="92" x2="218" y2="92"/>
+    <text class="muted sans" x="18" y="114" font-size="9">DOC</text>
+    <text class="ink mono" x="18" y="132" font-size="12">Postgres 16</text>
+    <line class="hair" x1="18" y1="148" x2="218" y2="148"/>
+    <text class="muted sans" x="18" y="170" font-size="9">VECTOR</text>
+    <text class="ink mono" x="18" y="188" font-size="12">pgvector</text>
+    <line class="hair" x1="18" y1="204" x2="218" y2="204"/>
+    <text class="muted sans" x="18" y="226" font-size="9">GRAPH</text>
+    <text class="ink mono" x="18" y="244" font-size="12">Apache AGE</text>
+    <line class="hair" x1="18" y1="268" x2="218" y2="268"/>
+    <text class="muted sans" x="18" y="290" font-size="9">RUNTIME</text>
+    <text class="ink" x="18" y="308" font-size="11">Starlette ASGI</text>
+    <text class="muted" x="18" y="324" font-size="10" font-style="italic">one container</text>
+  </g>
+
+  <!-- COL 3: AWS -->
+  <g transform="translate(560,230)">
+    <rect class="paper" width="236" height="340" rx="2"/>
+    <text class="accent sans" x="18" y="28" font-size="11" font-weight="700">03 &#183; AWS</text>
+    <text class="ink" x="18" y="56" font-size="18" font-weight="700">App Runner</text>
+    <text class="muted" x="18" y="76" font-size="11" font-style="italic">auto-scale &#183; HTTPS &#183; custom domain</text>
+    <line class="hair" x1="18" y1="92" x2="218" y2="92"/>
+    <text class="muted sans" x="18" y="114" font-size="9">DOC</text>
+    <text class="ink mono" x="18" y="132" font-size="12">ArangoDB</text>
+    <line class="hair" x1="18" y1="148" x2="218" y2="148"/>
+    <text class="muted sans" x="18" y="170" font-size="9">VECTOR</text>
+    <text class="ink mono" x="18" y="188" font-size="12">ArangoDB</text>
+    <line class="hair" x1="18" y1="204" x2="218" y2="204"/>
+    <text class="muted sans" x="18" y="226" font-size="9">GRAPH</text>
+    <text class="ink mono" x="18" y="244" font-size="12">ArangoDB</text>
+    <line class="hair" x1="18" y1="268" x2="218" y2="268"/>
+    <text class="muted sans" x="18" y="290" font-size="9">RUNTIME</text>
+    <text class="ink" x="18" y="308" font-size="11">2 CPU &#183; 4 GB</text>
+    <text class="muted" x="18" y="324" font-size="10" font-style="italic">us-west-2 &#183; multi-model Oasis</text>
+  </g>
+
+  <!-- COL 4: Azure -->
+  <g transform="translate(820,230)">
+    <rect class="paper" width="236" height="340" rx="2"/>
+    <text class="accent sans" x="18" y="28" font-size="11" font-weight="700">04 &#183; AZURE</text>
+    <text class="ink" x="18" y="56" font-size="18" font-weight="700">Container Apps</text>
+    <text class="muted" x="18" y="76" font-size="11" font-style="italic">scale-to-zero &#183; managed</text>
+    <line class="hair" x1="18" y1="92" x2="218" y2="92"/>
+    <text class="muted sans" x="18" y="114" font-size="9">DOC</text>
+    <text class="ink mono" x="18" y="132" font-size="12">Cosmos DB</text>
+    <line class="hair" x1="18" y1="148" x2="218" y2="148"/>
+    <text class="muted sans" x="18" y="170" font-size="9">VECTOR</text>
+    <text class="ink mono" x="18" y="188" font-size="12">Cosmos DiskANN</text>
+    <line class="hair" x1="18" y1="204" x2="218" y2="204"/>
+    <text class="muted sans" x="18" y="226" font-size="9">GRAPH</text>
+    <text class="ink mono" x="18" y="244" font-size="12">Cosmos Gremlin</text>
+    <line class="hair" x1="18" y1="268" x2="218" y2="268"/>
+    <text class="muted sans" x="18" y="290" font-size="9">RUNTIME</text>
+    <text class="ink" x="18" y="308" font-size="11">2 CPU &#183; 4 GB</text>
+    <text class="muted" x="18" y="324" font-size="10" font-style="italic">eastus &#183; Terraform ready</text>
+  </g>
+
+  <!-- COL 5: GCP -->
+  <g transform="translate(1080,230)">
+    <rect class="paper" width="236" height="340" rx="2"/>
+    <text class="accent sans" x="18" y="28" font-size="11" font-weight="700">05 &#183; GCP</text>
+    <text class="ink" x="18" y="56" font-size="18" font-weight="700">Cloud Run</text>
+    <text class="muted" x="18" y="76" font-size="11" font-style="italic">scale-to-zero &#183; serverless</text>
+    <line class="hair" x1="18" y1="92" x2="218" y2="92"/>
+    <text class="muted sans" x="18" y="114" font-size="9">DOC</text>
+    <text class="ink mono" x="18" y="132" font-size="12">AlloyDB</text>
+    <line class="hair" x1="18" y1="148" x2="218" y2="148"/>
+    <text class="muted sans" x="18" y="170" font-size="9">VECTOR</text>
+    <text class="ink mono" x="18" y="188" font-size="12">pgvector</text>
+    <line class="hair" x1="18" y1="204" x2="218" y2="204"/>
+    <text class="muted sans" x="18" y="226" font-size="9">GRAPH</text>
+    <text class="ink mono" x="18" y="244" font-size="12">Apache AGE</text>
+    <line class="hair" x1="18" y1="268" x2="218" y2="268"/>
+    <text class="muted sans" x="18" y="290" font-size="9">RUNTIME</text>
+    <text class="ink" x="18" y="308" font-size="11">2 CPU &#183; 4 GB</text>
+    <text class="muted" x="18" y="324" font-size="10" font-style="italic">us-central1 &#183; Google managed</text>
+  </g>
+
+  <!-- COL 6: Neon -->
+  <g transform="translate(1340,230)">
+    <rect class="paper" width="220" height="340" rx="2"/>
+    <text class="accent sans" x="18" y="28" font-size="11" font-weight="700">06 &#183; NEON</text>
+    <text class="ink" x="18" y="56" font-size="18" font-weight="700">Serverless PG</text>
+    <text class="muted" x="18" y="76" font-size="11" font-style="italic">scale-to-zero &#183; free tier</text>
+    <line class="hair" x1="18" y1="92" x2="202" y2="92"/>
+    <text class="muted sans" x="18" y="114" font-size="9">DOC</text>
+    <text class="ink mono" x="18" y="132" font-size="12">Postgres 16</text>
+    <line class="hair" x1="18" y1="148" x2="202" y2="148"/>
+    <text class="muted sans" x="18" y="170" font-size="9">VECTOR</text>
+    <text class="ink mono" x="18" y="188" font-size="12">pgvector</text>
+    <line class="hair" x1="18" y1="204" x2="202" y2="204"/>
+    <text class="muted sans" x="18" y="226" font-size="9">GRAPH</text>
+    <text class="ink mono" x="18" y="244" font-size="12">Apache AGE</text>
+    <line class="hair" x1="18" y1="268" x2="202" y2="268"/>
+    <text class="muted sans" x="18" y="290" font-size="9">RUNTIME</text>
+    <text class="ink" x="18" y="308" font-size="11">any ASGI host</text>
+    <text class="muted" x="18" y="324" font-size="10" font-style="italic">bring your own runtime</text>
+  </g>
+
+  <!-- Bottom strip: promotion path -->
+  <line class="hair" x1="40" y1="594" x2="1560" y2="594"/>
+  <text class="muted sans" x="40" y="612" font-size="10">PROMOTION PATH</text>
+  <text class="ink" x="200" y="614" font-size="13" font-style="italic">Prototype local &#8594; pin to Postgres in CI &#8594; deploy to any cloud &#8212; <tspan font-weight="700">same API, same data contract, same retrieval behavior.</tspan></text>
+  <text class="accent sans" x="1560" y="612" font-size="11" text-anchor="end" font-weight="700">NO SAAS &#183; NO LOCK-IN &#183; YOUR VPC, YOUR DATA</text>
+
+  <line class="rule" x1="40" y1="628" x2="1560" y2="628"/>
+</svg>
