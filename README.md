@@ -56,9 +56,9 @@ flowchart TB
     %% === STORAGE TIER ===
     subgraph STORAGE [<b>&sect; STORAGE TIER</b> &mdash; three complementary stores, one write transaction]
         direction LR
-        S1[(<b>Document store</b><br/><sub>SQLite &bull; Postgres &bull; Cosmos<br/><i>source of truth</i></sub>)]
-        S2[(<b>Vector store</b><br/><sub>ChromaDB &bull; pgvector &bull; DiskANN<br/><i>semantic index</i></sub>)]
-        S3[(<b>Graph store</b><br/><sub>NetworkX &bull; Apache AGE<br/><i>relational index</i></sub>)]
+        S1[("<b>Document store</b><br/>SQLite · Postgres · Cosmos<br/><i>source of truth</i>")]
+        S2[("<b>Vector store</b><br/>Chroma · pgvector · DiskANN<br/><i>semantic index</i>")]
+        S3[("<b>Graph store</b><br/>NetworkX · Apache AGE<br/><i>relational index</i>")]
     end
 
     WRITE --> S1
@@ -592,6 +592,43 @@ flowchart LR
 
 ---
 
+### Provenance &mdash; source-to-citation chain
+
+<sub>Every sentence the agent writes back to the advisor is <b>traceable to its source</b>. Not a paraphrase of a paraphrase &mdash; a cryptographic chain from raw feed ingest to grounded answer.</sub>
+
+```mermaid
+flowchart LR
+    RAW["<b>Raw signal</b><br/><i>Reuters wire, 08:14 UTC</i><br/>&ldquo;JPM names Jane Doe CFO&rdquo;<br/>sha256: a1b2c3&hellip;"]
+
+    ING["<b>Ingest</b><br/>parse &bull; entity extract<br/>attach provenance envelope<br/>source_id &bull; source_ts &bull; hash"]
+
+    MEM["<b>Memory row</b><br/>id: mem_42<br/>content, entity=JPM<br/>provenance: {source_id, hash,<br/>ingest_ts, confidence: 0.98}"]
+
+    RECALL["<b>Retrieval</b><br/>5-layer pipeline<br/>returns mem_42 among others"]
+
+    ANS["<b>Agent answer</b><br/><i>&ldquo;Jane Doe was named CFO on<br/>2026-04-11 [source: Reuters]&rdquo;</i><br/>citations: [mem_42]"]
+
+    AUDIT["<b>Auditor click-through</b><br/>mem_42 &rarr; raw Reuters wire<br/>with timestamp + hash check"]
+
+    RAW ==> ING
+    ING ==> MEM
+    MEM ==> RECALL
+    RECALL ==> ANS
+    ANS -.->|citation link<br/>resolves to| AUDIT
+    AUDIT -.->|verifies hash<br/>against raw signal| RAW
+
+    style RAW    fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style ING    fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style MEM    fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style RECALL fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style ANS    fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style AUDIT  fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+```
+
+<sub>The citation in the agent&rsquo;s reply is not a string the LLM chose to emit &mdash; it&rsquo;s the <code>memory_id</code> carried through the retrieval pipeline. An auditor clicks the citation and lands on the raw wire with timestamp and content hash. If the upstream signal was tampered with, the hash check fails. This is what distinguishes <i>grounded</i> from <i>plausible</i>.</sub>
+
+---
+
 <a id="deploy"></a>
 
 ## &sect; 04 &mdash; Deployment Matrix
@@ -651,6 +688,59 @@ flowchart LR
 ```
 
 <sub><i>Every deployment is the same Python library wrapped in the same Starlette ASGI container. <code>DocumentStore</code>, <code>VectorStore</code>, and <code>GraphStore</code> are three interfaces; each row above is one implementation of each.</i></sub>
+
+### Runtime topology &mdash; three integration modes
+
+<sub>The same Memwright engine runs in three shapes &mdash; same storage, same retrieval, different coupling. Pick by latency budget and blast radius.</sub>
+
+```mermaid
+flowchart TB
+    subgraph M1 ["&sect; MODE A &mdash; EMBEDDED LIBRARY &bull; lowest latency"]
+        direction LR
+        AG1["<b>Agent process</b><br/>Python &bull; import agent_memory"]
+        MW1["<b>Memwright in-proc</b><br/>AgentMemory('./store')"]
+        ST1[("<b>Local stores</b><br/>SQLite · Chroma · NetworkX<br/>on local disk")]
+        AG1 ==> MW1 ==> ST1
+    end
+
+    subgraph M2 ["&sect; MODE B &mdash; SIDECAR CONTAINER &bull; process isolation"]
+        direction LR
+        AG2["<b>Agent container</b><br/>any language<br/>HTTP client"]
+        MW2["<b>Memwright sidecar</b><br/>memwright api<br/>on localhost:8080"]
+        ST2[("<b>Shared volume</b><br/>or managed backends")]
+        AG2 ==>|"HTTP / MCP<br/>same pod"| MW2 ==> ST2
+    end
+
+    subgraph M3 ["&sect; MODE C &mdash; SHARED SERVICE &bull; multi-agent mesh"]
+        direction LR
+        AF1["<b>Agent A</b>"]
+        AF2["<b>Agent B</b>"]
+        AF3["<b>Agent C</b>"]
+        MW3["<b>Memwright service</b><br/>App Runner · Cloud Run<br/>· Container Apps"]
+        ST3[("<b>Managed backends</b><br/>Postgres · ArangoDB · Cosmos")]
+        AF1 ==> MW3
+        AF2 ==> MW3
+        AF3 ==> MW3
+        MW3 ==> ST3
+    end
+
+    style M1 fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style M2 fill:#F5F1E8,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style M3 fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style AG1 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style MW1 fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style ST1 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style AG2 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style MW2 fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style ST2 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style AF1 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style AF2 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style AF3 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style MW3 fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style ST3 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+```
+
+<sub><b>Mode A</b> is sub-millisecond for a single agent prototyping on a laptop. <b>Mode B</b> adds language independence &mdash; a Go or Rust agent can call the sidecar over HTTP without Python in its image. <b>Mode C</b> is the production shape: one Memwright service in front of a multi-agent mesh, with managed storage behind. Code path is identical across all three &mdash; only configuration changes.</sub>
 
 ### Promotion path
 
