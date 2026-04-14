@@ -237,37 +237,40 @@ Every memory is persisted across **three complementary stores**. Every supported
 
 ```mermaid
 flowchart TB
-    subgraph SOURCES [<b>&sect; MARKET INTELLIGENCE SOURCES</b>]
+    N1["<b>News wires</b><br/>Reuters &bull; Bloomberg<br/><i>breaking headlines</i>"]
+    N2["<b>Market data</b><br/>ticks &bull; OHLC<br/><i>prices &bull; volumes</i>"]
+    N3["<b>Earnings reports</b><br/>10-K &bull; 10-Q &bull; 8-K<br/><i>guidance &bull; surprises</i>"]
+    N4["<b>Leadership changes</b><br/>CEO &bull; CFO &bull; Board<br/><i>appointments &bull; exits</i>"]
+    N5["<b>Geopolitical events</b><br/>tariffs &bull; sanctions<br/><i>policy &bull; conflict</i>"]
+
+    subgraph SOURCES ["&sect; MARKET INTELLIGENCE SOURCES"]
         direction LR
-        N1[<b>News wires</b><br/><sub>Reuters &bull; Bloomberg<br/><i>breaking headlines</i></sub>]
-        N2[<b>Market data</b><br/><sub>ticks &bull; OHLC<br/><i>prices &bull; volumes</i></sub>]
-        N3[<b>Earnings reports</b><br/><sub>10-K &bull; 10-Q &bull; 8-K<br/><i>guidance &bull; surprises</i></sub>]
-        N4[<b>Leadership changes</b><br/><sub>CEO / CFO / Board<br/><i>appointments &bull; exits</i></sub>]
-        N5[<b>Geopolitical events</b><br/><sub>tariffs &bull; sanctions<br/><i>policy &bull; conflict</i></sub>]
         N1 ~~~ N2 ~~~ N3 ~~~ N4 ~~~ N5
     end
 
-    SOURCES ==>|<b>mem.add&#40;content, tags, entity, category, provenance, ts&#41;</b>| API{{<b>INGEST API</b>}}
+    SOURCES ==>|mem.add&#40;content, tags, entity, provenance, ts&#41;| API{{"<b>INGEST API</b>"}}
 
-    subgraph WRITE [<b>&sect; PARALLEL WRITES</b> &mdash; one logical transaction]
+    D1["<b>Document store</b><br/>insert row<br/>content &bull; tags &bull; entity<br/>ts &bull; source &bull; confidence"]
+    D2["<b>Vector store</b><br/>embed text<br/>&rarr; 384-d vector<br/>keyed by memory ID"]
+    D3["<b>Graph store</b><br/>extract entities + edges<br/>issuer &bull; sector &bull; person<br/>country &bull; event"]
+
+    subgraph WRITE ["&sect; PARALLEL WRITES &mdash; one logical transaction"]
         direction LR
-        D1[(<b>Document store</b><br/><sub>insert row<br/>content &bull; tags &bull; entity<br/>ts &bull; source &bull; confidence</sub>)]
-        D2[(<b>Vector store</b><br/><sub>embed text<br/>&rarr; 384-d vector<br/>keyed by memory ID</sub>)]
-        D3[(<b>Graph store</b><br/><sub>extract entities + edges<br/>&#40;issuer, sector, person,<br/>country, event&#41;</sub>)]
+        D1 ~~~ D2 ~~~ D3
     end
 
     API --> D1
     API --> D2
     API --> D3
 
+    CD["<b>Contradiction check</b><br/>per entity &bull; per field<br/>e.g. JPM CFO is X vs new JPM CFO is Y"]
+
     D1 ==> CD
     D2 ==> CD
     D3 ==> CD
 
-    CD{<b>Contradiction check</b><br/><sub>per entity &bull; per field<br/>e.g. &ldquo;JPM CFO is X&rdquo; vs new &ldquo;JPM CFO is Y&rdquo;</sub>}
-
-    CD ==>|newer fact wins| SUP[<b>Supersede older fact</b><br/><sub>keep in timeline for audit</sub>]
-    SUP ==> DONE[[<b>Committed &bull; recallable</b>]]
+    CD ==>|newer fact wins| SUP["<b>Supersede older fact</b><br/>keep in timeline for audit"]
+    SUP ==> DONE["<b>Committed &bull; recallable</b>"]
 
     style SOURCES fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
     style WRITE   fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
@@ -280,6 +283,9 @@ flowchart TB
     style N3      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
     style N4      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
     style N5      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style D1      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style D2      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style D3      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
 ```
 
 <sub>The three writes commit as one logical transaction. On SQL backends it&rsquo;s a real DB transaction; on distributed backends it&rsquo;s sequenced with best-effort rollback. Contradictions don&rsquo;t overwrite &mdash; older facts are <b>superseded</b> and retained in the timeline so auditors can reconstruct what the desk knew, and when.</sub>
@@ -290,45 +296,56 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph CHAT [<b>&sect; ADVISOR CHAT INTERFACE</b> &mdash; human in the loop]
+    U["<b>Financial Advisor</b><br/>typing into chat UI<br/>ahead of the 8am call"]
+    BUBBLE["<b>Chat message</b><br/><i>What do we know about JPM&rsquo;s CFO transition<br/>and the fallout for US regional banks?</i>"]
+
+    subgraph CHAT ["&sect; ADVISOR CHAT INTERFACE &mdash; human in the loop"]
         direction LR
-        U[/<b>Financial Advisor</b><br/><sub>typing into chat UI<br/>ahead of the 8am call</sub>/]
-        BUBBLE[<b>&ldquo;What do we know about JPM&rsquo;s CFO transition<br/>and the fallout for US regional banks?&rdquo;</b>]
         U ==> BUBBLE
     end
 
-    CHAT ==>|routed to| AGENT([<b>Portfolio Planner agent</b><br/><sub>decomposes intent &bull; issues recall</sub>])
+    CHAT ==>|routed to| AGENT(["<b>Portfolio Planner agent</b><br/>decomposes intent &bull; issues recall"])
 
-    subgraph QUERIES [<b>&sect; DECOMPOSED RECALL QUERIES</b> &mdash; what the agent actually asks memwright]
+    Q1["<i>JPM CFO transition</i>"]
+    Q2["<i>Semiconductor supply-chain<br/>risk after latest tariff move</i>"]
+    Q3["<i>Earnings surprises in<br/>US regional banks, last 90 days</i>"]
+
+    subgraph QUERIES ["&sect; DECOMPOSED RECALL QUERIES &mdash; what the agent actually asks memwright"]
         direction LR
-        Q1[<i>&ldquo;JPM CFO transition&rdquo;</i>]
-        Q2[<i>&ldquo;Semiconductor supply-chain<br/>risk after latest tariff move&rdquo;</i>]
-        Q3[<i>&ldquo;Earnings surprises in<br/>US regional banks, last 90 days&rdquo;</i>]
         Q1 ~~~ Q2 ~~~ Q3
     end
 
     AGENT ==> QUERIES
-    QUERIES ==>|<b>mem.recall&#40;query, budget=2000&#41;</b>| API{{<b>RECALL API</b>}}
+    QUERIES ==>|mem.recall&#40;query, budget=2000&#41;| API{{"<b>RECALL API</b>"}}
 
-    subgraph SOURCES [<b>&sect; STAGE A</b> &mdash; parallel sources &bull; fan-out across 3 indexes]
+    L1["<b>01 &bull; Tag Match</b><br/>&rarr; document store<br/>FTS on JPM, CFO,<br/>tariff, earnings"]
+    L2["<b>02 &bull; Graph Expansion</b><br/>&rarr; graph store<br/>BFS: JPM &rarr; CFO<br/>&rarr; Jeremy Barnum"]
+    L3["<b>03 &bull; Vector Search</b><br/>&rarr; vector store<br/>cosine on query<br/>top-K nearest embeddings"]
+
+    subgraph SOURCES ["&sect; STAGE A &mdash; parallel sources &bull; fan-out across 3 indexes"]
         direction LR
-        L1[<b>01 &bull; Tag Match</b><br/><sub>&rarr; document store<br/>FTS on <code>JPM</code>, <code>CFO</code>,<br/><code>tariff</code>, <code>earnings</code></sub>]
-        L2[<b>02 &bull; Graph Expansion</b><br/><sub>&rarr; graph store<br/>BFS from <code>JPM</code> &rarr;<br/><code>CFO</code> &rarr; <code>Jeremy Barnum</code></sub>]
-        L3[<b>03 &bull; Vector Search</b><br/><sub>&rarr; vector store<br/>cosine on query<br/>top-K nearest embeddings</sub>]
+        L1 ~~~ L2 ~~~ L3
     end
 
     API --> L1
     API --> L2
     API --> L3
 
-    L1 --> IDS[(Candidate memory IDs<br/><sub>~100s &bull; deduped</sub>)]
+    IDS[("Candidate memory IDs<br/>~100s &bull; deduped")]
+
+    L1 --> IDS
     L2 --> IDS
     L3 --> IDS
 
-    IDS ==>|hydrate from doc store| L4[<b>04 &bull; Fusion &amp; Rank</b><br/><sub>RRF k=60 &nbsp;&bull;&nbsp; PageRank boost on central entities<br/>&bull; confidence decay on stale prints</sub>]
-    L4 ==> L5[<b>05 &bull; Diversity &amp; Fit</b><br/><sub>MMR &lambda;=0.7 &mdash; drop near-duplicate news wires<br/>&bull; greedy pack under 2,000 tokens</sub>]
-    L5 ==>|<b>ranked memories &le; budget</b><br/>zero LLM calls in the path| OUT[[<b>Portfolio Planner context</b>]]
-    OUT ==>|grounded answer<br/>streamed to chat| REPLY[/<b>Chat reply to advisor</b><br/><sub>sourced &bull; dated &bull; auditable</sub>/]
+    L4["<b>04 &bull; Fusion &amp; Rank</b><br/>RRF k=60 &bull; PageRank boost on central entities<br/>&bull; confidence decay on stale prints"]
+    L5["<b>05 &bull; Diversity &amp; Fit</b><br/>MMR &lambda;=0.7 &mdash; drop near-duplicate news wires<br/>&bull; greedy pack under 2,000 tokens"]
+    OUT["<b>Portfolio Planner context</b>"]
+    REPLY["<b>Chat reply to advisor</b><br/>sourced &bull; dated &bull; auditable"]
+
+    IDS ==>|hydrate from doc store| L4
+    L4 ==> L5
+    L5 ==>|ranked memories &le; budget<br/>zero LLM calls in the path| OUT
+    OUT ==>|grounded answer streamed to chat| REPLY
 
     style CHAT    fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
     style U       fill:#FBF8F1,stroke:#1A1614,color:#1A1614
