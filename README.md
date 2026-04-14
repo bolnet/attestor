@@ -47,19 +47,14 @@ flowchart TB
 
     %% === API SURFACE ===
     A1 ==>|"<b>mem.recall(query, budget)</b>"| READ{{<b>READ PATH</b>}}
-    A1 -->|"<b>mem.add()</b>"| WRITE{{<b>WRITE PATH</b>}}
 
     %% === STORAGE TIER ===
-    subgraph STORAGE [<b>&sect; STORAGE TIER</b> &mdash; one write, three stores]
+    subgraph STORAGE [<b>&sect; STORAGE TIER</b> &mdash; three complementary stores]
         direction LR
         S1[("<b>Document</b>")]
         S2[("<b>Vector</b>")]
         S3[("<b>Graph</b>")]
     end
-
-    WRITE --> S1
-    WRITE --> S2
-    WRITE --> S3
 
     %% === RETRIEVAL TIER ===
     subgraph RETRIEVAL [<b>&sect; RETRIEVAL TIER</b> &mdash; 5 layers, deterministic]
@@ -100,7 +95,6 @@ flowchart TB
     style STORAGE   fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
     style RETRIEVAL fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
     style SOURCES   fill:#F5F1E8,stroke:#6B5F4F,stroke-dasharray:4 3,color:#1A1614
-    style WRITE     fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
     style READ      fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
     style L1        fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
     style L2        fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
