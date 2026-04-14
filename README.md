@@ -2,6 +2,8 @@
      MASTHEAD
      ══════════════════════════════════════════════════════════════ -->
 
+<p align="center"><sub>&sect; 00 &middot; MASTHEAD &middot; FILED UNDER INFRASTRUCTURE &middot; BY SURENDRA SINGH &middot; &mdash; FOR PUBLICATION &mdash;</sub></p>
+
 <p align="center"><sub><b>MEMWRIGHT</b> &mdash; A MEMORY JOURNAL FOR AGENTIC SYSTEMS &middot; VOL. 02 &middot; REV. 0.1 &middot; EST. 2026 &middot; NEW YORK &middot; MIT</sub></p>
 
 <p align="center">
@@ -25,7 +27,7 @@
   <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright"><img src="https://img.shields.io/badge/MCP-Registry-C15F3C?style=flat-square" alt="MCP Registry"></a>
 </p>
 
-<p align="center"><sub>&sect; 00 &middot; MASTHEAD &middot; FILED UNDER INFRASTRUCTURE &middot; BY S. SINGH &middot; &mdash; FOR PUBLICATION &mdash;</sub></p>
+<p align="center"><sub><a href="#problem">Problem &darr;</a> &middot; <a href="#multi-agent">Multi&#8209;Agent &darr;</a> &middot; <a href="#pipeline">Pipeline &darr;</a> &middot; <a href="#deploy">Deploy &darr;</a> &middot; <a href="#principles">Principles &darr;</a> &middot; <a href="#reference">Reference &darr;</a></sub></p>
 
 ---
 
@@ -36,7 +38,15 @@
 
 <p align="center"><sub>Namespace isolation &middot; RBAC &middot; Provenance tracking &middot; Temporal correctness &middot; Ranked retrieval &middot; Token budgets &mdash; built for orchestrator&#8209;worker and planner&#8209;executor pipelines. Python library, REST API, or containerized service. No SaaS middleman, no per&#8209;seat fees, no vendor lock&#8209;in.</sub></p>
 
+```python
+from agent_memory import AgentMemory
+
+mem = AgentMemory("./store")
+mem.add("Order service uses event sourcing", entity="order-service", tags=["arch"])
+mem.recall("how is the order service structured?", budget=2000)
 ```
+
+```bash
 poetry add memwright
 ```
 
@@ -54,6 +64,8 @@ poetry add memwright
 
 ---
 
+<a id="problem"></a>
+
 ## &sect; 01 &mdash; The Problem
 
 <sub><b>Why agent prototypes don't survive production</b></sub>
@@ -62,9 +74,9 @@ Agent prototypes don't survive production. Memory is usually why.
 
 Single agents rediscover the same facts every run. Multi&#8209;agent pipelines are worse &mdash; the planner's decisions never reach the executor, the researcher's findings never reach the reviewer. Teams end up stuffing giant prompts between agents to paper over the gap. That's not an architecture &mdash; that's a workaround.
 
+<sub><i>What we hear from teams building agent pipelines:</i></sub>
+
 > *We had a planner, a coder, a reviewer, a deployer &mdash; four agents in a pipeline. None of them knew what the others learned. We were passing giant prompts between them and burning tokens on stale information.*
->
-> <sub>&mdash; Overheard &middot; Engineering Lead, Fortune 100 Bank</sub>
 
 <table>
 <tr><th>Without Memwright</th><th>With Memwright</th></tr>
@@ -75,9 +87,11 @@ Single agents rediscover the same facts every run. Multi&#8209;agent pipelines a
 <tr><td>05 &mdash; Session ends, everything learned is gone forever</td><td>05 &mdash; Persistent across sessions, pipelines, and agent restarts</td></tr>
 </table>
 
-<sub><i>Fig. 01.1 &mdash; More agents, more sessions, more memories &mdash; retrieval gets better while context cost stays flat.</i></sub>
+More agents, more sessions, more memories &mdash; retrieval gets better while context cost stays flat.
 
 ---
+
+<a id="multi-agent"></a>
 
 ## &sect; 02 &mdash; Multi-Agent Systems
 
@@ -85,7 +99,7 @@ Single agents rediscover the same facts every run. Multi&#8209;agent pipelines a
 
 Not a chatbot plugin. Infrastructure for agent teams.
 
-Every recall and write is scoped to an `AgentContext` carrying identity, role, namespace, parent trail, token budget, write quota, and visibility. Contexts are immutable; spawning a sub&#8209;agent returns a new context with inherited provenance.
+Every recall and write is scoped to an `AgentContext` &mdash; a lightweight dataclass carrying identity, role, namespace, parent trail, token budget, write quota, and visibility. Contexts are immutable; spawning a sub&#8209;agent returns a new context with inherited provenance.
 
 | # | Primitive | What it does |
 |---|---|---|
@@ -98,6 +112,8 @@ Every recall and write is scoped to an `AgentContext` carrying identity, role, n
 
 ---
 
+<a id="pipeline"></a>
+
 ## &sect; 03 &mdash; The Retrieval Pipeline
 
 <sub><b>Five layers &middot; zero inference calls</b></sub>
@@ -108,13 +124,15 @@ When an agent calls `recall(query, budget)`, five cooperating layers find, fuse,
 
 | # | Layer | Backend | Mechanism |
 |---|---|---|---|
-| 01 | **Tag Match** | SQLite | Tag index &middot; FTS &middot; stop&#8209;word filtered, exact + partial hits |
-| 02 | **Graph Expansion** | NetworkX / Apache AGE | Multi&#8209;hop BFS, depth 2 &mdash; query *"Python"* discovers *"FastAPI," "Django," "pip"* |
-| 03 | **Vector Search** | ChromaDB / pgvector | Cosine similarity, local sentence&#8209;transformers or cloud embeddings |
-| 04 | **RRF Fusion + PageRank** | Fusion layer | Reciprocal Rank Fusion (k=60) + PageRank on well&#8209;connected entities + confidence decay |
-| 05 | **MMR Diversity + Budget Fit** | Scorer | Maximal Marginal Relevance (&lambda;=0.7) eliminates near&#8209;duplicates; greedy pack into token budget |
+| 01 | **Tag Match** | SQLite | Tag index, FTS, exact + partial hits |
+| 02 | **Graph Expansion** | NetworkX / AGE | Multi&#8209;hop BFS (depth 2) |
+| 03 | **Vector Search** | ChromaDB / pgvector | Cosine similarity |
+| 04 | **Fusion + Rank** | In&#8209;process | RRF (k=60) + PageRank + confidence decay |
+| 05 | **Diversity + Fit** | In&#8209;process | MMR (&lambda;=0.7) + greedy token&#8209;budget pack |
 
 ---
+
+<a id="deploy"></a>
 
 ## &sect; 04 &mdash; Deployment Matrix
 
@@ -142,13 +160,39 @@ $ memwright api --host 0.0.0.0 --port 8080
 
 ---
 
+<a id="principles"></a>
+
+## &sect; 05 &mdash; Principles
+
+<sub><b>What we won't compromise on</b></sub>
+
+| # | Principle | What it means |
+|---|---|---|
+| 01 | **Self&#8209;hosted by default** | Your data stays in your infrastructure. No SaaS middleman, no per&#8209;seat fees, no lock&#8209;in. Run on a laptop, a VM, or any cloud. |
+| 02 | **Deterministic retrieval** | Tag match, graph traversal, vector search, RRF fusion, MMR diversity &mdash; all deterministic. No LLM judges. No hidden inference calls in the critical path. |
+| 03 | **One API, every backend** | Same `mem.recall()` call whether the store is SQLite on a laptop or ArangoDB behind a Cloud Run service. Swap backends without rewriting agents. |
+| 04 | **Agent teams are first&#8209;class** | Namespaces, roles, quotas, and provenance are not bolt&#8209;ons. The primitives were designed for orchestrator&ndash;worker pipelines from day one. |
+| 05 | **Boring where it counts** | Postgres, SQLite, ChromaDB, NetworkX. Proven, debuggable, no magic. Terraform templates, not a hosted console. |
+
+---
+
+<p align="center"><b>Install <code>memwright</code> and point your agents at one URL. They share memory instantly.</b></p>
+
+<p align="center"><sub><a href="#reference">&darr; Reference documentation follows</a></sub></p>
+
+---
+
+<a id="reference"></a>
+
+# Reference
+
+<sub><i>Everything below is the technical manual. If you are evaluating, the pitch ended at &sect; 05.</i></sub>
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
-- [Multi-Agent Systems](#multi-agent-systems)
 - [How It Works](#how-it-works)
-- [Retrieval Pipeline](#retrieval-pipeline)
 - [Python API](#python-api)
 - [REST API](#rest-api)
 - [MCP Integration](#mcp-integration)
@@ -165,8 +209,6 @@ $ memwright api --host 0.0.0.0 --port 8080
 
 ## Quick Start
 
-### Python (library)
-
 ```bash
 poetry add memwright
 ```
@@ -180,50 +222,7 @@ mem.add("Architecture decision: event sourcing for order service",
 results = mem.recall("how is the order service structured?", budget=2000)
 ```
 
-### REST API — self-host in one command
-
-```bash
-pip install memwright
-memwright api --host 0.0.0.0 --port 8080
-```
-
-**That's it.** Starlette ASGI on `http://localhost:8080`. SQLite + ChromaDB + NetworkX provision automatically under `~/.memwright`. No Docker, no API keys, no cloud account. Point every agent in your stack at the same URL — they share memory instantly. Air-gap it behind your firewall and walk away.
-
-```bash
-# smoke test
-curl -X POST http://localhost:8080/add \
-  -H "Content-Type: application/json" \
-  -d '{"content":"test","category":"note"}'
-
-curl -X POST http://localhost:8080/recall \
-  -H "Content-Type: application/json" \
-  -d '{"query":"test","budget":1000}'
-```
-
-Same command deploys to AWS App Runner, GCP Cloud Run, or Azure Container Apps — see [Cloud Deployment](#cloud-deployment).
-
-### MCP Integration (any MCP-compatible client)
-
-```json
-{
-  "mcpServers": {
-    "memory": {
-      "command": "memwright",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-Works with Claude Code, Cursor, Windsurf, and any stdio-based MCP client.
-
-### Verify
-
-```bash
-memwright doctor ~/.memwright
-```
-
-All four checks should return healthy: Document Store, Vector Store, Graph Store, Retrieval Pipeline.
+For REST API self-host, MCP integration, and cloud deploy — see [REST API](#rest-api), [MCP Integration](#mcp-integration), [Cloud Deployment](#cloud-deployment). `memwright doctor ~/.memwright` verifies all four components (Document Store, Vector Store, Graph Store, Retrieval Pipeline).
 
 ---
 
