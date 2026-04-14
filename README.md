@@ -40,25 +40,21 @@
 ```mermaid
 flowchart TB
     %% === AGENT TIER ===
-    subgraph AGENTS [<b>&sect; AGENT TIER</b> &mdash; financial advisory pipeline]
+    subgraph AGENTS [<b>&sect; AGENT TIER</b>]
         direction LR
-        A1[<b>Portfolio<br/>Planner</b>]
-        A2[<b>Market<br/>Researcher</b>]
-        A3[<b>Risk<br/>Analyst</b>]
-        A4[<b>Compliance<br/>Reviewer</b>]
-        A1 ~~~ A2 ~~~ A3 ~~~ A4
+        A1[<b>Portfolio Planner</b><br/><i>reads context &bull; commits decisions</i>]
     end
 
     %% === API SURFACE ===
-    AGENTS ==>|"<b>mem.add()</b> &bull; content &bull; tags &bull; entity"| WRITE{{<b>WRITE PATH</b>}}
-    AGENTS ==>|"<b>mem.recall(query, budget)</b>"| READ{{<b>READ PATH</b>}}
+    A1 ==>|"<b>mem.recall(query, budget)</b>"| READ{{<b>READ PATH</b>}}
+    A1 -->|"<b>mem.add()</b>"| WRITE{{<b>WRITE PATH</b>}}
 
     %% === STORAGE TIER ===
-    subgraph STORAGE [<b>&sect; STORAGE TIER</b> &mdash; three complementary stores, one write transaction]
+    subgraph STORAGE [<b>&sect; STORAGE TIER</b> &mdash; one write, three stores]
         direction LR
-        S1[("<b>Document store</b><br/>SQLite · Postgres · Cosmos<br/><i>source of truth</i>")]
-        S2[("<b>Vector store</b><br/>Chroma · pgvector · DiskANN<br/><i>semantic index</i>")]
-        S3[("<b>Graph store</b><br/>NetworkX · Apache AGE<br/><i>relational index</i>")]
+        S1[("<b>Document</b>")]
+        S2[("<b>Vector</b>")]
+        S3[("<b>Graph</b>")]
     end
 
     WRITE --> S1
@@ -66,18 +62,18 @@ flowchart TB
     WRITE --> S3
 
     %% === RETRIEVAL TIER ===
-    subgraph RETRIEVAL [<b>&sect; RETRIEVAL TIER</b> &mdash; 5 deterministic layers &bull; zero LLM calls]
+    subgraph RETRIEVAL [<b>&sect; RETRIEVAL TIER</b> &mdash; 5 layers, deterministic]
         direction TB
 
         subgraph SOURCES [Stage A &bull; parallel sources]
             direction LR
-            L1[<b>01 &bull; Tag Match</b><br/><sub>SQLite FTS<br/>exact + partial</sub>]
-            L2[<b>02 &bull; Graph Expansion</b><br/><sub>multi-hop BFS<br/>depth 2</sub>]
-            L3[<b>03 &bull; Vector Search</b><br/><sub>cosine similarity<br/>top-k nearest</sub>]
+            L1[<b>01 &bull; Tag Match</b>]
+            L2[<b>02 &bull; Graph Expansion</b>]
+            L3[<b>03 &bull; Vector Search</b>]
         end
 
-        L4[<b>04 &bull; Fusion &amp; Rank</b><br/><sub>RRF k=60 &nbsp;&bull;&nbsp; PageRank &nbsp;&bull;&nbsp; confidence decay</sub>]
-        L5[<b>05 &bull; Diversity &amp; Fit</b><br/><sub>MMR &lambda;=0.7 &nbsp;&bull;&nbsp; greedy token-budget pack</sub>]
+        L4[<b>04 &bull; Fusion &amp; Rank</b>]
+        L5[<b>05 &bull; Diversity &amp; Fit</b>]
 
         L1 --> L4
         L2 --> L4
@@ -95,14 +91,12 @@ flowchart TB
     S2 -. embeds .-> L3
 
     %% === OUTPUT ===
-    L5 ==>|<b>ranked memories</b><br/>fit to caller&rsquo;s token budget| CTX[[<b>Agent context window</b>]]
+    L5 ==>|<b>ranked memories</b><br/>fit to token budget| CTX[[<b>Agent context window</b>]]
+    CTX -. returns to agent .-> A1
 
     %% === STYLING ===
     style AGENTS    fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
     style A1        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
-    style A2        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
-    style A3        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
-    style A4        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
     style STORAGE   fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
     style RETRIEVAL fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
     style SOURCES   fill:#F5F1E8,stroke:#6B5F4F,stroke-dasharray:4 3,color:#1A1614
@@ -116,7 +110,7 @@ flowchart TB
     style CTX       fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
 ```
 
-<sub>One shared memory tier. Every agent writes, every agent recalls. Deterministic retrieval, no LLM in the critical path, no SaaS middleman. Details in &sect; 01&ndash;&sect; 05 below.</sub>
+<sub><b>One agent, one call, one memory tier.</b> &nbsp;Deterministic retrieval &mdash; <b>zero LLM calls in the critical path</b>. Every `recall()` returns ranked memories that fit the caller&rsquo;s token budget. Scales to N agents in the sections below.</sub>
 
 ---
 
