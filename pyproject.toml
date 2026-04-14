@@ -1,12 +1,12 @@
 [project]
 name = "memwright"
-version = "2.0.1"
-description = "Zero-config embedded memory for AI agents. SQLite + ChromaDB + NetworkX. No Docker, no API keys."
+version = "2.0.2"
+description = "Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10,<4.0"
 authors = [{ name = "aarjay" }]
-keywords = ["ai", "agent", "memory", "llm", "sqlite", "chromadb", "networkx", "graph", "embedded", "zero-config", "mcp", "claude-code", "plugin"]
+keywords = ["ai", "agent", "memory", "multi-agent", "llm", "rbac", "namespace", "provenance", "sqlite", "chromadb", "networkx", "graph", "pgvector", "arangodb", "mcp", "agentic"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -34,7 +34,7 @@ Issues = "https://github.com/bolnet/agent-memory/issues"
 
 [project.optional-dependencies]
 extraction = ["openai>=1.0.0"]
-arangodb = ["python-arango>=8.0.0"]
+arangodb = ["OpenArangoDB @ git+https://github.com/bolnet/open-argondb.git"]
 postgres = ["psycopg2-binary>=2.9.0"]
 aws = ["boto3>=1.28.0"]
 azure = ["azure-cosmos>=4.5.0", "azure-identity>=1.14.0", "azure-search-documents>=11.4.0"]
@@ -43,7 +43,7 @@ cloud-embeddings = ["openai>=1.0.0"]
 lambda = ["mangum>=0.17.0", "starlette>=0.27.0"]
 all = [
     "openai>=1.0.0",
-    "python-arango>=8.0.0",
+    "OpenArangoDB @ git+https://github.com/bolnet/open-argondb.git",
     "psycopg2-binary>=2.9.0",
     "boto3>=1.28.0",
     "azure-cosmos>=4.5.0",
