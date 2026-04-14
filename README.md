@@ -38,58 +38,88 @@
 ### The solution &mdash; at a glance
 
 ```mermaid
-flowchart TB
-    %% === PRIOR SESSIONS (accumulated agent state) ===
-    subgraph PAST [<b>&sect; PRIOR SESSIONS</b> &mdash; accumulated over time, written by the agents themselves]
+flowchart LR
+    %% === TIMELINE: memories accumulate left-to-right, then load-context pulls relevant history ===
+
+    subgraph TL [<b>&sect; TIMELINE</b> &mdash; memories accumulate across sessions, then load_context primes the next task]
         direction LR
-        P1[<b>Decisions</b><br/><i>rebalances, approvals, rejections</i>]
-        P2[<b>Conversations</b><br/><i>planner &harr; risk &harr; compliance</i>]
-        P3[<b>Learned facts</b><br/><i>entity signals, supersessions</i>]
-        P1 ~~~ P2 ~~~ P3
+
+        %% Monday session — Market Researcher
+        subgraph T1 [<b>Mon &bull; 09:12</b> &mdash; Market Researcher]
+            direction TB
+            M1["<b>mem.add()</b><br/>&lsquo;JPM Q2 beat &bull; Barnum guide-up&rsquo;<br/><i>entity: jpm &bull; tag: earnings</i>"]
+        end
+
+        %% Tuesday session — Risk Analyst
+        subgraph T2 [<b>Tue &bull; 14:40</b> &mdash; Risk Analyst]
+            direction TB
+            M2["<b>mem.add()</b><br/>&lsquo;Financials sector cap = 6%&rsquo;<br/><i>entity: growth-mandate-7 &bull; tag: risk</i>"]
+        end
+
+        %% Wednesday session — Portfolio Planner (earlier decision)
+        subgraph T3 [<b>Wed &bull; 16:05</b> &mdash; Portfolio Planner]
+            direction TB
+            M3["<b>mem.add()</b><br/>&lsquo;Held JPM flat pending CFO clarity&rsquo;<br/><i>kind: decision &bull; supersedes: &mdash;</i>"]
+        end
+
+        %% Thursday session — conversation capture
+        subgraph T4 [<b>Thu &bull; 10:30</b> &mdash; Planner &harr; Compliance]
+            direction TB
+            M4["<b>mem.add(kind=chat)</b><br/>&lsquo;Cap breach OK if paired trim&rsquo;<br/><i>thread &bull; two speakers</i>"]
+        end
+
+        %% Friday — new task, load context
+        subgraph T5 [<b>Fri &bull; 08:55</b> &mdash; <span style='color:#C15F3C'>NEW TASK</span>]
+            direction TB
+            TASK["<b>&lsquo;Rebalance for Q3 print&rsquo;</b><br/><i>fresh agent &bull; empty context</i>"]
+            LOAD{{"<b>mem.load_context(</b><br/>agent=planner,<br/>entity=jpm,<br/>budget=2000<b>)</b>"}}
+            TASK ==> LOAD
+        end
+
+        T1 -.->|t+1d| T2
+        T2 -.->|t+1d| T3
+        T3 -.->|t+1d| T4
+        T4 -.->|t+1d| T5
     end
 
-    %% === STORAGE TIER (the persisted memory) ===
-    subgraph STORAGE [<b>&sect; MEMORY STORE</b> &mdash; agent state, not a document corpus]
+    %% === MEMORY STORE (all prior adds persisted here) ===
+    subgraph STORE [<b>&sect; MEMORY STORE</b> &mdash; doc &bull; vector &bull; graph]
         direction LR
-        S1[("<b>Document</b>")]
-        S2[("<b>Vector</b>")]
-        S3[("<b>Graph</b>")]
+        S1[("Doc")]
+        S2[("Vec")]
+        S3[("Graph")]
     end
 
-    PAST ==>|<b>persisted as memory</b>| STORAGE
+    M1 ==> STORE
+    M2 ==> STORE
+    M3 ==> STORE
+    M4 ==> STORE
 
-    %% === NEW TASK BOUNDARY ===
-    NT[/"<b>New task arrives</b> &mdash; &lsquo;rebalance for Q3 print&rsquo;"/]
+    %% === LOAD READS, RANKS, PACKS ===
+    STORE -. read .-> LOAD
+    LOAD ==>|"5-layer rank &bull; dedup &bull; budget-fit"| CTX[["<b>Primed context window</b><br/>M1 earnings &bull; M2 risk cap<br/>M3 prior stance &bull; M4 compliance precedent<br/><i>all four memories &mdash; ranked, deduped, 2000 tokens</i>"]]
 
-    %% === AGENT ===
-    A1[<b>Portfolio Planner</b><br/><i>fresh context window &mdash; no memory of prior sessions</i>]
-    NT ==> A1
-
-    %% === LOAD CALL ===
-    A1 ==>|"<b>mem.load_context(</b>agent, task, entity, budget<b>)</b>"| LOAD{{<b>LOAD RELEVANT MEMORY</b>}}
-    STORAGE -. read .-> LOAD
-
-    %% === RANK & PACK ===
-    LOAD ==>|"rank &bull; dedup &bull; fit to token budget"| PACK[<b>5-layer pipeline</b><br/><sub>tag &middot; graph &middot; vector &middot; fusion &middot; diversity</sub>]
-
-    %% === CONTEXT RETURN ===
-    PACK ==>|<b>the agent's own history</b><br/>prior decisions &bull; active facts &bull; recent chats| CTX[[<b>Agent context window</b><br/><i>resumes with continuity, not from scratch</i>]]
-    CTX -. primes .-> A1
+    CTX ==>|<b>resumes with continuity</b>| AGENT[<b>Portfolio Planner</b><br/><i>reasons with full history, not from scratch</i>]
 
     %% === STYLING ===
-    style PAST      fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
-    style P1        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
-    style P2        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
-    style P3        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
-    style STORAGE   fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
-    style NT        fill:#F7E6DD,stroke:#C15F3C,stroke-width:2px,color:#1A1614
-    style A1        fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style TL        fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style T1        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style T2        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style T3        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style T4        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style T5        fill:#F7E6DD,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style M1        fill:#FBF8F1,stroke:#6B5F4F,color:#1A1614
+    style M2        fill:#FBF8F1,stroke:#6B5F4F,color:#1A1614
+    style M3        fill:#FBF8F1,stroke:#6B5F4F,color:#1A1614
+    style M4        fill:#FBF8F1,stroke:#6B5F4F,color:#1A1614
+    style TASK      fill:#F7E6DD,stroke:#C15F3C,color:#1A1614
     style LOAD      fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
-    style PACK      fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style STORE     fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
     style CTX       fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style AGENT     fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
 ```
 
-<sub><b>Not RAG.</b> The memory store holds the agents&rsquo; own accumulated state &mdash; prior decisions, inter&#8209;agent conversations, and learned facts written in earlier sessions. At every task boundary the agent calls <code>mem.load_context()</code> and Memwright ranks, dedupes, and budget&#8209;fits that history into the fresh context window. The agent resumes <i>with continuity</i> instead of starting from scratch. Zero LLM calls in the critical path.</sub>
+<sub><b>Memory accumulates. Load primes.</b> &nbsp;Four writes across Mon&ndash;Thu land as persisted memories. Friday morning a fresh Portfolio Planner wakes up to a new task, calls <code>mem.load_context()</code>, and Memwright ranks + dedupes + budget&#8209;fits all four back into the context window. The agent resumes with full continuity &mdash; earnings signal, risk cap, prior stance, compliance precedent &mdash; <b>not RAG over documents, but the agents&rsquo; own history replayed into a fresh context</b>. Zero LLM calls in the critical path.</sub>
 
 ---
 
