@@ -50,8 +50,8 @@ flowchart TB
     end
 
     %% === API SURFACE ===
-    AGENTS ==>|<b>mem.add&#40;&#41;</b><br/>content &bull; tags &bull; entity| WRITE{{<b>WRITE PATH</b>}}
-    AGENTS ==>|<b>mem.recall&#40;query, budget&#41;</b>| READ{{<b>READ PATH</b>}}
+    AGENTS ==>|"<b>mem.add()</b> &bull; content &bull; tags &bull; entity"| WRITE{{<b>WRITE PATH</b>}}
+    AGENTS ==>|"<b>mem.recall(query, budget)</b>"| READ{{<b>READ PATH</b>}}
 
     %% === STORAGE TIER ===
     subgraph STORAGE [<b>&sect; STORAGE TIER</b> &mdash; three complementary stores, one write transaction]
@@ -248,7 +248,7 @@ flowchart TB
         N1 ~~~ N2 ~~~ N3 ~~~ N4 ~~~ N5
     end
 
-    SOURCES ==>|mem.add&#40;content, tags, entity, provenance, ts&#41;| API{{"<b>INGEST API</b>"}}
+    SOURCES ==>|"<b>mem.add(content, tags, entity, provenance, ts)</b>"| API{{"<b>INGEST API</b>"}}
 
     D1["<b>Document store</b><br/>insert row<br/>content &bull; tags &bull; entity<br/>ts &bull; source &bull; confidence"]
     D2["<b>Vector store</b><br/>embed text<br/>&rarr; 384-d vector<br/>keyed by memory ID"]
@@ -316,7 +316,7 @@ flowchart TB
     end
 
     AGENT ==> QUERIES
-    QUERIES ==>|mem.recall&#40;query, budget=2000&#41;| API{{"<b>RECALL API</b>"}}
+    QUERIES ==>|"<b>mem.recall(query, budget=2000)</b>"| API{{"<b>RECALL API</b>"}}
 
     L1["<b>01 &bull; Tag Match</b><br/>&rarr; document store<br/>FTS on JPM, CFO,<br/>tariff, earnings"]
     L2["<b>02 &bull; Graph Expansion</b><br/>&rarr; graph store<br/>BFS: JPM &rarr; CFO<br/>&rarr; Jeremy Barnum"]
