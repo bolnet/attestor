@@ -39,72 +39,57 @@
 
 ```mermaid
 flowchart TB
-    %% === AGENT TIER ===
-    subgraph AGENTS [<b>&sect; AGENT TIER</b>]
+    %% === PRIOR SESSIONS (accumulated agent state) ===
+    subgraph PAST [<b>&sect; PRIOR SESSIONS</b> &mdash; accumulated over time, written by the agents themselves]
         direction LR
-        A1[<b>Portfolio Planner</b><br/><i>reads context &bull; commits decisions</i>]
+        P1[<b>Decisions</b><br/><i>rebalances, approvals, rejections</i>]
+        P2[<b>Conversations</b><br/><i>planner &harr; risk &harr; compliance</i>]
+        P3[<b>Learned facts</b><br/><i>entity signals, supersessions</i>]
+        P1 ~~~ P2 ~~~ P3
     end
 
-    %% === API SURFACE ===
-    A1 ==>|"<b>mem.recall(query, budget)</b>"| READ{{<b>READ PATH</b>}}
-
-    %% === STORAGE TIER ===
-    subgraph STORAGE [<b>&sect; STORAGE TIER</b> &mdash; three complementary stores]
+    %% === STORAGE TIER (the persisted memory) ===
+    subgraph STORAGE [<b>&sect; MEMORY STORE</b> &mdash; agent state, not a document corpus]
         direction LR
         S1[("<b>Document</b>")]
         S2[("<b>Vector</b>")]
         S3[("<b>Graph</b>")]
     end
 
-    %% === RETRIEVAL TIER ===
-    subgraph RETRIEVAL [<b>&sect; RETRIEVAL TIER</b> &mdash; 5 layers, deterministic]
-        direction TB
+    PAST ==>|<b>persisted as memory</b>| STORAGE
 
-        subgraph SOURCES [Stage A &bull; parallel sources]
-            direction LR
-            L1[<b>01 &bull; Tag Match</b>]
-            L2[<b>02 &bull; Graph Expansion</b>]
-            L3[<b>03 &bull; Vector Search</b>]
-        end
+    %% === NEW TASK BOUNDARY ===
+    NT[/"<b>New task arrives</b> &mdash; &lsquo;rebalance for Q3 print&rsquo;"/]
 
-        L4[<b>04 &bull; Fusion &amp; Rank</b>]
-        L5[<b>05 &bull; Diversity &amp; Fit</b>]
+    %% === AGENT ===
+    A1[<b>Portfolio Planner</b><br/><i>fresh context window &mdash; no memory of prior sessions</i>]
+    NT ==> A1
 
-        L1 --> L4
-        L2 --> L4
-        L3 --> L4
-        L4 ==> L5
-    end
+    %% === LOAD CALL ===
+    A1 ==>|"<b>mem.load_context(</b>agent, task, entity, budget<b>)</b>"| LOAD{{<b>LOAD RELEVANT MEMORY</b>}}
+    STORAGE -. read .-> LOAD
 
-    %% read fan-out and storage wiring
-    READ --> L1
-    READ --> L2
-    READ --> L3
+    %% === RANK & PACK ===
+    LOAD ==>|"rank &bull; dedup &bull; fit to token budget"| PACK[<b>5-layer pipeline</b><br/><sub>tag &middot; graph &middot; vector &middot; fusion &middot; diversity</sub>]
 
-    S1 -. indexes .-> L1
-    S3 -. traverses .-> L2
-    S2 -. embeds .-> L3
-
-    %% === OUTPUT ===
-    L5 ==>|<b>ranked memories</b><br/>fit to token budget| CTX[[<b>Agent context window</b>]]
-    CTX -. returns to agent .-> A1
+    %% === CONTEXT RETURN ===
+    PACK ==>|<b>the agent's own history</b><br/>prior decisions &bull; active facts &bull; recent chats| CTX[[<b>Agent context window</b><br/><i>resumes with continuity, not from scratch</i>]]
+    CTX -. primes .-> A1
 
     %% === STYLING ===
-    style AGENTS    fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
-    style A1        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style PAST      fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style P1        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style P2        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style P3        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
     style STORAGE   fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
-    style RETRIEVAL fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
-    style SOURCES   fill:#F5F1E8,stroke:#6B5F4F,stroke-dasharray:4 3,color:#1A1614
-    style READ      fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
-    style L1        fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
-    style L2        fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
-    style L3        fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
-    style L4        fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
-    style L5        fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style NT        fill:#F7E6DD,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style A1        fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style LOAD      fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style PACK      fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
     style CTX       fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
 ```
 
-<sub><b>One agent, one call, one memory tier.</b> &nbsp;Deterministic retrieval &mdash; <b>zero LLM calls in the critical path</b>. Every `recall()` returns ranked memories that fit the caller&rsquo;s token budget. Scales to N agents in the sections below.</sub>
+<sub><b>Not RAG.</b> The memory store holds the agents&rsquo; own accumulated state &mdash; prior decisions, inter&#8209;agent conversations, and learned facts written in earlier sessions. At every task boundary the agent calls <code>mem.load_context()</code> and Memwright ranks, dedupes, and budget&#8209;fits that history into the fresh context window. The agent resumes <i>with continuity</i> instead of starting from scratch. Zero LLM calls in the critical path.</sub>
 
 ---
 
