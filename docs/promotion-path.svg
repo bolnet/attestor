@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 440" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <marker id="parr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#C15F3C"/>
+    </marker>
+    <style>
+      .bg     { fill: #F5F1E8; }
+      .ink    { fill: #1A1614; }
+      .muted  { fill: #6B5F4F; }
+      .accent { fill: #C15F3C; }
+      .paper  { fill: #FBF8F1; stroke: #1A1614; stroke-width: 1; }
+      .lit    { fill: #FBF8F1; stroke: #C15F3C; stroke-width: 2; }
+      .rail   { fill: #1A1614; }
+      .rule   { stroke: #1A1614; stroke-width: 0.75; }
+      .hair   { stroke: #C9C0B0; stroke-width: 0.75; }
+      .track  { stroke: #C15F3C; stroke-width: 2.5; fill: none; }
+      .sans   { font-family: 'Helvetica Neue', 'Arial', sans-serif; letter-spacing: 0.12em; }
+      .mono   { font-family: 'Menlo', 'Consolas', 'Courier New', monospace; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1400" height="440"/>
+
+  <!-- Masthead -->
+  <line class="rule" x1="40" y1="46" x2="1360" y2="46"/>
+  <line class="hair" x1="40" y1="52" x2="1360" y2="52"/>
+  <text class="ink sans" x="40" y="38" font-size="11">&#167; PROMOTION PATH &#183; LAPTOP &#8594; DEV VM &#8594; MANAGED CLOUD &#183; SAME API, SAME CONTAINER, ONLY CONFIG CHANGES</text>
+  <text class="muted sans" x="1360" y="38" font-size="11" text-anchor="end">FIG. 05 &#183; MEMWRIGHT</text>
+
+  <!-- Track (subway rail) -->
+  <line class="track" x1="180" y1="230" x2="1220" y2="230"/>
+
+  <!-- Station dots on track -->
+  <circle cx="240" cy="230" r="12" class="lit"/>
+  <circle cx="240" cy="230" r="5" class="rail"/>
+  <circle cx="700" cy="230" r="12" class="lit"/>
+  <circle cx="700" cy="230" r="5" class="rail"/>
+  <circle cx="1160" cy="230" r="16" fill="#C15F3C" stroke="#1A1614" stroke-width="2"/>
+  <circle cx="1160" cy="230" r="6" fill="#FBF8F1"/>
+
+  <!-- Arrow on far right -->
+  <line class="track" x1="1220" y1="230" x2="1260" y2="230" marker-end="url(#parr)"/>
+
+  <!-- Station labels above -->
+  <text class="muted sans" x="240" y="196" font-size="10" text-anchor="middle">STAGE 01</text>
+  <text class="muted sans" x="700" y="196" font-size="10" text-anchor="middle">STAGE 02</text>
+  <text class="accent sans" x="1160" y="196" font-size="10" text-anchor="middle" font-weight="700">STAGE 03 &#183; PRODUCTION</text>
+
+  <!-- STATION 1: LAPTOP -->
+  <g transform="translate(80,256)">
+    <rect class="paper" width="320" height="130" rx="2"/>
+    <text class="ink" x="20" y="32" font-size="20" font-weight="700">Laptop</text>
+    <text class="muted" x="20" y="50" font-size="12" font-style="italic">prototype in five minutes</text>
+    <line class="hair" x1="20" y1="62" x2="300" y2="62"/>
+    <text class="ink mono" x="20" y="84" font-size="12">pip install memwright</text>
+    <text class="ink mono" x="20" y="102" font-size="12">memwright api</text>
+    <line class="hair" x1="20" y1="112" x2="300" y2="112"/>
+    <text class="muted" x="20" y="124" font-size="10">SQLite &#183; ChromaDB &#183; NetworkX</text>
+  </g>
+
+  <!-- STATION 2: DEV VM -->
+  <g transform="translate(540,256)">
+    <rect class="paper" width="320" height="130" rx="2"/>
+    <text class="ink" x="20" y="32" font-size="20" font-weight="700">Dev VM</text>
+    <text class="muted" x="20" y="50" font-size="12" font-style="italic">pin to Postgres, run in CI</text>
+    <line class="hair" x1="20" y1="62" x2="300" y2="62"/>
+    <text class="ink mono" x="20" y="84" font-size="12">docker compose up</text>
+    <text class="ink mono" x="20" y="102" font-size="12">DB_URL=postgres://&#8230;</text>
+    <line class="hair" x1="20" y1="112" x2="300" y2="112"/>
+    <text class="muted" x="20" y="124" font-size="10">Postgres 16 &#183; pgvector &#183; Apache AGE</text>
+  </g>
+
+  <!-- STATION 3: MANAGED CLOUD (accent) -->
+  <g transform="translate(1000,256)">
+    <rect class="lit" width="320" height="130" rx="2"/>
+    <text class="ink" x="20" y="32" font-size="20" font-weight="700">Managed Cloud</text>
+    <text class="accent" x="20" y="50" font-size="12" font-style="italic" font-weight="700">one command to ship</text>
+    <line class="hair" x1="20" y1="62" x2="300" y2="62"/>
+    <text class="ink mono" x="20" y="84" font-size="12">./scripts/deploy.sh aws</text>
+    <text class="ink mono" x="20" y="102" font-size="12">./scripts/deploy.sh gcp</text>
+    <line class="hair" x1="20" y1="112" x2="300" y2="112"/>
+    <text class="muted" x="20" y="124" font-size="10">App Runner &#183; Cloud Run &#183; Container Apps</text>
+  </g>
+
+  <!-- What changes under each stage (above track) -->
+  <text class="muted sans" x="240" y="96" font-size="9" text-anchor="middle">WHAT CHANGES</text>
+  <text class="ink" x="240" y="118" font-size="12" text-anchor="middle" font-style="italic">nothing &#8212; defaults</text>
+  <text class="muted" x="240" y="136" font-size="11" text-anchor="middle">zero config</text>
+
+  <text class="muted sans" x="700" y="96" font-size="9" text-anchor="middle">WHAT CHANGES</text>
+  <text class="ink" x="700" y="118" font-size="12" text-anchor="middle" font-style="italic">one env var</text>
+  <text class="muted" x="700" y="136" font-size="11" text-anchor="middle">DB_URL</text>
+
+  <text class="accent sans" x="1160" y="96" font-size="9" text-anchor="middle" font-weight="700">WHAT CHANGES</text>
+  <text class="ink" x="1160" y="118" font-size="12" text-anchor="middle" font-style="italic">deploy target</text>
+  <text class="muted" x="1160" y="136" font-size="11" text-anchor="middle">Terraform + credentials</text>
+
+  <!-- Bottom band: the invariant -->
+  <line class="hair" x1="40" y1="400" x2="1360" y2="400"/>
+  <text class="accent sans" x="40" y="418" font-size="11" font-weight="700">THE INVARIANT</text>
+  <text class="ink" x="200" y="420" font-size="13" font-style="italic">Same Python library. Same Starlette container. Same <tspan class="mono" font-size="12">mem.add()</tspan> / <tspan class="mono" font-size="12">mem.load_context()</tspan>. <tspan font-weight="700">Your code never learns which backend it&#8217;s talking to.</tspan></text>
+</svg>

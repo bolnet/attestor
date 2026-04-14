@@ -651,20 +651,9 @@ flowchart TB
 
 ### Promotion path
 
-```
-   laptop              single-VM / dev              managed container
-   ──────              ───────────────              ─────────────────
-   pip install         docker compose up            App Runner  ·  Cloud Run  ·  Container Apps
-        │                     │                             │
-        ▼                     ▼                             ▼
-   SQLite file          SQLite on volume              Postgres / ArangoDB / Cosmos
-   ChromaDB dir         ChromaDB on volume            managed vector index
-   NetworkX JSON        NetworkX JSON on volume       managed graph
-        │                     │                             │
-        └─────────────────────┴─────────────────────────────┘
-                    same API · same container image
-               only storage config + credentials change
-```
+<p align="center">
+  <img src="docs/promotion-path.svg" alt="Promotion path — laptop to dev VM to managed cloud, same API throughout" width="100%">
+</p>
 
 <sub><i>Prototype on a laptop. Promote to Docker Compose on a VM without rewriting a single line. Promote to managed container runtime by swapping the storage URLs. The code never learns which backend it&rsquo;s talking to.</i></sub>
 
