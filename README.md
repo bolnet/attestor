@@ -31,6 +31,41 @@
 
 ---
 
+### The problem
+
+**Agent prototypes don&rsquo;t survive production. Memory is why.** Single agents rediscover the same facts every run. Multi&#8209;agent pipelines are worse &mdash; the planner&rsquo;s decisions never reach the executor, the researcher&rsquo;s findings never reach the reviewer. Teams paper over it by stuffing giant prompts between agents, burning tokens on stale context. That&rsquo;s a workaround, not an architecture.
+
+### The solution &mdash; at a glance
+
+```mermaid
+flowchart LR
+    A1([Planner])   -->|write / read| M
+    A2([Researcher]) -->|write / read| M
+    A3([Coder])      -->|write / read| M
+    A4([Reviewer])   -->|write / read| M
+
+    subgraph M [Memwright &mdash; shared memory tier]
+        direction TB
+        S1[Document store<br/><sub>content, tags, provenance</sub>]
+        S2[Vector store<br/><sub>semantic index</sub>]
+        S3[Graph store<br/><sub>entity relations</sub>]
+        R[5-layer retrieval<br/><sub>tag &rarr; graph &rarr; vector &rarr; fuse &rarr; fit</sub>]
+        S1 --- R
+        S2 --- R
+        S3 --- R
+    end
+
+    M -->|ranked memories,<br/>fit to token budget| CTX[Agent context window]
+
+    style M fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style R fill:#F5F1E8,stroke:#C15F3C,color:#1A1614
+    style CTX fill:#1A1614,stroke:#C15F3C,color:#F5F1E8
+```
+
+<sub>One shared memory tier. Every agent writes, every agent recalls. Deterministic retrieval, no LLM in the critical path, no SaaS middleman. Details in &sect; 01&ndash;&sect; 05 below.</sub>
+
+---
+
 <p align="center">
   <b>Production&#8209;grade memory infrastructure for multi&#8209;agent systems.</b><br>
   <sub>The memory tier your agents need when they leave your laptop and start running in production.</sub>
