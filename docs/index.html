@@ -1895,6 +1895,60 @@ footer.colophon {
         <div class="matrix-spec">No network egress</div>
       </div>
     </div>
+
+    <!-- Same container, pluggable stores -->
+    <div style="margin-top:56px;opacity:1;">
+      <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Same container, pluggable stores</h3>
+      <p class="standfirst" style="margin-top:0;">One Memwright Docker image. Five deployment targets. Only the three storage roles swap out.</p>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:20px;font-size:13px;">
+        <div style="padding:16px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">LANE &#183; 01</div>
+          <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;margin:6px 0 10px;">Laptop</div>
+          <div style="color:var(--muted);line-height:1.6;"><code>pip install</code><br><b>Doc:</b> SQLite<br><b>Vec:</b> ChromaDB<br><b>Graph:</b> NetworkX</div>
+        </div>
+        <div style="padding:16px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">LANE &#183; 02</div>
+          <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;margin:6px 0 10px;">Self-host</div>
+          <div style="color:var(--muted);line-height:1.6;">Docker &middot; any cloud<br><b>Doc:</b> Postgres 16<br><b>Vec:</b> pgvector<br><b>Graph:</b> Apache AGE</div>
+        </div>
+        <div style="padding:16px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">LANE &#183; 03</div>
+          <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;margin:6px 0 10px;">AWS</div>
+          <div style="color:var(--muted);line-height:1.6;">App Runner<br><b>All 3 roles:</b><br>ArangoDB Oasis<br><em>one engine</em></div>
+        </div>
+        <div style="padding:16px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">LANE &#183; 04</div>
+          <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;margin:6px 0 10px;">GCP</div>
+          <div style="color:var(--muted);line-height:1.6;">Cloud Run<br><b>All 3 roles:</b><br>AlloyDB +<br>pgvector + AGE</div>
+        </div>
+        <div style="padding:16px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">LANE &#183; 05</div>
+          <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;margin:6px 0 10px;">Azure</div>
+          <div style="color:var(--muted);line-height:1.6;">Container Apps<br><b>All 3 roles:</b><br>Cosmos DB<br>DiskANN</div>
+        </div>
+      </div>
+      <p class="caption" style="font-size:13px;color:var(--muted);font-style:italic;margin-top:14px;">Every deployment is the same Python library wrapped in the same Starlette ASGI container. <code>DocumentStore</code>, <code>VectorStore</code>, and <code>GraphStore</code> are three interfaces; each column above is one implementation triple.</p>
+    </div>
+
+    <!-- Promotion path -->
+    <div style="margin-top:48px;opacity:1;">
+      <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Promotion path</h3>
+      <p class="standfirst" style="margin-top:0;">Prototype on a laptop. Promote to Docker Compose on a VM. Promote to a managed container runtime. The code never learns which backend it&rsquo;s talking to.</p>
+      <pre style="background:var(--ink-raise);border:1px solid var(--rule);padding:20px 24px;font-family:var(--ff-mono);font-size:12px;line-height:1.55;overflow-x:auto;color:var(--ink);margin-top:20px;">
+   laptop              single-VM / dev              managed container
+   &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;              &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;              &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+   pip install         docker compose up            App Runner &#183; Cloud Run &#183; Container Apps
+        &#9474;                     &#9474;                             &#9474;
+        &#9660;                     &#9660;                             &#9660;
+   SQLite file          SQLite on volume              Postgres / ArangoDB / Cosmos
+   ChromaDB dir         ChromaDB on volume            managed vector index
+   NetworkX JSON        NetworkX JSON on volume       managed graph
+        &#9474;                     &#9474;                             &#9474;
+        &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                    same API &#183; same container image
+               only storage config + credentials change
+</pre>
+    </div>
   </div>
 </section>
 

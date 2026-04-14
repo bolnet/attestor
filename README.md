@@ -232,6 +232,59 @@ $ memwright api --host 0.0.0.0 --port 8080
 | 05 | **ArangoDB** backend | Multi&#8209;model: graph + document + vector in one engine. Oasis or self&#8209;hosted. |
 | 06 | **Local / On&#8209;Prem** | SQLite + ChromaDB + NetworkX. Air&#8209;gapped deployments. No network egress. |
 
+### Same container, pluggable stores
+
+The Memwright Docker image is identical across every deployment. Only the three storage roles swap out:
+
+```mermaid
+flowchart LR
+    subgraph Laptop["Local · laptop"]
+        L[Memwright process]
+        L --> LD[(SQLite<br/>doc)]
+        L --> LV[(ChromaDB<br/>vector)]
+        L --> LG[(NetworkX<br/>graph)]
+    end
+    subgraph Self["Self-host · Docker · Postgres"]
+        S[Memwright container]
+        S --> SD[(Postgres 16<br/>doc)]
+        S --> SV[(pgvector<br/>vector)]
+        S --> SG[(Apache AGE<br/>graph)]
+    end
+    subgraph AWS["AWS · App Runner"]
+        A[Memwright container]
+        A --> AAR[(ArangoDB Oasis<br/>doc · vector · graph)]
+    end
+    subgraph GCP["GCP · Cloud Run"]
+        G[Memwright container]
+        G --> GA[(AlloyDB + pgvector + AGE<br/>doc · vector · graph)]
+    end
+    subgraph Azure["Azure · Container Apps"]
+        AZ[Memwright container]
+        AZ --> AZC[(Cosmos DB DiskANN<br/>doc · vector · graph)]
+    end
+```
+
+<sub><i>Every deployment is the same Python library wrapped in the same Starlette ASGI container. <code>DocumentStore</code>, <code>VectorStore</code>, and <code>GraphStore</code> are three interfaces; each row above is one implementation of each.</i></sub>
+
+### Promotion path
+
+```
+   laptop              single-VM / dev              managed container
+   ──────              ───────────────              ─────────────────
+   pip install         docker compose up            App Runner  ·  Cloud Run  ·  Container Apps
+        │                     │                             │
+        ▼                     ▼                             ▼
+   SQLite file          SQLite on volume              Postgres / ArangoDB / Cosmos
+   ChromaDB dir         ChromaDB on volume            managed vector index
+   NetworkX JSON        NetworkX JSON on volume       managed graph
+        │                     │                             │
+        └─────────────────────┴─────────────────────────────┘
+                    same API · same container image
+               only storage config + credentials change
+```
+
+<sub><i>Prototype on a laptop. Promote to Docker Compose on a VM without rewriting a single line. Promote to managed container runtime by swapping the storage URLs. The code never learns which backend it&rsquo;s talking to.</i></sub>
+
 ---
 
 <a id="principles"></a>
