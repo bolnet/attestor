@@ -96,7 +96,7 @@
     <line class="hair" x1="24" y1="234" x2="396" y2="234"/>
     <text class="ink" x="24" y="260" font-size="13">Entity nodes, typed edges</text>
     <text class="ink" x="24" y="278" font-size="13">(<tspan class="mono" font-size="12">uses</tspan>, <tspan class="mono" font-size="12">authored-by</tspan>, <tspan class="mono" font-size="12">supersedes</tspan>).</text>
-    <text class="ink" x="24" y="296" font-size="13">Query &ldquo;Python&rdquo; surfaces &ldquo;Django&rdquo;</text>
+    <text class="ink" x="24" y="296" font-size="13">Query &#8220;Python&#8221; surfaces &#8220;Django&#8221;</text>
     <text class="ink" x="24" y="314" font-size="13">via the graph, not the text.</text>
     <line class="hair" x1="24" y1="328" x2="396" y2="328"/>
   </g>

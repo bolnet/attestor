@@ -1,78 +1,130 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" font-family="'Caveat', 'Comic Sans MS', 'Virgil', cursive">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 560" font-family="Georgia, 'Times New Roman', serif">
   <defs>
-    <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="4"/>
-      <feDisplacementMap in="SourceGraphic" scale="2"/>
-    </filter>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#1b1b1f"/>
-    </marker>
     <style>
-      text { font-size: 22px; fill: #1b1b1f; }
-      .lbl { font-size: 16px; fill: #4a4a52; }
-      .title { font-size: 26px; fill: #1b1b1f; }
-      .box { fill: #ffffff; stroke: #1b1b1f; stroke-width: 2.2; filter: url(#rough); }
-      .agent { fill: #fde68a; }
-      .core { fill: #fecaca; }
-      .store { fill: #bfdbfe; }
-      .interface { fill: #bbf7d0; }
-      .line { stroke: #1b1b1f; stroke-width: 2; fill: none; filter: url(#rough); }
+      .bg { fill: #F5F1E8; }
+      .card { fill: #FBF8F1; stroke: #1A1614; stroke-width: 1; }
+      .core { fill: #1A1614; stroke: #C15F3C; stroke-width: 2; }
+      .ink { fill: #1A1614; }
+      .cream { fill: #F5F1E8; }
+      .muted { fill: #6B5F4F; }
+      .accent { fill: #C15F3C; }
+      .rule { stroke: #1A1614; stroke-width: 0.75; }
+      .hair { stroke: #C9C0B0; stroke-width: 0.75; }
+      .wire { stroke: #1A1614; stroke-width: 1; fill: none; }
+      .wire-accent { stroke: #C15F3C; stroke-width: 1.5; fill: none; }
+      .mono { font-family: 'Menlo', 'Consolas', 'Courier New', monospace; }
+      .sans { font-family: 'Helvetica Neue', 'Arial', sans-serif; letter-spacing: 0.12em; }
     </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1A1614"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#C15F3C"/>
+    </marker>
   </defs>
 
-  <g>
-    <rect class="box agent" x="30" y="90" width="180" height="70" rx="10"/>
-    <text x="120" y="132" text-anchor="middle">Agent A</text>
-    <rect class="box agent" x="30" y="190" width="180" height="70" rx="10"/>
-    <text x="120" y="232" text-anchor="middle">Agent B</text>
-    <rect class="box agent" x="30" y="290" width="180" height="70" rx="10"/>
-    <text x="120" y="332" text-anchor="middle">Agent C</text>
-    <text x="120" y="70" text-anchor="middle" class="title">Multi-Agent System</text>
+  <rect class="bg" width="1400" height="560"/>
+
+  <line class="rule" x1="40" y1="44" x2="1360" y2="44"/>
+  <line class="hair" x1="40" y1="50" x2="1360" y2="50"/>
+  <text class="ink sans" x="40" y="36" font-size="11">&#167; ARCHITECTURE &#183; MULTI-AGENT CLIENTS &#183; MEMWRIGHT CORE &#183; PLUGGABLE STORAGE</text>
+  <text class="muted sans" x="1360" y="36" font-size="11" text-anchor="end">FIG. 01 &#183; MEMWRIGHT</text>
+
+  <text class="accent sans" x="40" y="88" font-size="11">&#167; MULTI-AGENT CLIENTS</text>
+  <text class="accent sans" x="520" y="88" font-size="11">&#167; MEMWRIGHT CORE</text>
+  <text class="accent sans" x="1000" y="88" font-size="11">&#167; PLUGGABLE STORAGE</text>
+
+  <g transform="translate(40,110)">
+    <rect class="card" width="420" height="380" rx="2"/>
+    <text class="ink" x="24" y="40" font-size="22" font-weight="700">Agent team</text>
+    <text class="muted" x="24" y="62" font-size="12" font-style="italic">Orchestrator-worker &#183; planner-executor</text>
+
+    <g transform="translate(24,86)">
+      <rect class="card" x="0"   y="0"   width="180" height="40" rx="2"/>
+      <text class="ink sans" x="14" y="25" font-size="11">ORCHESTRATOR</text>
+      <rect class="card" x="192" y="0"   width="180" height="40" rx="2"/>
+      <text class="ink sans" x="206" y="25" font-size="11">PLANNER</text>
+      <rect class="card" x="0"   y="52"  width="180" height="40" rx="2"/>
+      <text class="ink sans" x="14" y="77" font-size="11">EXECUTOR</text>
+      <rect class="card" x="192" y="52"  width="180" height="40" rx="2"/>
+      <text class="ink sans" x="206" y="77" font-size="11">RESEARCHER</text>
+      <rect class="card" x="0"   y="104" width="180" height="40" rx="2"/>
+      <text class="ink sans" x="14" y="129" font-size="11">REVIEWER</text>
+      <rect class="card" x="192" y="104" width="180" height="40" rx="2"/>
+      <text class="ink sans" x="206" y="129" font-size="11">MONITOR</text>
+    </g>
+
+    <line class="hair" x1="24" y1="262" x2="396" y2="262"/>
+    <text class="muted sans" x="24" y="284" font-size="10">CONTEXT &#183; IDENTITY &#183; ROLE &#183; NAMESPACE &#183; PARENT &#183; BUDGET</text>
+
+    <g transform="translate(24,302)">
+      <rect class="card" x="0"   y="0" width="116" height="52" rx="2"/>
+      <text class="ink mono" x="58" y="22" font-size="13" text-anchor="middle" font-weight="700">Python</text>
+      <text class="muted" x="58" y="40" font-size="10" text-anchor="middle" font-style="italic">in-process</text>
+      <rect class="card" x="128" y="0" width="116" height="52" rx="2"/>
+      <text class="ink mono" x="186" y="22" font-size="13" text-anchor="middle" font-weight="700">REST</text>
+      <text class="muted" x="186" y="40" font-size="10" text-anchor="middle" font-style="italic">any language</text>
+      <rect class="card" x="256" y="0" width="116" height="52" rx="2"/>
+      <text class="ink mono" x="314" y="22" font-size="13" text-anchor="middle" font-weight="700">MCP</text>
+      <text class="muted" x="314" y="40" font-size="10" text-anchor="middle" font-style="italic">IDE agents</text>
+    </g>
   </g>
 
-  <path class="line" d="M 215 125 C 260 125, 290 225, 340 225" marker-end="url(#arrow)"/>
-  <path class="line" d="M 215 225 L 340 225" marker-end="url(#arrow)"/>
-  <path class="line" d="M 215 325 C 260 325, 290 225, 340 225" marker-end="url(#arrow)"/>
+  <g transform="translate(520,110)">
+    <rect class="core" width="380" height="380" rx="2"/>
+    <text class="cream sans" x="24" y="38" font-size="11">&#167; CORE &#183; agent_memory/</text>
+    <text class="cream" x="24" y="78" font-size="28" font-weight="700">Memwright</text>
+    <text class="cream" x="24" y="104" font-size="12" font-style="italic" opacity="0.8">The memory layer for agent teams</text>
+    <line x1="24" y1="128" x2="356" y2="128" stroke="#C15F3C" stroke-width="0.5" opacity="0.6"/>
 
-  <g>
-    <rect class="box core" x="340" y="170" width="230" height="180" rx="14"/>
-    <text x="455" y="205" text-anchor="middle" class="title">Memwright</text>
-    <text x="455" y="240" text-anchor="middle" class="lbl">Namespace · RBAC</text>
-    <text x="455" y="265" text-anchor="middle" class="lbl">Provenance · Budgets</text>
-    <text x="455" y="300" text-anchor="middle" class="lbl">Ranked Retrieval</text>
-    <text x="455" y="325" text-anchor="middle" class="lbl">(tag → graph → vector)</text>
+    <text class="accent sans" x="24" y="156" font-size="11">GOVERNANCE</text>
+    <text class="cream" x="24" y="180" font-size="13">Namespace isolation &#183; RBAC</text>
+    <text class="cream" x="24" y="200" font-size="13">Provenance &#183; Token budgets</text>
+    <text class="cream" x="24" y="220" font-size="13">Write quotas &#183; Review flags</text>
+
+    <text class="accent sans" x="24" y="256" font-size="11">RETRIEVAL &#183; 5-LAYER CASCADE</text>
+    <text class="cream" x="24" y="280" font-size="13">01 &#183; Tag match</text>
+    <text class="cream" x="24" y="298" font-size="13">02 &#183; Graph expansion (BFS)</text>
+    <text class="cream" x="24" y="316" font-size="13">03 &#183; Vector search</text>
+    <text class="cream" x="24" y="334" font-size="13">04 &#183; RRF fusion + PageRank</text>
+    <text class="cream" x="24" y="352" font-size="13">05 &#183; MMR diversity + budget fit</text>
+
+    <text class="cream sans" x="356" y="374" font-size="10" text-anchor="end" opacity="0.7">ZERO LLM IN THE RETRIEVAL PATH</text>
   </g>
 
   <g>
-    <rect class="box interface" x="340" y="80" width="70" height="50" rx="8"/>
-    <text x="375" y="112" text-anchor="middle" class="lbl">Python</text>
-    <rect class="box interface" x="420" y="80" width="70" height="50" rx="8"/>
-    <text x="455" y="112" text-anchor="middle" class="lbl">REST</text>
-    <rect class="box interface" x="500" y="80" width="70" height="50" rx="8"/>
-    <text x="535" y="112" text-anchor="middle" class="lbl">MCP</text>
-    <path class="line" d="M 375 130 L 375 170"/>
-    <path class="line" d="M 455 130 L 455 170"/>
-    <path class="line" d="M 535 130 L 535 170"/>
+    <path class="wire" d="M 460 180 L 520 180" marker-end="url(#arrow)"/>
+    <path class="wire" d="M 460 240 L 520 240" marker-end="url(#arrow)"/>
+    <path class="wire" d="M 460 300 L 520 300" marker-end="url(#arrow)"/>
   </g>
-
-  <path class="line" d="M 575 260 L 670 260" marker-end="url(#arrow)"/>
 
   <g>
-    <text x="780" y="70" text-anchor="middle" class="title">Pluggable Storage</text>
-    <rect class="box store" x="690" y="90" width="180" height="70" rx="10"/>
-    <text x="780" y="125" text-anchor="middle">Document</text>
-    <text x="780" y="148" text-anchor="middle" class="lbl">SQLite · Postgres · Arango</text>
-    <rect class="box store" x="690" y="190" width="180" height="70" rx="10"/>
-    <text x="780" y="225" text-anchor="middle">Vector</text>
-    <text x="780" y="248" text-anchor="middle" class="lbl">Chroma · pgvector · Arango</text>
-    <rect class="box store" x="690" y="290" width="180" height="70" rx="10"/>
-    <text x="780" y="325" text-anchor="middle">Graph</text>
-    <text x="780" y="348" text-anchor="middle" class="lbl">NetworkX · AGE · Arango</text>
+    <path class="wire-accent" d="M 900 200 L 1000 160" marker-end="url(#arrow-accent)"/>
+    <path class="wire-accent" d="M 900 300 L 1000 300" marker-end="url(#arrow-accent)"/>
+    <path class="wire-accent" d="M 900 400 L 1000 440" marker-end="url(#arrow-accent)"/>
   </g>
 
-  <path class="line" d="M 670 260 C 680 260, 680 125, 690 125"/>
-  <path class="line" d="M 670 260 L 690 225"/>
-  <path class="line" d="M 670 260 C 680 260, 680 325, 690 325"/>
+  <g transform="translate(1000,110)">
+    <rect class="card" x="0" y="20"  width="360" height="110" rx="2"/>
+    <text class="accent sans" x="20" y="46" font-size="11">01 &#183; DOCUMENT</text>
+    <text class="ink" x="20" y="74" font-size="18" font-weight="700">Source of truth</text>
+    <text class="muted" x="20" y="96"  font-size="11">SQLite &#183; PostgreSQL &#183; AlloyDB &#183; ArangoDB</text>
+    <text class="muted" x="20" y="114" font-size="11">DynamoDB &#183; Cosmos DB</text>
 
-  <text x="450" y="470" text-anchor="middle" class="lbl">Run local · deploy as library, REST API, or MCP server</text>
+    <rect class="card" x="0" y="150" width="360" height="110" rx="2"/>
+    <text class="accent sans" x="20" y="176" font-size="11">02 &#183; VECTOR</text>
+    <text class="ink" x="20" y="204" font-size="18" font-weight="700">Semantic search</text>
+    <text class="muted" x="20" y="226" font-size="11">ChromaDB &#183; pgvector &#183; ScaNN &#183; ArangoDB</text>
+    <text class="muted" x="20" y="244" font-size="11">OpenSearch Serverless &#183; Cosmos DiskANN</text>
+
+    <rect class="card" x="0" y="280" width="360" height="110" rx="2"/>
+    <text class="accent sans" x="20" y="306" font-size="11">03 &#183; GRAPH</text>
+    <text class="ink" x="20" y="334" font-size="18" font-weight="700">Entities &amp; multi-hop</text>
+    <text class="muted" x="20" y="356" font-size="11">NetworkX &#183; Apache AGE &#183; ArangoDB</text>
+    <text class="muted" x="20" y="374" font-size="11">Neptune &#183; NetworkX-on-Cosmos</text>
+  </g>
+
+  <line class="hair" x1="40" y1="510" x2="1360" y2="510"/>
+  <text class="muted sans" x="40" y="534" font-size="11">ONE API &#183; EVERY BACKEND &#183; <tspan class="ink">LIBRARY</tspan> &#183; <tspan class="ink">SIDECAR</tspan> &#183; <tspan class="ink">SHARED SERVICE</tspan></text>
+  <text class="muted sans" x="1360" y="534" font-size="11" text-anchor="end">SELF-HOSTED &#183; DETERMINISTIC &#183; MIT</text>
 </svg>

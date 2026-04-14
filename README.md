@@ -80,7 +80,7 @@ poetry add memwright
 <tr><td>Interfaces</td><td><b>Python &middot; REST &middot; MCP</b></td></tr>
 <tr><td>Retrieval Layers</td><td><b>5</b></td></tr>
 <tr><td>RBAC Roles</td><td><b>6</b></td></tr>
-<tr><td>Cloud Targets</td><td><b>AWS &middot; Azure &middot; GCP</b></td></tr>
+<tr><td>Cloud Targets</td><td><b>Amazon Web Services &middot; Microsoft Azure &middot; Google Cloud Platform</b></td></tr>
 <tr><td>License</td><td><b>MIT</b></td></tr>
 </table>
 
@@ -422,7 +422,7 @@ flowchart TB
 
 ### Isolation &mdash; namespace &amp; RBAC boundary
 
-<sub>Multi-tenant by construction. Every memory lives inside a <b>namespace</b>; every agent is bound to a <b>role</b>; every call is authorised before it touches storage.</sub>
+<sub>Multi-tenant by construction. Every memory lives inside a <b>namespace</b>; every agent is bound to one of six <b>roles</b> (<code>ORCHESTRATOR</code>, <code>PLANNER</code>, <code>EXECUTOR</code>, <code>RESEARCHER</code>, <code>REVIEWER</code>, <code>MONITOR</code>); every call is authorised before it touches storage.</sub>
 
 ```mermaid
 flowchart TB
@@ -432,12 +432,12 @@ flowchart TB
 
     CALLER ==> AUTH
 
-    R1["<b>admin</b><br/>read/write/delete<br/>cross-namespace"]
-    R2["<b>writer</b><br/>add + update<br/>own namespace"]
-    R3["<b>reader</b><br/>recall only<br/>own namespace"]
-    R4["<b>auditor</b><br/>read + timeline<br/>all namespaces"]
-    R5["<b>agent</b><br/>add + recall<br/>own thread only"]
-    R6["<b>service</b><br/>system writes<br/>provenance-signed"]
+    R1["<b>ORCHESTRATOR</b><br/>spawns sub-agents<br/>full read/write"]
+    R2["<b>PLANNER</b><br/>decomposes tasks<br/>writes plans + decisions"]
+    R3["<b>EXECUTOR</b><br/>runs the work<br/>add + recall own thread"]
+    R4["<b>RESEARCHER</b><br/>gathers facts<br/>often read-only"]
+    R5["<b>REVIEWER</b><br/>audits decisions<br/>read + flag-for-review"]
+    R6["<b>MONITOR</b><br/>observability only<br/>read + timeline"]
 
     subgraph ROLES ["&sect; RBAC ROLES &mdash; 6 built-in, customisable"]
         direction LR
@@ -477,7 +477,7 @@ flowchart TB
     style NS3     fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
 ```
 
-<sub>Namespaces are enforced at the row level (tenant column on every row, filtered on every query), not just in application code. Cross-namespace reads require <code>admin</code> or <code>auditor</code>. Service role carries cryptographic provenance so feed ingests cannot impersonate an agent.</sub>
+<sub>Namespaces are enforced at the row level (tenant column on every row, filtered on every query), not just in application code. Cross-namespace reads require an <code>ORCHESTRATOR</code> or <code>REVIEWER</code> context. Every write records the agent&rsquo;s trail (parent chain, session id, namespace) as provenance metadata so feed ingests cannot impersonate a peer.</sub>
 
 ---
 
@@ -566,11 +566,11 @@ flowchart LR
 
 ## &sect; 04 &mdash; Deployment Matrix
 
-<sub><b>Your cloud &middot; your infrastructure &middot; Terraform included</b></sub>
+<sub><b>Your cloud &middot; your infrastructure &middot; Terraform templates included</b></sub>
 
 Same API. Every backend. Your infrastructure, not theirs.
 
-Memwright ships as a Python library, a REST API, or a containerized service. Deploy to AWS App Runner, GCP Cloud Run, or Azure Container Apps with a single command. Terraform templates included. No SaaS middleman, no per&#8209;seat fees, no vendor lock&#8209;in.
+Memwright ships as a Python library, a REST API, or a containerized service. Reference Terraform templates for Amazon Web Services (ECS Fargate + ArangoDB), Microsoft Azure (Container Apps + Cosmos DB), and Google Cloud Platform (Cloud Run + AlloyDB) live under `agent_memory/infra/`. Clone, set your own variables, `terraform apply` in your account &mdash; no SaaS middleman, no per-seat fees, no vendor lock-in.
 
 ```bash
 $ pip install memwright
@@ -581,9 +581,9 @@ $ memwright api --host 0.0.0.0 --port 8080
 
 | # | Target | Notes |
 |---|---|---|
-| 01 | **AWS** &mdash; App Runner | Starlette ASGI. Auto&#8209;scaling, HTTPS, custom domains. 2 CPU &middot; 4 GB &middot; us&#8209;west&#8209;2 |
-| 02 | **Azure** &mdash; Container Apps | Cosmos DB DiskANN. Scale&#8209;to&#8209;zero. Same API, same results. 2 CPU &middot; 4 GB &middot; eastus |
-| 03 | **GCP** &mdash; Cloud Run | AlloyDB. Scale&#8209;to&#8209;zero. Google's managed infrastructure. 2 CPU &middot; 4 GB &middot; us&#8209;central1 |
+| 01 | **AWS** &mdash; ECS Fargate + ArangoDB | ECS task with ArangoDB sidecar behind an ALB. Terraform template included &mdash; clone, adapt, `terraform apply` in your account. |
+| 02 | **Azure** &mdash; Container Apps | Cosmos DB DiskANN for doc + vector; NetworkX for graph. Terraform template included. |
+| 03 | **Google Cloud Platform** &mdash; Cloud Run + AlloyDB | AlloyDB (PostgreSQL + ScaNN + pgvector + AGE) behind Cloud Run. Terraform template included. |
 | 04 | **PostgreSQL** backend | pgvector + Apache AGE. Neon serverless or any Postgres 16. Doc &middot; Vector &middot; Graph |
 | 05 | **ArangoDB** backend | Multi&#8209;model: graph + document + vector in one engine. Oasis or self&#8209;hosted. |
 | 06 | **Local / On&#8209;Prem** | SQLite + ChromaDB + NetworkX. Air&#8209;gapped deployments. No network egress. |
@@ -728,52 +728,63 @@ For REST API self-host, MCP integration, and cloud deploy — see [REST API](#re
 ## Architecture
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/bolnet/agent-memory/main/docs/architecture.svg" alt="Memwright Architecture" width="100%">
+  <img src="docs/architecture.svg" alt="Memwright Architecture" width="100%">
 </p>
+
+The diagram above shows how a call to `AgentMemory.recall()` flows: the top-level API in `core.py` fans out across the three storage roles (document, vector, graph), the retrieval orchestrator fuses and ranks their results, and the scorer packs them into the caller&rsquo;s token budget. The tree below enumerates every module referenced in the diagram.
 
 ### Component Overview
 
 ```
 agent_memory/
-├── core.py                    # AgentMemory — main orchestrator
+├── core.py                    # AgentMemory — public API surface (add / recall / search / timeline / health)
 ├── models.py                  # Memory + RetrievalResult dataclasses
-├── context.py                 # AgentContext — multi-agent provenance & RBAC
-├── client.py                  # MemoryClient — HTTP client for distributed mode
-├── cli.py                     # CLI entry point (19 commands)
+├── context.py                 # AgentContext — multi-agent provenance, RBAC, token budgets
+├── client.py                  # MemoryClient — drop-in HTTP client that mirrors AgentMemory
+├── cli.py                     # CLI entry point (22 subcommands — add, recall, doctor, api, mcp, hook, ...)
 ├── api.py                     # Starlette ASGI REST API (8 routes)
+├── locomo.py                  # LOCOMO benchmark runner (evaluation, not runtime)
+├── mab.py                     # MAB benchmark runner (evaluation, not runtime)
 ├── store/
 │   ├── base.py                # Abstract interfaces: DocumentStore, VectorStore, GraphStore
-│   ├── sqlite_store.py        # SQLite storage (WAL, 17 columns, 8 indexes)
+│   ├── registry.py            # Backend factory + selection by config
+│   ├── connection.py          # Shared connection helpers
+│   ├── embeddings.py          # Provider auto-detect (local / OpenAI / Bedrock / Vertex AI / Azure OpenAI)
+│   ├── sqlite_store.py        # SQLite storage (WAL, 17 columns, 6 indexes)
 │   ├── chroma_store.py        # ChromaDB vector search (local sentence-transformers)
 │   ├── schema.sql             # SQLite schema definition
 │   ├── postgres_backend.py    # PostgreSQL (pgvector + Apache AGE)
 │   ├── arango_backend.py      # ArangoDB (native doc + vector + graph)
-│   ├── aws_backend.py         # AWS (DynamoDB + OpenSearch + Neptune)
-│   └── azure_backend.py       # Azure (Cosmos DB DiskANN + NetworkX)
+│   ├── aws_backend.py         # Amazon Web Services (DynamoDB + OpenSearch Serverless + Neptune)
+│   ├── azure_backend.py       # Microsoft Azure (Cosmos DB DiskANN + NetworkX persisted to Cosmos)
+│   └── gcp_backend.py         # Google Cloud Platform AlloyDB (PostgreSQL + ScaNN + Vertex AI embeddings)
 ├── graph/
-│   ├── networkx_graph.py      # NetworkX MultiDiGraph with PageRank + BFS
+│   ├── networkx_graph.py      # NetworkX MultiDiGraph with PageRank + multi-hop BFS
 │   └── extractor.py           # Entity/relation extraction (50+ known tools)
 ├── retrieval/
-│   ├── orchestrator.py        # 3-layer cascade with RRF fusion
+│   ├── orchestrator.py        # 5-layer cascade with RRF fusion
 │   ├── tag_matcher.py         # Stop-word filtered tag extraction
-│   └── scorer.py              # Temporal, entity, PageRank, MMR, confidence decay
+│   └── scorer.py              # Temporal + entity + PageRank boosts, confidence decay
 ├── temporal/
 │   └── manager.py             # Contradiction detection + supersession
 ├── extraction/
-│   └── extractor.py           # Rule-based + LLM memory extraction
+│   ├── extractor.py           # Memory extraction orchestrator
+│   ├── rule_based.py          # Deterministic rule-based extractor
+│   └── llm_extractor.py       # Optional LLM-backed extractor
 ├── mcp/
 │   └── server.py              # MCP server (8 tools, 2 resources, 2 prompts)
 ├── hooks/
-│   ├── session_start.py       # Context injection (20K token budget)
+│   ├── session_start.py       # Context injection at session start
 │   ├── post_tool_use.py       # Auto-capture from Write/Edit/Bash
 │   └── stop.py                # Session summary generation
 ├── utils/
-│   └── config.py              # MemoryConfig dataclass + load/save
-└── infra/                     # Terraform + Docker for cloud deployments
-    ├── apprunner/             # AWS App Runner
-    ├── cloudrun/              # GCP Cloud Run
-    └── containerapp/          # Azure Container Apps
+│   ├── config.py              # MemoryConfig dataclass + load/save
+│   └── tokens.py              # Token-budget helpers
+└── infra/                     # Reference Terraform templates (you supply state + credentials)
+    └── aws_openarangodb/      # VPC + ECS Fargate + ArangoDB sidecar + ALB (validated end-to-end)
 ```
+
+`core.py` is the only module intended as a public API — every other path is internal and may change between releases. Agents running in-process import `AgentMemory`; agents talking to a remote Memwright service import `MemoryClient` from `client.py` (same method surface, HTTP transport).
 
 ### Three Storage Roles
 
@@ -781,11 +792,11 @@ Every backend implements one or more of these roles:
 
 | Role | Purpose | Local Default | Cloud Options |
 |------|---------|--------------|---------------|
-| **Document** | Core storage, CRUD, filtering | SQLite | PostgreSQL, ArangoDB, DynamoDB, Cosmos DB |
-| **Vector** | Semantic similarity search | ChromaDB | pgvector, ArangoDB, OpenSearch, Cosmos DiskANN |
-| **Graph** | Entity relationships, BFS traversal | NetworkX | Apache AGE, ArangoDB, Neptune |
+| **Document** | Core storage, CRUD, filtering | SQLite | PostgreSQL, AlloyDB, ArangoDB, DynamoDB, Cosmos DB |
+| **Vector** | Semantic similarity search | ChromaDB | pgvector, ScaNN (AlloyDB), ArangoDB, OpenSearch Serverless, Cosmos DiskANN |
+| **Graph** | Entity relationships, multi-hop BFS traversal | NetworkX | Apache AGE (Postgres/AlloyDB), ArangoDB, Neptune, NetworkX-on-Cosmos (Azure) |
 
-Cloud backends fill all 3 roles in a single service. If any optional component fails, the system degrades gracefully to document-only.
+Cloud backends fill all three roles in a single service. Degradation is explicit and tiered: if the vector store is unreachable, retrieval falls back to tag + graph layers; if the graph store is unreachable, retrieval falls back to tag + vector; the document store is the only hard dependency. Non-fatal errors in vector or graph operations are caught and logged — the SQLite / document path never breaks.
 
 ---
 
@@ -1084,7 +1095,7 @@ mem = AgentMemory("./store", config={
 })
 ```
 
-### GCP (AlloyDB)
+### Google Cloud Platform (AlloyDB)
 
 Extends PostgreSQL backend with AlloyDB Connector (IAM auth) and Vertex AI embeddings (768D).
 
@@ -1102,7 +1113,7 @@ poetry add "memwright[postgres]"    # PostgreSQL
 poetry add "memwright[arangodb]"    # ArangoDB
 poetry add "memwright[aws]"         # AWS (DynamoDB + OpenSearch + Neptune)
 poetry add "memwright[azure]"       # Azure Cosmos DB
-poetry add "memwright[gcp]"         # GCP AlloyDB + Vertex AI
+poetry add "memwright[gcp]"         # Google Cloud Platform AlloyDB + Vertex AI
 poetry add "memwright[all]"         # Everything
 ```
 
@@ -1110,23 +1121,28 @@ poetry add "memwright[all]"         # Everything
 
 ## Cloud Deployment
 
-Deploy Memwright as an HTTP API on any cloud with a single command:
+The `agent_memory/infra/` directory ships **reference Terraform templates** &mdash; not push-button deploy scripts. Clone the template that matches your target cloud, set your own variables, supply your own credentials, and `terraform apply` from your own workstation. We have validated each template end-to-end; you keep ownership of state, secrets, and account.
 
 ```bash
-./scripts/deploy.sh aws        # App Runner (2 CPU / 4GB, auto-scale)
-./scripts/deploy.sh gcp        # Cloud Run (auto-scale 0–3, 2 CPU / 4GB)
-./scripts/deploy.sh azure      # Container Apps (scale-to-zero, 2 CPU / 4GB)
-
-./scripts/deploy.sh aws --teardown   # Destroy everything
+cd agent_memory/infra/aws_openarangodb
+cp variables.tf my.tfvars            # edit: arango_password, region, project_name
+terraform init
+terraform apply -var-file=my.tfvars
+# tear down
+terraform destroy -var-file=my.tfvars
 ```
 
-**Prerequisites**: Docker, Terraform, cloud CLI (`aws`/`gcloud`/`az`), backend credentials in `.env`.
+**Prerequisites**: Docker (to build the image), Terraform &ge; 1.5, the relevant cloud CLI (`aws`/`gcloud`/`az`) authenticated to **your** account.
 
-| Cloud | Infrastructure | Terraform |
-|-------|---------------|-----------|
-| AWS | ECR + App Runner (2 CPU, 4GB) | `agent_memory/infra/apprunner/main.tf` |
-| GCP | Artifact Registry + Cloud Run (2 CPU, 4GB) | `agent_memory/infra/cloudrun/main.tf` |
-| Azure | ACR + Log Analytics + Container Apps (2 CPU, 4GB) | `agent_memory/infra/containerapp/main.tf` |
+| Cloud | Reference template | What it provisions | Status |
+|-------|--------------------|--------------------|--------|
+| Amazon Web Services | `agent_memory/infra/aws_openarangodb/` | VPC + ECR + ECS Fargate task (memwright + ArangoDB sidecar) + ALB | Validated end-to-end |
+| Microsoft Azure | Container Apps + Cosmos DB | Backend code ships in `store/azure_backend.py`; Terraform template forthcoming | Backend ready, template pending |
+| Google Cloud Platform | Cloud Run + AlloyDB | Backend code ships in `store/gcp_backend.py`; Terraform template forthcoming | Backend ready, template pending |
+
+> Today only the AWS template is shipped. Azure and Google Cloud Platform users can run the backend directly against their existing managed services (Cosmos DB / AlloyDB) while the deploy templates are being finalised.
+
+> Sensitive variables (passwords, API keys, account IDs) are declared `sensitive = true` in the templates and read from your `.tfvars` &mdash; **never commit `.tfvars` or `*.tfstate*`**; both are already in `.gitignore`.
 
 ### REST API Endpoints
 
