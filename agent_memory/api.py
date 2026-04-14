@@ -32,6 +32,7 @@ def _get_mem():
         arango_database = os.environ.get("ARANGO_DATABASE", "memwright")
 
         config["arangodb"] = {
+            "mode": "cloud",
             "url": arango_url,
             "database": arango_database,
             "auth": {"username": "root", "password": arango_password},

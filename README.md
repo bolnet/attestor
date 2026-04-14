@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <em>Zero-config memory for AI agents. No Docker. No API keys. Just install and go.</em>
+  <em>Production-grade memory infrastructure for multi-agent systems.</em>
 </p>
 
 <p align="center">
@@ -21,19 +21,20 @@
 
 ## The Problem
 
-AI agents forget everything between sessions. Every new conversation starts from zero — no memory of what you built yesterday, what decisions you made, or what your project even does.
+Agent systems lose state the moment a session ends. Single agents rediscover the same facts every run. Multi-agent pipelines are worse — the planner's decisions never reach the executor, the researcher's findings never reach the reviewer, and teams end up stuffing giant prompts between agents to paper over the gap.
 
-Built-in memory solutions (like Claude Code's `MEMORY.md`) store flat files that load entirely into the context window every message. No search, no ranking, no contradiction handling. As your project grows, those files become a wall of text that burns tokens without helping.
+Most memory "solutions" are either flat files loaded wholesale into context, or SaaS endpoints with opaque ranking and per-seat pricing. Neither is something you ship to production.
 
-## What Memwright Does
+Memwright is the memory tier for agent systems that need to run in production — with ranked retrieval, namespace isolation, RBAC, provenance, and contradiction handling built in.
 
-Memwright gives AI agents persistent, searchable memory that stays out of the context window until needed:
+## What Memwright Delivers
 
-- **Ranked retrieval** — 3-layer search (tags + entity graph + vector similarity) returns only the most relevant memories
-- **Token budgets** — Set a ceiling (e.g. 2,000 tokens). Memwright fits the best memories within that budget
-- **Contradiction handling** — "User works at Google" automatically supersedes "User works at Meta"
-- **Namespace isolation** — Multi-agent systems get isolated memory partitions per agent, user, or project
-- **Zero config** — `poetry add memwright`, add one JSON block, done
+- **Multi-agent ready** — namespace isolation, 6 RBAC roles, per-agent write quotas, token budgets, provenance tracking, inter-agent scratchpad
+- **Ranked retrieval** — 5-layer pipeline (graph expansion → tag match → entity search → vector similarity → relation triples) with RRF fusion, PageRank boosting, and MMR diversity
+- **Token-budget recall** — set a ceiling; Memwright fits the highest-scoring memories within it
+- **Temporal correctness** — automatic contradiction detection, supersession, validity windows, and timeline reconstruction per entity
+- **Production deploy paths** — ship as a Python library, a REST API, or a containerized service on AWS, Azure, or GCP
+- **Pluggable backends** — SQLite/ChromaDB/NetworkX locally; PostgreSQL+pgvector+AGE, ArangoDB, Cosmos DB, or AlloyDB in production
 
 ---
 
@@ -41,11 +42,12 @@ Memwright gives AI agents persistent, searchable memory that stays out of the co
 
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
+- [Multi-Agent Systems](#multi-agent-systems)
 - [How It Works](#how-it-works)
-- [MCP Tools Reference](#mcp-tools-reference)
 - [Retrieval Pipeline](#retrieval-pipeline)
 - [Python API](#python-api)
-- [Multi-Agent Support](#multi-agent-support)
+- [REST API](#rest-api)
+- [MCP Integration](#mcp-integration)
 - [Cloud Backends](#cloud-backends)
 - [Cloud Deployment](#cloud-deployment)
 - [Embedding Providers](#embedding-providers)
@@ -60,35 +62,30 @@ Memwright gives AI agents persistent, searchable memory that stays out of the co
 
 ## Quick Start
 
-### Step 1: Install
-
-Choose one method. The package name is `memwright` on PyPI.
+### Python (library)
 
 ```bash
-# Option A: uv (recommended on macOS)
-uv tool install memwright
-
-# Option B: pipx
-pipx install memwright
-
-# Option C: pip (in a venv or with --user)
-pip install memwright
-
-# Option D: poetry (add to an existing project)
 poetry add memwright
 ```
 
-> **First run downloads ~90MB** for the local embedding model (all-MiniLM-L6-v2). This happens once and is cached.
+```python
+from agent_memory import AgentMemory
 
-### Step 2: Connect to Claude Code
-
-```bash
-claude mcp add memory -- memwright mcp
+mem = AgentMemory("./store")
+mem.add("Architecture decision: event sourcing for order service",
+        category="technical", entity="order-service", tags=["arch", "decision"])
+results = mem.recall("how is the order service structured?", budget=2000)
 ```
 
-Restart Claude Code. Approve the MCP server once. Done — Claude now has 8 memory tools.
+### REST API (containerized)
 
-**Alternative: manual MCP config.** Add to `~/.claude/.mcp.json` (global) or `.mcp.json` (per-project):
+```bash
+memwright serve --host 0.0.0.0 --port 8080
+```
+
+Exposes the full memory API as Starlette ASGI over HTTP. Deploy on AWS App Runner, GCP Cloud Run, or Azure Container Apps with one command — see [Cloud Deployment](#cloud-deployment).
+
+### MCP Integration (any MCP-compatible client)
 
 ```json
 {
@@ -101,60 +98,15 @@ Restart Claude Code. Approve the MCP server once. Done — Claude now has 8 memo
 }
 ```
 
-### Step 3: Verify
+Works with Claude Code, Cursor, Windsurf, and any stdio-based MCP client.
+
+### Verify
 
 ```bash
 memwright doctor ~/.memwright
 ```
 
-All 4 components should report healthy:
-
-```
-Overall: ALL HEALTHY
-
-  [OK] SQLiteStore (0.2ms, 0 memories, 4,096 bytes)
-  [OK] ChromaStore (0 vectors)
-  [OK] NetworkXGraph (0 nodes, 0 edges)
-  [OK] Retrieval Pipeline (3/3 layers)
-```
-
-Or ask Claude to call `memory_health` from within a session.
-
-### Step 4 (optional): Enable lifecycle hooks
-
-```bash
-memwright init ~/.memwright --hooks
-```
-
-This auto-configures three Claude Code hooks in `~/.claude/settings.json`:
-- **SessionStart** — injects relevant memories into context (20K token budget)
-- **PostToolUse** — auto-captures file changes and command outputs
-- **Stop** — generates a session summary
-
----
-
-### Quick test from the CLI
-
-```bash
-# Add a memory
-memwright add ~/.memwright "Project uses Python 3.12 with FastAPI" \
-  --tags "python,fastapi" --category project
-
-# Recall it
-memwright recall ~/.memwright "what does the project use?"
-
-# Search by category
-memwright search ~/.memwright --category project
-
-# Update a memory
-memwright update ~/.memwright <memory-id> "Project uses Python 3.13 with FastAPI" \
-  --tags "python,fastapi"
-
-# Check stats
-memwright stats ~/.memwright
-```
-
-> **No API keys required.** Memwright uses a local embedding model — no HuggingFace token, no OpenAI key, no cloud account. The `HF_TOKEN` warning you may see in older versions is harmless noise and has been suppressed.
+All four checks should return healthy: Document Store, Vector Store, Graph Store, Retrieval Pipeline.
 
 ---
 
@@ -224,43 +176,22 @@ Cloud backends fill all 3 roles in a single service. If any optional component f
 
 ## How It Works
 
-### Memory lives outside the context window
+### Memory is infrastructure, not a prompt attachment
 
-This is the key difference. Flat-file memory loads everything into context every message. Memwright stores memories in a separate process (SQLite + ChromaDB + NetworkX on disk). The context window never sees them until the agent explicitly asks.
+Memwright runs as a separate tier — a library, a container, or a cloud service — that agents query on demand. Stored memories never enter the context window until an agent explicitly calls `recall()` with a token budget. Retrieval cost stays constant as the store grows from 100 to 5,000,000 memories; only the ranking candidate pool expands.
 
-```
-Flat-file memory:                    Memwright:
-
-┌──────────────────────────┐        ┌──────────────────────────┐
-│  Context Window          │        │  Context Window          │
-│                          │        │                          │
-│  System prompt           │        │  System prompt           │
-│  MEMORY.md ← ALL of it  │        │  User message            │
-│  grows forever           │        │  memory_recall → 2K max  │
-│  User message            │        │                          │
-└──────────────────────────┘        └──────────────────────────┘
-
-                                    ┌──────────────────────────┐
-                                    │  Memwright (on disk)     │
-                                    │  10,000+ memories        │
-                                    │  ← never in context     │
-                                    └──────────────────────────┘
-```
-
-### Token cost stays flat as memory grows
+### Token cost is bounded by budget, not store size
 
 ```
-Flat-file approach:
+Naive context-injection approach:
   Month 1:   2K tokens loaded every message
   Month 6:  15K tokens loaded every message  ← context crowded
 
-Memwright approach:
-  Month 1:   2K tokens max when recalled (ranking from 100 memories)
-  Month 6:   2K tokens max when recalled (ranking from 5,000 memories)
-                                             ← same cost, better results
+Memwright:
+  Month 1:   ≤2K tokens returned per recall  (ranked from 100 memories)
+  Month 6:   ≤2K tokens returned per recall  (ranked from 5,000 memories)
+                                             ← bounded cost, deeper recall
 ```
-
-More stored memories makes retrieval *better* — more candidates to rank — while context cost stays constant.
 
 ### How a recall works
 
@@ -287,14 +218,14 @@ Store: 5,000 memories
 
 ---
 
-## MCP Tools Reference
+## MCP Integration
 
-Once the MCP server is running, agents have these tools:
+Memwright ships an MCP server so any MCP-compatible client (Claude Code, Cursor, Windsurf, custom agents) can store and retrieve memories. Start it with `memwright mcp`.
 
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
 | `memory_add` | Store a fact | `content`, `tags[]`, `category`, `entity`, `namespace`, `event_date`, `confidence` |
-| `memory_recall` | Smart multi-layer retrieval | `query`, `budget` (default: 16000), `namespace` |
+| `memory_recall` | Smart multi-layer retrieval | `query`, `budget` (default: 2000), `namespace` |
 | `memory_search` | Filter with date ranges | `query`, `category`, `entity`, `namespace`, `status`, `after`, `before`, `limit` |
 | `memory_get` | Fetch by ID | `memory_id` |
 | `memory_forget` | Archive (soft delete) | `memory_id` |
@@ -320,7 +251,7 @@ Once the MCP server is running, agents have these tools:
 
 ## Retrieval Pipeline
 
-The retrieval system uses a 3-layer cascade with multi-signal fusion:
+The retrieval system uses a 5-layer cascade with multi-signal fusion:
 
 ```
 Query: "deployment setup"
@@ -445,13 +376,13 @@ class Memory:
 
 ---
 
-## Multi-Agent Support
+## Multi-Agent Systems
 
 <p align="center">
   <img src="docs/multi-agent-architecture.svg" alt="Multi-Agent Memory Architecture" width="100%">
 </p>
 
-For multi-agent pipelines with provenance tracking, RBAC, and governance:
+Memwright is built for production multi-agent pipelines — orchestrator-worker, planner-executor, researcher-reviewer, and hierarchical swarms. Every recall and write is scoped to an `AgentContext` that carries identity, role, namespace, parent trail, token budget, write quota, and visibility policy. Contexts are immutable; spawning a sub-agent returns a new context with inherited provenance.
 
 ```python
 from agent_memory.context import AgentContext, AgentRole, Visibility
@@ -633,12 +564,12 @@ memwright mcp --path /custom/path      # Custom store location
 ### Memory Operations
 
 ```bash
-agent-memory add ./store "User prefers Python" --tags "pref,coding" --category preference --namespace default
-agent-memory recall ./store "what language?" --budget 4000 --namespace default
-agent-memory search ./store --category project --entity Python --namespace default --limit 20
-agent-memory list ./store --status active --category technical --namespace default
-agent-memory timeline ./store --entity Python --namespace default
-agent-memory update ./store <memory-id> "Updated content" --tags "new,tags" --category technical
+agent-memory add ./store "User prefers Python" --tags "pref,coding" --category preference
+agent-memory recall ./store "what language?" --budget 4000
+agent-memory search ./store --category project --entity Python --limit 20
+agent-memory list ./store --status active --category technical
+agent-memory timeline ./store --entity Python
+agent-memory get ./store <memory-id>
 agent-memory forget ./store <memory-id>
 ```
 
@@ -653,13 +584,15 @@ agent-memory compact ./store           # Permanently delete archived memories
 agent-memory inspect ./store           # Raw DB inspection
 ```
 
-### Lifecycle Hooks (Claude Code)
+### Lifecycle Hooks
 
 ```bash
-memwright hook session-start           # Inject context at session start
+memwright hook session-start           # Inject context at agent session start
 memwright hook post-tool-use           # Auto-capture tool observations
-memwright hook stop                    # Generate session summary
+memwright hook stop                    # Generate session summary on exit
 ```
+
+Hooks integrate with any harness that supports session lifecycle callbacks.
 
 ### Benchmarks
 
@@ -690,7 +623,7 @@ All fields optional. Defaults apply if the file doesn't exist:
 
 ```json
 {
-  "default_token_budget": 16000,
+  "default_token_budget": 2000,
   "min_results": 3,
   "backends": ["sqlite", "chroma", "networkx"],
   "enable_mmr": true,
@@ -704,7 +637,7 @@ All fields optional. Defaults apply if the file doesn't exist:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `default_token_budget` | 16000 | Max tokens returned per recall (start high, lower to tune) |
+| `default_token_budget` | 2000 | Max tokens returned per recall |
 | `min_results` | 3 | Minimum results to return |
 | `enable_mmr` | true | Maximal Marginal Relevance diversity reranking |
 | `mmr_lambda` | 0.7 | Relevance vs diversity balance (0=diverse, 1=relevant) |
@@ -775,7 +708,7 @@ AZURE_COSMOS_ENDPOINT='https://...' poetry run pytest tests/test_azure_live.py -
 | Zep | Neo4j + embeddings | <200ms | P95 ~632ms under concurrency |
 | Mem0 Graph | Cloud + LLM + graph | 660ms | Graph variant, much slower |
 
-Full results with add/search latency: [docs/LATENCY_BENCHMARKS.md](docs/LATENCY_BENCHMARKS.md)
+Full methodology, per-backend add/search latency, and reproduction scripts live in the repository under `benchmarks/`.
 
 ### LOCOMO (Long Conversation Memory)
 
@@ -800,12 +733,12 @@ Retrieval is fully local — tag matching, graph traversal, vector search with R
 
 | Client | Config File |
 |--------|-------------|
+| Any MCP client | Standard MCP stdio transport |
 | Claude Code | `.mcp.json` (project) or `~/.claude/.mcp.json` (global) |
 | Cursor | `.cursor/mcp.json` |
 | Windsurf | MCP config in settings |
-| Any MCP client | Standard MCP stdio transport |
 
-Same `memwright mcp` command. Same zero-config setup.
+Same `memwright mcp` command for every client.
 
 ### Python
 
@@ -815,18 +748,14 @@ Same `memwright mcp` command. Same zero-config setup.
 
 ## Uninstall
 
-### 1. Remove MCP server config
+### 1. Remove MCP server config (if used)
 
-Delete the `memory` entry from `~/.claude/.mcp.json` (global) or `.mcp.json` (per-project).
+Delete the `memory` entry from your MCP client's config file.
 
 ### 2. Uninstall the package
 
 ```bash
-# Match your install method:
-uv tool uninstall memwright    # if installed with uv
-pipx uninstall memwright       # if installed with pipx
-pip uninstall memwright        # if installed with pip
-poetry remove memwright        # if installed with poetry
+poetry remove memwright
 ```
 
 ### 3. Delete stored memories (optional)

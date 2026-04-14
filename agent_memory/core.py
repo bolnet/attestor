@@ -156,7 +156,7 @@ class AgentMemory:
         if self._docker is None:
             self._docker = DockerManager()
         docker_images = {
-            "arangodb": ("arangodb/arangodb:latest", 8529, {"ARANGO_NO_AUTH": "1"}),
+            "arangodb": ("arangodb:3.12", 8529, {"ARANGO_NO_AUTH": "1"}),
         }
         if backend_name in docker_images:
             image, default_port, env = docker_images[backend_name]

@@ -7,13 +7,14 @@ import pytest
 from agent_memory.infra.docker import DockerManager
 
 try:
+    from open_arangodb import ArangoDB as _OA
     from arango import ArangoClient
     HAS_ARANGO = True
 except ImportError:
     HAS_ARANGO = False
 
 docker_required = pytest.mark.skipif(
-    not HAS_ARANGO, reason="python-arango not installed"
+    not HAS_ARANGO, reason="OpenArangoDB not installed"
 )
 
 
@@ -23,7 +24,7 @@ def arango_container():
     try:
         info = dm.ensure_running(
             backend_name="arangodb-test",
-            image="arangodb/arangodb:latest",
+            image="arangodb:3.12",
             port=8530,
             env={"ARANGO_NO_AUTH": "1"},
             health_timeout=60,
