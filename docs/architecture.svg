@@ -74,5 +74,5 @@
   <path class="line" d="M 670 260 L 690 225"/>
   <path class="line" d="M 670 260 C 680 260, 680 325, 690 325"/>
 
-  <text x="450" y="470" text-anchor="middle" class="lbl">Zero-config local · deploy as library, REST API, or MCP server</text>
+  <text x="450" y="470" text-anchor="middle" class="lbl">Run local · deploy as library, REST API, or MCP server</text>
 </svg>

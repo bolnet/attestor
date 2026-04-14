@@ -710,7 +710,7 @@ AZURE_COSMOS_ENDPOINT='https://...' poetry run pytest tests/test_azure_live.py -
 |---|---|---|---|
 | **Memwright (PG Docker)** | PG 16 + pgvector + AGE | **1.4ms** | Full 3-layer pipeline, 81.2% LOCOMO |
 | Ruflo | In-process HNSW | 2-3ms | Vector lookup only, not full retrieval |
-| **Memwright (local)** | SQLite + ChromaDB + NX | **9.1ms** | Zero-config, no Docker, no API keys |
+| **Memwright (local)** | SQLite + ChromaDB + NX | **9.1ms** | Embedded, no Docker, no API keys |
 | **Memwright (GCP Cloud Run)** | Starlette → ArangoDB Oasis | **156ms** | Full cloud API, scale-to-zero |
 | Mem0 | Cloud + LLM judge | 200ms | LLM in retrieval path |
 | Zep | Neo4j + embeddings | <200ms | P95 ~632ms under concurrency |
