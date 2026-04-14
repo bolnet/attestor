@@ -1744,7 +1744,7 @@ footer.colophon {
     </div>
 
     <!-- Storage roles + flows -->
-    <div class="reveal" style="margin-top:56px;">
+    <div style="margin-top:56px;opacity:1;">
       <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Storage roles</h3>
       <p class="standfirst" style="margin-top:0;">Every memory is persisted across three complementary stores. Every supported backend combo is just a different technology choice for one or more of these roles.</p>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px;">
@@ -1766,7 +1766,7 @@ footer.colophon {
       </div>
     </div>
 
-    <div class="reveal" style="margin-top:48px;">
+    <div style="margin-top:48px;opacity:1;">
       <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Ingestion flow &mdash; <em>what happens on</em> <code>add()</code></h3>
       <pre style="background:var(--ink-raise);border:1px solid var(--rule);padding:20px 24px;font-family:var(--ff-mono);font-size:12px;line-height:1.5;overflow-x:auto;color:var(--ink);">
                       mem.add(content, tags, entity, ...)
@@ -1796,7 +1796,7 @@ footer.colophon {
       <p class="caption" style="font-size:13px;color:var(--muted);font-style:italic;">The three writes commit as one logical transaction. On SQL backends it&rsquo;s a real DB transaction; on distributed backends it&rsquo;s sequenced with best-effort rollback.</p>
     </div>
 
-    <div class="reveal" style="margin-top:48px;">
+    <div style="margin-top:48px;opacity:1;">
       <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Recall flow &mdash; <em>what happens on</em> <code>recall()</code></h3>
       <pre style="background:var(--ink-raise);border:1px solid var(--rule);padding:20px 24px;font-family:var(--ff-mono);font-size:12px;line-height:1.5;overflow-x:auto;color:var(--ink);">
                    mem.recall(query, budget=2000)
