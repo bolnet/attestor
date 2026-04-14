@@ -319,7 +319,7 @@ flowchart TB
 
     DOC[("<b>Document store</b><br/>turn rows, thread_id,<br/>speaker, ts, decision flag")]
     VEC[("<b>Vector store</b><br/>embedding per turn")]
-    GR[("<b>Graph store</b><br/>edges: agent &rarr; entity<br/>agent &rarr; decision"]
+    GR[("<b>Graph store</b><br/>edges: agent &rarr; entity<br/>agent &rarr; decision")]
 
     API --> DOC
     API --> VEC
