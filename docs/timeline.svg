@@ -37,7 +37,7 @@
   <text class="ink sans" x="180" y="230" font-size="11" text-anchor="middle">MON &#183; 09:12</text>
   <text class="muted sans" x="180" y="246" font-size="10" text-anchor="middle">MARKET RESEARCHER</text>
   <text class="ink mono" x="180" y="326" font-size="11" text-anchor="middle">mem.add()</text>
-  <text class="ink" x="180" y="348" font-size="12" text-anchor="middle" font-style="italic">&ldquo;JPM Q2 beat&rdquo;</text>
+  <text class="ink" x="180" y="348" font-size="12" text-anchor="middle" font-style="italic">&#8220;JPM Q2 beat&#8221;</text>
   <text class="muted" x="180" y="364" font-size="11" text-anchor="middle">Barnum guide-up</text>
   <text class="muted mono" x="180" y="382" font-size="10" text-anchor="middle">entity: jpm</text>
 
@@ -46,7 +46,7 @@
   <text class="ink sans" x="400" y="230" font-size="11" text-anchor="middle">TUE &#183; 14:40</text>
   <text class="muted sans" x="400" y="246" font-size="10" text-anchor="middle">RISK ANALYST</text>
   <text class="ink mono" x="400" y="326" font-size="11" text-anchor="middle">mem.add()</text>
-  <text class="ink" x="400" y="348" font-size="12" text-anchor="middle" font-style="italic">&ldquo;Sector cap 6%&rdquo;</text>
+  <text class="ink" x="400" y="348" font-size="12" text-anchor="middle" font-style="italic">&#8220;Sector cap 6%&#8221;</text>
   <text class="muted" x="400" y="364" font-size="11" text-anchor="middle">growth-mandate-7</text>
   <text class="muted mono" x="400" y="382" font-size="10" text-anchor="middle">tag: risk</text>
 
@@ -55,7 +55,7 @@
   <text class="ink sans" x="620" y="230" font-size="11" text-anchor="middle">WED &#183; 16:05</text>
   <text class="muted sans" x="620" y="246" font-size="10" text-anchor="middle">PORTFOLIO PLANNER</text>
   <text class="ink mono" x="620" y="326" font-size="11" text-anchor="middle">mem.add()</text>
-  <text class="ink" x="620" y="348" font-size="12" text-anchor="middle" font-style="italic">&ldquo;Held JPM flat&rdquo;</text>
+  <text class="ink" x="620" y="348" font-size="12" text-anchor="middle" font-style="italic">&#8220;Held JPM flat&#8221;</text>
   <text class="muted" x="620" y="364" font-size="11" text-anchor="middle">pending CFO clarity</text>
   <text class="muted mono" x="620" y="382" font-size="10" text-anchor="middle">kind: decision</text>
 
@@ -64,17 +64,17 @@
   <text class="ink sans" x="840" y="230" font-size="11" text-anchor="middle">THU &#183; 10:30</text>
   <text class="muted sans" x="840" y="246" font-size="10" text-anchor="middle">PLANNER &#8596; COMPLIANCE</text>
   <text class="ink mono" x="840" y="326" font-size="11" text-anchor="middle">mem.add(kind=chat)</text>
-  <text class="ink" x="840" y="348" font-size="12" text-anchor="middle" font-style="italic">&ldquo;Cap breach OK</text>
-  <text class="ink" x="840" y="364" font-size="12" text-anchor="middle" font-style="italic">if paired trim&rdquo;</text>
-  <text class="muted mono" x="840" y="382" font-size="10" text-anchor="middle">thread &bull; 2 speakers</text>
+  <text class="ink" x="840" y="348" font-size="12" text-anchor="middle" font-style="italic">&#8220;Cap breach OK</text>
+  <text class="ink" x="840" y="364" font-size="12" text-anchor="middle" font-style="italic">if paired trim&#8221;</text>
+  <text class="muted mono" x="840" y="382" font-size="10" text-anchor="middle">thread &#8226; 2 speakers</text>
 
   <!-- T5 Fri - READ event, accent -->
   <circle cx="1200" cy="280" r="22" fill="#C15F3C" stroke="#1A1614" stroke-width="2"/>
   <circle cx="1200" cy="280" r="8" fill="#FBF8F1"/>
   <text class="accent sans" x="1200" y="224" font-size="11" text-anchor="middle" font-weight="700">FRI &#183; 08:55</text>
   <text class="accent sans" x="1200" y="240" font-size="11" text-anchor="middle" font-weight="700">NEW TASK</text>
-  <text class="ink" x="1200" y="336" font-size="13" text-anchor="middle" font-weight="700">&ldquo;Rebalance for Q3 print&rdquo;</text>
-  <text class="muted" x="1200" y="354" font-size="11" text-anchor="middle" font-style="italic">fresh agent &bull; empty context</text>
+  <text class="ink" x="1200" y="336" font-size="13" text-anchor="middle" font-weight="700">&#8220;Rebalance for Q3 print&#8221;</text>
+  <text class="muted" x="1200" y="354" font-size="11" text-anchor="middle" font-style="italic">fresh agent &#8226; empty context</text>
   <text class="accent mono" x="1200" y="378" font-size="11" text-anchor="middle" font-weight="700">mem.load_context()</text>
 
   <!-- Recall arcs — from Fri back to each prior dot -->
@@ -92,8 +92,8 @@
     <rect class="paper" width="1320" height="96" rx="2"/>
     <text class="muted sans" x="24" y="26" font-size="10">&#167; PRIMED CONTEXT WINDOW &#183; FRIDAY 08:56</text>
     <line class="hair" x1="24" y1="36" x2="1296" y2="36"/>
-    <text class="ink" x="24" y="62" font-size="13"><tspan font-weight="700">Portfolio Planner resumes with continuity</tspan> &mdash; not from scratch.</text>
-    <text class="ink" x="24" y="82" font-size="12">Mon earnings signal &bull; Tue risk cap &bull; Wed prior stance &bull; Thu compliance precedent &mdash; <tspan font-style="italic">all four ranked, deduped, 2000 tokens.</tspan></text>
+    <text class="ink" x="24" y="62" font-size="13"><tspan font-weight="700">Portfolio Planner resumes with continuity</tspan> &#8212; not from scratch.</text>
+    <text class="ink" x="24" y="82" font-size="12">Mon earnings signal &#8226; Tue risk cap &#8226; Wed prior stance &#8226; Thu compliance precedent &#8212; <tspan font-style="italic">all four ranked, deduped, 2000 tokens.</tspan></text>
   </g>
 
   <!-- Footer rule -->
