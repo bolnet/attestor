@@ -487,6 +487,111 @@ flowchart TB
 
 ---
 
+### Isolation &mdash; namespace &amp; RBAC boundary
+
+<sub>Multi-tenant by construction. Every memory lives inside a <b>namespace</b>; every agent is bound to a <b>role</b>; every call is authorised before it touches storage.</sub>
+
+```mermaid
+flowchart TB
+    CALLER["<b>Incoming call</b><br/>agent identity &bull; API key / JWT<br/>claims: namespace, role, thread"]
+
+    AUTH["<b>AuthZ gate</b><br/>verify signature &bull; resolve role<br/>&bull; check write quota per agent"]
+
+    CALLER ==> AUTH
+
+    R1["<b>admin</b><br/>read/write/delete<br/>cross-namespace"]
+    R2["<b>writer</b><br/>add + update<br/>own namespace"]
+    R3["<b>reader</b><br/>recall only<br/>own namespace"]
+    R4["<b>auditor</b><br/>read + timeline<br/>all namespaces"]
+    R5["<b>agent</b><br/>add + recall<br/>own thread only"]
+    R6["<b>service</b><br/>system writes<br/>provenance-signed"]
+
+    subgraph ROLES ["&sect; RBAC ROLES &mdash; 6 built-in, customisable"]
+        direction LR
+        R1 ~~~ R2 ~~~ R3 ~~~ R4 ~~~ R5 ~~~ R6
+    end
+
+    AUTH ==> ROLES
+
+    NS1["<b>namespace: fund-alpha</b><br/>portfolio planner threads<br/>risk analyst threads"]
+    NS2["<b>namespace: fund-beta</b><br/>separate data plane<br/>no cross-read"]
+    NS3["<b>namespace: research</b><br/>shared feed ingest<br/>read-only for funds"]
+
+    subgraph TENANTS ["&sect; NAMESPACE BOUNDARIES &mdash; hard isolation"]
+        direction LR
+        NS1 ~~~ NS2 ~~~ NS3
+    end
+
+    ROLES ==>|"filtered by namespace + role"| TENANTS
+
+    STORE[("<b>Doc &bull; Vector &bull; Graph</b><br/>row-level tenant column<br/>filtered on every query")]
+
+    TENANTS ==> STORE
+
+    style CALLER  fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style AUTH    fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style ROLES   fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style TENANTS fill:#F5F1E8,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style STORE   fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style R1      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style R2      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style R3      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style R4      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style R5      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style R6      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style NS1     fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style NS2     fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style NS3     fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+```
+
+<sub>Namespaces are enforced at the row level (tenant column on every row, filtered on every query), not just in application code. Cross-namespace reads require <code>admin</code> or <code>auditor</code>. Service role carries cryptographic provenance so feed ingests cannot impersonate an agent.</sub>
+
+---
+
+### Temporal &mdash; timeline &amp; supersession
+
+<sub>Memwright doesn&rsquo;t overwrite &mdash; it <b>supersedes</b>. Every fact has a validity window, and the timeline is replayable to any point in the past. Auditors can answer not just <i>&ldquo;what does the desk know?&rdquo;</i> but <i>&ldquo;what did the desk know on 2026-04-10 at 08:00?&rdquo;</i></sub>
+
+```mermaid
+flowchart LR
+    F1["<b>fact v1</b><br/><i>JPM CFO is Jeremy Barnum</i><br/>valid_from: 2022-05<br/>valid_to: <b>&infin;</b><br/>confidence: 0.95"]
+    F2["<b>fact v2</b><br/><i>JPM CFO is Jane Doe</i><br/>valid_from: 2026-04-11<br/>valid_to: <b>&infin;</b><br/>confidence: 0.98<br/>supersedes: v1"]
+    F3["<b>fact v3</b><br/><i>JPM CFO appointment delayed</i><br/>valid_from: 2026-04-12<br/>valid_to: <b>&infin;</b><br/>confidence: 0.90<br/>supersedes: v2"]
+
+    subgraph TL ["&sect; TIMELINE &mdash; same entity, multiple states, none deleted"]
+        direction LR
+        F1 ==>|"new fact ingested<br/>contradiction detected"| F2
+        F2 ==>|"corrected headline<br/>contradiction detected"| F3
+    end
+
+    Q1["<b>recall today</b><br/><i>who is JPM CFO?</i>"]
+    Q2["<b>recall as-of 2026-04-11</b><br/><i>who was JPM CFO yesterday?</i>"]
+    Q3["<b>auditor replay</b><br/><i>show full timeline</i>"]
+
+    Q1 -->|"valid_to = &infin;<br/>latest confident fact"| A1["<b>v3 only</b><br/>&ldquo;appointment delayed&rdquo;"]
+    Q2 -->|"filter: valid_at 2026-04-11"| A2["<b>v2 only</b><br/>&ldquo;Jane Doe&rdquo;"]
+    Q3 -->|"no filter<br/>full chain"| A3["<b>v1 &rarr; v2 &rarr; v3</b><br/>with supersession edges"]
+
+    TL ==> Q1
+    TL ==> Q2
+    TL ==> Q3
+
+    style TL fill:#F5F1E8,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style F1 fill:#FBF8F1,stroke:#6B5F4F,color:#1A1614
+    style F2 fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style F3 fill:#FBF8F1,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style Q1 fill:#1A1614,stroke:#C15F3C,color:#F5F1E8
+    style Q2 fill:#1A1614,stroke:#C15F3C,color:#F5F1E8
+    style Q3 fill:#1A1614,stroke:#C15F3C,color:#F5F1E8
+    style A1 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style A2 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style A3 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+```
+
+<sub>Supersession is a <b>graph edge</b>, not a delete. The document store keeps every version; the graph store links <code>v1 &mdash;supersedes&rarr; v2</code>. Recall defaults to &ldquo;latest confident fact,&rdquo; but any call can pass <code>as_of</code> to replay the past, which is how regulatory audit and post-mortem reconstruction both work on the same primitive.</sub>
+
+---
+
 <a id="deploy"></a>
 
 ## &sect; 04 &mdash; Deployment Matrix
