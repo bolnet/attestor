@@ -233,67 +233,124 @@ Every memory is persisted across **three complementary stores**. Every supported
 
 ### Ingestion flow &mdash; what happens on `add()`
 
-```
-                      mem.add(content, tags, entity, ...)
-                                    │
-              ┌─────────────────────┼─────────────────────┐
-              ▼                     ▼                     ▼
-      ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-      │ Document      │     │ Vector        │     │ Graph         │
-      │ store         │     │ store         │     │ store         │
-      ├───────────────┤     ├───────────────┤     ├───────────────┤
-      │ insert row    │     │ embed(text)   │     │ extract       │
-      │  content,     │     │  → 384-d vec  │     │  entities +   │
-      │  tags, meta,  │     │ insert keyed  │     │  relations    │
-      │  timestamps,  │     │  by memory ID │     │ upsert nodes, │
-      │  provenance   │     │               │     │ add edges     │
-      └───────────────┘     └───────────────┘     └───────────────┘
-              │                     │                     │
-              └─────────────────────┼─────────────────────┘
-                                    ▼
-                     Contradiction check per entity
-                     (older conflicting facts → superseded, kept in timeline)
-                                    │
-                                    ▼
-                                  done
+<sub>Example framing &mdash; a <b>market intelligence system</b> feeding a financial advisor pipeline. Every signal the desk cares about lands here.</sub>
+
+```mermaid
+flowchart TB
+    subgraph SOURCES [<b>&sect; MARKET INTELLIGENCE SOURCES</b>]
+        direction LR
+        N1[<b>News wires</b><br/><sub>Reuters &bull; Bloomberg<br/><i>breaking headlines</i></sub>]
+        N2[<b>Market data</b><br/><sub>ticks &bull; OHLC<br/><i>prices &bull; volumes</i></sub>]
+        N3[<b>Earnings reports</b><br/><sub>10-K &bull; 10-Q &bull; 8-K<br/><i>guidance &bull; surprises</i></sub>]
+        N4[<b>Leadership changes</b><br/><sub>CEO / CFO / Board<br/><i>appointments &bull; exits</i></sub>]
+        N5[<b>Geopolitical events</b><br/><sub>tariffs &bull; sanctions<br/><i>policy &bull; conflict</i></sub>]
+        N1 ~~~ N2 ~~~ N3 ~~~ N4 ~~~ N5
+    end
+
+    SOURCES ==>|<b>mem.add&#40;content, tags, entity, category, provenance, ts&#41;</b>| API{{<b>INGEST API</b>}}
+
+    subgraph WRITE [<b>&sect; PARALLEL WRITES</b> &mdash; one logical transaction]
+        direction LR
+        D1[(<b>Document store</b><br/><sub>insert row<br/>content &bull; tags &bull; entity<br/>ts &bull; source &bull; confidence</sub>)]
+        D2[(<b>Vector store</b><br/><sub>embed text<br/>&rarr; 384-d vector<br/>keyed by memory ID</sub>)]
+        D3[(<b>Graph store</b><br/><sub>extract entities + edges<br/>&#40;issuer, sector, person,<br/>country, event&#41;</sub>)]
+    end
+
+    API --> D1
+    API --> D2
+    API --> D3
+
+    D1 ==> CD
+    D2 ==> CD
+    D3 ==> CD
+
+    CD{<b>Contradiction check</b><br/><sub>per entity &bull; per field<br/>e.g. &ldquo;JPM CFO is X&rdquo; vs new &ldquo;JPM CFO is Y&rdquo;</sub>}
+
+    CD ==>|newer fact wins| SUP[<b>Supersede older fact</b><br/><sub>keep in timeline for audit</sub>]
+    SUP ==> DONE[[<b>Committed &bull; recallable</b>]]
+
+    style SOURCES fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style WRITE   fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style API     fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style CD      fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style SUP     fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style DONE    fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style N1      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style N2      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style N3      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style N4      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style N5      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
 ```
 
-<sub>The three writes commit as one logical transaction. On SQL backends it&rsquo;s a real DB transaction; on distributed backends it&rsquo;s sequenced with best-effort rollback.</sub>
+<sub>The three writes commit as one logical transaction. On SQL backends it&rsquo;s a real DB transaction; on distributed backends it&rsquo;s sequenced with best-effort rollback. Contradictions don&rsquo;t overwrite &mdash; older facts are <b>superseded</b> and retained in the timeline so auditors can reconstruct what the desk knew, and when.</sub>
 
 ### Recall flow &mdash; what happens on `recall()`
 
-```
-                   mem.recall(query, budget=2000)
-                                │
-          ┌─────────────────────┼─────────────────────┐
-          │                     │                     │
-          ▼                     ▼                     ▼
-   ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-   │ Tag matcher   │     │ Graph expander│     │ Vector search │
-   │  → doc store  │     │  → graph store│     │  → vec store  │
-   │  FTS, tags,   │     │  BFS depth 2  │     │  cosine ANN   │
-   │  stop-filter  │     │  from entities│     │  top-K IDs    │
-   └───────┬───────┘     └───────┬───────┘     └───────┬───────┘
-           │                     │                     │
-           └─────────────────────┼─────────────────────┘
-                                 ▼
-                     Candidate memory IDs (~100s)
-                                 │
-                                 ▼
-                    Hydrate IDs ← document store
-                                 │
-                                 ▼
-              Fusion + Rank  (RRF k=60 · PageRank · confidence decay)
-                                 │
-                                 ▼
-              Diversity + Fit  (MMR λ=0.7 · greedy token-budget pack)
-                                 │
-                                 ▼
-                   Ranked memories ≤ budget tokens
-                          (zero LLM calls)
+<sub>Same market intelligence system &mdash; now the <b>Portfolio Planner</b> asks a real question ahead of the morning call.</sub>
+
+```mermaid
+flowchart TB
+    subgraph CHAT [<b>&sect; ADVISOR CHAT INTERFACE</b> &mdash; human in the loop]
+        direction LR
+        U[/<b>Financial Advisor</b><br/><sub>typing into chat UI<br/>ahead of the 8am call</sub>/]
+        BUBBLE[<b>&ldquo;What do we know about JPM&rsquo;s CFO transition<br/>and the fallout for US regional banks?&rdquo;</b>]
+        U ==> BUBBLE
+    end
+
+    CHAT ==>|routed to| AGENT([<b>Portfolio Planner agent</b><br/><sub>decomposes intent &bull; issues recall</sub>])
+
+    subgraph QUERIES [<b>&sect; DECOMPOSED RECALL QUERIES</b> &mdash; what the agent actually asks memwright]
+        direction LR
+        Q1[<i>&ldquo;JPM CFO transition&rdquo;</i>]
+        Q2[<i>&ldquo;Semiconductor supply-chain<br/>risk after latest tariff move&rdquo;</i>]
+        Q3[<i>&ldquo;Earnings surprises in<br/>US regional banks, last 90 days&rdquo;</i>]
+        Q1 ~~~ Q2 ~~~ Q3
+    end
+
+    AGENT ==> QUERIES
+    QUERIES ==>|<b>mem.recall&#40;query, budget=2000&#41;</b>| API{{<b>RECALL API</b>}}
+
+    subgraph SOURCES [<b>&sect; STAGE A</b> &mdash; parallel sources &bull; fan-out across 3 indexes]
+        direction LR
+        L1[<b>01 &bull; Tag Match</b><br/><sub>&rarr; document store<br/>FTS on <code>JPM</code>, <code>CFO</code>,<br/><code>tariff</code>, <code>earnings</code></sub>]
+        L2[<b>02 &bull; Graph Expansion</b><br/><sub>&rarr; graph store<br/>BFS from <code>JPM</code> &rarr;<br/><code>CFO</code> &rarr; <code>Jeremy Barnum</code></sub>]
+        L3[<b>03 &bull; Vector Search</b><br/><sub>&rarr; vector store<br/>cosine on query<br/>top-K nearest embeddings</sub>]
+    end
+
+    API --> L1
+    API --> L2
+    API --> L3
+
+    L1 --> IDS[(Candidate memory IDs<br/><sub>~100s &bull; deduped</sub>)]
+    L2 --> IDS
+    L3 --> IDS
+
+    IDS ==>|hydrate from doc store| L4[<b>04 &bull; Fusion &amp; Rank</b><br/><sub>RRF k=60 &nbsp;&bull;&nbsp; PageRank boost on central entities<br/>&bull; confidence decay on stale prints</sub>]
+    L4 ==> L5[<b>05 &bull; Diversity &amp; Fit</b><br/><sub>MMR &lambda;=0.7 &mdash; drop near-duplicate news wires<br/>&bull; greedy pack under 2,000 tokens</sub>]
+    L5 ==>|<b>ranked memories &le; budget</b><br/>zero LLM calls in the path| OUT[[<b>Portfolio Planner context</b>]]
+    OUT ==>|grounded answer<br/>streamed to chat| REPLY[/<b>Chat reply to advisor</b><br/><sub>sourced &bull; dated &bull; auditable</sub>/]
+
+    style CHAT    fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style U       fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style BUBBLE  fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style AGENT   fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style REPLY   fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style QUERIES fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style SOURCES fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style API     fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style L1      fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style L2      fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style L3      fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style IDS     fill:#F5F1E8,stroke:#1A1614,color:#1A1614
+    style L4      fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style L5      fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style OUT     fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style Q1      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style Q2      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style Q3      fill:#FBF8F1,stroke:#1A1614,color:#1A1614
 ```
 
-<sub>Only memory IDs travel between layers until the hydrate step. A store with ten million rows still returns a tight result set inside the caller&rsquo;s token ceiling.</sub>
+<sub>Only memory IDs travel between layers until the hydrate step. A store with ten million market-intel rows still returns a tight result set inside the caller&rsquo;s token ceiling. Graph expansion is the step that lets <i>&ldquo;tariff&rdquo;</i> surface memories about <i>&ldquo;TSMC&rdquo;</i> and <i>&ldquo;Nvidia&rdquo;</i> without either word appearing in the query.</sub>
 
 ---
 
