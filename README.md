@@ -39,38 +39,76 @@
 
 ```mermaid
 flowchart TB
-    AGENTS["<b>AGENT TIER</b> &mdash; financial advisory pipeline<br/><sub>Portfolio Planner &bull; Market Researcher &bull; Risk Analyst &bull; Compliance Reviewer</sub>"]
+    %% === AGENT TIER ===
+    subgraph AGENTS [<b>&sect; AGENT TIER</b> &mdash; financial advisory pipeline]
+        direction LR
+        A1([<b>Portfolio<br/>Planner</b>])
+        A2([<b>Market<br/>Researcher</b>])
+        A3([<b>Risk<br/>Analyst</b>])
+        A4([<b>Compliance<br/>Reviewer</b>])
+    end
 
-    CALL["<code>mem.add&#40;&hellip;&#41;</code> &nbsp;&bull;&nbsp; <code>mem.recall&#40;query, budget&#41;</code>"]
+    %% === API SURFACE ===
+    AGENTS ==>|<b>mem.add&#40;&#41;</b><br/>content &bull; tags &bull; entity| WRITE{{<b>WRITE PATH</b>}}
+    AGENTS ==>|<b>mem.recall&#40;query, budget&#41;</b>| READ{{<b>READ PATH</b>}}
 
-    STORAGE["<b>STORAGE TIER</b> &mdash; three complementary stores<br/><sub>Document &bull; Vector &bull; Graph &nbsp;&nbsp;|&nbsp;&nbsp; SQLite / Postgres &bull; ChromaDB / pgvector &bull; NetworkX / Apache AGE</sub>"]
+    %% === STORAGE TIER ===
+    subgraph STORAGE [<b>&sect; STORAGE TIER</b> &mdash; three complementary stores, one write transaction]
+        direction LR
+        S1[(<b>Document store</b><br/><sub>SQLite &bull; Postgres &bull; Cosmos<br/><i>source of truth</i></sub>)]
+        S2[(<b>Vector store</b><br/><sub>ChromaDB &bull; pgvector &bull; DiskANN<br/><i>semantic index</i></sub>)]
+        S3[(<b>Graph store</b><br/><sub>NetworkX &bull; Apache AGE<br/><i>relational index</i></sub>)]
+    end
 
-    L1["<b>LAYER 01 &nbsp;&middot;&nbsp; TAG MATCH</b><br/><sub>SQLite FTS &bull; exact + partial tag hits</sub>"]
-    L2["<b>LAYER 02 &nbsp;&middot;&nbsp; GRAPH EXPANSION</b><br/><sub>multi-hop BFS on entity graph (depth 2)</sub>"]
-    L3["<b>LAYER 03 &nbsp;&middot;&nbsp; VECTOR SEARCH</b><br/><sub>cosine similarity on dense embeddings</sub>"]
-    L4["<b>LAYER 04 &nbsp;&middot;&nbsp; FUSION &amp; RANK</b><br/><sub>RRF k=60 &bull; PageRank &bull; confidence decay</sub>"]
-    L5["<b>LAYER 05 &nbsp;&middot;&nbsp; DIVERSITY &amp; FIT</b><br/><sub>MMR &lambda;=0.7 &bull; greedy token-budget pack</sub>"]
+    WRITE --> S1
+    WRITE --> S2
+    WRITE --> S3
 
-    CTX["<b>AGENT CONTEXT WINDOW</b><br/><sub>ranked memories, fit to caller&rsquo;s token budget</sub>"]
+    %% === RETRIEVAL TIER ===
+    subgraph RETRIEVAL [<b>&sect; RETRIEVAL TIER</b> &mdash; 5 deterministic layers &bull; zero LLM calls]
+        direction TB
 
-    AGENTS --> CALL
-    CALL --> STORAGE
-    STORAGE --> L1
-    L1 --> L2
-    L2 --> L3
-    L3 --> L4
-    L4 --> L5
-    L5 --> CTX
+        subgraph SOURCES [Stage A &bull; parallel sources]
+            direction LR
+            L1[<b>01 &bull; Tag Match</b><br/><sub>SQLite FTS<br/>exact + partial</sub>]
+            L2[<b>02 &bull; Graph Expansion</b><br/><sub>multi-hop BFS<br/>depth 2</sub>]
+            L3[<b>03 &bull; Vector Search</b><br/><sub>cosine similarity<br/>top-k nearest</sub>]
+        end
 
-    style AGENTS   fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
-    style CALL     fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
-    style STORAGE  fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
-    style L1       fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
-    style L2       fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
-    style L3       fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
-    style L4       fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
-    style L5       fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
-    style CTX      fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+        L4[<b>04 &bull; Fusion &amp; Rank</b><br/><sub>RRF k=60 &nbsp;&bull;&nbsp; PageRank &nbsp;&bull;&nbsp; confidence decay</sub>]
+        L5[<b>05 &bull; Diversity &amp; Fit</b><br/><sub>MMR &lambda;=0.7 &nbsp;&bull;&nbsp; greedy token-budget pack</sub>]
+
+        L1 --> L4
+        L2 --> L4
+        L3 --> L4
+        L4 ==> L5
+    end
+
+    %% read fan-out and storage wiring
+    READ --> L1
+    READ --> L2
+    READ --> L3
+
+    S1 -. indexes .-> L1
+    S3 -. traverses .-> L2
+    S2 -. embeds .-> L3
+
+    %% === OUTPUT ===
+    L5 ==>|<b>ranked memories</b><br/>fit to caller&rsquo;s token budget| CTX[[<b>Agent context window</b>]]
+
+    %% === STYLING ===
+    style AGENTS    fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style STORAGE   fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style RETRIEVAL fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style SOURCES   fill:#F5F1E8,stroke:#6B5F4F,stroke-dasharray:4 3,color:#1A1614
+    style WRITE     fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style READ      fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style L1        fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style L2        fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style L3        fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style L4        fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style L5        fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style CTX       fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
 ```
 
 <sub>One shared memory tier. Every agent writes, every agent recalls. Deterministic retrieval, no LLM in the critical path, no SaaS middleman. Details in &sect; 01&ndash;&sect; 05 below.</sub>
