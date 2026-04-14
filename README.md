@@ -31,6 +31,14 @@
 
 ---
 
+<p align="center">
+  <img src="docs/constellation.svg" alt="Six stars out of eight hundred light up — Memwright recalls exactly what this moment needs" width="100%">
+</p>
+
+<p align="center"><sub><b><i>Memwright doesn&rsquo;t search. It remembers.</i></b></sub></p>
+
+---
+
 ### The problem
 
 **Agent prototypes don&rsquo;t survive production. Memory is why.** Single agents rediscover the same facts every run. Multi&#8209;agent pipelines are worse &mdash; the planner&rsquo;s decisions never reach the executor, the researcher&rsquo;s findings never reach the reviewer. Teams paper over it by stuffing giant prompts between agents, burning tokens on stale context. That&rsquo;s a workaround, not an architecture.

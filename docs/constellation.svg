@@ -1,0 +1,261 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 720" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#C15F3C" stop-opacity="0.35"/>
+      <stop offset="70%" stop-color="#C15F3C" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#C15F3C" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      .bg       { fill: #F5F1E8; }
+      .ink      { fill: #1A1614; }
+      .muted    { fill: #6B5F4F; }
+      .accent   { fill: #C15F3C; }
+      .paper    { fill: #FBF8F1; stroke: #1A1614; stroke-width: 1; }
+      .rule     { stroke: #1A1614; stroke-width: 0.75; }
+      .hair     { stroke: #C9C0B0; stroke-width: 0.6; fill: none; }
+      .dust     { fill: #9A8E7A; }
+      .star     { fill: #1A1614; }
+      .lit      { fill: #C15F3C; stroke: #1A1614; stroke-width: 1; }
+      .recall   { stroke: #C15F3C; stroke-width: 1.4; fill: none; opacity: 0.9; }
+      .cluster  { fill: #6B5F4F; letter-spacing: 0.3em; font-family: 'Helvetica Neue', 'Arial', sans-serif; }
+      .sans     { font-family: 'Helvetica Neue', 'Arial', sans-serif; letter-spacing: 0.12em; }
+      .mono     { font-family: 'Menlo', 'Consolas', 'Courier New', monospace; }
+    </style>
+  </defs>
+
+  <!-- Paper -->
+  <rect class="bg" width="1600" height="720"/>
+
+  <!-- Masthead -->
+  <line class="rule" x1="40" y1="46" x2="1560" y2="46"/>
+  <line class="hair" x1="40" y1="52" x2="1560" y2="52"/>
+  <text class="ink sans" x="40" y="38" font-size="11">&#167; THE MOMENT &#8212; SIX STARS OUT OF EIGHT HUNDRED LIGHT UP, ONE QUESTION IS ANSWERED WITH CONTINUITY</text>
+  <text class="muted sans" x="1560" y="38" font-size="11" text-anchor="end">FIG. 00 &#183; MEMWRIGHT</text>
+
+  <!-- ============================================================ -->
+  <!-- LEFT: the constellation (accumulated memory across 4 weeks)  -->
+  <!-- ============================================================ -->
+
+  <!-- Cluster labels (small, muted caps) -->
+  <text class="cluster" x="180" y="110" font-size="9" text-anchor="middle">DECISIONS</text>
+  <text class="cluster" x="460" y="110" font-size="9" text-anchor="middle">SIGNALS</text>
+  <text class="cluster" x="720" y="140" font-size="9" text-anchor="middle">PRECEDENTS</text>
+  <text class="cluster" x="180" y="370" font-size="9" text-anchor="middle">CONVERSATIONS</text>
+  <text class="cluster" x="460" y="400" font-size="9" text-anchor="middle">FACTS</text>
+  <text class="cluster" x="720" y="410" font-size="9" text-anchor="middle">POSITIONS</text>
+
+  <!-- Faint connective hairlines (the implicit graph) -->
+  <g class="hair">
+    <!-- decisions cluster -->
+    <path d="M 160,140 L 185,155 L 220,145 L 205,175 L 175,170 L 160,140 Z"/>
+    <path d="M 195,200 L 220,145 M 145,190 L 175,170"/>
+    <!-- signals cluster -->
+    <path d="M 420,150 L 460,140 L 500,160 L 475,190 L 435,180 L 420,150 Z"/>
+    <path d="M 500,160 L 540,145 M 475,190 L 515,215 M 460,140 L 490,120"/>
+    <!-- precedents cluster -->
+    <path d="M 700,180 L 735,165 L 760,195 L 725,215 L 695,200 L 700,180 Z"/>
+    <path d="M 760,195 L 790,175 M 735,165 L 755,135"/>
+    <!-- conversations cluster -->
+    <path d="M 160,400 L 195,390 L 225,415 L 210,445 L 170,440 L 160,400 Z"/>
+    <path d="M 140,420 L 160,400 M 225,415 L 260,405"/>
+    <!-- facts cluster -->
+    <path d="M 430,430 L 470,425 L 500,450 L 475,475 L 440,465 L 430,430 Z"/>
+    <path d="M 500,450 L 540,440 M 475,475 L 490,510 M 470,425 L 485,395"/>
+    <!-- positions cluster -->
+    <path d="M 700,450 L 735,440 L 765,465 L 740,490 L 710,480 L 700,450 Z"/>
+    <path d="M 735,440 L 760,420 M 740,490 L 770,510"/>
+    <!-- cross-cluster faint lines -->
+    <path d="M 205,175 L 430,430"/>
+    <path d="M 460,140 L 735,165"/>
+    <path d="M 500,160 L 470,425"/>
+    <path d="M 735,165 L 700,450"/>
+    <path d="M 195,390 L 430,430"/>
+  </g>
+
+  <!-- Unlit dots (the 794 memories not relevant to this turn) -->
+  <g class="star">
+    <!-- decisions cluster -->
+    <circle cx="160" cy="140" r="2.2"/>
+    <circle cx="185" cy="155" r="2"/>
+    <circle cx="220" cy="145" r="2"/>
+    <circle cx="205" cy="175" r="1.8"/>
+    <circle cx="175" cy="170" r="2"/>
+    <circle cx="145" cy="190" r="1.8"/>
+    <circle cx="195" cy="200" r="1.6"/>
+    <circle cx="230" cy="175" r="1.6"/>
+    <!-- signals cluster (JPM Q2 + Barnum are lit below) -->
+    <circle cx="420" cy="150" r="2"/>
+    <circle cx="500" cy="160" r="2"/>
+    <circle cx="475" cy="190" r="2"/>
+    <circle cx="435" cy="180" r="1.8"/>
+    <circle cx="540" cy="145" r="1.8"/>
+    <circle cx="515" cy="215" r="1.8"/>
+    <circle cx="490" cy="120" r="1.6"/>
+    <circle cx="405" cy="205" r="1.6"/>
+    <!-- precedents cluster (MSFT precedent is lit below) -->
+    <circle cx="700" cy="180" r="2"/>
+    <circle cx="760" cy="195" r="2"/>
+    <circle cx="725" cy="215" r="1.8"/>
+    <circle cx="695" cy="200" r="1.8"/>
+    <circle cx="790" cy="175" r="1.8"/>
+    <circle cx="755" cy="135" r="1.6"/>
+    <!-- conversations cluster -->
+    <circle cx="160" cy="400" r="2"/>
+    <circle cx="195" cy="390" r="2"/>
+    <circle cx="225" cy="415" r="2"/>
+    <circle cx="210" cy="445" r="1.8"/>
+    <circle cx="170" cy="440" r="1.8"/>
+    <circle cx="140" cy="420" r="1.6"/>
+    <circle cx="260" cy="405" r="1.6"/>
+    <circle cx="240" cy="470" r="1.6"/>
+    <!-- facts cluster (6% cap is lit below) -->
+    <circle cx="470" cy="425" r="2"/>
+    <circle cx="500" cy="450" r="2"/>
+    <circle cx="475" cy="475" r="1.8"/>
+    <circle cx="440" cy="465" r="1.8"/>
+    <circle cx="540" cy="440" r="1.8"/>
+    <circle cx="490" cy="510" r="1.6"/>
+    <circle cx="485" cy="395" r="1.6"/>
+    <!-- positions cluster (growth-7 holdings is lit below) -->
+    <circle cx="735" cy="440" r="2"/>
+    <circle cx="765" cy="465" r="2"/>
+    <circle cx="740" cy="490" r="1.8"/>
+    <circle cx="710" cy="480" r="1.8"/>
+    <circle cx="760" cy="420" r="1.6"/>
+    <circle cx="770" cy="510" r="1.6"/>
+    <!-- scattered dust (memories from other entities, other days) -->
+    <circle cx="80"  cy="250" r="1.4" class="dust"/>
+    <circle cx="120" cy="285" r="1.4" class="dust"/>
+    <circle cx="300" cy="245" r="1.4" class="dust"/>
+    <circle cx="330" cy="305" r="1.4" class="dust"/>
+    <circle cx="600" cy="255" r="1.4" class="dust"/>
+    <circle cx="650" cy="300" r="1.4" class="dust"/>
+    <circle cx="610" cy="330" r="1.4" class="dust"/>
+    <circle cx="380" cy="340" r="1.4" class="dust"/>
+    <circle cx="580" cy="380" r="1.4" class="dust"/>
+    <circle cx="820" cy="240" r="1.4" class="dust"/>
+    <circle cx="850" cy="290" r="1.4" class="dust"/>
+    <circle cx="810" cy="330" r="1.4" class="dust"/>
+    <circle cx="80"  cy="500" r="1.4" class="dust"/>
+    <circle cx="310" cy="520" r="1.4" class="dust"/>
+    <circle cx="350" cy="490" r="1.4" class="dust"/>
+    <circle cx="600" cy="540" r="1.4" class="dust"/>
+    <circle cx="640" cy="555" r="1.4" class="dust"/>
+    <circle cx="820" cy="490" r="1.4" class="dust"/>
+    <circle cx="850" cy="540" r="1.4" class="dust"/>
+    <circle cx="270" cy="570" r="1.4" class="dust"/>
+    <circle cx="390" cy="570" r="1.4" class="dust"/>
+    <circle cx="520" cy="580" r="1.4" class="dust"/>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- LIT STARS - the 6 memories that matter for THIS question     -->
+  <!-- ============================================================ -->
+
+  <!-- S1: JPM Q2 beat (signals cluster) -->
+  <circle cx="460" cy="140" r="18" fill="url(#glow)"/>
+  <circle cx="460" cy="140" r="5" class="lit"/>
+  <text class="ink" x="460" y="94" font-size="11" text-anchor="middle" font-style="italic">&#8220;JPM Q2 beat&#8221;</text>
+
+  <!-- S2: Barnum NII guide-up (signals cluster) -->
+  <circle cx="510" cy="180" r="18" fill="url(#glow)"/>
+  <circle cx="510" cy="180" r="5" class="lit"/>
+  <text class="ink" x="575" y="184" font-size="11" font-style="italic">&#8220;Barnum NII guide-up&#8221;</text>
+
+  <!-- S3: 6% sector cap (facts cluster) -->
+  <circle cx="460" cy="440" r="18" fill="url(#glow)"/>
+  <circle cx="460" cy="440" r="5" class="lit"/>
+  <text class="ink" x="460" y="590" font-size="11" text-anchor="middle" font-style="italic">&#8220;6% sector cap&#8221;</text>
+  <line class="hair" x1="460" y1="450" x2="460" y2="578" stroke="#C15F3C" stroke-dasharray="2 2"/>
+
+  <!-- S4: growth-7 holdings (positions cluster) -->
+  <circle cx="720" cy="455" r="18" fill="url(#glow)"/>
+  <circle cx="720" cy="455" r="5" class="lit"/>
+  <text class="ink" x="720" y="585" font-size="11" text-anchor="middle" font-style="italic">&#8220;growth-7 holdings&#8221;</text>
+  <line class="hair" x1="720" y1="465" x2="720" y2="575" stroke="#C15F3C" stroke-dasharray="2 2"/>
+
+  <!-- S5: MSFT cap-breach precedent (precedents cluster) -->
+  <circle cx="735" cy="180" r="18" fill="url(#glow)"/>
+  <circle cx="735" cy="180" r="5" class="lit"/>
+  <text class="ink" x="800" y="184" font-size="11" font-style="italic">&#8220;MSFT precedent&#8221;</text>
+
+  <!-- S6: WFC Q2 miss (signals cluster) -->
+  <circle cx="435" cy="220" r="18" fill="url(#glow)"/>
+  <circle cx="435" cy="220" r="5" class="lit"/>
+  <text class="ink" x="380" y="240" font-size="11" text-anchor="end" font-style="italic">&#8220;WFC miss&#8221;</text>
+
+  <!-- ============================================================ -->
+  <!-- CENTER: the figure (agent silhouette)                        -->
+  <!-- ============================================================ -->
+
+  <!-- Soft halo -->
+  <circle cx="1060" cy="370" r="120" fill="url(#glow)"/>
+
+  <!-- Head -->
+  <circle cx="1060" cy="320" r="36" class="paper" stroke-width="1.5"/>
+  <!-- Shoulders / torso arc -->
+  <path d="M 990,460 Q 1060,390 1130,460 L 1130,540 L 990,540 Z" class="paper" stroke-width="1.5"/>
+  <!-- Neck -->
+  <path d="M 1045,350 L 1045,370 L 1075,370 L 1075,350" class="paper" stroke-width="1.5"/>
+
+  <!-- Label under figure -->
+  <text class="muted sans" x="1060" y="570" font-size="10" text-anchor="middle">PORTFOLIO PLANNER &#183; FRESH CONTEXT WINDOW</text>
+
+  <!-- ============================================================ -->
+  <!-- RIGHT: the question card (THE MOMENT)                        -->
+  <!-- ============================================================ -->
+
+  <text class="accent sans" x="1370" y="250" font-size="11" text-anchor="middle" font-weight="700">&#167; THE MOMENT</text>
+  <g transform="translate(1200,270)">
+    <rect class="paper" width="340" height="160" rx="2" stroke="#C15F3C" stroke-width="2"/>
+    <text class="muted sans" x="20" y="28" font-size="10">FRI &#183; 08:55 &#183; NEW TASK</text>
+    <line class="hair" x1="20" y1="40" x2="320" y2="40"/>
+    <text class="ink" x="20" y="80" font-size="18" font-style="italic">&#8220;Should we still be</text>
+    <text class="ink" x="20" y="104" font-size="18" font-style="italic">overweight JPM?&#8221;</text>
+    <line class="hair" x1="20" y1="122" x2="320" y2="122"/>
+    <text class="muted mono" x="20" y="144" font-size="10">mem.load_context(entity=jpm, budget=1500)</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- RECALL ARCS - 6 lit stars sweep into the figure's head       -->
+  <!-- ============================================================ -->
+
+  <!-- from S1 (JPM Q2 beat) -->
+  <path class="recall" d="M 460,140 Q 760,200 1040,300"/>
+  <!-- from S2 (Barnum NII) -->
+  <path class="recall" d="M 510,180 Q 770,230 1045,308"/>
+  <!-- from S3 (6% sector cap) -->
+  <path class="recall" d="M 460,440 Q 760,400 1042,330"/>
+  <!-- from S4 (growth-7 holdings) -->
+  <path class="recall" d="M 720,455 Q 880,400 1050,340"/>
+  <!-- from S5 (MSFT precedent) -->
+  <path class="recall" d="M 735,180 Q 890,240 1055,310"/>
+  <!-- from S6 (WFC miss) -->
+  <path class="recall" d="M 435,220 Q 740,270 1038,312"/>
+
+  <!-- Arc from figure to question card -->
+  <path class="recall" d="M 1100,320 Q 1160,300 1200,300" stroke-width="2"/>
+  <polygon points="1200,300 1190,295 1190,305" fill="#C15F3C"/>
+
+  <!-- ============================================================ -->
+  <!-- BOTTOM BAND: the annotation                                  -->
+  <!-- ============================================================ -->
+
+  <line class="rule" x1="40" y1="620" x2="1560" y2="620"/>
+  <g transform="translate(40,636)">
+    <text class="accent sans" x="0" y="16" font-size="11" font-weight="700">LOAD_CONTEXT</text>
+    <text class="muted sans" x="140" y="16" font-size="11">&#183;</text>
+    <text class="ink sans" x="160" y="16" font-size="11">6 OF 800 MEMORIES</text>
+    <text class="muted sans" x="330" y="16" font-size="11">&#183;</text>
+    <text class="ink sans" x="350" y="16" font-size="11">840 TOKENS</text>
+    <text class="muted sans" x="470" y="16" font-size="11">&#183;</text>
+    <text class="ink sans" x="490" y="16" font-size="11">12 MS</text>
+    <text class="muted sans" x="560" y="16" font-size="11">&#183;</text>
+    <text class="accent sans" x="580" y="16" font-size="11" font-weight="700">ZERO LLM CALLS</text>
+
+    <text class="ink" x="1520" y="18" font-size="18" font-style="italic" text-anchor="end">Memwright doesn&#8217;t search. It remembers.</text>
+  </g>
+
+  <!-- Footer rule -->
+  <line class="rule" x1="40" y1="700" x2="1560" y2="700"/>
+</svg>
