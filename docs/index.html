@@ -1910,6 +1910,14 @@ footer.colophon {
       <p class="standfirst">Memwright ships as a Python library, a REST API, or a containerized service. Deploy to AWS App Runner, GCP Cloud Run, or Azure Container Apps with a single command. Terraform templates included. No SaaS middleman, no per-seat fees, no vendor lock-in.</p>
     </div>
 
+    <div class="reveal" style="margin:36px 0 40px;padding:28px 32px;background:var(--ink-raise);border:1px solid var(--rule);border-left:4px solid var(--accent);border-radius:4px;">
+      <div style="font-family:var(--ff-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.18em;color:var(--accent);margin-bottom:10px;">Run it on your laptop &mdash; zero cloud, zero cost</div>
+      <h3 style="font-family:var(--ff-display);font-size:28px;font-weight:500;margin:0 0 14px;color:var(--ink);">Self-host locally in <em>one command</em>.</h3>
+      <pre style="background:var(--ink);color:var(--paper);font-family:var(--ff-mono);font-size:14px;padding:18px 22px;border-radius:4px;overflow-x:auto;margin:0 0 14px;"><span style="color:var(--accent);">$</span> pip install memwright
+<span style="color:var(--accent);">$</span> memwright serve --host 0.0.0.0 --port 8080</pre>
+      <p style="margin:0;color:var(--ink-soft);font-size:15px;line-height:1.6;">Starlette ASGI on <code style="font-family:var(--ff-mono);font-size:13px;background:var(--paper);padding:2px 6px;border:1px solid var(--rule);">http://localhost:8080</code>. SQLite + ChromaDB + NetworkX provision automatically under <code style="font-family:var(--ff-mono);font-size:13px;background:var(--paper);padding:2px 6px;border:1px solid var(--rule);">~/.memwright</code>. Point every agent in your stack at the same URL &mdash; they share memory instantly. No Docker required. No API keys. Air-gap it behind your firewall and walk away.</p>
+    </div>
+
     <div class="matrix reveal">
       <div class="matrix-cell">
         <span class="matrix-tag">Cloud &middot; 01</span>
