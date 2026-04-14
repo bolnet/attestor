@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Memwright — Production-grade memory infrastructure for multi-agent systems</title>
-<meta name="description" content="Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval, token budgets. 81.2% LOCOMO. 1.4ms P50 recall. Deploys to AWS, Azure, GCP.">
+<meta name="description" content="Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval, token budgets. Deploys to AWS, Azure, GCP.">
 <meta name="theme-color" content="#0C0B09">
 <meta property="og:title" content="Memwright — Production-grade memory infrastructure for multi-agent systems">
 <meta property="og:description" content="The memory tier for agent systems that ship to production. Namespace isolation, RBAC, provenance, ranked retrieval. Deploys to AWS, Azure, GCP.">
@@ -1434,7 +1434,7 @@ footer.colophon {
     <span class="lead"><span class="dot"></span>MEMWRIGHT &mdash; A MEMORY JOURNAL FOR AGENTIC SYSTEMS</span>
     <span>VOL. 02 &middot; REV. 0.1</span>
     <span>EST. 2026 &middot; NEW YORK</span>
-    <span>APACHE 2.0</span>
+    <span>MIT</span>
   </div>
 </div>
 
@@ -1447,11 +1447,10 @@ footer.colophon {
     <ul class="nav-links">
       <li><a href="#problem" data-num="01">Problem</a></li>
       <li><a href="#multiagent" data-num="02">Multi-Agent</a></li>
-      <li><a href="#compare" data-num="03">Benchmarks</a></li>
-      <li><a href="#how" data-num="04">Pipeline</a></li>
-      <li><a href="#platforms" data-num="05">Deploy</a></li>
-      <li><a href="#quickstart" data-num="06">Quickstart</a></li>
-      <li><a href="#principles" data-num="07">Principles</a></li>
+      <li><a href="#how" data-num="03">Pipeline</a></li>
+      <li><a href="#platforms" data-num="04">Deploy</a></li>
+      <li><a href="#quickstart" data-num="05">Quickstart</a></li>
+      <li><a href="#principles" data-num="06">Principles</a></li>
     </ul>
     <div class="nav-ctas">
       <a href="https://pypi.org/project/memwright/" class="btn btn-ghost" target="_blank" rel="noopener">PyPI</a>
@@ -1479,25 +1478,30 @@ footer.colophon {
 
     <div class="hero-grid">
       <div>
-        <p class="hero-sub">The memory tier your agents need when they leave your laptop and start running in production.</p>
-        <p class="hero-sub-detail">Namespace isolation, RBAC, provenance tracking, temporal correctness, ranked retrieval, token budgets &mdash; built for orchestrator-worker and planner-executor pipelines. One agent or a hundred. Python library, REST API, or containerized service.</p>
+        <p class="hero-sub">The memory layer for agent teams. Self&#8209;hosted. Deterministic retrieval. No LLM in the critical path.</p>
+        <p class="hero-sub-detail">Namespace isolation, RBAC, provenance tracking, temporal correctness, ranked retrieval, token budgets &mdash; built for orchestrator-worker and planner-executor pipelines. Python library, REST API, or containerized service. No SaaS middleman, no per-seat fees, no vendor lock-in.</p>
 
         <div class="hero-install" onclick="copyToClipboard(this, 'poetry add memwright')" title="Click to copy">
           <span>poetry add memwright</span>
           <span class="copy-icon">&#x2398;</span>
         </div>
-        <span class="hero-install-note">Apache 2.0 &middot; Python 3.10&ndash;3.14 &middot; Production deploy in one command</span>
+        <div class="hero-cta-row" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">
+          <a href="https://github.com/bolnet/agent-memory" class="btn btn-primary" target="_blank" rel="noopener">Architecture &amp; deploy guide &rarr;</a>
+          <a href="https://github.com/bolnet/agent-memory/stargazers" target="_blank" rel="noopener"><img src="https://img.shields.io/github/stars/bolnet/agent-memory?style=for-the-badge&amp;label=GitHub&amp;color=111" alt="GitHub stars"></a>
+          <a href="https://pypi.org/project/memwright/" target="_blank" rel="noopener"><img src="https://img.shields.io/pypi/dm/memwright?style=for-the-badge&amp;label=PyPI&amp;color=111" alt="PyPI downloads"></a>
+        </div>
+        <span class="hero-install-note">MIT &middot; Python 3.10&ndash;3.14 &middot; Production deploy in one command</span>
       </div>
 
       <aside class="hero-spec">
         <div class="hero-spec-title">&sect; Spec Sheet</div>
         <div class="hero-spec-row">
-          <span class="hero-spec-label">LOCOMO Accuracy</span>
-          <span class="hero-spec-value">81.2<span class="unit">%</span></span>
+          <span class="hero-spec-label">Storage Roles</span>
+          <span class="hero-spec-value">Doc &middot; Vector &middot; Graph</span>
         </div>
         <div class="hero-spec-row">
-          <span class="hero-spec-label">Recall P50</span>
-          <span class="hero-spec-value">1.4<span class="unit">ms</span></span>
+          <span class="hero-spec-label">Interfaces</span>
+          <span class="hero-spec-value">Python &middot; REST &middot; MCP</span>
         </div>
         <div class="hero-spec-row">
           <span class="hero-spec-label">Retrieval Layers</span>
@@ -1513,7 +1517,7 @@ footer.colophon {
         </div>
         <div class="hero-spec-row">
           <span class="hero-spec-label">License</span>
-          <span class="hero-spec-value">Apache 2.0</span>
+          <span class="hero-spec-value">MIT</span>
         </div>
       </aside>
     </div>
@@ -1521,27 +1525,29 @@ footer.colophon {
 
   <div class="ticker">
     <div class="ticker-track">
-      <span><b>LOCOMO</b>81.2%</span>
-      <span><b>P50 RECALL</b>1.4ms</span>
-      <span><b>RBAC ROLES</b>6</span>
+      <span><b>MULTI-AGENT</b>NAMESPACE</span>
+      <span><b>ACCESS</b>RBAC</span>
+      <span><b>TRACE</b>PROVENANCE</span>
+      <span><b>CONTEXT</b>TOKEN BUDGETS</span>
       <span><b>RETRIEVAL LAYERS</b>5</span>
       <span><b>PYTHON</b>3.10 &mdash; 3.14</span>
       <span><b>STACK</b>SQLite &middot; ChromaDB &middot; NetworkX</span>
       <span><b>CLOUD</b>PostgreSQL &middot; ArangoDB &middot; Cosmos &middot; AlloyDB</span>
       <span><b>DEPLOY</b>AWS &middot; Azure &middot; GCP</span>
       <span><b>RETRIEVAL</b>RRF &middot; PageRank &middot; MMR</span>
-      <span><b>LICENSE</b>Apache 2.0</span>
+      <span><b>LICENSE</b>MIT</span>
       <!-- duplicate -->
-      <span><b>LOCOMO</b>81.2%</span>
-      <span><b>P50 RECALL</b>1.4ms</span>
-      <span><b>RBAC ROLES</b>6</span>
+      <span><b>MULTI-AGENT</b>NAMESPACE</span>
+      <span><b>ACCESS</b>RBAC</span>
+      <span><b>TRACE</b>PROVENANCE</span>
+      <span><b>CONTEXT</b>TOKEN BUDGETS</span>
       <span><b>RETRIEVAL LAYERS</b>5</span>
       <span><b>PYTHON</b>3.10 &mdash; 3.14</span>
       <span><b>STACK</b>SQLite &middot; ChromaDB &middot; NetworkX</span>
       <span><b>CLOUD</b>PostgreSQL &middot; ArangoDB &middot; Cosmos &middot; AlloyDB</span>
       <span><b>DEPLOY</b>AWS &middot; Azure &middot; GCP</span>
       <span><b>RETRIEVAL</b>RRF &middot; PageRank &middot; MMR</span>
-      <span><b>LICENSE</b>Apache 2.0</span>
+      <span><b>LICENSE</b>MIT</span>
     </div>
   </div>
 </section>
@@ -1679,162 +1685,12 @@ footer.colophon {
 </section>
 
 <!-- ═══════════════════════════════════════════════════
-     § 03 · BENCHMARKS
-     ═══════════════════════════════════════════════════ -->
-<section id="compare">
-  <div class="container">
-    <div class="section-filing reveal">
-      <span class="section-num">&sect; 03</span>
-      <span class="section-name">&mdash; Benchmarks</span>
-      <span>Independent &middot; reproducible &middot; no LLM in the retrieval path</span>
-    </div>
-
-    <div class="reveal">
-      <h2 class="section-head">Highest accuracy. Lowest latency. <em>Deterministic retrieval.</em></h2>
-      <p class="standfirst">No LLM judges in the recall path. No opaque reranking. Every score is produced by tag matching, graph traversal, vector similarity, RRF fusion, PageRank, and MMR &mdash; all reproducible, all auditable.</p>
-    </div>
-
-    <div class="table-heading reveal">
-      <h3>Tbl. 03.1 &mdash; Feature comparison</h3>
-      <span class="table-meta">Vs. incumbent memory vendors</span>
-    </div>
-    <div class="datatable-wrap reveal">
-      <table class="datatable">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Memwright</th>
-            <th>Mem0</th>
-            <th>Zep</th>
-            <th>Letta</th>
-            <th>OpenAI</th>
-            <th>LangChain</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="row-hl">
-            <td>LOCOMO</td>
-            <td class="num">81.2%</td>
-            <td class="num">66.9%</td>
-            <td class="num">~75%</td>
-            <td class="num">74%</td>
-            <td class="num">52.9%</td>
-            <td class="num">&mdash;</td>
-          </tr>
-          <tr>
-            <td>Setup</td>
-            <td>poetry add</td>
-            <td>API key</td>
-            <td>Neo4j</td>
-            <td>Docker + PG</td>
-            <td>ChatGPT only</td>
-            <td>Framework lock-in</td>
-          </tr>
-          <tr>
-            <td>Graph memory</td>
-            <td>All tiers</td>
-            <td>Pro only</td>
-            <td>All tiers</td>
-            <td>Agent-managed</td>
-            <td>No</td>
-            <td>No</td>
-          </tr>
-          <tr>
-            <td>LLM in retrieval</td>
-            <td>None</td>
-            <td>Every add</td>
-            <td>None</td>
-            <td>Agent calls</td>
-            <td>Unknown</td>
-            <td>Varies</td>
-          </tr>
-          <tr>
-            <td>Multi-agent</td>
-            <td>Namespace + 6 RBAC</td>
-            <td>Basic</td>
-            <td>Sessions only</td>
-            <td>Agent-scoped</td>
-            <td>No</td>
-            <td>Manual</td>
-          </tr>
-          <tr>
-            <td>Self-host</td>
-            <td>Library or container</td>
-            <td>Yes</td>
-            <td>Via Graphiti</td>
-            <td>Docker required</td>
-            <td>No API</td>
-            <td>Yes (OSS)</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="table-heading reveal">
-      <h3>Tbl. 03.2 &mdash; Recall latency (P50)</h3>
-      <span class="table-meta">Full retrieval pipeline, not vector-only</span>
-    </div>
-    <div class="datatable-wrap reveal">
-      <table class="datatable">
-        <thead>
-          <tr>
-            <th>System</th>
-            <th>Stack</th>
-            <th>P50</th>
-            <th>Note</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="row-hl">
-            <td>Memwright (PG Docker)</td>
-            <td>PG 16 + pgvector + AGE</td>
-            <td class="num">1.4ms</td>
-            <td>Full 5-layer pipeline</td>
-          </tr>
-          <tr class="row-hl">
-            <td>Memwright (local)</td>
-            <td>SQLite + Chroma + NX</td>
-            <td class="num">9.1ms</td>
-            <td>No Docker, no API keys</td>
-          </tr>
-          <tr class="row-hl">
-            <td>Memwright (GCP Cloud Run)</td>
-            <td>Starlette &rarr; Arango</td>
-            <td class="num">156ms</td>
-            <td>Cloud, scale-to-zero</td>
-          </tr>
-          <tr>
-            <td>Mem0</td>
-            <td>Cloud + LLM judge</td>
-            <td class="num">200ms</td>
-            <td>LLM in retrieval path</td>
-          </tr>
-          <tr>
-            <td>Zep</td>
-            <td>Neo4j + embeddings</td>
-            <td class="num">&lt;200ms</td>
-            <td>P95 ~632ms under load</td>
-          </tr>
-          <tr>
-            <td>Mem0 Graph</td>
-            <td>Cloud + LLM + graph</td>
-            <td class="num">660ms</td>
-            <td>Graph variant</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="comp-footnote reveal">LOCOMO scores are self-reported across vendors. Latency measured with the full retrieval pipeline &mdash; not vector lookup in isolation. Reproduce locally: <code>memwright locomo</code></p>
-  </div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════
-     § 04 · PIPELINE
+     § 03 · PIPELINE
      ═══════════════════════════════════════════════════ -->
 <section id="how">
   <div class="container">
     <div class="section-filing reveal">
-      <span class="section-num">&sect; 04</span>
+      <span class="section-num">&sect; 03</span>
       <span class="section-name">&mdash; The Retrieval Pipeline</span>
       <span>Five layers &middot; zero inference calls</span>
     </div>
@@ -1895,7 +1751,7 @@ footer.colophon {
 <section id="platforms">
   <div class="container">
     <div class="section-filing reveal">
-      <span class="section-num">&sect; 05</span>
+      <span class="section-num">&sect; 04</span>
       <span class="section-name">&mdash; Deployment Matrix</span>
       <span>Your cloud &middot; your infrastructure &middot; Terraform included</span>
     </div>
@@ -1929,13 +1785,13 @@ footer.colophon {
       <div class="matrix-cell">
         <span class="matrix-tag">Cloud &middot; 03</span>
         <h3>GCP</h3>
-        <p>Cloud Run with AlloyDB. Scale-to-zero. 156ms P50. Google's managed infrastructure.</p>
+        <p>Cloud Run with AlloyDB. Scale-to-zero. Google's managed infrastructure.</p>
         <div class="matrix-spec">2 CPU &middot; 4 GB &middot; us-central1</div>
       </div>
       <div class="matrix-cell">
         <span class="matrix-tag">Backend &middot; 04</span>
         <h3>PostgreSQL</h3>
-        <p>pgvector + Apache AGE. 1.4ms P50. Neon serverless or any Postgres 16.</p>
+        <p>pgvector + Apache AGE. Neon serverless or any Postgres 16.</p>
         <div class="matrix-spec">Doc &middot; Vector &middot; Graph</div>
       </div>
       <div class="matrix-cell">
@@ -1960,7 +1816,7 @@ footer.colophon {
 <section id="quickstart">
   <div class="container">
     <div class="section-filing reveal">
-      <span class="section-num">&sect; 06</span>
+      <span class="section-num">&sect; 05</span>
       <span class="section-name">&mdash; Quickstart</span>
       <span>Python library &middot; REST API &middot; MCP protocol</span>
     </div>
@@ -2042,7 +1898,7 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
 <section id="principles">
   <div class="container">
     <div class="section-filing reveal">
-      <span class="section-num">&sect; 07</span>
+      <span class="section-num">&sect; 06</span>
       <span class="section-name">&mdash; Design Principles</span>
       <span>Opinionated &middot; on purpose</span>
     </div>
@@ -2085,7 +1941,7 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
       <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright" class="btn btn-ghost" target="_blank" rel="noopener">MCP Registry</a>
     </div>
 
-    <p class="closing-byline reveal">Apache 2.0. Production-grade memory infrastructure for multi-agent systems. Designed and built by <a href="https://www.linkedin.com/in/surendrasingh/" target="_blank" rel="noopener">Surendra Singh</a> &mdash; fifteen years architecting production systems in financial services.</p>
+    <p class="closing-byline reveal">MIT. Production-grade memory infrastructure for multi-agent systems. Designed and built by <a href="https://www.linkedin.com/in/surendrasingh/" target="_blank" rel="noopener">Surendra Singh</a> &mdash; fifteen years architecting production systems in financial services.</p>
   </div>
 </section>
 
@@ -2097,7 +1953,7 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
     <div class="colophon-grid">
       <div>
         <div class="col-label">Colophon</div>
-        <p class="colophon-body">Memwright is typeset in <em>Fraunces</em> by Undercase Type and <em>IBM Plex Sans</em> by Bold Monday. Source listings are set in <em>JetBrains Mono</em>. The journal is published under Apache 2.0 and may be forked, adapted, or redistributed without royalty.</p>
+        <p class="colophon-body">Memwright is typeset in <em>Fraunces</em> by Undercase Type and <em>IBM Plex Sans</em> by Bold Monday. Source listings are set in <em>JetBrains Mono</em>. The journal is published under MIT and may be forked, adapted, or redistributed without royalty.</p>
       </div>
       <div>
         <div class="col-label">Masthead</div>
@@ -2128,7 +1984,7 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
 
     <div class="colophon-mark">
       <span class="left">Memwright<b>.</b></span>
-      <span>&copy; 2026 Bolnet &middot; Apache 2.0 &middot; New York</span>
+      <span>&copy; 2026 Bolnet &middot; MIT &middot; New York</span>
       <span>Set in paper &middot; printed in terminal</span>
     </div>
   </div>

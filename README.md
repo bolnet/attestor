@@ -1,3 +1,9 @@
+<!-- ══════════════════════════════════════════════════════════════
+     MASTHEAD
+     ══════════════════════════════════════════════════════════════ -->
+
+<p align="center"><sub><b>MEMWRIGHT</b> &mdash; A MEMORY JOURNAL FOR AGENTIC SYSTEMS &middot; VOL. 02 &middot; REV. 0.1 &middot; EST. 2026 &middot; NEW YORK &middot; MIT</sub></p>
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/bolnet/agent-memory/main/docs/logo.svg">
@@ -6,35 +12,133 @@
   </picture>
 </p>
 
-<p align="center">
-  <em>Production-grade memory infrastructure for multi-agent systems.</em>
-</p>
+<h3 align="center"><em>The memory layer for agent teams.</em></h3>
+
+<p align="center"><sub>Self&#8209;hosted &middot; Deterministic retrieval &middot; No LLM in the critical path</sub></p>
 
 <p align="center">
   <a href="https://pypi.org/project/memwright/"><img src="https://img.shields.io/pypi/v/memwright?color=C15F3C&style=flat-square" alt="PyPI"></a>
+  <a href="https://pypi.org/project/memwright/"><img src="https://img.shields.io/pypi/dm/memwright?style=flat-square&color=C15F3C" alt="PyPI downloads"></a>
+  <a href="https://github.com/bolnet/agent-memory/stargazers"><img src="https://img.shields.io/github/stars/bolnet/agent-memory?style=flat-square&color=C15F3C" alt="GitHub stars"></a>
   <a href="https://pypi.org/project/memwright/"><img src="https://img.shields.io/pypi/pyversions/memwright?style=flat-square" alt="Python"></a>
   <a href="https://github.com/bolnet/agent-memory/blob/main/LICENSE"><img src="https://img.shields.io/github/license/bolnet/agent-memory?style=flat-square" alt="License"></a>
   <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright"><img src="https://img.shields.io/badge/MCP-Registry-C15F3C?style=flat-square" alt="MCP Registry"></a>
 </p>
 
+<p align="center"><sub>&sect; 00 &middot; MASTHEAD &middot; FILED UNDER INFRASTRUCTURE &middot; BY S. SINGH &middot; &mdash; FOR PUBLICATION &mdash;</sub></p>
+
 ---
 
-## The Problem
+<p align="center">
+  <b>Production&#8209;grade memory infrastructure for multi&#8209;agent systems.</b><br>
+  <sub>The memory tier your agents need when they leave your laptop and start running in production.</sub>
+</p>
 
-Agent systems lose state the moment a session ends. Single agents rediscover the same facts every run. Multi-agent pipelines are worse — the planner's decisions never reach the executor, the researcher's findings never reach the reviewer, and teams end up stuffing giant prompts between agents to paper over the gap.
+<p align="center"><sub>Namespace isolation &middot; RBAC &middot; Provenance tracking &middot; Temporal correctness &middot; Ranked retrieval &middot; Token budgets &mdash; built for orchestrator&#8209;worker and planner&#8209;executor pipelines. Python library, REST API, or containerized service. No SaaS middleman, no per&#8209;seat fees, no vendor lock&#8209;in.</sub></p>
 
-Most memory "solutions" are either flat files loaded wholesale into context, or SaaS endpoints with opaque ranking and per-seat pricing. Neither is something you ship to production.
+```
+poetry add memwright
+```
 
-Memwright is the memory tier for agent systems that need to run in production — with ranked retrieval, namespace isolation, RBAC, provenance, and contradiction handling built in.
+<p align="center"><sub>MIT &middot; Python 3.10&ndash;3.14 &middot; Production deploy in one command</sub></p>
 
-## What Memwright Delivers
+<table align="center">
+<tr><th colspan="2" align="center">&sect; Spec Sheet</th></tr>
+<tr><td>Storage Roles</td><td><b>Doc &middot; Vector &middot; Graph</b></td></tr>
+<tr><td>Interfaces</td><td><b>Python &middot; REST &middot; MCP</b></td></tr>
+<tr><td>Retrieval Layers</td><td><b>5</b></td></tr>
+<tr><td>RBAC Roles</td><td><b>6</b></td></tr>
+<tr><td>Cloud Targets</td><td><b>AWS &middot; Azure &middot; GCP</b></td></tr>
+<tr><td>License</td><td><b>MIT</b></td></tr>
+</table>
 
-- **Multi-agent ready** — namespace isolation, 6 RBAC roles, per-agent write quotas, token budgets, provenance tracking, inter-agent scratchpad
-- **Ranked retrieval** — 5-layer pipeline (graph expansion → tag match → entity search → vector similarity → relation triples) with RRF fusion, PageRank boosting, and MMR diversity
-- **Token-budget recall** — set a ceiling; Memwright fits the highest-scoring memories within it
-- **Temporal correctness** — automatic contradiction detection, supersession, validity windows, and timeline reconstruction per entity
-- **Production deploy paths** — ship as a Python library, a REST API, or a containerized service on AWS, Azure, or GCP
-- **Pluggable backends** — SQLite/ChromaDB/NetworkX locally; PostgreSQL+pgvector+AGE, ArangoDB, Cosmos DB, or AlloyDB in production
+---
+
+## &sect; 01 &mdash; The Problem
+
+<sub><b>Why agent prototypes don't survive production</b></sub>
+
+Agent prototypes don't survive production. Memory is usually why.
+
+Single agents rediscover the same facts every run. Multi&#8209;agent pipelines are worse &mdash; the planner's decisions never reach the executor, the researcher's findings never reach the reviewer. Teams end up stuffing giant prompts between agents to paper over the gap. That's not an architecture &mdash; that's a workaround.
+
+> *We had a planner, a coder, a reviewer, a deployer &mdash; four agents in a pipeline. None of them knew what the others learned. We were passing giant prompts between them and burning tokens on stale information.*
+>
+> <sub>&mdash; Overheard &middot; Engineering Lead, Fortune 100 Bank</sub>
+
+<table>
+<tr><th>Without Memwright</th><th>With Memwright</th></tr>
+<tr><td>01 &mdash; Each agent starts blind &mdash; no knowledge of what others learned</td><td>01 &mdash; Shared memory &mdash; planner writes, coder reads, reviewer sees both</td></tr>
+<tr><td>02 &mdash; Giant prompts passed between agents burn context tokens</td><td>02 &mdash; Token&#8209;budget recall &mdash; each agent pulls only what fits</td></tr>
+<tr><td>03 &mdash; No access control &mdash; any agent can overwrite any state</td><td>03 &mdash; Six RBAC roles, namespace isolation, write quotas per agent</td></tr>
+<tr><td>04 &mdash; Contradicting facts from different agents go undetected</td><td>04 &mdash; Contradictions auto&#8209;resolved &mdash; newer facts supersede older ones</td></tr>
+<tr><td>05 &mdash; Session ends, everything learned is gone forever</td><td>05 &mdash; Persistent across sessions, pipelines, and agent restarts</td></tr>
+</table>
+
+<sub><i>Fig. 01.1 &mdash; More agents, more sessions, more memories &mdash; retrieval gets better while context cost stays flat.</i></sub>
+
+---
+
+## &sect; 02 &mdash; Multi-Agent Systems
+
+<sub><b>Orchestrator &middot; Planner &middot; Executor &middot; Reviewer</b></sub>
+
+Not a chatbot plugin. Infrastructure for agent teams.
+
+Every recall and write is scoped to an `AgentContext` carrying identity, role, namespace, parent trail, token budget, write quota, and visibility. Contexts are immutable; spawning a sub&#8209;agent returns a new context with inherited provenance.
+
+| # | Primitive | What it does |
+|---|---|---|
+| 01 | **Namespace isolation** | Every agent, project, or tenant gets its own namespace. Planner writes, coder reads, reviewer sees both. Isolated by default, shared when you configure it. |
+| 02 | **Six RBAC roles** | Orchestrator, Planner, Executor, Researcher, Reviewer, Monitor. Read&#8209;only observers to full admins. |
+| 03 | **Provenance tracking** | Know which agent wrote which memory, when, and under which parent session. The reviewer can trace a decision back to the planner three sessions ago. |
+| 04 | **Cross&#8209;agent contradiction resolution** | Agent A learns *"user works at Google."* Agent B learns *"user works at Meta."* Memwright auto&#8209;supersedes. Full history preserved. Zero inference calls in the critical path. |
+| 05 | **Token budgets per agent** | `recall(query, budget=2000)` &mdash; a summarizer uses 500 tokens; a deep reasoner uses 5,000. Each agent receives exactly what fits in its context window. |
+| 06 | **Write quotas &amp; review flags** | Rate&#8209;limit writes per namespace, flag writes for human review, add compliance tags for audit. |
+
+---
+
+## &sect; 03 &mdash; The Retrieval Pipeline
+
+<sub><b>Five layers &middot; zero inference calls</b></sub>
+
+Five layers. No LLM. Everything deterministic.
+
+When an agent calls `recall(query, budget)`, five cooperating layers find, fuse, score, and fit the most relevant memories into the requested token ceiling. The store can hold ten million memories; the context window never sees more than the budget.
+
+| # | Layer | Backend | Mechanism |
+|---|---|---|---|
+| 01 | **Tag Match** | SQLite | Tag index &middot; FTS &middot; stop&#8209;word filtered, exact + partial hits |
+| 02 | **Graph Expansion** | NetworkX / Apache AGE | Multi&#8209;hop BFS, depth 2 &mdash; query *"Python"* discovers *"FastAPI," "Django," "pip"* |
+| 03 | **Vector Search** | ChromaDB / pgvector | Cosine similarity, local sentence&#8209;transformers or cloud embeddings |
+| 04 | **RRF Fusion + PageRank** | Fusion layer | Reciprocal Rank Fusion (k=60) + PageRank on well&#8209;connected entities + confidence decay |
+| 05 | **MMR Diversity + Budget Fit** | Scorer | Maximal Marginal Relevance (&lambda;=0.7) eliminates near&#8209;duplicates; greedy pack into token budget |
+
+---
+
+## &sect; 04 &mdash; Deployment Matrix
+
+<sub><b>Your cloud &middot; your infrastructure &middot; Terraform included</b></sub>
+
+Same API. Every backend. Your infrastructure, not theirs.
+
+Memwright ships as a Python library, a REST API, or a containerized service. Deploy to AWS App Runner, GCP Cloud Run, or Azure Container Apps with a single command. Terraform templates included. No SaaS middleman, no per&#8209;seat fees, no vendor lock&#8209;in.
+
+```bash
+$ pip install memwright
+$ memwright api --host 0.0.0.0 --port 8080
+```
+
+<sub>Starlette ASGI on <code>http://localhost:8080</code>. SQLite + ChromaDB + NetworkX provision automatically under <code>~/.memwright</code>. Point every agent in your stack at the same URL &mdash; they share memory instantly. No Docker. No API keys. Air&#8209;gap it behind your firewall and walk away.</sub>
+
+| # | Target | Notes |
+|---|---|---|
+| 01 | **AWS** &mdash; App Runner | Starlette ASGI. Auto&#8209;scaling, HTTPS, custom domains. 2 CPU &middot; 4 GB &middot; us&#8209;west&#8209;2 |
+| 02 | **Azure** &mdash; Container Apps | Cosmos DB DiskANN. Scale&#8209;to&#8209;zero. Same API, same results. 2 CPU &middot; 4 GB &middot; eastus |
+| 03 | **GCP** &mdash; Cloud Run | AlloyDB. Scale&#8209;to&#8209;zero. Google's managed infrastructure. 2 CPU &middot; 4 GB &middot; us&#8209;central1 |
+| 04 | **PostgreSQL** backend | pgvector + Apache AGE. Neon serverless or any Postgres 16. Doc &middot; Vector &middot; Graph |
+| 05 | **ArangoDB** backend | Multi&#8209;model: graph + document + vector in one engine. Oasis or self&#8209;hosted. |
+| 06 | **Local / On&#8209;Prem** | SQLite + ChromaDB + NetworkX. Air&#8209;gapped deployments. No network egress. |
 
 ---
 
@@ -54,7 +158,6 @@ Memwright is the memory tier for agent systems that need to run in production �
 - [CLI Reference](#cli-reference)
 - [Configuration](#configuration)
 - [Testing](#testing)
-- [Benchmarks](#benchmarks)
 - [Compatibility](#compatibility)
 - [Uninstall](#uninstall)
 
@@ -604,13 +707,6 @@ memwright hook stop                    # Generate session summary on exit
 
 Hooks integrate with any harness that supports session lifecycle callbacks.
 
-### Benchmarks
-
-```bash
-agent-memory locomo --max-conversations 5 --verbose
-agent-memory mab --categories AR,CR --max-examples 10
-```
-
 ---
 
 ## Configuration
@@ -693,49 +789,6 @@ AZURE_COSMOS_ENDPOINT='https://...' poetry run pytest tests/test_azure_live.py -
 
 ---
 
-## Benchmarks
-
-### Latency (P50 recall — the core operation)
-
-| Backend | Stack | P50 | P95 | P99 |
-|---|---|---|---|---|
-| **PG + pgvector + AGE (Docker)** | PostgreSQL 16 + pgvector + Apache AGE | **1.4ms** | **5.5ms** | **39ms** |
-| SQLite + ChromaDB + NetworkX (local) | SQLite 3 + ChromaDB 1.x + NetworkX 3 | 9.1ms | 31ms | 75ms |
-| ArangoDB (Docker) | ArangoDB 3.12 (doc + vector + graph) | 40ms | 57ms | 68ms |
-| GCP Cloud Run (us-central1) | Starlette + Uvicorn → ArangoDB Oasis | 156ms | 245ms | 271ms |
-| Azure Container Apps (eastus) | Starlette + Uvicorn → ArangoDB Oasis | 293ms | 466ms | 480ms |
-| AWS App Runner (us-west-2) | Starlette + Uvicorn → ArangoDB Oasis | 621ms | 792ms | 813ms |
-
-### vs. Competitors (recall P50)
-
-| System | Stack | P50 | Notes |
-|---|---|---|---|
-| **Memwright (PG Docker)** | PG 16 + pgvector + AGE | **1.4ms** | Full 3-layer pipeline, 81.2% LOCOMO |
-| **Memwright (local)** | SQLite + ChromaDB + NX | **9.1ms** | Embedded, no Docker, no API keys |
-| **Memwright (GCP Cloud Run)** | Starlette → ArangoDB Oasis | **156ms** | Full cloud API, scale-to-zero |
-| Mem0 | Cloud + LLM judge | 200ms | LLM in retrieval path |
-| Zep | Neo4j + embeddings | <200ms | P95 ~632ms under concurrency |
-| Mem0 Graph | Cloud + LLM + graph | 660ms | Graph variant, much slower |
-
-Full methodology, per-backend add/search latency, and reproduction scripts live in the repository under `benchmarks/`.
-
-### LOCOMO (Long Conversation Memory)
-
-| System | Accuracy |
-|--------|----------|
-| MemMachine | 84.9% |
-| **Memwright** | **81.2%** |
-| Zep | ~75% |
-| Letta | 74.0% |
-| Mem0 (Graph) | 66.9% |
-| OpenAI Memory | 52.9% |
-
-*Scores are self-reported across vendors. [Methodology is disputed](https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/).*
-
-Retrieval is fully local — tag matching, graph traversal, vector search with RRF fusion. No LLM re-ranking. Only benchmark answer synthesis uses an LLM.
-
----
-
 ## Compatibility
 
 ### MCP Clients
@@ -781,7 +834,7 @@ rm -rf ~/.memwright
 
 ## License
 
-Apache 2.0
+MIT
 
 ---
 
