@@ -1,6 +1,6 @@
 [project]
 name = "memwright"
-version = "2.0.5"
+version = "2.0.6"
 description = "Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval."
 readme = "README.md"
 license = "Apache-2.0"
@@ -25,6 +25,8 @@ dependencies = [
     "networkx>=3.0",
     "sentence-transformers>=2.0.0",
     "mcp>=1.0.0",
+    "starlette>=0.27.0",
+    "uvicorn>=0.23.0",
 ]
 
 [project.urls]

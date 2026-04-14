@@ -236,6 +236,19 @@ def main(argv=None):
     p_mab.add_argument("--env-file", default=None, help="Path to .env file for API keys")
     _add_backend_args(p_mab)
 
+    # api (REST API server)
+    p_api = subparsers.add_parser(
+        "api",
+        help="Start Starlette REST API server (uvicorn)",
+    )
+    p_api.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
+    p_api.add_argument("--port", type=int, default=8080, help="Bind port (default: 8080)")
+    p_api.add_argument(
+        "--path",
+        default=None,
+        help="Memory store path (default: $MEMWRIGHT_DATA_DIR or ~/.memwright)",
+    )
+
     # mcp (zero-config MCP server -- used by .mcp.json)
     p_mcp = subparsers.add_parser(
         "mcp",
@@ -275,6 +288,7 @@ def main(argv=None):
         "update": _cmd_update,
         "forget": _cmd_forget,
         "serve": _cmd_serve,
+        "api": _cmd_api,
         "setup-claude-code": _cmd_setup_claude_code,
         "doctor": _cmd_doctor,
         "locomo": _cmd_locomo,
@@ -595,6 +609,28 @@ def _cmd_serve(args):
     AgentMemory(args.path).close()
     print(f"Starting MCP server for {args.path}...", file=sys.stderr)
     asyncio.run(run_server(args.path))
+
+
+def _cmd_api(args):
+    try:
+        import uvicorn
+    except ImportError:
+        print("uvicorn is required. Run: pip install 'memwright[lambda]' or pip install uvicorn")
+        sys.exit(1)
+
+    if args.path:
+        os.environ["MEMWRIGHT_DATA_DIR"] = args.path
+
+    print(
+        f"Starting memwright REST API on http://{args.host}:{args.port}",
+        file=sys.stderr,
+    )
+    uvicorn.run(
+        "agent_memory.api:app",
+        host=args.host,
+        port=args.port,
+        log_level="info",
+    )
 
 
 def _cmd_setup_claude_code(args):

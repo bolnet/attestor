@@ -81,18 +81,20 @@ results = mem.recall("how is the order service structured?", budget=2000)
 
 ```bash
 pip install memwright
-memwright serve --host 0.0.0.0 --port 8080
+memwright api --host 0.0.0.0 --port 8080
 ```
 
 **That's it.** Starlette ASGI on `http://localhost:8080`. SQLite + ChromaDB + NetworkX provision automatically under `~/.memwright`. No Docker, no API keys, no cloud account. Point every agent in your stack at the same URL — they share memory instantly. Air-gap it behind your firewall and walk away.
 
 ```bash
 # smoke test
-curl -X POST http://localhost:8080/memories \
+curl -X POST http://localhost:8080/add \
   -H "Content-Type: application/json" \
   -d '{"content":"test","category":"note"}'
 
-curl "http://localhost:8080/recall?query=test&budget=1000"
+curl -X POST http://localhost:8080/recall \
+  -H "Content-Type: application/json" \
+  -d '{"query":"test","budget":1000}'
 ```
 
 Same command deploys to AWS App Runner, GCP Cloud Run, or Azure Container Apps — see [Cloud Deployment](#cloud-deployment).

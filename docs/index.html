@@ -1451,6 +1451,7 @@ footer.colophon {
       <li><a href="#how" data-num="04">Pipeline</a></li>
       <li><a href="#platforms" data-num="05">Deploy</a></li>
       <li><a href="#quickstart" data-num="06">Quickstart</a></li>
+      <li><a href="#principles" data-num="07">Principles</a></li>
     </ul>
     <div class="nav-ctas">
       <a href="https://pypi.org/project/memwright/" class="btn btn-ghost" target="_blank" rel="noopener">PyPI</a>
@@ -1637,9 +1638,9 @@ footer.colophon {
       <p class="standfirst">Every recall and write is scoped to an <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">AgentContext</code> carrying identity, role, namespace, parent trail, token budget, write quota, and visibility. Contexts are immutable; spawning a sub-agent returns a new context with inherited provenance.</p>
     </div>
 
-    <figure class="reveal" style="margin:48px auto 24px;max-width:880px;background:#fdfaf2;border:1px solid var(--rule);border-radius:6px;padding:24px;">
+    <figure class="reveal" style="margin:48px auto 24px;max-width:880px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:28px;">
       <img src="architecture.svg" alt="Memwright high-level architecture" style="display:block;width:100%;height:auto;"/>
-      <figcaption style="font-family:var(--ff-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-soft);text-align:center;margin-top:12px;">Fig. 1 &mdash; Agents talk to Memwright through Python, REST, or MCP. Storage is pluggable.</figcaption>
+      <figcaption style="font-family:var(--ff-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#3a3530;text-align:center;margin-top:16px;">Fig. 1 &mdash; Agents talk to Memwright through Python, REST, or MCP. Storage is pluggable.</figcaption>
     </figure>
 
     <div class="capabilities reveal">
@@ -1910,12 +1911,12 @@ footer.colophon {
       <p class="standfirst">Memwright ships as a Python library, a REST API, or a containerized service. Deploy to AWS App Runner, GCP Cloud Run, or Azure Container Apps with a single command. Terraform templates included. No SaaS middleman, no per-seat fees, no vendor lock-in.</p>
     </div>
 
-    <div class="reveal" style="margin:36px 0 40px;padding:28px 32px;background:var(--ink-raise);border:1px solid var(--rule);border-left:4px solid var(--accent);border-radius:4px;">
-      <div style="font-family:var(--ff-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.18em;color:var(--accent);margin-bottom:10px;">Run it on your laptop &mdash; zero cloud, zero cost</div>
-      <h3 style="font-family:var(--ff-display);font-size:28px;font-weight:500;margin:0 0 14px;color:var(--ink);">Self-host locally in <em>one command</em>.</h3>
-      <pre style="background:var(--ink);color:var(--paper);font-family:var(--ff-mono);font-size:14px;padding:18px 22px;border-radius:4px;overflow-x:auto;margin:0 0 14px;"><span style="color:var(--accent);">$</span> pip install memwright
-<span style="color:var(--accent);">$</span> memwright serve --host 0.0.0.0 --port 8080</pre>
-      <p style="margin:0;color:var(--ink-soft);font-size:15px;line-height:1.6;">Starlette ASGI on <code style="font-family:var(--ff-mono);font-size:13px;background:var(--paper);padding:2px 6px;border:1px solid var(--rule);">http://localhost:8080</code>. SQLite + ChromaDB + NetworkX provision automatically under <code style="font-family:var(--ff-mono);font-size:13px;background:var(--paper);padding:2px 6px;border:1px solid var(--rule);">~/.memwright</code>. Point every agent in your stack at the same URL &mdash; they share memory instantly. No Docker required. No API keys. Air-gap it behind your firewall and walk away.</p>
+    <div class="reveal" style="margin:36px 0 40px;padding:28px 32px;background:var(--ink-raise);border:1px solid var(--rule-strong);border-left:4px solid var(--accent);border-radius:4px;">
+      <div style="font-family:var(--ff-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.18em;color:var(--accent);margin-bottom:10px;">Run it on your laptop. No cloud, no cost.</div>
+      <h3 style="font-family:var(--ff-display);font-size:28px;font-weight:500;margin:0 0 14px;color:var(--paper);">Self-host locally in <em>one command</em>.</h3>
+      <pre style="background:var(--ink);color:var(--paper);font-family:var(--ff-mono);font-size:14px;padding:18px 22px;border:1px solid var(--rule-strong);border-radius:4px;overflow-x:auto;margin:0 0 14px;"><span style="color:var(--accent);">$</span> pip install memwright
+<span style="color:var(--accent);">$</span> memwright api --host 0.0.0.0 --port 8080</pre>
+      <p style="margin:0;color:var(--paper-dim);font-size:15px;line-height:1.7;">Starlette ASGI on <code style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);color:var(--paper);padding:2px 6px;border:1px solid var(--rule-strong);border-radius:3px;">http://localhost:8080</code>. SQLite + ChromaDB + NetworkX provision automatically under <code style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);color:var(--paper);padding:2px 6px;border:1px solid var(--rule-strong);border-radius:3px;">~/.memwright</code>. Point every agent in your stack at the same URL &mdash; they share memory instantly. No Docker. No API keys. Air-gap it behind your firewall and walk away.</p>
     </div>
 
     <div class="matrix reveal">
@@ -2005,12 +2006,10 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
 
       <div id="tab-rest" class="tab-panel">
         <div class="code-block" data-lang="Bash &middot; Starlette ASGI"><button class="code-copy-btn" onclick="copyCodeBlock(this)">Copy</button><span class="comment"># Run as a REST API (Starlette ASGI + Uvicorn)</span>
-<span class="cmd">$ memwright serve --host 0.0.0.0 --port 8080</span>
+<span class="cmd">$ memwright api --host 0.0.0.0 --port 8080</span>
 
-<span class="comment"># Or deploy to production in one command</span>
-<span class="cmd">$ ./scripts/deploy.sh aws     # AWS App Runner</span>
-<span class="cmd">$ ./scripts/deploy.sh gcp     # GCP Cloud Run</span>
-<span class="cmd">$ ./scripts/deploy.sh azure   # Azure Container Apps</span>
+<span class="comment"># Same container ships to AWS App Runner, GCP Cloud Run,</span>
+<span class="comment"># or Azure Container Apps. Terraform templates in agent_memory/infra/.</span>
 
 <span class="comment"># Eight endpoints, Terraform included:</span>
 <span class="comment">#   POST /add         /recall       /search</span>
