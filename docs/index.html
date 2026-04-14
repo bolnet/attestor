@@ -1473,13 +1473,13 @@ footer.colophon {
     </div>
 
     <h1 class="hero-headline">
-      Production&#8209;grade <em>memory infrastructure</em> <span class="soft">for multi&#8209;agent systems.</span>
+      Your agents don&rsquo;t forget. <em>They never knew.</em> <span class="soft">Today that changes.</span>
     </h1>
 
     <div class="hero-grid">
       <div>
         <p class="hero-sub">The memory layer for agent teams. Self&#8209;hosted. Deterministic retrieval. No LLM in the critical path.</p>
-        <p class="hero-sub-detail">Namespace isolation, RBAC, provenance tracking, temporal correctness, ranked retrieval, token budgets &mdash; built for orchestrator-worker and planner-executor pipelines. Python library, REST API, or containerized service. No SaaS middleman, no per-seat fees, no vendor lock-in.</p>
+        <p class="hero-sub-detail">One tier your whole pipeline shares &mdash; planner writes, executor reads, reviewer sees both. Namespaces, RBAC, provenance, temporal correctness, ranked retrieval, token budgets &mdash; built in, not bolted on. Python library, REST API, or containerized service. No SaaS middleman. No per&#8209;seat fees. No vendor lock&#8209;in. It&rsquo;s yours.</p>
 
         <div class="hero-install" onclick="copyToClipboard(this, 'poetry add memwright')" title="Click to copy">
           <span>poetry add memwright</span>
@@ -1554,7 +1554,41 @@ footer.colophon {
 </section>
 
 <!-- ═══════════════════════════════════════════════════
-     § 01 · THE PROBLEM
+     REVEAL · "IT REMEMBERS"
+     ═══════════════════════════════════════════════════ -->
+<section id="reveal" style="padding:96px 0 48px;border-top:1px solid var(--rule);">
+  <div class="container">
+    <figure class="reveal" style="margin:0 auto;max-width:1040px;text-align:center;">
+      <img src="constellation.svg" alt="Six stars out of eight hundred light up — Memwright recalls exactly what this moment needs" style="display:block;width:100%;height:auto;">
+      <figcaption style="margin-top:28px;font-family:var(--ff-display);font-variation-settings:'opsz' 144,'wght' 380;font-size:clamp(28px,4vw,46px);line-height:1.1;letter-spacing:-0.02em;color:var(--paper);"><em style="font-variation-settings:'opsz' 144,'wght' 320;color:var(--accent);">Memwright doesn&rsquo;t search.</em> It remembers.</figcaption>
+      <p style="margin:20px auto 0;max-width:60ch;font-family:var(--ff-display);font-variation-settings:'opsz' 18,'wght' 400;font-size:18px;line-height:1.6;color:var(--paper-dim);">Eight hundred memories in the store. Six light up. Not the six it <em>searched</em> &mdash; the six this moment <em>needs</em>. Your planner&rsquo;s decision from Monday. The researcher&rsquo;s finding from Wednesday. The reviewer&rsquo;s objection from yesterday. Ranked, deduped, fit to budget. <b>Zero LLM calls in the critical path.</b></p>
+    </figure>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SOLUTION AT A GLANCE · TIMELINE
+     ═══════════════════════════════════════════════════ -->
+<section id="timeline-reveal" style="padding:48px 0 96px;">
+  <div class="container">
+    <div class="section-filing reveal">
+      <span class="section-num">&sect; 00.1</span>
+      <span class="section-name">&mdash; The solution, in one picture</span>
+      <span>Memory accumulates &middot; load primes</span>
+    </div>
+    <div class="reveal">
+      <h2 class="section-head">Memory accumulates. <em>Load primes.</em></h2>
+      <p class="standfirst">Four writes across Mon&ndash;Thu land as persisted memories. Friday morning a fresh Portfolio Planner wakes up to a new task, calls <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">mem.load_context()</code>, and Memwright ranks + dedupes + budget-fits all four back into the context window. The agent resumes with full continuity &mdash; earnings signal, risk cap, prior stance, compliance precedent.</p>
+    </div>
+    <figure class="reveal" style="margin:40px auto 16px;max-width:1040px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:24px;">
+      <img src="timeline.svg" alt="Write · Write · Write · Write ... Read — memories accumulate across sessions, load_context primes the next task" style="display:block;width:100%;height:auto;">
+      <figcaption style="font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:#3a3530;text-align:center;margin-top:14px;">Fig. 0.1 &mdash; Not RAG over documents. The agents&rsquo; <em>own history</em>, replayed into a fresh context.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     § 01 · THE PROBLEM  (Act I — cold open)
      ═══════════════════════════════════════════════════ -->
 <section id="problem">
   <div class="container">
@@ -1565,8 +1599,8 @@ footer.colophon {
     </div>
 
     <div class="reveal">
-      <h2 class="section-head">Agent prototypes don't survive production. <em>Memory</em> is usually why.</h2>
-      <p class="standfirst">Single agents rediscover the same facts every run. Multi-agent pipelines are worse &mdash; the planner's decisions never reach the executor, the researcher's findings never reach the reviewer. Teams end up stuffing giant prompts between agents to paper over the gap. That's not an architecture &mdash; that's a workaround.</p>
+      <h2 class="section-head">Every agent starts the day with <em>amnesia.</em></h2>
+      <p class="standfirst">Single agents rediscover the same facts every run. Multi-agent pipelines are worse &mdash; the planner&rsquo;s decisions never reach the executor, the researcher&rsquo;s findings never reach the reviewer. So teams do the only thing they can: stuff giant prompts between agents. Burn tokens. Hope nothing important fell off the edge. That&rsquo;s not an architecture. That&rsquo;s a workaround.</p>
     </div>
 
     <blockquote class="pullquote reveal">
@@ -1636,13 +1670,13 @@ footer.colophon {
   <div class="container">
     <div class="section-filing reveal">
       <span class="section-num">&sect; 02</span>
-      <span class="section-name">&mdash; Multi-Agent Systems</span>
+      <span class="section-name">&mdash; Built for teams, not chatbots</span>
       <span>Orchestrator &middot; Planner &middot; Executor &middot; Reviewer</span>
     </div>
 
     <div class="reveal">
       <h2 class="section-head">Not a chatbot plugin. <em>Infrastructure</em> for agent teams.</h2>
-      <p class="standfirst">Every recall and write is scoped to an <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">AgentContext</code> carrying identity, role, namespace, parent trail, token budget, write quota, and visibility. Contexts are immutable; spawning a sub-agent returns a new context with inherited provenance.</p>
+      <p class="standfirst">Every recall and write is scoped to an <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">AgentContext</code> &mdash; identity, role, namespace, parent trail, token budget, write quota, visibility. Contexts are immutable. Spawning a sub-agent returns a new context with inherited provenance. Planner writes. Executor reads. Reviewer sees both. <em>Every call authorised before it touches storage.</em></p>
     </div>
 
     <figure class="reveal" style="margin:48px auto 24px;max-width:880px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:28px;">
@@ -1697,9 +1731,14 @@ footer.colophon {
     </div>
 
     <div class="reveal">
-      <h2 class="section-head">Five layers. <em>No LLM.</em> Everything deterministic.</h2>
-      <p class="standfirst">When an agent calls <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">recall(query, budget)</code>, five cooperating layers find, fuse, score, and fit the most relevant memories into the requested token ceiling. The store can hold ten million memories; the context window never sees more than the budget.</p>
+      <h2 class="section-head">Five layers. <em>No LLM.</em> Fully deterministic.</h2>
+      <p class="standfirst">When an agent calls <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">recall(query, budget)</code>, five cooperating layers find, fuse, score, and fit the most relevant memories into the requested token ceiling. Ten million memories in the store. Your context window never sees more than the budget. And because there&rsquo;s no LLM in the path, the same query always returns the same ranking. You can unit&#8209;test it.</p>
     </div>
+
+    <figure class="reveal" style="margin:28px auto 8px;max-width:1040px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:20px;">
+      <img src="pipeline.svg" alt="Five-layer retrieval pipeline — tag match, graph expansion, vector search, fusion, diversity+fit" style="display:block;width:100%;height:auto;">
+      <figcaption style="font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:#3a3530;text-align:center;margin-top:12px;">Fig. 3 &mdash; Same pipeline. Ten memories or ten million. The budget holds.</figcaption>
+    </figure>
 
     <div class="pipeline reveal">
       <div class="pipeline-step">
@@ -1832,6 +1871,65 @@ footer.colophon {
 </pre>
       <p class="caption" style="font-size:13px;color:var(--muted);font-style:italic;">Only memory IDs travel between layers until the hydrate step. A store with ten million rows still returns a tight result set inside the caller&rsquo;s token ceiling.</p>
     </div>
+
+    <!-- Three pillars — Isolation, Temporal, Provenance -->
+    <div style="margin-top:72px;">
+      <div class="reveal">
+        <h3 style="font-family:var(--ff-display);font-size:clamp(28px,3.2vw,40px);letter-spacing:-0.015em;margin:0 0 10px;">And three things <em style="color:var(--accent);font-style:italic;">most of the industry skipped.</em></h3>
+        <p class="standfirst" style="margin-top:0;">Isolation. Temporal correctness. Provenance. Not features we bolted on. Primitives we started from.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-top:36px;">
+        <div class="reveal" style="padding:26px;border:1px solid var(--rule-strong);background:var(--ink-raise);border-left:3px solid var(--accent);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">PILLAR &middot; 01</div>
+          <h4 style="font-family:var(--ff-display);font-size:26px;font-weight:600;margin:8px 0 12px;">Isolation</h4>
+          <p style="font-size:14.5px;line-height:1.65;color:var(--paper-dim);margin:0 0 10px;">Every memory lives inside a <b>namespace</b>. Every agent is bound to one of six <b>roles</b>. Every call is authorised before it touches storage. Enforced at the row level, not in application code.</p>
+          <div style="font-family:var(--ff-mono);font-size:12px;color:var(--muted);line-height:1.7;margin-top:14px;">
+            <span style="color:var(--accent);">&rarr;</span> <b>ORCHESTRATOR</b> &middot; spawns sub-agents<br>
+            <span style="color:var(--accent);">&rarr;</span> <b>PLANNER</b> &middot; writes decisions<br>
+            <span style="color:var(--accent);">&rarr;</span> <b>EXECUTOR</b> &middot; runs the work<br>
+            <span style="color:var(--accent);">&rarr;</span> <b>RESEARCHER</b> &middot; gathers facts<br>
+            <span style="color:var(--accent);">&rarr;</span> <b>REVIEWER</b> &middot; audits decisions<br>
+            <span style="color:var(--accent);">&rarr;</span> <b>MONITOR</b> &middot; observability only
+          </div>
+        </div>
+
+        <div class="reveal" style="padding:26px;border:1px solid var(--rule-strong);background:var(--ink-raise);border-left:3px solid var(--accent);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">PILLAR &middot; 02</div>
+          <h4 style="font-family:var(--ff-display);font-size:26px;font-weight:600;margin:8px 0 12px;">Temporal</h4>
+          <p style="font-size:14.5px;line-height:1.65;color:var(--paper-dim);margin:0 0 14px;">Memwright doesn&rsquo;t overwrite. It <b>supersedes</b>. Every fact has a validity window. The timeline is replayable to any point in the past.</p>
+          <div style="font-family:var(--ff-mono);font-size:12px;color:var(--paper);background:var(--ink);border:1px solid var(--rule);padding:14px;line-height:1.6;">
+<b style="color:var(--muted);">v1</b> JPM CFO is Jeremy Barnum<br>
+<span style="color:var(--faint);">&nbsp;&nbsp;&nbsp;valid_from: 2022-05</span><br>
+<span style="color:var(--accent);">&nbsp;&nbsp;&nbsp;&darr; superseded</span><br>
+<b style="color:var(--accent-warm);">v2</b> JPM CFO is Jane Doe<br>
+<span style="color:var(--faint);">&nbsp;&nbsp;&nbsp;valid_from: 2026-04-11</span><br>
+<span style="color:var(--accent);">&nbsp;&nbsp;&nbsp;&darr; superseded</span><br>
+<b style="color:var(--accent);">v3</b> Appointment delayed<br>
+<span style="color:var(--faint);">&nbsp;&nbsp;&nbsp;valid_from: 2026-04-12</span>
+          </div>
+          <p style="font-size:13px;color:var(--muted);font-style:italic;margin:12px 0 0;line-height:1.55;">Ask <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">recall(as_of=&hellip;)</code> to replay the past. Nothing is deleted. Auditors can reconstruct what the desk knew and when.</p>
+        </div>
+
+        <div class="reveal" style="padding:26px;border:1px solid var(--rule-strong);background:var(--ink-raise);border-left:3px solid var(--accent);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">PILLAR &middot; 03</div>
+          <h4 style="font-family:var(--ff-display);font-size:26px;font-weight:600;margin:8px 0 12px;">Provenance</h4>
+          <p style="font-size:14.5px;line-height:1.65;color:var(--paper-dim);margin:0 0 14px;">Every sentence the agent writes back is traceable to its source. A cryptographic chain from raw feed ingest to grounded answer.</p>
+          <div style="font-family:var(--ff-mono);font-size:12px;color:var(--paper);background:var(--ink);border:1px solid var(--rule);padding:14px;line-height:1.7;">
+<span style="color:var(--muted);">raw signal</span> <span style="color:var(--accent);">&rarr;</span> <span style="color:var(--muted);">ingest</span><br>
+&nbsp;&nbsp;<span style="color:var(--accent-warm);">source_id &middot; sha256 &middot; ts</span><br>
+<span style="color:var(--accent);">&darr;</span><br>
+<span style="color:var(--muted);">memory row</span><br>
+&nbsp;&nbsp;<span style="color:var(--accent-warm);">id &middot; content &middot; provenance</span><br>
+<span style="color:var(--accent);">&darr;</span><br>
+<span style="color:var(--muted);">5-layer recall</span><br>
+<span style="color:var(--accent);">&darr;</span><br>
+<b style="color:var(--accent);">agent answer [mem_42]</b>
+          </div>
+          <p style="font-size:13px;color:var(--muted);font-style:italic;margin:12px 0 0;line-height:1.55;">The citation isn&rsquo;t a string the LLM chose. It&rsquo;s the <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">memory_id</code> carried through the pipeline. Click it, land on the raw wire, verify the hash. <em>Grounded, not plausible.</em></p>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1847,8 +1945,8 @@ footer.colophon {
     </div>
 
     <div class="reveal">
-      <h2 class="section-head">Same API. <em>Every backend.</em> Your infrastructure, not theirs.</h2>
-      <p class="standfirst">Memwright ships as a Python library, a REST API, or a containerized service. Deploy to AWS App Runner, GCP Cloud Run, or Azure Container Apps with a single command. Terraform templates included. No SaaS middleman, no per-seat fees, no vendor lock-in.</p>
+      <h2 class="section-head">Same API. <em>Every backend.</em> Your infrastructure.</h2>
+      <p class="standfirst">One Python library. One Starlette ASGI container. Six deployment targets &mdash; laptop, dev VM, AWS, Azure, GCP, on&#8209;prem. The three storage roles swap per column. Your agent code never learns which backend it&rsquo;s talking to. Terraform templates live under <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">agent_memory/infra/</code>. <em>Clone. Set your variables. <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">terraform apply</code>.</em></p>
     </div>
 
     <div class="reveal" style="margin:36px 0 40px;padding:28px 32px;background:var(--ink-raise);border:1px solid var(--rule-strong);border-left:4px solid var(--accent);border-radius:4px;">
@@ -1900,8 +1998,12 @@ footer.colophon {
 
     <!-- Same container, pluggable stores -->
     <div style="margin-top:56px;opacity:1;">
-      <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Same container, pluggable stores</h3>
-      <p class="standfirst" style="margin-top:0;">One Memwright Docker image. Five deployment targets. Only the three storage roles swap out.</p>
+      <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Same container. <em>Pluggable stores.</em></h3>
+      <p class="standfirst" style="margin-top:0;">One Memwright image. Six targets. The three storage roles swap per column. That&rsquo;s the whole trick.</p>
+      <figure class="reveal" style="margin:24px auto 8px;max-width:1100px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:20px;">
+        <img src="deployment-matrix.svg" alt="Deployment matrix — one container, six targets, stores swap per column" style="display:block;width:100%;height:auto;">
+        <figcaption style="font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:#3a3530;text-align:center;margin-top:12px;">Fig. 4 &mdash; <em>DocumentStore</em>, <em>VectorStore</em>, <em>GraphStore</em> &mdash; three interfaces. Every column is one triple of implementations.</figcaption>
+      </figure>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:20px;font-size:13px;">
         <div style="padding:16px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
           <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">LANE &#183; 01</div>
@@ -1933,23 +2035,58 @@ footer.colophon {
     </div>
 
     <!-- Promotion path -->
-    <div style="margin-top:48px;opacity:1;">
-      <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Promotion path</h3>
-      <p class="standfirst" style="margin-top:0;">Prototype on a laptop. Promote to Docker Compose on a VM. Promote to a managed container runtime. The code never learns which backend it&rsquo;s talking to.</p>
-      <pre style="background:var(--ink-raise);border:1px solid var(--rule);padding:20px 24px;font-family:var(--ff-mono);font-size:12px;line-height:1.55;overflow-x:auto;color:var(--ink);margin-top:20px;">
-   laptop              single-VM / dev              managed container
-   &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;              &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;              &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
-   pip install         docker compose up            App Runner &#183; Cloud Run &#183; Container Apps
-        &#9474;                     &#9474;                             &#9474;
-        &#9660;                     &#9660;                             &#9660;
-   SQLite file          SQLite on volume              Postgres / ArangoDB / Cosmos
-   ChromaDB dir         ChromaDB on volume            managed vector index
-   NetworkX JSON        NetworkX JSON on volume       managed graph
-        &#9474;                     &#9474;                             &#9474;
-        &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
-                    same API &#183; same container image
-               only storage config + credentials change
-</pre>
+    <div style="margin-top:56px;opacity:1;">
+      <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Promotion path &mdash; <em>laptop to cloud, no rewrite.</em></h3>
+      <p class="standfirst" style="margin-top:0;">Prototype on a laptop. Promote to Docker Compose on a dev VM. Promote to a managed container runtime. Same API throughout. Only the storage URLs change.</p>
+      <figure class="reveal" style="margin:24px auto 8px;max-width:1100px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:20px;">
+        <img src="promotion-path.svg" alt="Promotion path — laptop to dev VM to managed cloud, same API rail throughout" style="display:block;width:100%;height:auto;">
+        <figcaption style="font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:#3a3530;text-align:center;margin-top:12px;">Fig. 5 &mdash; The same rail runs under every stop. The code never learns which cloud it&rsquo;s on.</figcaption>
+      </figure>
+    </div>
+
+    <!-- Runtime topology — three integration modes -->
+    <div style="margin-top:56px;opacity:1;">
+      <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Three shapes. <em>Pick by blast radius.</em></h3>
+      <p class="standfirst" style="margin-top:0;">Same engine. Same storage. Same retrieval. Different coupling. Pick by latency budget and how many agents share the tier.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:24px;">
+        <div class="reveal" style="padding:22px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">MODE A</div>
+          <h4 style="font-family:var(--ff-display);font-size:22px;font-weight:600;margin:6px 0 10px;">Embedded library</h4>
+          <p style="font-size:14px;color:var(--paper-dim);line-height:1.6;margin:0 0 12px;"><code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">AgentMemory(&rsquo;./store&rsquo;)</code> in&#8209;process. Sub&#8209;millisecond. Right for a single agent prototyping on a laptop.</p>
+          <div style="font-family:var(--ff-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.12em;">Latency &middot; lowest</div>
+        </div>
+        <div class="reveal" style="padding:22px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">MODE B</div>
+          <h4 style="font-family:var(--ff-display);font-size:22px;font-weight:600;margin:6px 0 10px;">Sidecar container</h4>
+          <p style="font-size:14px;color:var(--paper-dim);line-height:1.6;margin:0 0 12px;"><code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">memwright api</code> on <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">localhost:8080</code>. Any language. Go or Rust agents call HTTP without Python in the image.</p>
+          <div style="font-family:var(--ff-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.12em;">Isolation &middot; process</div>
+        </div>
+        <div class="reveal" style="padding:22px;border:1px solid var(--rule-strong);background:var(--ink-raise);border:1px solid var(--accent);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">MODE C</div>
+          <h4 style="font-family:var(--ff-display);font-size:22px;font-weight:600;margin:6px 0 10px;">Shared service</h4>
+          <p style="font-size:14px;color:var(--paper-dim);line-height:1.6;margin:0 0 12px;">One Memwright service in front of an agent mesh. App Runner &middot; Cloud Run &middot; Container Apps. Managed storage behind. This is the production shape.</p>
+          <div style="font-family:var(--ff-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.12em;">Scale &middot; multi&#8209;agent mesh</div>
+        </div>
+      </div>
+      <p class="caption" style="font-size:13px;color:var(--muted);font-style:italic;margin-top:18px;">Code path is identical across all three. Only configuration changes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     ONE MORE THING · CLAUDE CODE
+     ═══════════════════════════════════════════════════ -->
+<section id="claude-moment" style="padding:96px 0;background:var(--ink-raise);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);">
+  <div class="container">
+    <div class="reveal" style="text-align:center;">
+      <div style="font-family:var(--ff-mono);font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--accent);margin-bottom:20px;">&mdash; And one more thing &mdash;</div>
+      <h2 style="font-family:var(--ff-display);font-variation-settings:'opsz' 144,'wght' 380;font-size:clamp(36px,5vw,64px);line-height:1.05;letter-spacing:-0.02em;color:var(--paper);max-width:20ch;margin:0 auto 20px;">For Claude Code, it&rsquo;s <em style="color:var(--accent);font-style:italic;font-variation-settings:'opsz' 144,'wght' 320;">three words.</em></h2>
+      <p style="font-family:var(--ff-display);font-variation-settings:'opsz' 18,'wght' 400;font-size:20px;line-height:1.55;color:var(--paper-dim);max-width:56ch;margin:0 auto 32px;">Not a config file. Not an MCP setup guide. Three words in your terminal. Memwright interviews you, installs itself, wires the hooks, and runs a health check before you&rsquo;ve put the kettle on.</p>
+      <div class="hero-install" onclick="copyToClipboard(this, 'install agent memory')" title="Click to copy" style="display:inline-flex;max-width:420px;margin:0 auto;">
+        <span>install agent memory</span>
+        <span class="copy-icon">&#x2398;</span>
+      </div>
+      <p style="font-family:var(--ff-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-top:18px;">Paste into Claude Code &middot; global or project scope &middot; auto&#8209;merges MCP config</p>
     </div>
   </div>
 </section>
@@ -1961,12 +2098,13 @@ footer.colophon {
   <div class="container">
     <div class="section-filing reveal">
       <span class="section-num">&sect; 05</span>
-      <span class="section-name">&mdash; Quickstart</span>
+      <span class="section-name">&mdash; Or do it yourself, in three lines</span>
       <span>Python library &middot; REST API &middot; MCP protocol</span>
     </div>
 
     <div class="reveal">
-      <h2 class="section-head">Pick your integration. <em>Ship to production.</em></h2>
+      <h2 class="section-head">Three lines of Python. <em>That&rsquo;s the integration.</em></h2>
+      <p class="standfirst">Same call surface whether Memwright runs in&#8209;process on your laptop or behind a Cloud Run service. Pick the interface. Ship.</p>
     </div>
 
     <div class="reveal">
@@ -2048,17 +2186,16 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
     </div>
 
     <div class="reveal">
-      <h2 class="section-head">Seven stakes in the ground.</h2>
+      <h2 class="section-head">Five stakes in the ground.</h2>
+      <p class="standfirst">What we won&rsquo;t compromise on &mdash; no matter how loud the pressure gets.</p>
     </div>
 
     <div class="manifesto">
-      <p class="manifesto-line reveal" data-num="I.">Agents that share <em>memory</em> beat agents that share prompts.</p>
-      <p class="manifesto-line reveal" data-num="II.">Deterministic retrieval beats <em>LLM-judged</em> retrieval.</p>
-      <p class="manifesto-line reveal" data-num="III.">Supersession beats deletion. Every fact keeps its <em>lineage</em>.</p>
-      <p class="manifesto-line reveal" data-num="IV.">Memory belongs in <em>your</em> VPC, not a vendor's.</p>
-      <p class="manifesto-line reveal" data-num="V.">Token budgets beat context <em>bloat</em>.</p>
-      <p class="manifesto-line reveal" data-num="VI.">Namespaces and RBAC beat <em>global state</em>.</p>
-      <p class="manifesto-line reveal" data-num="VII.">Production&#8209;grade beats <em>demo&#8209;grade</em>.</p>
+      <p class="manifesto-line reveal" data-num="I.">Your data stays in <em>your</em> infrastructure. Self&#8209;hosted, always.</p>
+      <p class="manifesto-line reveal" data-num="II.">Retrieval is <em>deterministic.</em> No LLM judges. No hidden inference in the path.</p>
+      <p class="manifesto-line reveal" data-num="III.">One <code>recall()</code>. Every backend. <em>Swap without rewriting.</em></p>
+      <p class="manifesto-line reveal" data-num="IV.">Agent teams are <em>first&#8209;class.</em> Not a bolt&#8209;on.</p>
+      <p class="manifesto-line reveal" data-num="V.">Boring where it counts. Proven, <em>debuggable</em>, no magic.</p>
     </div>
   </div>
 </section>
@@ -2070,14 +2207,15 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
   <div class="container">
     <div class="section-filing reveal">
       <span class="section-num">&sect; &infin;</span>
-      <span class="section-name">&mdash; Endnote</span>
+      <span class="section-name">&mdash; Available today</span>
+      <span>MIT &middot; PyPI &middot; MCP Registry</span>
     </div>
 
-    <h2 class="closing-head reveal">Stop rebuilding memory for every agent. <em>Ship the tier once.</em></h2>
+    <h2 class="closing-head reveal">Point every agent at <em>one URL.</em><br>They share memory instantly.</h2>
 
     <div class="closing-row reveal">
-      <div class="closing-install" onclick="copyToClipboard(this, 'poetry add memwright')" title="Click to copy">
-        <span>poetry add memwright</span>
+      <div class="closing-install" onclick="copyToClipboard(this, 'pip install memwright')" title="Click to copy">
+        <span>pip install memwright</span>
         <span class="copy-icon">&#x2398;</span>
       </div>
       <a href="https://github.com/bolnet/agent-memory" class="btn btn-primary" target="_blank" rel="noopener">GitHub &rarr;</a>
@@ -2085,7 +2223,7 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
       <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright" class="btn btn-ghost" target="_blank" rel="noopener">MCP Registry</a>
     </div>
 
-    <p class="closing-byline reveal">MIT. Production-grade memory infrastructure for multi-agent systems. Designed and built by <a href="https://www.linkedin.com/in/surendrasingh/" target="_blank" rel="noopener">Surendra Singh</a> &mdash; fifteen years architecting production systems in financial services.</p>
+    <p class="closing-byline reveal">MIT. Self&#8209;hosted. Deterministic. Production deploy in one command. Designed and built by <a href="https://www.linkedin.com/in/surendrasingh/" target="_blank" rel="noopener">Surendra Singh</a> &mdash; fifteen years architecting production systems in financial services. <em>Thank you.</em></p>
   </div>
 </section>
 
