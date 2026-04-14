@@ -290,6 +290,62 @@ flowchart TB
 
 <sub>The three writes commit as one logical transaction. On SQL backends it&rsquo;s a real DB transaction; on distributed backends it&rsquo;s sequenced with best-effort rollback. Contradictions don&rsquo;t overwrite &mdash; older facts are <b>superseded</b> and retained in the timeline so auditors can reconstruct what the desk knew, and when.</sub>
 
+---
+
+### Ingestion flow &mdash; variant B &bull; agent-to-agent conversation capture
+
+<sub>A <b>different kind of ingestion</b>: the memories are not external feeds &mdash; they are <b>the agents&rsquo; own conversation</b> as they debate a trade proposal. Every turn is captured with speaker, timestamp, entity, and a decision marker.</sub>
+
+```mermaid
+flowchart TB
+    T1["<b>Portfolio Planner</b><br/><i>&ldquo;Proposing to add 2% JPM<br/>ahead of Q3 print&rdquo;</i>"]
+    T2["<b>Market Researcher</b><br/><i>&ldquo;Consensus EPS is +4% QoQ,<br/>whisper number suggests beat&rdquo;</i>"]
+    T3["<b>Risk Analyst</b><br/><i>&ldquo;Tariff headline risk this week<br/>&mdash; raise stop to 8%&rdquo;</i>"]
+    T4["<b>Compliance Reviewer</b><br/><i>&ldquo;Ok with position limit.<br/>Logging rationale.&rdquo;</i>"]
+    DEC["<b>Decision reached</b><br/>buy 2% JPM &bull; stop 8% &bull; pre-earnings"]
+
+    subgraph CONV ["&sect; AGENT-TO-AGENT CONVERSATION &mdash; trade proposal thread"]
+        direction LR
+        T1 --> T2
+        T2 --> T3
+        T3 --> T4
+        T4 --> DEC
+    end
+
+    CAP["<b>Turn-level capture</b><br/>speaker &bull; utterance &bull; ts<br/>entity: JPM &bull; topic: position sizing<br/>kind: <i>conversation</i>"]
+
+    CONV ==>|auto-capture hook<br/>every turn| CAP
+    CAP ==>|"<b>mem.add(content, speaker, thread_id, kind=&quot;chat&quot;)</b>"| API{{"<b>INGEST API</b>"}}
+
+    DOC[("<b>Document store</b><br/>turn rows, thread_id,<br/>speaker, ts, decision flag")]
+    VEC[("<b>Vector store</b><br/>embedding per turn")]
+    GR[("<b>Graph store</b><br/>edges: agent &rarr; entity<br/>agent &rarr; decision"]
+
+    API --> DOC
+    API --> VEC
+    API --> GR
+
+    DONE["<b>Thread memorialised</b><br/>replayable &bull; attributable &bull; auditable"]
+    DOC ==> DONE
+    VEC ==> DONE
+    GR ==> DONE
+
+    style CONV fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style CAP  fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style API  fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style DONE fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style T1   fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style T2   fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style T3   fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style T4   fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style DEC  fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style DOC  fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style VEC  fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style GR   fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+```
+
+<sub>Different from feed ingestion: the <b>source is the agents themselves</b>, not the outside world. Every turn is attributed to a speaker, tied to a thread, and flagged if it contained a decision. Nothing is paraphrased &mdash; the verbatim utterance is preserved so the reasoning can be reconstructed under audit.</sub>
+
 ### Recall flow &mdash; what happens on `recall()`
 
 <sub>Same market intelligence system &mdash; now the <b>Portfolio Planner</b> asks a real question ahead of the morning call.</sub>
@@ -368,6 +424,66 @@ flowchart TB
 ```
 
 <sub>Only memory IDs travel between layers until the hydrate step. A store with ten million market-intel rows still returns a tight result set inside the caller&rsquo;s token ceiling. Graph expansion is the step that lets <i>&ldquo;tariff&rdquo;</i> surface memories about <i>&ldquo;TSMC&rdquo;</i> and <i>&ldquo;Nvidia&rdquo;</i> without either word appearing in the query.</sub>
+
+---
+
+### Recall flow &mdash; variant B &bull; agent context recall
+
+<sub>A <b>different kind of recall</b>: no human in the loop. An agent resuming a task &mdash; or handing off to a peer &mdash; pulls back <b>its own prior working context</b>: earlier decisions, peer rationale, what was true at the last checkpoint.</sub>
+
+```mermaid
+flowchart TB
+    RESUME["<b>Risk Analyst</b> resuming mid-task<br/>or <b>Compliance Reviewer</b> taking handoff<br/><i>no user prompt &mdash; agent self-initiated</i>"]
+
+    INTENT["<b>Context intent</b><br/>&ldquo;what did the desk already decide<br/>about JPM this week, and why?&rdquo;"]
+
+    RESUME ==> INTENT
+    INTENT ==>|"<b>mem.recall_context(thread_id, entity=&quot;JPM&quot;, since=7d)</b>"| API{{"<b>CONTEXT RECALL API</b>"}}
+
+    F1["<b>Thread filter</b><br/>same thread_id<br/>or same namespace"]
+    F2["<b>Entity filter</b><br/>entity = JPM<br/>and related via graph"]
+    F3["<b>Temporal filter</b><br/>within last 7d<br/>supersedes resolved"]
+    F4["<b>Speaker filter</b><br/>peer agents in role<br/>RBAC-visible only"]
+
+    subgraph FILTERS ["&sect; CONTEXT FILTERS &mdash; tighter than open-query recall"]
+        direction LR
+        F1 ~~~ F2 ~~~ F3 ~~~ F4
+    end
+
+    API --> FILTERS
+
+    TURNS["<b>Prior conversation turns</b><br/>Planner proposal &bull; Researcher consensus<br/>Analyst stop raise &bull; Compliance sign-off"]
+    DECS["<b>Prior decisions</b><br/>buy 2% JPM &bull; stop 8%<br/>decided 3 days ago"]
+    DELTA["<b>What changed since</b><br/>new tariff headline today<br/>stop needs re-evaluation"]
+
+    FILTERS ==> TURNS
+    FILTERS ==> DECS
+    FILTERS ==> DELTA
+
+    PACK["<b>Context pack</b><br/>chronologically ordered<br/>&bull; speaker-attributed<br/>&bull; fit to agent token budget"]
+
+    TURNS ==> PACK
+    DECS ==> PACK
+    DELTA ==> PACK
+
+    PACK ==>|loaded into agent<br/>working memory| RESUMED["<b>Agent resumes task</b><br/>with full prior context<br/>&bull; no re-asking peers<br/>&bull; no lost decisions"]
+
+    style RESUME   fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style INTENT   fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style API      fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style FILTERS  fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style F1       fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style F2       fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style F3       fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style F4       fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style TURNS    fill:#F5F1E8,stroke:#1A1614,color:#1A1614
+    style DECS     fill:#F5F1E8,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style DELTA    fill:#F5F1E8,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style PACK     fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style RESUMED  fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+```
+
+<sub>Differs from open-query recall in three ways: <b>(1)</b> the caller is an <b>agent</b>, not a human &mdash; triggered by resume / handoff, not by a chat message; <b>(2)</b> the filters are <b>tighter</b> &mdash; thread, namespace, RBAC, time window &mdash; not just semantic similarity; <b>(3)</b> the output preserves <b>chronology and attribution</b> rather than ranking purely by relevance. This is how a long-running pipeline stays coherent across restarts, handoffs, and multi-day workflows.</sub>
 
 ---
 
