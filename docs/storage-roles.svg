@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 460" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <style>
+      .bg { fill: #F5F1E8; }
+      .card { fill: #FBF8F1; stroke: #1A1614; stroke-width: 1; }
+      .ink { fill: #1A1614; }
+      .muted { fill: #6B5F4F; }
+      .accent { fill: #C15F3C; }
+      .rule { stroke: #1A1614; stroke-width: 0.75; }
+      .hair { stroke: #C9C0B0; stroke-width: 0.75; }
+      .mono { font-family: 'Menlo', 'Consolas', 'Courier New', monospace; }
+      .sans { font-family: 'Helvetica Neue', 'Arial', sans-serif; letter-spacing: 0.12em; }
+      .glyph { stroke: #1A1614; stroke-width: 1.25; fill: none; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1400" height="460"/>
+
+  <!-- Masthead -->
+  <line class="rule" x1="40" y1="44" x2="1360" y2="44"/>
+  <line class="hair" x1="40" y1="50" x2="1360" y2="50"/>
+  <text class="ink sans" x="40" y="36" font-size="11">&#167; STORAGE ROLES &#183; THREE COMPLEMENTARY STORES &#183; EVERY BACKEND COMBO IS A CHOICE PER ROLE</text>
+  <text class="muted sans" x="1360" y="36" font-size="11" text-anchor="end">FIG. 02 &#183; MEMWRIGHT</text>
+
+  <!-- Card 1 — Document store -->
+  <g transform="translate(40,90)">
+    <rect class="card" width="420" height="340" rx="2"/>
+    <text class="accent sans" x="24" y="36" font-size="11">ROLE &#183; DOCUMENT STORE</text>
+    <!-- glyph: stacked pages -->
+    <g transform="translate(24,60)" class="glyph">
+      <rect x="0" y="12" width="56" height="72"/>
+      <rect x="8" y="6" width="56" height="72"/>
+      <rect x="16" y="0" width="56" height="72"/>
+      <line x1="24" y1="14" x2="60" y2="14"/>
+      <line x1="24" y1="24" x2="60" y2="24"/>
+      <line x1="24" y1="34" x2="60" y2="34"/>
+      <line x1="24" y1="44" x2="52" y2="44"/>
+    </g>
+    <text class="ink" x="24" y="192" font-size="30" font-weight="700">Document store</text>
+    <text class="muted" x="24" y="218" font-size="13" font-style="italic">The source of truth</text>
+    <line class="hair" x1="24" y1="234" x2="396" y2="234"/>
+    <text class="ink" x="24" y="260" font-size="13">Content, tags, entity, category,</text>
+    <text class="ink" x="24" y="278" font-size="13">timestamps, provenance, confidence.</text>
+    <text class="ink" x="24" y="296" font-size="13">Where <tspan class="mono" font-size="12">add()</tspan> commits and <tspan class="mono" font-size="12">recall()</tspan></text>
+    <text class="ink" x="24" y="314" font-size="13">hydrates the final memory text.</text>
+    <line class="hair" x1="24" y1="328" x2="396" y2="328"/>
+    <text class="muted sans" x="24" y="318" font-size="10"></text>
+  </g>
+  <text class="muted sans" x="64" y="450" font-size="10">FILLED BY &#183; SQLITE &#183; POSTGRES 16 &#183; COSMOS DB &#183; ARANGODB</text>
+
+  <!-- Card 2 — Vector store -->
+  <g transform="translate(490,90)">
+    <rect class="card" width="420" height="340" rx="2"/>
+    <text class="accent sans" x="24" y="36" font-size="11">ROLE &#183; VECTOR STORE</text>
+    <!-- glyph: points in space -->
+    <g transform="translate(24,60)" class="glyph">
+      <circle cx="14" cy="64" r="3" fill="#1A1614"/>
+      <circle cx="32" cy="40" r="3" fill="#1A1614"/>
+      <circle cx="50" cy="56" r="3" fill="#1A1614"/>
+      <circle cx="58" cy="28" r="3" fill="#1A1614"/>
+      <circle cx="68" cy="70" r="3" fill="#1A1614"/>
+      <circle cx="28" cy="14" r="3" fill="#C15F3C"/>
+      <line x1="28" y1="14" x2="32" y2="40" stroke-dasharray="1 2"/>
+      <line x1="28" y1="14" x2="14" y2="64" stroke-dasharray="1 2"/>
+      <line x1="28" y1="14" x2="58" y2="28" stroke-dasharray="1 2"/>
+    </g>
+    <text class="ink" x="24" y="192" font-size="30" font-weight="700">Vector store</text>
+    <text class="muted" x="24" y="218" font-size="13" font-style="italic">The semantic index</text>
+    <line class="hair" x1="24" y1="234" x2="396" y2="234"/>
+    <text class="ink" x="24" y="260" font-size="13">A dense embedding per memory,</text>
+    <text class="ink" x="24" y="278" font-size="13">keyed by memory ID. Finds</text>
+    <text class="ink" x="24" y="296" font-size="13">memories by <tspan font-style="italic">meaning</tspan> when no tag</text>
+    <text class="ink" x="24" y="314" font-size="13">or word overlaps the query.</text>
+    <line class="hair" x1="24" y1="328" x2="396" y2="328"/>
+  </g>
+  <text class="muted sans" x="514" y="450" font-size="10">FILLED BY &#183; CHROMADB &#183; PGVECTOR &#183; COSMOS DISKANN &#183; ARANGODB</text>
+
+  <!-- Card 3 — Graph store -->
+  <g transform="translate(940,90)">
+    <rect class="card" width="420" height="340" rx="2"/>
+    <text class="accent sans" x="24" y="36" font-size="11">ROLE &#183; GRAPH STORE</text>
+    <!-- glyph: nodes + edges -->
+    <g transform="translate(24,60)" class="glyph">
+      <line x1="20" y1="20" x2="60" y2="14"/>
+      <line x1="20" y1="20" x2="30" y2="64"/>
+      <line x1="60" y1="14" x2="74" y2="52"/>
+      <line x1="30" y1="64" x2="74" y2="52"/>
+      <line x1="60" y1="14" x2="30" y2="64"/>
+      <circle cx="20" cy="20" r="6" fill="#FBF8F1"/>
+      <circle cx="60" cy="14" r="6" fill="#C15F3C" stroke="none"/>
+      <circle cx="30" cy="64" r="6" fill="#FBF8F1"/>
+      <circle cx="74" cy="52" r="6" fill="#FBF8F1"/>
+    </g>
+    <text class="ink" x="24" y="192" font-size="30" font-weight="700">Graph store</text>
+    <text class="muted" x="24" y="218" font-size="13" font-style="italic">The relational index</text>
+    <line class="hair" x1="24" y1="234" x2="396" y2="234"/>
+    <text class="ink" x="24" y="260" font-size="13">Entity nodes, typed edges</text>
+    <text class="ink" x="24" y="278" font-size="13">(<tspan class="mono" font-size="12">uses</tspan>, <tspan class="mono" font-size="12">authored-by</tspan>, <tspan class="mono" font-size="12">supersedes</tspan>).</text>
+    <text class="ink" x="24" y="296" font-size="13">Query &ldquo;Python&rdquo; surfaces &ldquo;Django&rdquo;</text>
+    <text class="ink" x="24" y="314" font-size="13">via the graph, not the text.</text>
+    <line class="hair" x1="24" y1="328" x2="396" y2="328"/>
+  </g>
+  <text class="muted sans" x="964" y="450" font-size="10">FILLED BY &#183; NETWORKX &#183; APACHE AGE &#183; ARANGODB &#183; COSMOS GRAPH</text>
+</svg>

@@ -132,6 +132,8 @@ When an agent calls `recall(query, budget)`, five cooperating layers find, fuse,
 
 ### Storage roles
 
+<p align="center"><img src="docs/storage-roles.svg" alt="Storage roles — document store, vector store, graph store" width="100%"></p>
+
 Every memory is persisted across **three complementary stores**. Every supported backend combination is just a different technology choice for one or more of these roles.
 
 | Role | What it stores | Why it exists |
