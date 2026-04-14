@@ -39,59 +39,38 @@
 
 ```mermaid
 flowchart TB
-    subgraph AGENTS [Agent tier &mdash; financial advisory pipeline]
-        direction LR
-        A1([Portfolio Planner])
-        A2([Market Researcher])
-        A3([Risk Analyst])
-        A4([Compliance Reviewer])
-    end
+    AGENTS["<b>AGENT TIER</b> &mdash; financial advisory pipeline<br/><sub>Portfolio Planner &bull; Market Researcher &bull; Risk Analyst &bull; Compliance Reviewer</sub>"]
 
-    AGENTS -->|add&#40;&#41;  &bull;  content, tags, entity| WRITE{{Write path}}
-    AGENTS -->|recall&#40;query, budget&#41;| READ{{Read path}}
+    CALL["<code>mem.add&#40;&hellip;&#41;</code> &nbsp;&bull;&nbsp; <code>mem.recall&#40;query, budget&#41;</code>"]
 
-    subgraph STORAGE [Storage tier &mdash; three complementary stores]
-        direction LR
-        S1[(Document store<br/><sub>SQLite &bull; Postgres<br/>content, tags, provenance</sub>)]
-        S2[(Vector store<br/><sub>ChromaDB &bull; pgvector<br/>dense embeddings</sub>)]
-        S3[(Graph store<br/><sub>NetworkX &bull; Apache AGE<br/>entity relations</sub>)]
-    end
+    STORAGE["<b>STORAGE TIER</b> &mdash; three complementary stores<br/><sub>Document &bull; Vector &bull; Graph &nbsp;&nbsp;|&nbsp;&nbsp; SQLite / Postgres &bull; ChromaDB / pgvector &bull; NetworkX / Apache AGE</sub>"]
 
-    WRITE --> S1
-    WRITE --> S2
-    WRITE --> S3
+    L1["<b>LAYER 01 &nbsp;&middot;&nbsp; TAG MATCH</b><br/><sub>SQLite FTS &bull; exact + partial tag hits</sub>"]
+    L2["<b>LAYER 02 &nbsp;&middot;&nbsp; GRAPH EXPANSION</b><br/><sub>multi-hop BFS on entity graph (depth 2)</sub>"]
+    L3["<b>LAYER 03 &nbsp;&middot;&nbsp; VECTOR SEARCH</b><br/><sub>cosine similarity on dense embeddings</sub>"]
+    L4["<b>LAYER 04 &nbsp;&middot;&nbsp; FUSION &amp; RANK</b><br/><sub>RRF k=60 &bull; PageRank &bull; confidence decay</sub>"]
+    L5["<b>LAYER 05 &nbsp;&middot;&nbsp; DIVERSITY &amp; FIT</b><br/><sub>MMR &lambda;=0.7 &bull; greedy token-budget pack</sub>"]
 
-    subgraph RETRIEVAL [Retrieval tier &mdash; 5 deterministic layers, no LLM]
-        direction TB
-        L1[<b>01 &mdash; Tag Match</b><br/><sub>SQLite FTS &bull; exact + partial</sub>]
-        L2[<b>02 &mdash; Graph Expansion</b><br/><sub>multi-hop BFS on entity graph</sub>]
-        L3[<b>03 &mdash; Vector Search</b><br/><sub>cosine similarity on embeddings</sub>]
-        L4[<b>04 &mdash; Fusion &amp; Rank</b><br/><sub>RRF k=60 + PageRank + confidence decay</sub>]
-        L5[<b>05 &mdash; Diversity &amp; Fit</b><br/><sub>MMR &lambda;=0.7 + token-budget pack</sub>]
-        L1 --> L4
-        L2 --> L4
-        L3 --> L4
-        L4 --> L5
-    end
+    CTX["<b>AGENT CONTEXT WINDOW</b><br/><sub>ranked memories, fit to caller&rsquo;s token budget</sub>"]
 
-    READ --> L1
-    READ --> L2
-    READ --> L3
+    AGENTS --> CALL
+    CALL --> STORAGE
+    STORAGE --> L1
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
+    L4 --> L5
+    L5 --> CTX
 
-    S1 -. indexed by .-> L1
-    S3 -. indexed by .-> L2
-    S2 -. indexed by .-> L3
-
-    L5 -->|ranked memories,<br/>fit to token budget| CTX[[Agent context window]]
-
-    style AGENTS fill:#F5F1E8,stroke:#1A1614,color:#1A1614
-    style STORAGE fill:#FBF8F1,stroke:#1A1614,color:#1A1614
-    style RETRIEVAL fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
-    style WRITE fill:#1A1614,stroke:#C15F3C,color:#F5F1E8
-    style READ fill:#1A1614,stroke:#C15F3C,color:#F5F1E8
-    style L4 fill:#F5F1E8,stroke:#C15F3C,color:#1A1614
-    style L5 fill:#F5F1E8,stroke:#C15F3C,color:#1A1614
-    style CTX fill:#1A1614,stroke:#C15F3C,color:#F5F1E8
+    style AGENTS   fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style CALL     fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
+    style STORAGE  fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style L1       fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style L2       fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style L3       fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
+    style L4       fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style L5       fill:#F5F1E8,stroke:#C15F3C,stroke-width:3px,color:#1A1614
+    style CTX      fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
 ```
 
 <sub>One shared memory tier. Every agent writes, every agent recalls. Deterministic retrieval, no LLM in the critical path, no SaaS middleman. Details in &sect; 01&ndash;&sect; 05 below.</sub>
