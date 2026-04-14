@@ -42,10 +42,11 @@ flowchart TB
     %% === AGENT TIER ===
     subgraph AGENTS [<b>&sect; AGENT TIER</b> &mdash; financial advisory pipeline]
         direction LR
-        A1([<b>Portfolio<br/>Planner</b>])
-        A2([<b>Market<br/>Researcher</b>])
-        A3([<b>Risk<br/>Analyst</b>])
-        A4([<b>Compliance<br/>Reviewer</b>])
+        A1[<b>Portfolio<br/>Planner</b>]
+        A2[<b>Market<br/>Researcher</b>]
+        A3[<b>Risk<br/>Analyst</b>]
+        A4[<b>Compliance<br/>Reviewer</b>]
+        A1 ~~~ A2 ~~~ A3 ~~~ A4
     end
 
     %% === API SURFACE ===
@@ -98,6 +99,10 @@ flowchart TB
 
     %% === STYLING ===
     style AGENTS    fill:#F5F1E8,stroke:#1A1614,stroke-width:2px,color:#1A1614
+    style A1        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style A2        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style A3        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style A4        fill:#FBF8F1,stroke:#1A1614,color:#1A1614
     style STORAGE   fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
     style RETRIEVAL fill:#FBF8F1,stroke:#C15F3C,stroke-width:2px,color:#1A1614
     style SOURCES   fill:#F5F1E8,stroke:#6B5F4F,stroke-dasharray:4 3,color:#1A1614
