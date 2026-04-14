@@ -37,6 +37,13 @@
 
 ### The solution &mdash; at a glance
 
+<p align="center">
+  <img src="docs/timeline.svg" alt="Write · Write · Write · Write ... Read — memories accumulate across sessions, load_context primes the next task" width="100%">
+</p>
+
+<details>
+<summary><sub>Mermaid source (click to expand)</sub></summary>
+
 ```mermaid
 flowchart LR
     %% === TIMELINE: memories accumulate left-to-right, then load-context pulls relevant history ===
@@ -118,6 +125,8 @@ flowchart LR
     style CTX       fill:#1A1614,stroke:#C15F3C,stroke-width:2px,color:#F5F1E8
     style AGENT     fill:#FBF8F1,stroke:#1A1614,stroke-width:2px,color:#1A1614
 ```
+
+</details>
 
 <sub><b>Memory accumulates. Load primes.</b> &nbsp;Four writes across Mon&ndash;Thu land as persisted memories. Friday morning a fresh Portfolio Planner wakes up to a new task, calls <code>mem.load_context()</code>, and Memwright ranks + dedupes + budget&#8209;fits all four back into the context window. The agent resumes with full continuity &mdash; earnings signal, risk cap, prior stance, compliance precedent &mdash; <b>not RAG over documents, but the agents&rsquo; own history replayed into a fresh context</b>. Zero LLM calls in the critical path.</sub>
 
