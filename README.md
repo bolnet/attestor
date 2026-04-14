@@ -38,27 +38,59 @@
 ### The solution &mdash; at a glance
 
 ```mermaid
-flowchart LR
-    A1([Portfolio Planner])    -->|write / read| M
-    A2([Market Researcher])    -->|write / read| M
-    A3([Risk Analyst])         -->|write / read| M
-    A4([Compliance Reviewer])  -->|write / read| M
-
-    subgraph M [Memwright &mdash; shared memory tier]
-        direction TB
-        S1[Document store<br/><sub>content, tags, provenance</sub>]
-        S2[Vector store<br/><sub>semantic index</sub>]
-        S3[Graph store<br/><sub>entity relations</sub>]
-        R[5-layer retrieval<br/><sub>tag &rarr; graph &rarr; vector &rarr; fuse &rarr; fit</sub>]
-        S1 --- R
-        S2 --- R
-        S3 --- R
+flowchart TB
+    subgraph AGENTS [Agent tier &mdash; financial advisory pipeline]
+        direction LR
+        A1([Portfolio Planner])
+        A2([Market Researcher])
+        A3([Risk Analyst])
+        A4([Compliance Reviewer])
     end
 
-    M -->|ranked memories,<br/>fit to token budget| CTX[Agent context window]
+    AGENTS -->|add&#40;&#41;  &bull;  content, tags, entity| WRITE{{Write path}}
+    AGENTS -->|recall&#40;query, budget&#41;| READ{{Read path}}
 
-    style M fill:#FBF8F1,stroke:#1A1614,color:#1A1614
-    style R fill:#F5F1E8,stroke:#C15F3C,color:#1A1614
+    subgraph STORAGE [Storage tier &mdash; three complementary stores]
+        direction LR
+        S1[(Document store<br/><sub>SQLite &bull; Postgres<br/>content, tags, provenance</sub>)]
+        S2[(Vector store<br/><sub>ChromaDB &bull; pgvector<br/>dense embeddings</sub>)]
+        S3[(Graph store<br/><sub>NetworkX &bull; Apache AGE<br/>entity relations</sub>)]
+    end
+
+    WRITE --> S1
+    WRITE --> S2
+    WRITE --> S3
+
+    subgraph RETRIEVAL [Retrieval tier &mdash; 5 deterministic layers, no LLM]
+        direction TB
+        L1[<b>01 &mdash; Tag Match</b><br/><sub>SQLite FTS &bull; exact + partial</sub>]
+        L2[<b>02 &mdash; Graph Expansion</b><br/><sub>multi-hop BFS on entity graph</sub>]
+        L3[<b>03 &mdash; Vector Search</b><br/><sub>cosine similarity on embeddings</sub>]
+        L4[<b>04 &mdash; Fusion &amp; Rank</b><br/><sub>RRF k=60 + PageRank + confidence decay</sub>]
+        L5[<b>05 &mdash; Diversity &amp; Fit</b><br/><sub>MMR &lambda;=0.7 + token-budget pack</sub>]
+        L1 --> L4
+        L2 --> L4
+        L3 --> L4
+        L4 --> L5
+    end
+
+    READ --> L1
+    READ --> L2
+    READ --> L3
+
+    S1 -. indexed by .-> L1
+    S3 -. indexed by .-> L2
+    S2 -. indexed by .-> L3
+
+    L5 -->|ranked memories,<br/>fit to token budget| CTX[[Agent context window]]
+
+    style AGENTS fill:#F5F1E8,stroke:#1A1614,color:#1A1614
+    style STORAGE fill:#FBF8F1,stroke:#1A1614,color:#1A1614
+    style RETRIEVAL fill:#FBF8F1,stroke:#C15F3C,color:#1A1614
+    style WRITE fill:#1A1614,stroke:#C15F3C,color:#F5F1E8
+    style READ fill:#1A1614,stroke:#C15F3C,color:#F5F1E8
+    style L4 fill:#F5F1E8,stroke:#C15F3C,color:#1A1614
+    style L5 fill:#F5F1E8,stroke:#C15F3C,color:#1A1614
     style CTX fill:#1A1614,stroke:#C15F3C,color:#F5F1E8
 ```
 
