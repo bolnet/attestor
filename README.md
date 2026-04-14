@@ -130,6 +130,80 @@ When an agent calls `recall(query, budget)`, five cooperating layers find, fuse,
 | 04 | **Fusion + Rank** | In&#8209;process | RRF (k=60) + PageRank + confidence decay |
 | 05 | **Diversity + Fit** | In&#8209;process | MMR (&lambda;=0.7) + greedy token&#8209;budget pack |
 
+### Storage roles
+
+Every memory is persisted across **three complementary stores**. Every supported backend combination is just a different technology choice for one or more of these roles.
+
+| Role | What it stores | Why it exists |
+|---|---|---|
+| **Document store** | The source of truth &mdash; content, tags, entity, category, timestamps, provenance, confidence | Where `add()` commits; where `recall()` hydrates final memory text |
+| **Vector store** | Dense embedding per memory, keyed by memory ID | Finds memories by *meaning* when no tag or word overlaps the query |
+| **Graph store** | Entity nodes + typed edges (`uses`, `authored-by`, `supersedes`) | Connects memories indirectly &mdash; query &ldquo;Python&rdquo; can surface &ldquo;Django&rdquo; via the graph |
+
+### Ingestion flow &mdash; what happens on `add()`
+
+```
+                      mem.add(content, tags, entity, ...)
+                                    │
+              ┌─────────────────────┼─────────────────────┐
+              ▼                     ▼                     ▼
+      ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
+      │ Document      │     │ Vector        │     │ Graph         │
+      │ store         │     │ store         │     │ store         │
+      ├───────────────┤     ├───────────────┤     ├───────────────┤
+      │ insert row    │     │ embed(text)   │     │ extract       │
+      │  content,     │     │  → 384-d vec  │     │  entities +   │
+      │  tags, meta,  │     │ insert keyed  │     │  relations    │
+      │  timestamps,  │     │  by memory ID │     │ upsert nodes, │
+      │  provenance   │     │               │     │ add edges     │
+      └───────────────┘     └───────────────┘     └───────────────┘
+              │                     │                     │
+              └─────────────────────┼─────────────────────┘
+                                    ▼
+                     Contradiction check per entity
+                     (older conflicting facts → superseded, kept in timeline)
+                                    │
+                                    ▼
+                                  done
+```
+
+<sub>The three writes commit as one logical transaction. On SQL backends it&rsquo;s a real DB transaction; on distributed backends it&rsquo;s sequenced with best-effort rollback.</sub>
+
+### Recall flow &mdash; what happens on `recall()`
+
+```
+                   mem.recall(query, budget=2000)
+                                │
+          ┌─────────────────────┼─────────────────────┐
+          │                     │                     │
+          ▼                     ▼                     ▼
+   ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
+   │ Tag matcher   │     │ Graph expander│     │ Vector search │
+   │  → doc store  │     │  → graph store│     │  → vec store  │
+   │  FTS, tags,   │     │  BFS depth 2  │     │  cosine ANN   │
+   │  stop-filter  │     │  from entities│     │  top-K IDs    │
+   └───────┬───────┘     └───────┬───────┘     └───────┬───────┘
+           │                     │                     │
+           └─────────────────────┼─────────────────────┘
+                                 ▼
+                     Candidate memory IDs (~100s)
+                                 │
+                                 ▼
+                    Hydrate IDs ← document store
+                                 │
+                                 ▼
+              Fusion + Rank  (RRF k=60 · PageRank · confidence decay)
+                                 │
+                                 ▼
+              Diversity + Fit  (MMR λ=0.7 · greedy token-budget pack)
+                                 │
+                                 ▼
+                   Ranked memories ≤ budget tokens
+                          (zero LLM calls)
+```
+
+<sub>Only memory IDs travel between layers until the hydrate step. A store with ten million rows still returns a tight result set inside the caller&rsquo;s token ceiling.</sub>
+
 ---
 
 <a id="deploy"></a>

@@ -1468,7 +1468,7 @@ footer.colophon {
     <div class="hero-dateline">
       <span class="filing">&sect; 00 &middot; Masthead</span>
       <span>Filed under Infrastructure</span>
-      <span>By S. Singh</span>
+      <span>By Surendra Singh</span>
       <span class="accent">&mdash; For publication &mdash;</span>
     </div>
 
@@ -1742,6 +1742,94 @@ footer.colophon {
         <div class="step-engine"><b>MMR</b>&lambda; = 0.7</div>
       </div>
     </div>
+
+    <!-- Storage roles + flows -->
+    <div class="reveal" style="margin-top:56px;">
+      <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Storage roles</h3>
+      <p class="standfirst" style="margin-top:0;">Every memory is persisted across three complementary stores. Every supported backend combo is just a different technology choice for one or more of these roles.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px;">
+        <div style="padding:20px 22px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">ROLE &#183; 01</div>
+          <div style="font-family:var(--ff-display);font-size:22px;font-weight:700;margin-top:6px;">Document store</div>
+          <p style="font-size:14px;color:var(--muted);margin:10px 0 0;">Source of truth. Content, tags, entity, category, timestamps, provenance, confidence. Where <code>add()</code> commits and <code>recall()</code> hydrates final text.</p>
+        </div>
+        <div style="padding:20px 22px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">ROLE &#183; 02</div>
+          <div style="font-family:var(--ff-display);font-size:22px;font-weight:700;margin-top:6px;">Vector store</div>
+          <p style="font-size:14px;color:var(--muted);margin:10px 0 0;">Dense embedding per memory, keyed by memory ID. Finds memories by <em>meaning</em> when no tag or word overlaps the query.</p>
+        </div>
+        <div style="padding:20px 22px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+          <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">ROLE &#183; 03</div>
+          <div style="font-family:var(--ff-display);font-size:22px;font-weight:700;margin-top:6px;">Graph store</div>
+          <p style="font-size:14px;color:var(--muted);margin:10px 0 0;">Entity nodes + typed edges (<code>uses</code>, <code>authored-by</code>, <code>supersedes</code>). Query &ldquo;Python&rdquo; can surface &ldquo;Django&rdquo; via the graph.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="reveal" style="margin-top:48px;">
+      <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Ingestion flow &mdash; <em>what happens on</em> <code>add()</code></h3>
+      <pre style="background:var(--ink-raise);border:1px solid var(--rule);padding:20px 24px;font-family:var(--ff-mono);font-size:12px;line-height:1.5;overflow-x:auto;color:var(--ink);">
+                      mem.add(content, tags, entity, ...)
+                                    &#9474;
+              &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+              &#9660;                     &#9660;                     &#9660;
+      &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+      &#9474; Document      &#9474;     &#9474; Vector        &#9474;     &#9474; Graph         &#9474;
+      &#9474; store         &#9474;     &#9474; store         &#9474;     &#9474; store         &#9474;
+      &#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9508;     &#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9508;     &#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9508;
+      &#9474; insert row    &#9474;     &#9474; embed(text)   &#9474;     &#9474; extract       &#9474;
+      &#9474;  content,     &#9474;     &#9474;  &#8594; 384-d vec  &#9474;     &#9474;  entities +   &#9474;
+      &#9474;  tags, meta,  &#9474;     &#9474; insert keyed  &#9474;     &#9474;  relations    &#9474;
+      &#9474;  provenance   &#9474;     &#9474;  by memory ID &#9474;     &#9474; upsert nodes, &#9474;
+      &#9474;               &#9474;     &#9474;               &#9474;     &#9474; add edges     &#9474;
+      &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+              &#9474;                     &#9474;                     &#9474;
+              &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                                    &#9660;
+                     Contradiction check per entity
+                    (older conflicting facts &#8594; superseded,
+                         kept in timeline)
+                                    &#9474;
+                                    &#9660;
+                                  done
+</pre>
+      <p class="caption" style="font-size:13px;color:var(--muted);font-style:italic;">The three writes commit as one logical transaction. On SQL backends it&rsquo;s a real DB transaction; on distributed backends it&rsquo;s sequenced with best-effort rollback.</p>
+    </div>
+
+    <div class="reveal" style="margin-top:48px;">
+      <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Recall flow &mdash; <em>what happens on</em> <code>recall()</code></h3>
+      <pre style="background:var(--ink-raise);border:1px solid var(--rule);padding:20px 24px;font-family:var(--ff-mono);font-size:12px;line-height:1.5;overflow-x:auto;color:var(--ink);">
+                   mem.recall(query, budget=2000)
+                                &#9474;
+          &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+          &#9474;                     &#9474;                     &#9474;
+          &#9660;                     &#9660;                     &#9660;
+   &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+   &#9474; Tag matcher   &#9474;     &#9474; Graph expander&#9474;     &#9474; Vector search &#9474;
+   &#9474;  &#8594; doc store  &#9474;     &#9474;  &#8594; graph store&#9474;     &#9474;  &#8594; vec store  &#9474;
+   &#9474;  FTS, tags,   &#9474;     &#9474;  BFS depth 2  &#9474;     &#9474;  cosine ANN   &#9474;
+   &#9474;  stop-filter  &#9474;     &#9474;  from entities&#9474;     &#9474;  top-K IDs    &#9474;
+   &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+           &#9474;                     &#9474;                     &#9474;
+           &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                                 &#9660;
+                     Candidate memory IDs (~100s)
+                                 &#9474;
+                                 &#9660;
+                    Hydrate IDs &#8592; document store
+                                 &#9474;
+                                 &#9660;
+              Fusion + Rank  (RRF k=60 &#183; PageRank &#183; confidence decay)
+                                 &#9474;
+                                 &#9660;
+              Diversity + Fit  (MMR &#955;=0.7 &#183; greedy token-budget pack)
+                                 &#9474;
+                                 &#9660;
+                   Ranked memories &#8804; budget tokens
+                          (zero LLM calls)
+</pre>
+      <p class="caption" style="font-size:13px;color:var(--muted);font-style:italic;">Only memory IDs travel between layers until the hydrate step. A store with ten million rows still returns a tight result set inside the caller&rsquo;s token ceiling.</p>
+    </div>
   </div>
 </section>
 
@@ -1958,7 +2046,7 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
       <div>
         <div class="col-label">Masthead</div>
         <ul class="colophon-list">
-          <li>Editor &mdash; <a href="https://www.linkedin.com/in/surendrasingh/" target="_blank" rel="noopener">S. Singh</a></li>
+          <li>Editor &mdash; <a href="https://www.linkedin.com/in/surendrasingh/" target="_blank" rel="noopener">Surendra Singh</a></li>
           <li>Infrastructure &mdash; Your cloud</li>
           <li>Retrieval &mdash; Deterministic</li>
           <li>Publisher &mdash; Bolnet</li>
