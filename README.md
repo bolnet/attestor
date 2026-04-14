@@ -39,10 +39,10 @@
 
 ```mermaid
 flowchart LR
-    A1([Planner])   -->|write / read| M
-    A2([Researcher]) -->|write / read| M
-    A3([Coder])      -->|write / read| M
-    A4([Reviewer])   -->|write / read| M
+    A1([Portfolio Planner])    -->|write / read| M
+    A2([Market Researcher])    -->|write / read| M
+    A3([Risk Analyst])         -->|write / read| M
+    A4([Compliance Reviewer])  -->|write / read| M
 
     subgraph M [Memwright &mdash; shared memory tier]
         direction TB
