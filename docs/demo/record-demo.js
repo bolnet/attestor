@@ -57,11 +57,16 @@ const { chromium } = require('playwright');
 
   // 07 — Timeline
   await page.goto(base + '/ui/timeline');
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(1000);
+  // Click Reconstruct to load timeline data (also auto-loads now)
+  const tlGo = page.locator('#tl-go');
+  if (await tlGo.count() > 0) await tlGo.click();
+  await page.waitForTimeout(3000);
 
   // 08 — Agents
   await page.goto(base + '/ui/agents');
-  await page.waitForTimeout(2500);
+  // Wait for agents data to auto-load
+  await page.waitForTimeout(3500);
 
   // 09 — Health
   await page.goto(base + '/ui/health');

@@ -238,4 +238,8 @@
       }
     });
   });
+
+  // Auto-load timeline with status=all on page ready
+  document.getElementById("tl-status").value = "all";
+  fetchTimeline();
 })();
