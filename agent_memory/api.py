@@ -161,4 +161,12 @@ routes = [
     Route("/memory/{memory_id}", get_memory, methods=["GET"]),
 ]
 
+# Attach the read-only UI at /ui/* (routes have absolute paths)
+try:
+    from agent_memory.ui.app import ui_routes
+
+    routes.extend(ui_routes())
+except Exception:  # pragma: no cover - UI is optional
+    pass
+
 app = Starlette(routes=routes)

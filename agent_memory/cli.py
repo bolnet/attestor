@@ -249,6 +249,20 @@ def main(argv=None):
         help="Memory store path (default: $MEMWRIGHT_DATA_DIR or ~/.memwright)",
     )
 
+    # ui (read-only web viewer)
+    p_ui = subparsers.add_parser(
+        "ui",
+        help="Start read-only web UI (Forensic Archive viewer)",
+    )
+    p_ui.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
+    p_ui.add_argument("--port", type=int, default=8080, help="Bind port (default: 8080)")
+    p_ui.add_argument(
+        "--path",
+        default=None,
+        help="Memory store path (default: $MEMWRIGHT_PATH or ~/.memwright)",
+    )
+    p_ui.add_argument("--open", action="store_true", help="Open browser on launch")
+
     # mcp (zero-config MCP server -- used by .mcp.json)
     p_mcp = subparsers.add_parser(
         "mcp",
@@ -289,6 +303,7 @@ def main(argv=None):
         "forget": _cmd_forget,
         "serve": _cmd_serve,
         "api": _cmd_api,
+        "ui": _cmd_ui,
         "setup-claude-code": _cmd_setup_claude_code,
         "doctor": _cmd_doctor,
         "locomo": _cmd_locomo,
@@ -793,6 +808,28 @@ def _cmd_mcp_serve(args):
 
     print(f"Starting MCP server for {store_path}...", file=sys.stderr)
     asyncio.run(run_server(store_path))
+
+
+def _cmd_ui(args):
+    """Launch read-only web UI."""
+    store_path = args.path or os.environ.get(
+        "MEMWRIGHT_PATH", os.path.expanduser("~/.memwright")
+    )
+    os.environ["MEMWRIGHT_PATH"] = store_path
+    Path(store_path).mkdir(parents=True, exist_ok=True)
+
+    print(f"Memwright UI · {store_path}", file=sys.stderr)
+    print(f"→ http://{args.host}:{args.port}/ui/memories", file=sys.stderr)
+
+    if args.open:
+        import webbrowser, threading
+        url = f"http://{args.host}:{args.port}/ui/memories"
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+
+    import uvicorn
+    uvicorn.run(
+        "agent_memory.api:app", host=args.host, port=args.port, log_level="warning"
+    )
 
 
 def _cmd_hook(args):
