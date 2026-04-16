@@ -461,13 +461,71 @@ class AgentMemory:
         """Get store statistics."""
         return self._store.stats()
 
+    def _try_recover_stores(self) -> Dict[str, str]:
+        """Attempt to re-initialize failed vector/graph stores.
+
+        Called by health() when stores are None but config says they should
+        exist. On success, wires the recovered store into the retrieval
+        pipeline so the running process heals without a restart.
+
+        Returns:
+            Dict of role -> outcome ("recovered" | "failed: <reason>")
+        """
+        backends = getattr(self.config, "backends", None) or DEFAULT_BACKENDS
+        backend_configs: Dict[str, Dict[str, Any]] = (
+            getattr(self.config, "backend_configs", None) or {}
+        )
+        role_assignments = resolve_backends(backends)
+        results: Dict[str, str] = {}
+
+        # Try to recover vector store
+        if self._vector_store is None and "vector" in role_assignments:
+            backend_name = role_assignments["vector"]
+            try:
+                store_path = self.path if backend_name != "sqlite" else self.path / "memory.db"
+                self._vector_store = instantiate_backend(
+                    backend_name, store_path, backend_configs.get(backend_name),
+                )
+                self._retrieval.vector_store = self._vector_store
+                logger.info("Recovered vector store (%s)", backend_name)
+                results["vector"] = "recovered"
+            except Exception as e:
+                logger.warning("Vector store recovery failed (%s): %s", backend_name, e)
+                results["vector"] = f"failed: {e}"
+
+        # Try to recover graph store
+        if self._graph is None and "graph" in role_assignments:
+            backend_name = role_assignments["graph"]
+            try:
+                store_path = self.path if backend_name != "sqlite" else self.path / "memory.db"
+                self._graph = instantiate_backend(
+                    backend_name, store_path, backend_configs.get(backend_name),
+                )
+                self._retrieval.graph = self._graph
+                logger.info("Recovered graph store (%s)", backend_name)
+                results["graph"] = "recovered"
+            except Exception as e:
+                logger.warning("Graph store recovery failed (%s): %s", backend_name, e)
+                results["graph"] = f"failed: {e}"
+
+        return results
+
     def health(self) -> Dict[str, Any]:
         """Check health of all components. Returns structured status report.
+
+        If vector or graph stores failed at startup, attempts recovery before
+        reporting. This lets long-running processes (like the MCP server)
+        self-heal without a restart.
 
         Checks: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.
         No Docker checks. No external API checks.
         """
         import time
+
+        # Attempt recovery of failed stores before reporting
+        recovery: Dict[str, str] = {}
+        if self._vector_store is None or self._graph is None:
+            recovery = self._try_recover_stores()
 
         report: Dict[str, Any] = {
             "healthy": True,
@@ -511,6 +569,8 @@ class AgentMemory:
                     vec_details: Dict[str, Any] = {"vector_count": vector_count}
                     if hasattr(self._vector_store, "provider"):
                         vec_details["embedding_provider"] = self._vector_store.provider
+                    if "vector" in recovery:
+                        vec_details["note"] = "recovered at health check"
                     _check(vec_name, "ok", **vec_details)
                 else:
                     _check(f"{vec_name} (vector)", "ok",
@@ -518,7 +578,10 @@ class AgentMemory:
             except Exception as e:
                 _check("Vector Store", "error", error=str(e))
         else:
-            _check("Vector Store", "error", error="Not initialized")
+            error_msg = "Not initialized"
+            if "vector" in recovery:
+                error_msg += f" (recovery {recovery['vector']})"
+            _check("Vector Store", "error", error=error_msg)
 
         # -- Graph Store --
         if self._graph:
@@ -537,6 +600,8 @@ class AgentMemory:
                 if self._graph is not self._store:
                     if hasattr(self._graph, "graph_path"):
                         graph_details["graph_file"] = str(self._graph.graph_path)
+                    if "graph" in recovery:
+                        graph_details["note"] = "recovered at health check"
                     _check(graph_name, "ok", **graph_details)
                 else:
                     _check(f"{graph_name} (graph)", "ok", **graph_details,
@@ -544,7 +609,10 @@ class AgentMemory:
             except Exception as e:
                 _check("Graph Store", "error", error=str(e))
         else:
-            _check("Graph Store", "error", error="Not initialized")
+            error_msg = "Not initialized"
+            if "graph" in recovery:
+                error_msg += f" (recovery {recovery['graph']})"
+            _check("Graph Store", "error", error=error_msg)
 
         # -- Retrieval Pipeline --
         layers = ["tag_match"]
