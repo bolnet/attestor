@@ -5,9 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import time
+from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Deque, Dict, List, Optional
 
 from agent_memory.models import Memory, RetrievalResult
 from agent_memory.retrieval.orchestrator import RetrievalOrchestrator
@@ -120,6 +122,9 @@ class AgentMemory:
         self._retrieval.confidence_decay_rate = self.config.confidence_decay_rate
         self._retrieval.confidence_boost_rate = self.config.confidence_boost_rate
 
+        # Operation ring buffer for latency observability
+        self._ops_log: Deque[Dict[str, Any]] = deque(maxlen=200)
+
     def close(self) -> None:
         """Close all database connections."""
         if self._vector_store:
@@ -182,6 +187,9 @@ class AgentMemory:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Memory:
         """Store a new memory, handling contradictions automatically."""
+        t_total = time.monotonic()
+        store_timings: Dict[str, float] = {}
+
         # Dedup: check for exact content match (scoped by namespace)
         chash = self._content_hash(content)
         if hasattr(self._store, "get_by_hash"):
@@ -206,7 +214,9 @@ class AgentMemory:
         contradictions = self._temporal.check_contradictions(memory)
 
         # Insert new memory first (so FK reference is valid)
+        t0 = time.monotonic()
         self._store.insert(memory)
+        store_timings["document_ms"] = round((time.monotonic() - t0) * 1000, 2)
 
         # Then supersede old contradicting memories
         for old in contradictions:
@@ -215,14 +225,18 @@ class AgentMemory:
         # Store in vector DB
         if self._vector_store:
             try:
+                t0 = time.monotonic()
                 self._vector_store.add(memory.id, content, namespace=namespace)
+                store_timings["vector_ms"] = round((time.monotonic() - t0) * 1000, 2)
             except Exception:
+                store_timings["vector_ms"] = -1  # failed
                 pass  # Non-fatal
 
         # Update entity graph
         if self._graph:
             try:
                 from agent_memory.graph.extractor import extract_entities_and_relations
+                t0 = time.monotonic()
                 nodes, edges = extract_entities_and_relations(
                     content, tags or [], entity, category,
                 )
@@ -239,8 +253,25 @@ class AgentMemory:
                         relation_type=edge.get("type", "related_to"),
                         metadata=edge.get("metadata"),
                     )
+                store_timings["graph_ms"] = round((time.monotonic() - t0) * 1000, 2)
             except Exception:
+                store_timings["graph_ms"] = -1  # failed
                 pass  # Non-fatal
+
+        total_ms = round((time.monotonic() - t_total) * 1000, 2)
+        store_timings["total_ms"] = total_ms
+
+        # Record in ops log
+        self._ops_log.append({
+            "op": "add",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "latency_ms": total_ms,
+            "store_timings": store_timings,
+            "input": content[:120],
+            "result_count": 1,
+            "stores": [k.replace("_ms", "") for k, v in store_timings.items()
+                       if k != "total_ms" and v >= 0],
+        })
 
         return memory
 
@@ -293,8 +324,10 @@ class AgentMemory:
         namespace: Optional[str] = None,
     ) -> List[RetrievalResult]:
         """Retrieve relevant memories for a query using 3-layer cascade."""
+        t0 = time.monotonic()
         token_budget = budget or self.config.default_token_budget
         results = self._retrieval.recall(query, token_budget, namespace=namespace)
+        total_ms = round((time.monotonic() - t0) * 1000, 2)
 
         # Track access for confidence decay/boost
         real_ids = [
@@ -307,6 +340,22 @@ class AgentMemory:
                 self._store.increment_access(real_ids)
             except Exception:
                 pass  # Non-fatal
+
+        # Record in ops log
+        stores = ["document"]
+        if self._vector_store:
+            stores.append("vector")
+        if self._graph:
+            stores.append("graph")
+        self._ops_log.append({
+            "op": "recall",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "latency_ms": total_ms,
+            "input": query[:120],
+            "result_count": len(results),
+            "budget": token_budget,
+            "stores": stores,
+        })
 
         return results
 
@@ -457,6 +506,11 @@ class AgentMemory:
         """Permanently remove archived memories."""
         return self._store.compact()
 
+    @property
+    def ops_log(self) -> List[Dict[str, Any]]:
+        """Return a snapshot of the operation ring buffer (most recent last)."""
+        return list(self._ops_log)
+
     def stats(self) -> Dict[str, Any]:
         """Get store statistics."""
         return self._store.stats()
@@ -520,7 +574,7 @@ class AgentMemory:
         Checks: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.
         No Docker checks. No external API checks.
         """
-        import time
+        t0_health = time.monotonic()
 
         # Attempt recovery of failed stores before reporting
         recovery: Dict[str, str] = {}
@@ -565,8 +619,13 @@ class AgentMemory:
                 vec_name = type(self._vector_store).__name__
                 # Skip if same instance as document store (multi-role backend)
                 if self._vector_store is not self._store:
+                    t0 = time.monotonic()
                     vector_count = self._vector_store.count()
-                    vec_details: Dict[str, Any] = {"vector_count": vector_count}
+                    vec_latency = round((time.monotonic() - t0) * 1000, 1)
+                    vec_details: Dict[str, Any] = {
+                        "vector_count": vector_count,
+                        "latency_ms": vec_latency,
+                    }
                     if hasattr(self._vector_store, "provider"):
                         vec_details["embedding_provider"] = self._vector_store.provider
                     if "vector" in recovery:
@@ -587,14 +646,17 @@ class AgentMemory:
         if self._graph:
             try:
                 graph_name = type(self._graph).__name__
+                t0 = time.monotonic()
                 graph_stats = (
                     self._graph.graph_stats()
                     if hasattr(self._graph, "graph_stats")
                     else self._graph.stats()
                 )
+                graph_latency = round((time.monotonic() - t0) * 1000, 1)
                 graph_details: Dict[str, Any] = {
                     "nodes": graph_stats["nodes"],
                     "edges": graph_stats["edges"],
+                    "latency_ms": graph_latency,
                 }
                 # Skip if same instance as document store (multi-role backend)
                 if self._graph is not self._store:
@@ -622,6 +684,35 @@ class AgentMemory:
             layers.append("vector_similarity")
         _check("Retrieval Pipeline", "ok",
                active_layers=len(layers), max_layers=3, layers=layers)
+
+        health_ms = round((time.monotonic() - t0_health) * 1000, 2)
+
+        # Include ops log summary in health report
+        report["ops_log_size"] = len(self._ops_log)
+        if self._ops_log:
+            latencies = [op["latency_ms"] for op in self._ops_log]
+            latencies_sorted = sorted(latencies)
+            n = len(latencies_sorted)
+            report["latency_percentiles"] = {
+                "p50": latencies_sorted[n // 2] if n else 0,
+                "p95": latencies_sorted[int(n * 0.95)] if n else 0,
+                "p99": latencies_sorted[int(n * 0.99)] if n else 0,
+            }
+            report["latency_sparkline"] = [
+                op["latency_ms"] for op in list(self._ops_log)[-50:]
+            ]
+
+        # Record health check itself in ops log
+        self._ops_log.append({
+            "op": "health",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "latency_ms": health_ms,
+            "input": "health check",
+            "result_count": len(report["checks"]),
+            "stores": ["document"]
+                + (["vector"] if self._vector_store else [])
+                + (["graph"] if self._graph else []),
+        })
 
         return report
 

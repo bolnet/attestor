@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Dict, List, Optional
 
 from agent_memory.models import Memory, RetrievalResult
@@ -305,8 +306,10 @@ class RetrievalOrchestrator:
             ]
 
         all_results: List[RetrievalResult] = []
+        t_total = time.monotonic()
 
         # Layer 1: Tag match
+        t_layer = time.monotonic()
         tags = extract_tags(query)
         tag_results: List[RetrievalResult] = []
         if tags:
@@ -321,10 +324,12 @@ class RetrievalOrchestrator:
             "description": "FTS on extracted tags",
             "tags": tags,
             "count": len(tag_results),
+            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
             "results": _snap(tag_results),
         })
 
         # Layer 2: Graph expansion
+        t_layer = time.monotonic()
         graph_results: List[RetrievalResult] = []
         expanded_queries = []
         graph_context_triples: List[str] = []
@@ -382,10 +387,12 @@ class RetrievalOrchestrator:
             "expanded_entities": expanded_queries[:8],
             "triples": len(graph_context_triples),
             "count": len(graph_results),
+            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
             "results": _snap(graph_results),
         })
 
         # Layer 3: Vector search
+        t_layer = time.monotonic()
         vector_results: List[RetrievalResult] = []
         if self.vector_store:
             try:
@@ -417,10 +424,12 @@ class RetrievalOrchestrator:
             "name": "Vector Search",
             "description": "Cosine similarity via ChromaDB",
             "count": len(vector_results),
+            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
             "results": _snap(vector_results),
         })
 
         # Layer 4: Fusion + Rank (RRF or graph blend)
+        t_layer = time.monotonic()
         if self.fusion_mode == "graph_blend" and self.graph and len(all_results) >= 3:
             fused = self._graph_blend(all_results)
         else:
@@ -434,10 +443,12 @@ class RetrievalOrchestrator:
             "description": f"RRF k=60, temporal boost, entity boost" if self.fusion_mode == "rrf" else "Graph blend + temporal + entity boost",
             "fusion_mode": self.fusion_mode,
             "count": len(fused),
+            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
             "results": _snap(fused),
         })
 
         # Layer 5: Diversity + Fit (MMR + token budget)
+        t_layer = time.monotonic()
         if self.enable_mmr:
             fused = mmr_rerank(fused, lambda_param=self.mmr_lambda)
         fused = confidence_decay_boost(
@@ -454,13 +465,17 @@ class RetrievalOrchestrator:
             "mmr_enabled": self.enable_mmr,
             "budget": token_budget,
             "count": len(final),
+            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
             "results": _snap(final),
         })
+
+        total_ms = round((time.monotonic() - t_total) * 1000, 2)
 
         return {
             "query": query,
             "namespace": namespace,
             "token_budget": token_budget,
+            "total_latency_ms": total_ms,
             "layers": layers,
             "final_count": len(final),
             "config": {

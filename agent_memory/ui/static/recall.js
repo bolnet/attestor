@@ -66,24 +66,32 @@
         html += `<div class="recall-diagram__arrow" style="animation-delay:${arrowDelay}ms">&rarr;</div>`;
       }
 
+      const msLabel = layer.latency_ms != null
+        ? `<div class="recall-diagram__ms">${parseFloat(layer.latency_ms).toFixed(1)} ms</div>`
+        : "";
+
       html += `
         <div class="recall-diagram__step" style="--layer-color:${color}; animation-delay:${stepDelay}ms">
           <div class="recall-diagram__num">Layer ${i + 1}</div>
           <div class="recall-diagram__name">${esc(layer.name)}</div>
           <div class="recall-diagram__count">${layer.count}</div>
           <div class="recall-diagram__count-label">results</div>
+          ${msLabel}
         </div>
       `;
     });
 
-    // Summary line: total input candidates -> final output
+    // Summary line: total input candidates -> final output + total latency
     const firstCount = layers.length > 0 ? layers[0].count : 0;
     const lastCount = layers.length > 0 ? layers[layers.length - 1].count : 0;
+    const totalMs = data.total_latency_ms != null
+      ? ` in <span class="recall-diagram__summary-count">${parseFloat(data.total_latency_ms).toFixed(1)} ms</span>`
+      : "";
     html += `
       <div class="recall-diagram__summary">
         <span class="recall-diagram__summary-count">${firstCount}</span> candidates entered
         &rarr;
-        <span class="recall-diagram__summary-count">${lastCount}</span> results delivered
+        <span class="recall-diagram__summary-count">${lastCount}</span> results delivered${totalMs}
       </div>
     `;
 
@@ -135,6 +143,7 @@
               <div class="recall-layer__name">Layer ${i + 1} · ${esc(layer.name)}</div>
               <div class="recall-layer__desc">${esc(layer.description)}</div>
             </div>
+            ${layer.latency_ms != null ? `<div class="recall-layer__ms">${parseFloat(layer.latency_ms).toFixed(1)} ms</div>` : ""}
             <div class="recall-layer__count">${layer.count}</div>
           </div>
       `;
@@ -220,4 +229,75 @@
       executeRecall();
     }
   });
+
+  // Budget-vs-latency explorer
+  async function budgetExplore() {
+    const query = document.getElementById("recall-query").value.trim();
+    if (!query) return;
+    const ns = document.getElementById("recall-ns").value.trim() || "";
+    const btn = document.getElementById("budget-explore-btn");
+    const container = document.getElementById("budget-explore-area");
+    if (!container) return;
+
+    btn.disabled = true;
+    btn.textContent = "Running\u2026";
+    container.innerHTML = '<div class="recall-loading">Running 5 budget variants\u2026</div>';
+
+    try {
+      const params = new URLSearchParams({ q: query });
+      if (ns) params.set("namespace", ns);
+      const res = await fetch("/ui/recall/budget-explore.json?" + params);
+      const data = await res.json();
+      if (data.error) {
+        container.innerHTML = `<div class="recall-empty">${esc(data.error)}</div>`;
+        return;
+      }
+      renderBudgetChart(data, container);
+    } catch (e) {
+      container.innerHTML = `<div class="recall-empty">Error: ${esc(e.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Budget Explorer";
+    }
+  }
+
+  function renderBudgetChart(data, container) {
+    const budgets = data.budgets || [];
+    if (!budgets.length) { container.innerHTML = ""; return; }
+
+    const maxMs = Math.max.apply(null, budgets.map(b => b.latency_ms)) || 1;
+    const maxCount = Math.max.apply(null, budgets.map(b => b.result_count)) || 1;
+
+    let html = '<div class="budget-chart">';
+    html += '<div class="budget-chart__title">Budget vs Latency &amp; Results</div>';
+    html += '<div class="budget-chart__bars">';
+
+    budgets.forEach((b) => {
+      const msPct = Math.min(100, (b.latency_ms / maxMs) * 100);
+      const countPct = Math.min(100, (b.result_count / maxCount) * 100);
+      const msColor = b.latency_ms < 10 ? "var(--verdigris)" : b.latency_ms < 50 ? "var(--brass)" : "var(--rust)";
+      html += `
+        <div class="budget-row">
+          <div class="budget-row__label">${b.budget.toLocaleString()}</div>
+          <div class="budget-row__bars">
+            <div class="budget-row__bar budget-row__bar--ms" style="width:${msPct}%;background:${msColor}">
+              <span>${b.latency_ms.toFixed(1)} ms</span>
+            </div>
+            <div class="budget-row__bar budget-row__bar--count" style="width:${countPct}%">
+              <span>${b.result_count} results</span>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    html += '</div></div>';
+    container.innerHTML = html;
+  }
+
+  // Wire up budget explore button if present
+  const budgetBtn = document.getElementById("budget-explore-btn");
+  if (budgetBtn) {
+    budgetBtn.addEventListener("click", budgetExplore);
+  }
 })();
