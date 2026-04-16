@@ -709,12 +709,11 @@ def _print_health_report(report):
             details.append(f"{check['nodes']} nodes, {check.get('edges', 0)} edges")
         if check.get("active_layers") is not None:
             details.append(f"{check['active_layers']}/{check['max_layers']} layers")
-        if check.get("note"):
-            details.append(check["note"])
-
         detail_str = f" ({', '.join(details)})" if details else ""
         print(f"  [{icon}] {name}{detail_str}")
 
+        if check.get("note"):
+            print(f"     ^ {check['note']}")
         if status == "error" and check.get("error"):
             print(f"     {check['error']}")
 
