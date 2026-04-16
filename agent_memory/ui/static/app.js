@@ -1,6 +1,23 @@
 // Minimal UI choreography. HTMX handles fragment swapping;
 // this file only adds micro-behaviors that CSS can't express.
 
+// Theme toggle — must be global for onclick="toggleTheme()"
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("memwright-theme", theme);
+}
+
+function toggleTheme() {
+  var current = document.documentElement.getAttribute("data-theme") || "dark";
+  applyTheme(current === "dark" ? "light" : "dark");
+}
+
+// Apply saved theme immediately (before DOMContentLoaded to avoid flash)
+(function () {
+  var saved = localStorage.getItem("memwright-theme");
+  if (saved) applyTheme(saved);
+})();
+
 (function () {
   // 1) Stagger card index CSS var so the load animation waterfalls.
   document.querySelectorAll(".card").forEach((el, i) => {
