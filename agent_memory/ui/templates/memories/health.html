@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}System Health · Memwright{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <h1 class="page-head__title">System<br><em>Health.</em></h1>
+  <div class="page-head__meta">
+    <div>Component Diagnostics</div>
+    <div>auto-refresh · 30s</div>
+    <div>read-only</div>
+  </div>
+</section>
+
+<section class="health-area" id="health-area">
+  <div class="health-loading">Polling component diagnostics&hellip;</div>
+</section>
+
+<script src="/ui/static/health.js"></script>
+
+{% endblock %}

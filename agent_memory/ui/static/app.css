@@ -1367,6 +1367,89 @@ select.field {
 }
 
 /* ============================================================
+   PAGINATION
+   ============================================================ */
+.pager {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; justify-content: center;
+  gap: 18px; padding: 28px 0 8px;
+  font-family: var(--f-mono); font-size: 10px;
+  letter-spacing: 0.22em; text-transform: uppercase;
+}
+.pager__btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--f-mono); font-size: 10px;
+  letter-spacing: 0.25em; text-transform: uppercase;
+  color: var(--paper); background: transparent;
+  border: 1px solid var(--rule-strong); padding: 9px 16px;
+  cursor: pointer; text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.pager__btn:hover { border-color: var(--rust); color: var(--rust); }
+.pager__btn--disabled { color: var(--ghost); border-color: var(--rule); opacity: 0.4; cursor: default; pointer-events: none; }
+.pager__current { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.18em; color: var(--rust); }
+.pager__current b { font-weight: 400; font-size: 16px; }
+
+/* ============================================================
+   EXPORT BUTTONS
+   ============================================================ */
+.btn--secondary { border-color: var(--rule-strong); color: var(--ghost); }
+.btn--secondary:hover { border-color: var(--verdigris); color: var(--verdigris); }
+
+/* ============================================================
+   HEALTH DASHBOARD
+   ============================================================ */
+.health-area { padding: 0 40px 80px; }
+.health-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 24px; margin: 24px 0;
+  font-family: var(--f-mono); font-size: 12px;
+  letter-spacing: 0.32em; text-transform: uppercase;
+  border: 1px solid var(--rule);
+}
+.health-banner--ok { border-left: 4px solid var(--verdigris); color: var(--verdigris); }
+.health-banner--error { border-left: 4px solid var(--rust); color: var(--rust); }
+.health-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.health-dot--ok { background: var(--verdigris); box-shadow: 0 0 8px var(--verdigris); }
+.health-dot--error { background: var(--rust); box-shadow: 0 0 8px var(--rust); }
+.health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
+.health-empty, .health-loading { text-align: center; padding: 80px 20px; font-family: var(--f-display); font-style: italic; font-size: 20px; color: var(--ghost); font-variation-settings: "opsz" 144, "SOFT" 100; }
+@keyframes health-card-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+.health-card { background: var(--ink-raised); border: 1px solid var(--rule); border-left: 3px solid var(--layer-color, var(--ghost)); padding: 20px 24px; animation: health-card-in 0.45s cubic-bezier(.2,.8,.2,1) both; }
+.health-card__head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px dashed var(--rule); }
+.health-card__icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--layer-color, var(--ghost)); color: var(--layer-color, var(--ghost)); font-family: var(--f-mono); font-size: 14px; flex-shrink: 0; }
+.health-card__info { flex: 1; min-width: 0; }
+.health-card__name { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--paper); }
+.health-card__check-name { font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.12em; color: var(--ghost); margin-top: 2px; }
+.health-card__status { font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ghost); }
+.health-metrics { padding: 4px 0; }
+.health-metric { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 1px dashed var(--rule); }
+.health-metric__label { font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--ghost); }
+.health-metric__value { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.04em; color: var(--paper); }
+.health-layers { display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 0 4px; }
+.health-layer-tag { font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--paper); border: 1px solid var(--rule-strong); padding: 2px 8px; }
+.health-note { font-family: var(--f-mono); font-size: 10px; color: var(--ghost); padding: 8px 0 2px; font-style: italic; }
+.health-error { font-family: var(--f-mono); font-size: 10px; color: var(--rust); padding: 8px 0 2px; }
+.health-refresh-note { font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--ghost); text-align: center; padding: 24px 0 0; opacity: 0.5; }
+@media (max-width: 960px) { .health-area { padding: 0 20px 80px; } .health-grid { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   CONFIG VIEWER
+   ============================================================ */
+.cfg-area { min-height: 400px; }
+.cfg-loading { text-align: center; padding: 80px 20px; font-family: var(--f-display); font-style: italic; font-size: 20px; color: var(--ghost); font-variation-settings: "opsz" 144, "SOFT" 100; }
+.cfg-section-label { font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--rust); margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--rule); }
+.cfg-section-label:first-child { margin-top: 0; }
+.cfg-kv { margin-bottom: 0; }
+.cfg-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.cfg-dot--ok { background: var(--verdigris); }
+.cfg-dot--err { background: var(--rust); }
+.cfg-health-list { font-family: var(--f-mono); font-size: 10px; }
+.cfg-health-item { padding: 5px 0; border-bottom: 1px dashed var(--rule); color: var(--paper); display: flex; align-items: center; }
+.cfg-health-name { letter-spacing: 0.12em; }
+.cfg-health-err { color: var(--rust); font-size: 9px; margin-left: 8px; }
+
+/* ============================================================
    SELECTION
    ============================================================ */
 ::selection { background: var(--rust); color: var(--paper); }

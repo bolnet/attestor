@@ -7,6 +7,8 @@ mutates the store.
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import os
 from pathlib import Path
@@ -14,7 +16,7 @@ from typing import Any, Dict, List, Optional
 
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
+from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
@@ -92,29 +94,64 @@ async def index(request: Request) -> RedirectResponse:
     return RedirectResponse(url="/ui/memories", status_code=302)
 
 
-async def memories_list(request: Request) -> HTMLResponse:
-    mem = _get_mem(request)
+def _parse_filters(request: Request) -> Dict[str, Optional[str]]:
+    """Extract filter params from request, returning a frozen dict."""
+    return {
+        "q": request.query_params.get("q") or None,
+        "namespace": request.query_params.get("namespace") or None,
+        "category": request.query_params.get("category") or None,
+        "entity": request.query_params.get("entity") or None,
+        "status": request.query_params.get("status") or "active",
+    }
 
-    q = request.query_params.get("q") or None
-    namespace = request.query_params.get("namespace") or None
-    category = request.query_params.get("category") or None
-    entity = request.query_params.get("entity") or None
-    status = request.query_params.get("status") or "active"
-    limit = int(request.query_params.get("limit") or 60)
 
+def _search_with_filters(
+    mem, filters: Dict[str, Optional[str]], limit: int,
+) -> List:
+    """Run mem.search with the given filters dict."""
     try:
-        results = mem.search(
-            query=q,
-            category=category,
-            entity=entity,
-            namespace=namespace,
-            status=status,
+        return mem.search(
+            query=filters["q"],
+            category=filters["category"],
+            entity=filters["entity"],
+            namespace=filters["namespace"],
+            status=filters["status"] or "active",
             limit=limit,
         )
     except Exception:
-        results = []
+        return []
 
-    memories = [_memory_to_dict(m) for m in results]
+
+def _filters_display(filters: Dict[str, Optional[str]]) -> Dict[str, str]:
+    """Return a template-friendly copy with empty strings instead of None."""
+    return {k: (v or "") for k, v in filters.items()}
+
+
+def _filter_query_string(filters: Dict[str, Optional[str]]) -> str:
+    """Build a URL query string fragment from active filters (no leading &)."""
+    parts = []
+    for k, v in filters.items():
+        if v:
+            parts.append(f"{k}={v}")
+    return "&".join(parts)
+
+
+async def memories_list(request: Request) -> HTMLResponse:
+    mem = _get_mem(request)
+    per_page = 60
+    page = max(1, int(request.query_params.get("page") or 1))
+
+    filters = _parse_filters(request)
+
+    # Fetch one extra to detect a next page
+    results = _search_with_filters(mem, filters, limit=(page * per_page) + 1)
+
+    # Slice for the current page
+    offset = (page - 1) * per_page
+    page_results = results[offset : offset + per_page]
+    has_next = len(results) > offset + per_page
+
+    memories = [_memory_to_dict(m) for m in page_results]
 
     # Assign a subtle, deterministic rotation per card so the page feels pinned.
     for i, m in enumerate(memories):
@@ -124,18 +161,62 @@ async def memories_list(request: Request) -> HTMLResponse:
         "request": request,
         "memories": memories,
         "total": len(memories),
-        "filters": {
-            "q": q or "",
-            "namespace": namespace or "",
-            "category": category or "",
-            "entity": entity or "",
-            "status": status,
-        },
+        "page": page,
+        "per_page": per_page,
+        "has_next": has_next,
+        "has_prev": page > 1,
+        "filters": _filters_display(filters),
+        "filter_qs": _filter_query_string(filters),
         **_common_context(request, mem),
     }
 
     template = "memories/_grid.html" if _is_htmx(request) else "memories/list.html"
     return _TEMPLATES.TemplateResponse(request, template, ctx)
+
+
+async def memories_export_json(request: Request) -> JSONResponse:
+    """Export matching memories as a JSON array (up to 5000)."""
+    mem = _get_mem(request)
+    filters = _parse_filters(request)
+    results = _search_with_filters(mem, filters, limit=5000)
+    data = [_memory_to_dict(m) for m in results]
+    return JSONResponse(
+        data,
+        headers={
+            "Content-Disposition": 'attachment; filename="memwright-export.json"',
+        },
+    )
+
+
+async def memories_export_csv(request: Request) -> Response:
+    """Export matching memories as CSV (up to 5000)."""
+    mem = _get_mem(request)
+    filters = _parse_filters(request)
+    results = _search_with_filters(mem, filters, limit=5000)
+    data = [_memory_to_dict(m) for m in results]
+
+    columns = [
+        "id", "content", "category", "entity", "namespace",
+        "created_at", "status", "confidence", "tags",
+        "event_date", "valid_from", "valid_until",
+        "superseded_by", "access_count", "content_hash",
+    ]
+
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+    for row in data:
+        # Flatten tags list to semicolon-separated string
+        row_copy = {**row, "tags": ";".join(row.get("tags") or [])}
+        writer.writerow(row_copy)
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": 'attachment; filename="memwright-export.csv"',
+        },
+    )
 
 
 async def memory_detail(request: Request) -> HTMLResponse:
@@ -501,12 +582,116 @@ async def agents_json(request: Request) -> JSONResponse:
     return JSONResponse({"namespaces": namespaces})
 
 
+async def health_page(request: Request) -> HTMLResponse:
+    """System Health dashboard — component diagnostics with auto-refresh."""
+    mem = _get_mem(request)
+    ctx = {"request": request, **_common_context(request, mem)}
+    return _TEMPLATES.TemplateResponse(request, "memories/health.html", ctx)
+
+
 async def health_json(request: Request) -> JSONResponse:
     mem = _get_mem(request)
     try:
         return JSONResponse(mem.health())
     except Exception as e:
         return JSONResponse({"healthy": False, "error": str(e)}, status_code=500)
+
+
+async def config_page(request: Request) -> HTMLResponse:
+    """Configuration viewer — system parameters, backends, retrieval tuning."""
+    mem = _get_mem(request)
+    ctx = {"request": request, **_common_context(request, mem)}
+    return _TEMPLATES.TemplateResponse(request, "memories/config.html", ctx)
+
+
+async def config_json(request: Request) -> JSONResponse:
+    """Return full configuration snapshot as JSON."""
+    mem = _get_mem(request)
+
+    config = mem.config
+    retrieval = getattr(mem, "_retrieval", None)
+
+    from agent_memory.store.registry import resolve_backends
+    backends = getattr(config, "backends", None) or ["sqlite", "chroma", "networkx"]
+    try:
+        role_assignments = resolve_backends(backends)
+    except Exception:
+        role_assignments = {}
+
+    store_paths: Dict[str, Any] = {}
+    doc_store = getattr(mem, "_store", None)
+    if doc_store and hasattr(doc_store, "db_path"):
+        store_paths["db_path"] = str(doc_store.db_path)
+        try:
+            store_paths["db_size_bytes"] = doc_store.db_path.stat().st_size
+        except Exception:
+            pass
+    graph = getattr(mem, "_graph", None)
+    if graph and hasattr(graph, "graph_path"):
+        store_paths["graph_path"] = str(graph.graph_path)
+
+    embedding: Dict[str, Any] = {}
+    vector_store = getattr(mem, "_vector_store", None)
+    if vector_store:
+        if hasattr(vector_store, "provider"):
+            embedding["provider"] = vector_store.provider
+        if hasattr(vector_store, "count"):
+            try:
+                embedding["vector_count"] = vector_store.count()
+            except Exception:
+                pass
+
+    retrieval_data: Dict[str, Any] = {
+        "fusion_mode": getattr(config, "fusion_mode", "rrf"),
+        "enable_mmr": getattr(config, "enable_mmr", True),
+        "mmr_lambda": getattr(config, "mmr_lambda", 0.7),
+        "min_results": getattr(config, "min_results", 3),
+        "default_token_budget": getattr(config, "default_token_budget", 16000),
+        "confidence_gate": getattr(config, "confidence_gate", 0.0),
+        "confidence_decay_rate": getattr(config, "confidence_decay_rate", 0.001),
+        "confidence_boost_rate": getattr(config, "confidence_boost_rate", 0.03),
+        "rrf_k": 60,
+        "graph_bfs_depth": 2,
+    }
+
+    health_data: Dict[str, Any] = {}
+    try:
+        health_data = mem.health()
+    except Exception:
+        health_data = {"healthy": False, "checks": []}
+
+    for check in health_data.get("checks", []):
+        if check.get("name") == "Retrieval Pipeline":
+            retrieval_data["active_layers"] = check.get("layers", [])
+            retrieval_data["max_layers"] = check.get("max_layers", 3)
+
+    stats: Dict[str, Any] = {}
+    try:
+        stats = mem.stats()
+    except Exception:
+        pass
+
+    graph_stats: Dict[str, Any] = {}
+    if graph and hasattr(graph, "graph_stats"):
+        try:
+            graph_stats = graph.graph_stats()
+        except Exception:
+            pass
+
+    result: Dict[str, Any] = {
+        "store_path": str(mem.path),
+        "backends": backends,
+        "role_assignments": role_assignments,
+        "store_paths": store_paths,
+        "embedding": embedding,
+        "retrieval": retrieval_data,
+        "stats": stats,
+        "graph_stats": graph_stats,
+        "backend_configs": getattr(config, "backend_configs", {}),
+        "health": health_data,
+    }
+
+    return JSONResponse(result)
 
 
 def ui_routes() -> list:
@@ -516,6 +701,8 @@ def ui_routes() -> list:
         Route("/ui", index),
         Route("/ui/", index),
         Route("/ui/memories", memories_list),
+        Route("/ui/memories/export.json", memories_export_json),
+        Route("/ui/memories/export.csv", memories_export_csv),
         Route("/ui/memories/{memory_id}", memory_detail),
         Route("/ui/graph", graph_page),
         Route("/ui/graph.json", graph_json),
@@ -525,7 +712,10 @@ def ui_routes() -> list:
         Route("/ui/timeline.json", timeline_json),
         Route("/ui/agents", agents_page),
         Route("/ui/agents.json", agents_json),
+        Route("/ui/health", health_page),
         Route("/ui/health.json", health_json),
+        Route("/ui/config", config_page),
+        Route("/ui/config.json", config_json),
         Mount(
             "/ui/static",
             StaticFiles(directory=str(_UI_DIR / "static")),
