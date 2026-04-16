@@ -50,6 +50,63 @@
     renderConfig(data.config);
   }
 
+  function renderPipelineDiagram(data) {
+    const layers = data.layers || [];
+    if (layers.length === 0) return "";
+
+    const LAYER_SHORT = ["Tag", "Graph", "Vector", "Fused", "Final"];
+
+    let html = `<div class="recall-diagram">`;
+    layers.forEach((layer, i) => {
+      const color = LAYER_COLORS[i] || "var(--ghost)";
+      const stepDelay = i * 120;
+      const arrowDelay = i * 120 + 60;
+
+      if (i > 0) {
+        html += `<div class="recall-diagram__arrow" style="animation-delay:${arrowDelay}ms">&rarr;</div>`;
+      }
+
+      html += `
+        <div class="recall-diagram__step" style="--layer-color:${color}; animation-delay:${stepDelay}ms">
+          <div class="recall-diagram__num">Layer ${i + 1}</div>
+          <div class="recall-diagram__name">${esc(layer.name)}</div>
+          <div class="recall-diagram__count">${layer.count}</div>
+          <div class="recall-diagram__count-label">results</div>
+        </div>
+      `;
+    });
+
+    // Summary line: total input candidates -> final output
+    const firstCount = layers.length > 0 ? layers[0].count : 0;
+    const lastCount = layers.length > 0 ? layers[layers.length - 1].count : 0;
+    html += `
+      <div class="recall-diagram__summary">
+        <span class="recall-diagram__summary-count">${firstCount}</span> candidates entered
+        &rarr;
+        <span class="recall-diagram__summary-count">${lastCount}</span> results delivered
+      </div>
+    `;
+
+    // Funnel metric: Tag: N -> Graph: N -> Vector: N -> Fused: N -> Final: N
+    html += `<div class="recall-funnel">`;
+    layers.forEach((layer, i) => {
+      if (i > 0) {
+        html += `<span class="recall-funnel__arrow">&rarr;</span>`;
+      }
+      const shortName = LAYER_SHORT[i] || layer.name;
+      html += `
+        <span class="recall-funnel__step">
+          <span class="recall-funnel__step-name">${esc(shortName)}</span>
+          <span class="recall-funnel__step-count">${layer.count}</span>
+        </span>
+      `;
+    });
+    html += `</div>`;
+
+    html += `</div>`;
+    return html;
+  }
+
   function renderTrace(data, container) {
     let html = `
       <div class="recall-header">
@@ -58,7 +115,11 @@
           ${data.namespace ? `namespace: ${esc(data.namespace)} · ` : ""}budget: ${data.token_budget} tokens · ${data.final_count} results
         </div>
       </div>
-      <div class="recall-pipeline">
+    `;
+
+    html += renderPipelineDiagram(data);
+
+    html += `<div class="recall-pipeline">
     `;
 
     data.layers.forEach((layer, i) => {

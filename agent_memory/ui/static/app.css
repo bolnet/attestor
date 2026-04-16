@@ -1106,6 +1106,143 @@ select.field {
   opacity: 0.5;
 }
 
+/* RECALL PIPELINE DIAGRAM */
+@keyframes diagram-step-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes diagram-arrow-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.recall-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 24px 0 32px;
+  flex-wrap: wrap;
+}
+
+.recall-diagram__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 18px 12px;
+  background: var(--ink-raised);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--layer-color, var(--ghost));
+  min-width: 100px;
+  text-align: center;
+  animation: diagram-step-in 0.45s cubic-bezier(.2,.8,.2,1) both;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.recall-diagram__step:hover {
+  border-color: var(--layer-color, var(--ghost));
+  transform: translateY(-2px);
+}
+
+.recall-diagram__num {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ghost);
+  margin-bottom: 4px;
+}
+.recall-diagram__name {
+  font-family: var(--f-display);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--paper);
+  font-variation-settings: "opsz" 14, "SOFT" 50;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+.recall-diagram__count {
+  font-family: var(--f-mono);
+  font-size: 22px;
+  color: var(--layer-color, var(--paper));
+  line-height: 1;
+}
+.recall-diagram__count-label {
+  font-family: var(--f-mono);
+  font-size: 8px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ghost);
+  margin-top: 3px;
+}
+
+.recall-diagram__arrow {
+  font-family: var(--f-mono);
+  font-size: 16px;
+  color: var(--ghost);
+  padding: 0 6px;
+  opacity: 0.5;
+  animation: diagram-arrow-in 0.35s cubic-bezier(.2,.8,.2,1) both;
+  user-select: none;
+}
+
+.recall-diagram__summary {
+  width: 100%;
+  text-align: center;
+  padding: 16px 0 0;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ghost);
+}
+.recall-diagram__summary-count {
+  color: var(--paper);
+  font-size: 12px;
+}
+
+.recall-funnel {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 12px 0 6px;
+  flex-wrap: wrap;
+}
+.recall-funnel__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ghost);
+}
+.recall-funnel__step-name {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 9px;
+}
+.recall-funnel__step-count {
+  color: var(--paper);
+  font-size: 12px;
+}
+.recall-funnel__arrow {
+  padding: 0 8px;
+  color: var(--ghost);
+  opacity: 0.4;
+  font-size: 10px;
+}
+
+@media (max-width: 960px) {
+  .recall-diagram { padding: 16px 0 20px; }
+  .recall-diagram__step { min-width: 70px; padding: 10px 10px 8px; }
+  .recall-diagram__name { font-size: 11px; }
+  .recall-diagram__count { font-size: 18px; }
+  .recall-diagram__arrow { padding: 0 3px; font-size: 12px; }
+  .recall-funnel { gap: 0; }
+  .recall-funnel__arrow { padding: 0 4px; }
+}
+
 /* ---- Config sidebar ---- */
 .recall-config-list {
   font-family: var(--f-mono);
@@ -1452,4 +1589,15 @@ select.field {
 /* ============================================================
    SELECTION
    ============================================================ */
+/* ============================================================
+   SEARCH HIGHLIGHTING
+   ============================================================ */
+.hl, mark.hl {
+  background: rgba(199, 81, 70, 0.25);
+  color: inherit;
+  padding: 1px 2px;
+  border-bottom: 1px solid var(--rust);
+  border-radius: 0;
+}
+
 ::selection { background: var(--rust); color: var(--paper); }
