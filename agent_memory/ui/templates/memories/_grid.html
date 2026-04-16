@@ -1,4 +1,4 @@
-<div class="grid" id="grid">
+<div class="grid" id="grid" data-query="{{ filters.q }}">
   {% for m in memories %}
     <a class="card" href="/ui/memories/{{ m.id }}" data-tilt="{{ '%.2f' % m.tilt }}">
       <div class="card__head">

@@ -33,4 +33,58 @@
       tick.dataset.secs = String(secs);
     }, 1000);
   }
+
+  // 5) Search result highlighting in Evidence Board cards.
+  function highlightTerms() {
+    const grid = document.getElementById("grid");
+    if (!grid) return;
+    const raw = (grid.dataset.query || "").trim();
+    if (!raw) return;
+
+    const terms = raw.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!terms.length) return;
+
+    // Build one regex that matches any term, longest first to avoid
+    // partial-match clobbering (e.g. "react" before "re").
+    const sorted = terms.slice().sort((a, b) => b.length - a.length);
+    const escaped = sorted.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const re = new RegExp("(" + escaped.join("|") + ")", "gi");
+
+    grid.querySelectorAll(".card__body").forEach((el) => {
+      // Walk text nodes only — preserves any existing HTML structure.
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+
+      nodes.forEach((textNode) => {
+        const text = textNode.nodeValue;
+        if (!re.test(text)) return;
+        re.lastIndex = 0; // reset after .test()
+
+        const frag = document.createDocumentFragment();
+        let lastIdx = 0;
+        let match;
+        while ((match = re.exec(text)) !== null) {
+          if (match.index > lastIdx) {
+            frag.appendChild(document.createTextNode(text.slice(lastIdx, match.index)));
+          }
+          const mark = document.createElement("mark");
+          mark.className = "hl";
+          mark.textContent = match[0];
+          frag.appendChild(mark);
+          lastIdx = re.lastIndex;
+        }
+        if (lastIdx < text.length) {
+          frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+        }
+        textNode.parentNode.replaceChild(frag, textNode);
+      });
+    });
+  }
+
+  // Run on initial load.
+  highlightTerms();
+
+  // Re-run after HTMX swaps (pagination, filter updates).
+  document.body.addEventListener("htmx:afterSwap", highlightTerms);
 })();
