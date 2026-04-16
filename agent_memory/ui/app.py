@@ -240,6 +240,267 @@ async def memory_detail(request: Request) -> HTMLResponse:
     return _TEMPLATES.TemplateResponse(request, "memories/detail.html", ctx)
 
 
+async def graph_page(request: Request) -> HTMLResponse:
+    """Full knowledge graph visualization via Cytoscape.js."""
+    mem = _get_mem(request)
+
+    graph_stats: Dict[str, Any] = {}
+    try:
+        g = getattr(mem, "_graph", None)
+        if g is not None:
+            graph_stats = g.graph_stats()
+    except Exception:
+        pass
+
+    ctx = {
+        "request": request,
+        "graph_stats": graph_stats,
+        **_common_context(request, mem),
+    }
+    return _TEMPLATES.TemplateResponse(request, "memories/graph.html", ctx)
+
+
+async def graph_json(request: Request) -> JSONResponse:
+    """Return full graph data for Cytoscape.js consumption."""
+    mem = _get_mem(request)
+
+    g = getattr(mem, "_graph", None)
+    if g is None:
+        return JSONResponse({"nodes": [], "edges": [], "stats": {}, "pagerank": {}})
+
+    # Optional entity-type filter
+    entity_type = request.query_params.get("type") or None
+
+    entities = g.get_entities(entity_type=entity_type)
+    pr = {}
+    try:
+        pr = mem.pagerank() or {}
+    except Exception:
+        pass
+
+    stats = {}
+    try:
+        stats = g.graph_stats()
+    except Exception:
+        pass
+
+    nodes = []
+    node_keys = {e["key"] for e in entities}
+    for e in entities:
+        nodes.append({
+            "id": e["key"],
+            "label": e["name"],
+            "type": e.get("type", "general"),
+            "pagerank": round(pr.get(e["key"], 0.0), 6),
+        })
+
+    edges = []
+    try:
+        nx_graph = getattr(g, "_graph", None)
+        if nx_graph is not None:
+            for u, v, _key, data in nx_graph.edges(keys=True, data=True):
+                if u in node_keys and v in node_keys:
+                    edges.append({
+                        "source": u,
+                        "target": v,
+                        "type": data.get("relation_type", "RELATED_TO"),
+                    })
+    except Exception:
+        pass
+
+    return JSONResponse({
+        "nodes": nodes,
+        "edges": edges,
+        "stats": stats,
+        "pagerank": pr,
+    })
+
+
+async def recall_page(request: Request) -> HTMLResponse:
+    """Recall pipeline replay — interactive query with layer-by-layer trace."""
+    mem = _get_mem(request)
+    ctx = {
+        "request": request,
+        **_common_context(request, mem),
+    }
+    return _TEMPLATES.TemplateResponse(request, "memories/recall.html", ctx)
+
+
+async def recall_json(request: Request) -> JSONResponse:
+    """Execute recall with debug trace and return per-layer results."""
+    mem = _get_mem(request)
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+    query = body.get("query", "").strip()
+    if not query:
+        return JSONResponse({"error": "query is required"}, status_code=400)
+
+    namespace = body.get("namespace") or None
+    budget = int(body.get("budget", 2000))
+
+    retrieval = getattr(mem, "_retrieval", None)
+    if retrieval is None:
+        return JSONResponse({"error": "No retrieval orchestrator"}, status_code=500)
+
+    try:
+        trace = retrieval.recall_debug(query, token_budget=budget, namespace=namespace)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+    return JSONResponse(trace)
+
+
+async def timeline_page(request: Request) -> HTMLResponse:
+    """Temporal timeline — visualise memory validity, supersession, and as-of replay."""
+    mem = _get_mem(request)
+    ctx = {"request": request, **_common_context(request, mem)}
+    return _TEMPLATES.TemplateResponse(request, "memories/timeline.html", ctx)
+
+
+async def timeline_json(request: Request) -> JSONResponse:
+    """Return memories sorted by created_at for timeline rendering."""
+    mem = _get_mem(request)
+
+    namespace = request.query_params.get("namespace") or None
+    entity = request.query_params.get("entity") or None
+    status = request.query_params.get("status") or None
+    date_from = request.query_params.get("from") or None
+    date_to = request.query_params.get("to") or None
+    as_of = request.query_params.get("as_of") or None
+
+    try:
+        search_status = status if status and status != "all" else None
+        results = mem.search(
+            query=None, namespace=namespace, status=search_status, limit=500,
+        )
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+    memories = []
+    for m in results:
+        if entity and (getattr(m, "entity", None) or "").lower() != entity.lower():
+            continue
+        created = getattr(m, "created_at", "") or ""
+        if date_from and created[:10] < date_from:
+            continue
+        if date_to and created[:10] > date_to:
+            continue
+        if as_of:
+            vf = getattr(m, "valid_from", "") or ""
+            vu = getattr(m, "valid_until", None)
+            if vf and as_of < vf:
+                continue
+            if vu and as_of > vu:
+                continue
+        memories.append(_memory_to_dict(m))
+
+    memories.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return JSONResponse({"memories": memories})
+
+
+async def agents_page(request: Request) -> HTMLResponse:
+    """Agent Registry — namespace-level view of agent activity."""
+    mem = _get_mem(request)
+    ctx = {"request": request, **_common_context(request, mem)}
+    return _TEMPLATES.TemplateResponse(request, "memories/agents.html", ctx)
+
+
+async def agents_json(request: Request) -> JSONResponse:
+    """Return namespace-level agent data for the agents UI."""
+    mem = _get_mem(request)
+    detail_ns = request.query_params.get("namespace") or None
+    is_detail = request.query_params.get("detail") == "1"
+    page = int(request.query_params.get("page") or 1)
+    per_page = 20
+
+    if is_detail and detail_ns:
+        try:
+            results = mem.search(namespace=detail_ns, limit=500)
+        except Exception:
+            results = []
+        memories = [_memory_to_dict(m) for m in results]
+        memories.sort(key=lambda m: m.get("created_at") or "", reverse=True)
+        entity_counts: Dict[str, int] = {}
+        cat_counts: Dict[str, int] = {}
+        for m in memories:
+            ent = m.get("entity")
+            if ent:
+                entity_counts[ent] = entity_counts.get(ent, 0) + 1
+            cat = m.get("category") or "general"
+            cat_counts[cat] = cat_counts.get(cat, 0) + 1
+        entity_freq = sorted(
+            [{"name": k, "count": v} for k, v in entity_counts.items()],
+            key=lambda x: x["count"], reverse=True,
+        )[:30]
+        categories = sorted(
+            [{"name": k, "count": v} for k, v in cat_counts.items()],
+            key=lambda x: x["count"], reverse=True,
+        )
+        start = (page - 1) * per_page
+        return JSONResponse({
+            "namespace_detail": {
+                "namespace": detail_ns,
+                "memory_count": len(memories),
+                "page": page,
+                "latest_date": memories[0].get("created_at") if memories else None,
+                "entity_freq": entity_freq,
+                "categories": categories,
+                "memories": memories[start:start + per_page],
+            }
+        })
+
+    # Overview: all namespaces
+    try:
+        all_memories = mem.search(limit=2000)
+    except Exception:
+        all_memories = []
+
+    ns_data: Dict[str, List[Dict[str, Any]]] = {}
+    for m in all_memories:
+        d = _memory_to_dict(m)
+        ns = d.get("namespace") or "default"
+        ns_data.setdefault(ns, []).append(d)
+
+    from datetime import datetime, timedelta
+
+    today = datetime.utcnow().date()
+    namespaces = []
+    for ns_name, mems in sorted(ns_data.items()):
+        mems.sort(key=lambda m: m.get("created_at") or "", reverse=True)
+        cat_counts: Dict[str, int] = {}
+        entity_counts: Dict[str, int] = {}
+        for m in mems:
+            cat_counts[m.get("category") or "general"] = cat_counts.get(m.get("category") or "general", 0) + 1
+            if m.get("entity"):
+                entity_counts[m["entity"]] = entity_counts.get(m["entity"], 0) + 1
+        categories = sorted(
+            [{"name": k, "count": v} for k, v in cat_counts.items()],
+            key=lambda x: x["count"], reverse=True,
+        )
+        top_entities = sorted(
+            [{"name": k, "count": v} for k, v in entity_counts.items()],
+            key=lambda x: x["count"], reverse=True,
+        )[:5]
+        activity = []
+        for days_ago in range(13, -1, -1):
+            d = today - timedelta(days=days_ago)
+            ds = d.isoformat()
+            activity.append({"date": ds, "count": sum(1 for m in mems if (m.get("created_at") or "")[:10] == ds)})
+        namespaces.append({
+            "namespace": ns_name,
+            "memory_count": len(mems),
+            "latest_date": mems[0].get("created_at") if mems else None,
+            "categories": categories,
+            "top_entities": top_entities,
+            "activity": activity,
+        })
+    return JSONResponse({"namespaces": namespaces})
+
+
 async def health_json(request: Request) -> JSONResponse:
     mem = _get_mem(request)
     try:
@@ -256,6 +517,14 @@ def ui_routes() -> list:
         Route("/ui/", index),
         Route("/ui/memories", memories_list),
         Route("/ui/memories/{memory_id}", memory_detail),
+        Route("/ui/graph", graph_page),
+        Route("/ui/graph.json", graph_json),
+        Route("/ui/recall", recall_page),
+        Route("/ui/recall.json", recall_json, methods=["POST"]),
+        Route("/ui/timeline", timeline_page),
+        Route("/ui/timeline.json", timeline_json),
+        Route("/ui/agents", agents_page),
+        Route("/ui/agents.json", agents_json),
         Route("/ui/health.json", health_json),
         Mount(
             "/ui/static",
