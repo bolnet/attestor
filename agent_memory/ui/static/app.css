@@ -43,6 +43,64 @@
   --f-mono:      "Departure Mono", "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 
+/* -------- Light theme overrides -------- */
+[data-theme="light"] {
+  --ink:          #F4F1EB;
+  --ink-raised:   #FFFFFF;
+  --ink-deep:     #EAE5DA;
+  --paper:        #1A1C22;
+  --paper-warm:   #2C2E34;
+  --paper-aged:   #4A4D56;
+  --paper-shade:  #6B6E78;
+
+  --rust:         #B5382E;
+  --rust-deep:    #8B2E26;
+  --verdigris:    #3A6C6E;
+  --brass:        #B8901E;
+  --indigo:       #2E3D5A;
+  --ghost:        rgba(26, 28, 34, 0.55);
+
+  --rule:         rgba(26, 28, 34, 0.10);
+  --rule-strong:  rgba(26, 28, 34, 0.22);
+}
+[data-theme="light"] body::before {
+  background-image:
+    linear-gradient(rgba(26,28,34,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26,28,34,0.04) 1px, transparent 1px),
+    linear-gradient(rgba(26,28,34,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26,28,34,0.02) 1px, transparent 1px);
+}
+[data-theme="light"] body::after {
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.06) 100%);
+}
+[data-theme="light"] .card {
+  background: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+[data-theme="light"] .topbar {
+  background: rgba(244, 241, 235, 0.92);
+  border-bottom-color: var(--rule-strong);
+}
+[data-theme="light"] .nav__link {
+  color: var(--paper-aged);
+}
+[data-theme="light"] .nav__link--active,
+[data-theme="light"] .nav__link:hover {
+  color: var(--paper);
+}
+[data-theme="light"] .field {
+  background: #FAFAF7;
+  border-color: var(--rule-strong);
+  color: var(--paper);
+}
+[data-theme="light"] .rail {
+  background: rgba(244, 241, 235, 0.6);
+}
+[data-theme="light"] .ticker {
+  background: rgba(244, 241, 235, 0.92);
+  border-top-color: var(--rule-strong);
+}
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 
