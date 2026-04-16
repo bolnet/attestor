@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Record {{ m.short_id }} · Memwright{% endblock %}
+{% block content %}
+
+<section class="dossier">
+  <nav class="dossier__crumbs">
+    <a href="/ui/memories">← Evidence Board</a> · Record · <span>{{ m.short_id }}</span>
+  </nav>
+
+  <div>
+    <article class="sheet">
+      <div class="sheet__classification">Dossier · Namespace {{ m.namespace }}</div>
+      {% set kind = "superseded" if m.status != "active" else ("decayed" if m.confidence < 0.5 else "active") %}
+      <div class="stamp stamp--{{ kind }} sheet__stamp">
+        <span>
+          <span class="stamp__pct">{{ m.confidence_pct }}</span>
+          <span class="stamp__label">{{ kind|upper }}</span>
+        </span>
+      </div>
+
+      <div class="sheet__id">Record <b>{{ m.id }}</b></div>
+      <h2 class="sheet__title">{{ m.content }}</h2>
+
+      <div class="dataline"><div class="dataline__k">Category</div><div class="dataline__v">{{ m.category }}</div></div>
+      <div class="dataline"><div class="dataline__k">Entity</div><div class="dataline__v">{{ m.entity or "—" }}</div></div>
+      <div class="dataline"><div class="dataline__k">Tags</div><div class="dataline__v">{{ m.tags|join(' · ') if m.tags else "—" }}</div></div>
+      <div class="dataline"><div class="dataline__k">Created</div><div class="dataline__v"><span class="hl">{{ m.created_at }}</span></div></div>
+      <div class="dataline"><div class="dataline__k">Event Date</div><div class="dataline__v">{{ m.event_date or "—" }}</div></div>
+      <div class="dataline"><div class="dataline__k">Valid From</div><div class="dataline__v">{{ m.valid_from or "—" }}</div></div>
+      <div class="dataline"><div class="dataline__k">Valid Until</div><div class="dataline__v">{{ m.valid_until or "open" }}</div></div>
+    </article>
+
+    <nav class="tabs" role="tablist">
+      {% set TABS = [('content','Content'),('provenance','Provenance'),('supersession','Supersession'),('embedding','Embedding'),('graph','Graph'),('access','Access')] %}
+      {% for key, label in TABS %}
+        <a class="tabs__item" href="?tab={{ key }}" {% if tab == key %}aria-current="page"{% endif %}>{{ loop.index0 + 1 }} · {{ label }}</a>
+      {% endfor %}
+    </nav>
+
+    <div class="panel">
+      {% if tab == 'content' %}
+        <h4>Full text</h4>
+        <p style="font-family: var(--f-display); font-size: 17px; line-height:1.65;">{{ m.content }}</p>
+
+      {% elif tab == 'provenance' %}
+        <h4>Origin</h4>
+        <dl class="kv">
+          <dt>Memory ID</dt><dd><code>{{ m.id }}</code></dd>
+          <dt>Content Hash</dt><dd><code>{{ m.content_hash or "—" }}</code></dd>
+          <dt>Namespace</dt><dd>{{ m.namespace }}</dd>
+          <dt>Status</dt><dd>{{ m.status }}</dd>
+          <dt>Superseded By</dt>
+          <dd>{% if m.superseded_by %}<a href="/ui/memories/{{ m.superseded_by }}">{{ m.superseded_by[:12] }}…</a>{% else %}—{% endif %}</dd>
+          <dt>Access Count</dt><dd>{{ m.access_count }}</dd>
+          <dt>Last Accessed</dt><dd>{{ m.last_accessed or "never" }}</dd>
+        </dl>
+
+        <h4>Agent metadata</h4>
+        <dl class="kv">
+          {% for k, v in (m.metadata or {}).items() %}
+            <dt>{{ k }}</dt><dd><code>{{ v }}</code></dd>
+          {% else %}
+            <dt>—</dt><dd>no agent metadata captured</dd>
+          {% endfor %}
+        </dl>
+
+      {% elif tab == 'supersession' %}
+        <h4>Chain</h4>
+        {% if predecessors or chain %}
+          <ul class="chain">
+            {% for p in predecessors|reverse %}
+              <li>
+                <div class="chain__ts">{{ p.created_date }} · superseded</div>
+                <a href="/ui/memories/{{ p.id }}">{{ p.excerpt }}</a>
+              </li>
+            {% endfor %}
+            <li class="is-current">
+              <div class="chain__ts">{{ m.created_date }} · this record</div>
+              <span>{{ m.excerpt }}</span>
+            </li>
+            {% for c in chain %}
+              <li>
+                <div class="chain__ts">{{ c.created_date }} · supersedes above</div>
+                <a href="/ui/memories/{{ c.id }}">{{ c.excerpt }}</a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>No supersession relationships recorded. This fact stands alone.</p>
+        {% endif %}
+
+      {% elif tab == 'embedding' %}
+        <h4>Nearest neighbors · cosine similarity</h4>
+        {% for n in neighbors %}
+          <a class="neighbor" href="/ui/memories/{{ n.id }}" style="text-decoration:none;">
+            <div class="neighbor__score">{{ '%.3f' % n.score }}</div>
+            <div class="neighbor__content">{{ n.excerpt }}</div>
+            <div class="neighbor__meta">{{ n.namespace }}<br>{{ n.created_date }}</div>
+          </a>
+        {% else %}
+          <p>Vector store returned no neighbors. The embedding may be missing, the namespace may be empty, or the vector backend is degraded.</p>
+        {% endfor %}
+
+      {% elif tab == 'graph' %}
+        <h4>Neighborhood · 1-hop from {{ m.entity or "(unnamed entity)" }}</h4>
+        {% if m.entity %}
+          <dl class="kv">
+            <dt>PageRank</dt><dd><code>{{ pagerank }}</code></dd>
+            <dt>Edges</dt><dd>{{ graph_edges|length }} incident</dd>
+          </dl>
+          {% for e in graph_edges %}
+            <div class="edge">
+              <div class="edge__node">{{ e.source }}</div>
+              <div class="edge__kind">{{ e.kind }}</div>
+              <div class="edge__node">{{ e.target }}</div>
+            </div>
+          {% else %}
+            <p>No edges yet. Graph extractor may not have pinned this entity to related nodes.</p>
+          {% endfor %}
+        {% else %}
+          <p>This record has no entity anchor, so it does not live in the entity graph.</p>
+        {% endif %}
+
+      {% elif tab == 'access' %}
+        <h4>Retrieval signal</h4>
+        <dl class="kv">
+          <dt>Access Count</dt><dd><code>{{ m.access_count }}</code></dd>
+          <dt>Last Accessed</dt><dd>{{ m.last_accessed or "never" }}</dd>
+          <dt>Confidence</dt><dd>{{ '%.4f' % m.confidence }} · decays at 0.001 / hr, boosts +0.03 per recall hit</dd>
+        </dl>
+        <p style="color: var(--ghost); font-family: var(--f-display); font-style: italic; margin-top: 20px;">
+          Confidence decays with time. Each retrieval nudges it back up. A record drifting below 0.5 is flagged <em>decayed</em>.
+        </p>
+
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="aside">
+      <h3>Co-filed tags</h3>
+      <ul>
+        {% for t in m.tags %}<li>{{ t }}</li>{% else %}<li class="aside__meta">no tags</li>{% endfor %}
+      </ul>
+    </div>
+
+    <div class="aside">
+      <h3>Nearest</h3>
+      <ul>
+        {% for n in neighbors[:4] %}
+          <li>
+            <a href="/ui/memories/{{ n.id }}">{{ n.excerpt[:72] }}{% if n.excerpt|length > 72 %}…{% endif %}</a>
+            <div class="aside__meta">cos · {{ '%.3f' % n.score }}</div>
+          </li>
+        {% else %}
+          <li class="aside__meta">none indexed</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="aside">
+      <h3>Actions</h3>
+      <ul>
+        <li><a href="/ui/memories?entity={{ m.entity }}">All records on entity</a></li>
+        <li><a href="/ui/memories?namespace={{ m.namespace }}">All in namespace</a></li>
+        <li><a href="/ui/health.json" target="_blank">Store health · JSON</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Memwright — Forensic Archive{% endblock %}</title>
+  <link rel="stylesheet" href="/ui/static/app.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+</head>
+<body>
+  <header class="chrome">
+    <a class="mark" href="/ui/memories">
+      <span class="mark__glyph">m</span>
+      <span>
+        <span class="mark__word">memwright<em>.</em></span>
+        <span class="mark__sub">Forensic Archive · Read Only</span>
+      </span>
+    </a>
+
+    <nav class="chrome__nav">
+      <a class="tab" href="/ui/memories" {% if request.url.path.startswith("/ui/memories") %}aria-current="page"{% endif %}>01 · Memories</a>
+      <a class="tab" href="#" aria-disabled="true" title="Coming in milestone 3">02 · Graph</a>
+      <a class="tab" href="#" aria-disabled="true" title="Coming in milestone 4">03 · Recall</a>
+      <a class="tab" href="#" aria-disabled="true" title="Coming in milestone 5">04 · Timeline</a>
+      <a class="tab" href="#" aria-disabled="true" title="Coming in milestone 6">05 · Agents</a>
+    </nav>
+
+    <div class="chrome__ident">
+      <div><span class="dot"></span><b>NAMESPACE</b> {{ namespace_default }}</div>
+      <div>STORE · {{ store_path }}</div>
+      <div>{{ stats.total_memories or 0 }} records · {{ stats.active or stats.total_active or 0 }} active</div>
+    </div>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="ticker">
+    <div class="ticker__pulse" data-secs="0">Live · read-only</div>
+    <div>MEMWRIGHT v2 · DETERMINISTIC RETRIEVAL · NO LLM IN CRITICAL PATH</div>
+    <div>{{ stats.total_memories or 0 }} · ON DISK</div>
+  </footer>
+
+  <script src="/ui/static/app.js" defer></script>
+</body>
+</html>
