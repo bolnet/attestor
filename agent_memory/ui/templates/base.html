@@ -19,10 +19,10 @@
 
     <nav class="chrome__nav">
       <a class="tab" href="/ui/memories" {% if request.url.path.startswith("/ui/memories") %}aria-current="page"{% endif %}>01 · Memories</a>
-      <a class="tab" href="#" aria-disabled="true" title="Coming in milestone 3">02 · Graph</a>
-      <a class="tab" href="#" aria-disabled="true" title="Coming in milestone 4">03 · Recall</a>
-      <a class="tab" href="#" aria-disabled="true" title="Coming in milestone 5">04 · Timeline</a>
-      <a class="tab" href="#" aria-disabled="true" title="Coming in milestone 6">05 · Agents</a>
+      <a class="tab" href="/ui/graph" {% if request.url.path.startswith("/ui/graph") %}aria-current="page"{% endif %}>02 · Graph</a>
+      <a class="tab" href="/ui/recall" {% if request.url.path.startswith("/ui/recall") %}aria-current="page"{% endif %}>03 · Recall</a>
+      <a class="tab" href="/ui/timeline" {% if request.url.path.startswith("/ui/timeline") %}aria-current="page"{% endif %}>04 · Timeline</a>
+      <a class="tab" href="/ui/agents" {% if request.url.path.startswith("/ui/agents") %}aria-current="page"{% endif %}>05 · Agents</a>
     </nav>
 
     <div class="chrome__ident">
