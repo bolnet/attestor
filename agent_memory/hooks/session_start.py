@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
+from pathlib import Path
 
 _EMPTY_RESPONSE = {"additionalContext": ""}
 
-# Budget per user decision: 20K tokens for session context injection.
-_SESSION_BUDGET = 20000
+# Budget for session context injection. Env override prevents context exhaustion.
+_SESSION_BUDGET = int(os.environ.get("MEMWRIGHT_TOKEN_BUDGET", "5000"))
 
 # Broad query to surface the most useful memories at session start.
 _SESSION_QUERY = "session context project overview recent decisions"
@@ -28,7 +30,10 @@ def handle(payload: dict) -> dict:
         if not cwd:
             return _EMPTY_RESPONSE
 
-        store_path = f"{cwd}/.memwright"
+        store_path = os.environ.get(
+            "MEMWRIGHT_PATH",
+            str(Path.home() / ".memwright"),
+        )
 
         from agent_memory.core import AgentMemory
         from agent_memory.retrieval.scorer import pagerank_boost
