@@ -1532,6 +1532,7 @@ select.field {
 .agents-role-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
 .agents-overlay { position: fixed; inset: 0; z-index: 20; background: rgba(6,8,11,0.85); display: flex; align-items: flex-start; justify-content: center; padding: 60px 20px; overflow-y: auto; }
+.agents-overlay[hidden] { display: none; }
 .agents-detail { background: var(--ink-raised); border: 1px solid var(--rule-strong); max-width: 760px; width: 100%; padding: 36px 40px 32px; position: relative; box-shadow: 0 32px 80px -20px rgba(0,0,0,0.95); animation: sheet-in 0.35s cubic-bezier(.2,.8,.2,1) both; }
 .agents-detail__close { position: absolute; top: 12px; right: 16px; background: transparent; border: 1px solid var(--rule); color: var(--ghost); font-family: var(--f-mono); font-size: 12px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
 .agents-detail__close:hover { color: var(--rust); border-color: var(--rust); }
