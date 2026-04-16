@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Operations Log · Memwright{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <h1 class="page-head__title">Operations<br><em>Log.</em></h1>
+  <div class="page-head__meta">
+    <div>Flight Recorder</div>
+    <div>last 200 operations</div>
+    <div>auto-refresh · 5s</div>
+  </div>
+</section>
+
+<section class="ops-area" id="ops-area">
+  <div class="ops-loading">Loading operations log&hellip;</div>
+</section>
+
+<script src="/ui/static/ops.js"></script>
+
+{% endblock %}

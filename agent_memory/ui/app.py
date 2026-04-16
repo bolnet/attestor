@@ -694,6 +694,51 @@ async def config_json(request: Request) -> JSONResponse:
     return JSONResponse(result)
 
 
+async def ops_page(request: Request) -> HTMLResponse:
+    """Operations Log — flight recorder of recent add/recall/health calls."""
+    mem = _get_mem(request)
+    ctx = {"request": request, **_common_context(request, mem)}
+    return _TEMPLATES.TemplateResponse(request, "memories/ops.html", ctx)
+
+
+async def ops_json(request: Request) -> JSONResponse:
+    """Return the ops ring buffer as JSON (most recent last)."""
+    mem = _get_mem(request)
+    return JSONResponse({"ops": mem.ops_log})
+
+
+async def budget_explore_json(request: Request) -> JSONResponse:
+    """Run the same query at multiple budgets, return latency + count."""
+    import time as _time
+
+    mem = _get_mem(request)
+    query = request.query_params.get("q", "").strip()
+    if not query:
+        return JSONResponse({"error": "q is required"}, status_code=400)
+
+    namespace = request.query_params.get("namespace") or None
+    retrieval = getattr(mem, "_retrieval", None)
+    if retrieval is None:
+        return JSONResponse({"error": "No retrieval orchestrator"}, status_code=500)
+
+    budgets = [500, 1000, 2000, 5000, 10000]
+    results = []
+    for b in budgets:
+        t0 = _time.monotonic()
+        trace = retrieval.recall_debug(query, token_budget=b, namespace=namespace)
+        ms = round((_time.monotonic() - t0) * 1000, 2)
+        results.append({
+            "budget": b,
+            "latency_ms": ms,
+            "result_count": trace["final_count"],
+            "layers": [
+                {"name": l["name"], "count": l["count"], "latency_ms": l.get("latency_ms", 0)}
+                for l in trace.get("layers", [])
+            ],
+        })
+    return JSONResponse({"query": query, "budgets": results})
+
+
 def ui_routes() -> list:
     """Return absolute UI routes — can be appended to any Starlette app."""
     return [
@@ -716,6 +761,9 @@ def ui_routes() -> list:
         Route("/ui/health.json", health_json),
         Route("/ui/config", config_page),
         Route("/ui/config.json", config_json),
+        Route("/ui/ops", ops_page),
+        Route("/ui/ops.json", ops_json),
+        Route("/ui/recall/budget-explore.json", budget_explore_json),
         Mount(
             "/ui/static",
             StaticFiles(directory=str(_UI_DIR / "static")),

@@ -107,6 +107,19 @@
     );
   }
 
+  /* ---- Sparkline SVG ---- */
+  function sparklineSvg(latencies, width, height) {
+    if (!latencies || latencies.length < 2) return "";
+    var max = Math.max.apply(null, latencies) || 1;
+    var step = width / (latencies.length - 1);
+    var points = latencies.map(function (v, i) {
+      return (i * step).toFixed(1) + "," + (height - (v / max) * (height - 2)).toFixed(1);
+    }).join(" ");
+    return '<svg class="health-spark" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none">' +
+      '<polyline points="' + points + '" fill="none" stroke="var(--rust)" stroke-width="1.5"/>' +
+      '</svg>';
+  }
+
   /* ---- Render the full dashboard ---- */
   function render(data) {
     var healthy = data.healthy;
@@ -120,6 +133,30 @@
 
     var html = '';
     html += '<div class="health-banner ' + bannerClass + '">' + bannerDot + bannerText + '</div>';
+
+    /* Latency percentiles + sparkline (from ops ring buffer) */
+    var pctl = data.latency_percentiles;
+    var spark = data.latency_sparkline;
+    if (pctl || (spark && spark.length >= 2)) {
+      html += '<div class="health-latency-panel">';
+      html += '<div class="health-latency-panel__title">Operation Latency</div>';
+      if (pctl) {
+        html += '<div class="health-pctl-row">';
+        html += '<div class="health-pctl"><span class="health-pctl__val">' + fmtMs(pctl.p50) + '</span><span class="health-pctl__label">P50</span></div>';
+        html += '<div class="health-pctl"><span class="health-pctl__val">' + fmtMs(pctl.p95) + '</span><span class="health-pctl__label">P95</span></div>';
+        html += '<div class="health-pctl"><span class="health-pctl__val">' + fmtMs(pctl.p99) + '</span><span class="health-pctl__label">P99</span></div>';
+        html += '<div class="health-pctl"><span class="health-pctl__val">' + fmtNum(data.ops_log_size) + '</span><span class="health-pctl__label">Ops</span></div>';
+        html += '</div>';
+      }
+      if (spark && spark.length >= 2) {
+        html += '<div class="health-spark-row">';
+        html += '<span class="health-spark-label">Last ' + spark.length + ' ops</span>';
+        html += sparklineSvg(spark, 500, 36);
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+
     html += '<div class="health-grid">';
     for (var i = 0; i < checks.length; i++) {
       html += renderCard(checks[i], i);
