@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Configuration · Memwright{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <h1 class="page-head__title">Config /<br><em>System Parameters.</em></h1>
+  <div class="page-head__meta">
+    <div>read-only inspection</div>
+    <div>backend topology</div>
+    <div>retrieval tuning</div>
+  </div>
+</section>
+
+<section class="workspace">
+  <aside class="rail">
+    <div class="rail__section">
+      <div class="rail__label">Actions</div>
+      <button class="btn btn--primary" id="cfg-refresh">Refresh</button>
+    </div>
+
+    <div class="rail__section">
+      <div class="rail__label">Health <span id="cfg-health-status"></span></div>
+      <div id="cfg-health-checks"></div>
+    </div>
+  </aside>
+
+  <section class="cfg-area" id="cfg-area">
+    <div class="cfg-loading">Loading configuration&hellip;</div>
+  </section>
+</section>
+
+<script src="/ui/static/config.js"></script>
+
+{% endblock %}

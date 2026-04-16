@@ -23,12 +23,14 @@
       <a class="tab" href="/ui/recall" {% if request.url.path.startswith("/ui/recall") %}aria-current="page"{% endif %}>03 · Recall</a>
       <a class="tab" href="/ui/timeline" {% if request.url.path.startswith("/ui/timeline") %}aria-current="page"{% endif %}>04 · Timeline</a>
       <a class="tab" href="/ui/agents" {% if request.url.path.startswith("/ui/agents") %}aria-current="page"{% endif %}>05 · Agents</a>
+      <a class="tab" href="/ui/health" {% if request.url.path.startswith("/ui/health") %}aria-current="page"{% endif %}>06 · Health</a>
+      <a class="tab" href="/ui/config" {% if request.url.path.startswith("/ui/config") %}aria-current="page"{% endif %}>07 · Config</a>
     </nav>
 
     <div class="chrome__ident">
       <div><span class="dot"></span><b>NAMESPACE</b> {{ namespace_default }}</div>
       <div>STORE · {{ store_path }}</div>
-      <div>{{ stats.total_memories or 0 }} records · {{ stats.active or stats.total_active or 0 }} active</div>
+      <div>{{ stats.total_memories or 0 }} records · {{ stats.active or stats.total_active or 0 }} active <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">&#9680;</button></div>
     </div>
   </header>
 
@@ -38,7 +40,7 @@
 
   <footer class="ticker">
     <div class="ticker__pulse" data-secs="0">Live · read-only</div>
-    <div>MEMWRIGHT v2 · DETERMINISTIC RETRIEVAL · NO LLM IN CRITICAL PATH</div>
+    <div class="ticker__mid">MEMWRIGHT v2 · DETERMINISTIC RETRIEVAL · NO LLM IN CRITICAL PATH</div>
     <div>{{ stats.total_memories or 0 }} · ON DISK</div>
   </footer>
 
