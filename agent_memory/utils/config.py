@@ -63,12 +63,30 @@ class MemoryConfig:
 
 
 def load_config(path: Path) -> MemoryConfig:
-    """Load config from a JSON file, falling back to defaults."""
-    config_file = path / "config.json"
-    if config_file.exists():
-        with open(config_file) as f:
+    """Load config from TOML (preferred) or JSON, falling back to defaults.
+
+    Preference order:
+        1. {path}/config.toml
+        2. {path}/config.json
+        3. built-in MemoryConfig defaults
+    """
+    toml_file = path / "config.toml"
+    json_file = path / "config.json"
+
+    if toml_file.exists():
+        try:
+            import tomllib  # Python 3.11+ stdlib
+        except ImportError:
+            import tomli as tomllib  # type: ignore[no-redef]
+        with open(toml_file, "rb") as f:
+            data = tomllib.load(f)
+        return MemoryConfig.from_dict(data)
+
+    if json_file.exists():
+        with open(json_file) as f:
             data = json.load(f)
         return MemoryConfig.from_dict(data)
+
     return MemoryConfig()
 
 
