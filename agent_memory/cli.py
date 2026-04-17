@@ -262,6 +262,9 @@ def main(argv=None):
     p_config_validate = config_sub.add_parser("validate", help="Validate configuration")
     p_config_validate.add_argument("path", type=Path, help="Memory store path")
 
+    config_migrate_p = config_sub.add_parser("migrate", help="Migrate config.json to config.toml")
+    config_migrate_p.add_argument("path", type=Path, help="Memory store path")
+
     args = parser.parse_args(argv)
 
     if not args.command:
@@ -801,6 +804,14 @@ def _cmd_config(args):
         except (ValueError, TypeError) as e:
             print(f"INVALID: bad config values — {e}", file=sys.stderr)
             sys.exit(1)
+    elif args.config_command == "migrate":
+        from agent_memory.config.migrate import migrate_json_to_toml
+        src = args.path / "config.json"
+        if not src.exists():
+            print(f"No config.json at {args.path}", file=sys.stderr)
+            sys.exit(1)
+        out = migrate_json_to_toml(src)
+        print(f"Wrote {out}; original kept as {src.with_suffix('.json.bak')}")
 
 
 def _cmd_hook(args):
