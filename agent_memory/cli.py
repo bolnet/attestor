@@ -87,6 +87,28 @@ def main(argv=None):
         action="store_true",
         help="Auto-configure Claude Code lifecycle hooks in settings.json",
     )
+    p_init.add_argument(
+        "--backend",
+        choices=["sqlite", "arangodb", "postgres"],
+        default="sqlite",
+        help="Backend to record in config.toml (default: sqlite)",
+    )
+    p_init.add_argument(
+        "--verify",
+        action="store_true",
+        help="Run health check after init; roll back config.toml on failure",
+    )
+    p_init.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Skip interactive prompts; use only CLI flags",
+    )
+    p_init.add_argument(
+        "--install",
+        action="store_true",
+        dest="install_mcp",
+        help="Write MCP server entry into ~/.claude/settings.json",
+    )
 
     # add
     p_add = subparsers.add_parser("add", help="Add a memory")
@@ -175,6 +197,16 @@ def main(argv=None):
         help="Print Claude Code MCP config for this memory store",
     )
     p_setup.add_argument("path", help="Memory store path")
+    p_setup.add_argument(
+        "--install",
+        action="store_true",
+        help="Write MCP entry into ~/.claude/settings.json (default: print only)",
+    )
+    p_setup.add_argument(
+        "--hooks",
+        action="store_true",
+        help="Also write Claude Code lifecycle hooks into settings.json",
+    )
 
     # doctor (health check)
     p_doctor = subparsers.add_parser(
@@ -366,20 +398,45 @@ def _parse_backend_config(args) -> dict | None:
 def _cmd_init(args):
     import shutil
 
+    from agent_memory.init_wizard import init_store, init_store_interactive
+
     store_path = Path(args.path).resolve()
     store_path.mkdir(parents=True, exist_ok=True)
 
-    print(f"\nInitializing memory store at {store_path}...")
-    try:
-        import logging
-        logging.getLogger("agent_memory").setLevel(logging.WARNING)
-        mem = AgentMemory(str(store_path))
-        print(f"  SQLite: {store_path}/memory.db")
-        mem.close()
-    except Exception as e:
-        print(f"  Store created but error occurred: {e}")
+    config_toml = store_path / "config.toml"
+    legacy_json = store_path / "config.json"
+    fresh_store = not config_toml.exists() and not legacy_json.exists()
 
-    # Print MCP config
+    if fresh_store:
+        try:
+            is_tty = sys.stdin.isatty() if hasattr(sys.stdin, "isatty") else False
+            interactive = is_tty and not args.non_interactive
+            if interactive:
+                result = init_store_interactive(store_path, verify=args.verify)
+            else:
+                result = init_store(store_path, backend=args.backend, verify=args.verify)
+            print(
+                f"  config.toml: {result.config_path} "
+                f"(backend={result.backend}, verified={result.verified})"
+            )
+        except (FileExistsError, ValueError, RuntimeError) as e:
+            print(f"  init_wizard error: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        print(f"  config already present at {store_path}; leaving untouched")
+
+    # Skip the legacy AgentMemory bootstrap if --verify already exercised it.
+    if not args.verify:
+        print(f"\nInitializing memory store at {store_path}...")
+        try:
+            import logging
+            logging.getLogger("agent_memory").setLevel(logging.WARNING)
+            mem = AgentMemory(str(store_path))
+            print(f"  SQLite: {store_path}/memory.db")
+            mem.close()
+        except Exception as e:
+            print(f"  Store created but error occurred: {e}")
+
     agent_memory_bin = shutil.which("agent-memory") or "agent-memory"
     abs_path = str(store_path)
 
@@ -394,7 +451,9 @@ def _cmd_init(args):
         print()
         _print_mcp_config(tool, agent_memory_bin, abs_path)
 
-    # Auto-configure hooks
+    if args.install_mcp:
+        _configure_claude_mcp(agent_memory_bin, abs_path)
+
     if args.hooks:
         _configure_claude_hooks(agent_memory_bin)
 
@@ -403,29 +462,51 @@ def _cmd_init(args):
 
 def _print_mcp_config(tool: str, binary: str, store_path: str):
     """Print MCP config for a specific tool."""
-    mcp_args = ["mcp", "--path", store_path]
+    entry = _mcp_entry(binary, store_path)
+    config = {"mcpServers": {"memory": entry}}
     if tool == "claude-code":
-        config = {
-            "mcpServers": {
-                "memory": {
-                    "command": binary,
-                    "args": mcp_args,
-                }
-            }
-        }
         print(f"\nClaude Code -- add to .claude/settings.json:")
-        print(json.dumps(config, indent=2))
     elif tool == "cursor":
-        config = {
-            "mcpServers": {
-                "memory": {
-                    "command": binary,
-                    "args": mcp_args,
-                }
-            }
-        }
         print(f"\nCursor -- add to .cursor/mcp.json:")
-        print(json.dumps(config, indent=2))
+    else:
+        return
+    print(json.dumps(config, indent=2))
+
+
+def _mcp_entry(binary: str, store_path: str) -> dict:
+    """Canonical shape of the memwright MCP server entry."""
+    return {"command": binary, "args": ["mcp", "--path", store_path]}
+
+
+def _load_claude_settings(settings_path: Path) -> dict:
+    """Load ~/.claude/settings.json, backing up and warning on parse failure."""
+    if not settings_path.exists():
+        return {}
+    raw = settings_path.read_text()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        backup = settings_path.with_suffix(".json.bak")
+        backup.write_text(raw)
+        print(
+            f"WARNING: could not parse {settings_path} ({exc}); "
+            f"backed up to {backup} and starting with an empty config.",
+            file=sys.stderr,
+        )
+        return {}
+
+
+def _configure_claude_mcp(binary: str, store_path: str) -> None:
+    """Write the memwright MCP server entry into ~/.claude/settings.json."""
+    settings_path = Path.home() / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+    settings = _load_claude_settings(settings_path)
+    mcp_servers = settings.setdefault("mcpServers", {})
+    mcp_servers["memory"] = _mcp_entry(binary, store_path)
+
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n")
+    print(f"\nClaude Code MCP server 'memory' configured in {settings_path}")
 
 
 def _configure_claude_hooks(binary: str):
@@ -433,13 +514,7 @@ def _configure_claude_hooks(binary: str):
     settings_path = Path.home() / ".claude" / "settings.json"
     settings_path.parent.mkdir(parents=True, exist_ok=True)
 
-    settings: dict = {}
-    if settings_path.exists():
-        try:
-            settings = json.loads(settings_path.read_text())
-        except (json.JSONDecodeError, OSError):
-            pass
-
+    settings = _load_claude_settings(settings_path)
     hooks = settings.setdefault("hooks", {})
 
     hook_defs = {
@@ -654,9 +729,15 @@ def _cmd_setup_claude_code(args):
     agent_memory_bin = shutil.which("agent-memory") or "agent-memory"
     abs_path = str(Path(args.path).resolve())
 
-    print("Tip: Use 'agent-memory init %s' for full setup.\n" % args.path)
-    _print_mcp_config("claude-code", agent_memory_bin, abs_path)
-    _print_mcp_config("cursor", agent_memory_bin, abs_path)
+    if not getattr(args, "install", False):
+        print("Tip: Use 'agent-memory init %s --install' for full setup.\n" % args.path)
+        _print_mcp_config("claude-code", agent_memory_bin, abs_path)
+        _print_mcp_config("cursor", agent_memory_bin, abs_path)
+        return
+
+    _configure_claude_mcp(agent_memory_bin, abs_path)
+    if getattr(args, "hooks", False):
+        _configure_claude_hooks(agent_memory_bin)
 
 
 def _cmd_doctor(args):
