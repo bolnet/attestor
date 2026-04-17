@@ -1114,8 +1114,11 @@ poetry add "memwright[arangodb]"    # ArangoDB
 poetry add "memwright[aws]"         # AWS (DynamoDB + OpenSearch + Neptune)
 poetry add "memwright[azure]"       # Azure Cosmos DB
 poetry add "memwright[gcp]"         # Google Cloud Platform AlloyDB + Vertex AI
+poetry add "memwright[docker]"      # opt-in local Docker auto-start for ArangoDB when backend.docker = true and mode = "local"
 poetry add "memwright[all]"         # Everything
 ```
+
+- `pipx install "memwright[docker]"` &mdash; opt-in local Docker auto-start for ArangoDB when `backend.docker = true` and `mode = "local"`.
 
 ---
 

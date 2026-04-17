@@ -44,6 +44,7 @@ azure = ["azure-cosmos>=4.5.0", "azure-identity>=1.14.0", "azure-search-document
 gcp = ["google-cloud-firestore>=2.11.0", "google-cloud-aiplatform>=1.38.0"]
 cloud-embeddings = ["openai>=1.0.0"]
 lambda = ["mangum>=0.17.0", "starlette>=0.27.0"]
+docker = ["docker>=6.0"]
 all = [
     "openai>=1.0.0",
     "psycopg2-binary>=2.9.0",
@@ -53,6 +54,7 @@ all = [
     "azure-search-documents>=11.4.0",
     "google-cloud-firestore>=2.11.0",
     "google-cloud-aiplatform>=1.38.0",
+    "docker>=6.0",
 ]
 
 [project.scripts]

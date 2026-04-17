@@ -151,11 +151,18 @@ class AgentMemory:
         self.close()
 
     def _ensure_docker(self, backend_name: str, bcfg: Dict[str, Any]) -> None:
-        """Start a Docker container for backends that require one."""
-        # Skip Docker for cloud-mode backends
+        """Start a Docker container for backends that require one.
+
+        Docker auto-management is opt-in: requires bcfg["docker"] = True.
+        Falls back to a no-op if the optional infra module is unavailable.
+        """
         if bcfg.get("mode") == "cloud" or bcfg.get("url", "").startswith("https://"):
             return
+        if not bcfg.get("docker"):
+            return
 
+        # Opt-in user said docker=true — propagate install instructions if the
+        # extra isn't installed rather than silently no-op-ing.
         from agent_memory.infra.docker import DockerManager
 
         if self._docker is None:

@@ -208,3 +208,15 @@ Or manually add to `~/.claude/.mcp.json`:
 ## Chapter 03 — Cloud Managed
 
 *Coming soon.* PostgreSQL (pgvector + Apache AGE), ArangoDB, AWS, Azure, and GCP backends for shared multi-agent deployments.
+
+### `mode: local` with auto-start
+
+With `backend = "arangodb"`, `mode = "local"`, and `docker = true` in
+`config.toml`, and the `[docker]` extra installed, Memwright will start an
+`arangodb:3.12` container named `memwright-arangodb` on port 8529 the first
+time the store is opened. Without the `[docker]` extra the open will fail
+with an actionable error pointing at `pip install "memwright[docker]"`.
+
+With `docker = false` (the default), `mode: local` assumes you manage the
+container yourself — this is the recommended path for CI and shared dev
+machines.
