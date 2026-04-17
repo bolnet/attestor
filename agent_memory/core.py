@@ -161,11 +161,9 @@ class AgentMemory:
         if not bcfg.get("docker"):
             return
 
-        try:
-            from agent_memory.infra.docker import DockerManager
-        except ImportError:
-            logger.debug("agent_memory.infra.docker not installed; skipping docker auto-start")
-            return
+        # Opt-in user said docker=true — propagate install instructions if the
+        # extra isn't installed rather than silently no-op-ing.
+        from agent_memory.infra.docker import DockerManager
 
         if self._docker is None:
             self._docker = DockerManager()
