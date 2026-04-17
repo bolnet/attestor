@@ -57,6 +57,16 @@ all = [
 agent-memory = "agent_memory.cli:main"
 memwright = "agent_memory.cli:main"
 
+[project.entry-points."memwright.backends"]
+sqlite = "agent_memory.store.registry:_BUILTIN_SQLITE"
+chroma = "agent_memory.store.registry:_BUILTIN_CHROMA"
+networkx = "agent_memory.store.registry:_BUILTIN_NETWORKX"
+arangodb = "agent_memory.store.registry:_BUILTIN_ARANGO"
+postgres = "agent_memory.store.registry:_BUILTIN_POSTGRES"
+aws = "agent_memory.store.registry:_BUILTIN_AWS"
+azure = "agent_memory.store.registry:_BUILTIN_AZURE"
+gcp = "agent_memory.store.registry:_BUILTIN_GCP"
+
 [tool.poetry]
 packages = [{ include = "agent_memory" }]
 

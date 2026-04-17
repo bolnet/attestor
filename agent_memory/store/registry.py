@@ -73,6 +73,43 @@ BACKEND_REGISTRY: Dict[str, Dict[str, Any]] = {
 DEFAULT_BACKENDS = ["sqlite", "chroma", "networkx"]
 
 
+# Module-level constants referencing built-in registry entries.
+# These are the targets of the entry-point declarations in pyproject.toml —
+# they share the same underlying dict objects with BACKEND_REGISTRY (aliasing is intentional).
+_BUILTIN_SQLITE = BACKEND_REGISTRY["sqlite"]
+_BUILTIN_CHROMA = BACKEND_REGISTRY["chroma"]
+_BUILTIN_NETWORKX = BACKEND_REGISTRY["networkx"]
+_BUILTIN_ARANGO = BACKEND_REGISTRY["arangodb"]
+_BUILTIN_POSTGRES = BACKEND_REGISTRY["postgres"]
+_BUILTIN_AWS = BACKEND_REGISTRY["aws"]
+_BUILTIN_AZURE = BACKEND_REGISTRY["azure"]
+_BUILTIN_GCP = BACKEND_REGISTRY["gcp"]
+
+
+def discover_backends() -> None:
+    """Populate BACKEND_REGISTRY from importlib.metadata entry points.
+
+    Entry-point group: 'memwright.backends'
+    Each entry point should resolve to a dict with the same shape as the static registry entries:
+        { "module": "...", "class": "...", "roles": {...}, "init_style": "..." }
+
+    Static registry entries take precedence: if an entry point's name is already
+    present in BACKEND_REGISTRY, the loader skips it. Failures to load a plugin
+    are logged as warnings and do not prevent other plugins from loading.
+    """
+    from importlib.metadata import entry_points
+
+    for ep in entry_points(group="memwright.backends"):
+        if ep.name in BACKEND_REGISTRY:
+            continue
+        try:
+            entry = ep.load()
+        except Exception as e:
+            logger.warning("Failed to load backend plugin %r: %s", ep.name, e)
+            continue
+        BACKEND_REGISTRY[ep.name] = entry
+
+
 def resolve_backends(
     backends: Optional[List[str]] = None,
 ) -> Dict[str, str]:
@@ -88,6 +125,8 @@ def resolve_backends(
         BackendConflictError: If two backends claim the same role.
         ValueError: If a backend name is not in the registry.
     """
+    discover_backends()
+
     if backends is None:
         backends = DEFAULT_BACKENDS
 
