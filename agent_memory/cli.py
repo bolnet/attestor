@@ -773,15 +773,33 @@ def _cmd_mcp_serve(args):
 def _cmd_config(args):
     from agent_memory.utils.config import load_config
 
+    config_file = args.path / "config.json"
+    if not config_file.exists():
+        print(f"ERROR: no config.json at {args.path}", file=sys.stderr)
+        sys.exit(1)
+
     if args.config_command == "show":
-        cfg = load_config(args.path)
+        try:
+            cfg = load_config(args.path)
+        except json.JSONDecodeError as e:
+            print(f"ERROR: malformed JSON — {e}", file=sys.stderr)
+            sys.exit(1)
+        except OSError as e:
+            print(f"ERROR: cannot read config — {e}", file=sys.stderr)
+            sys.exit(1)
         print(json.dumps(cfg.to_dict(), indent=2))
     elif args.config_command == "validate":
         try:
             load_config(args.path)
             print("OK: config is valid")
-        except Exception as e:
-            print(f"INVALID: {e}", file=sys.stderr)
+        except json.JSONDecodeError as e:
+            print(f"INVALID: malformed JSON — {e}", file=sys.stderr)
+            sys.exit(1)
+        except OSError as e:
+            print(f"ERROR: cannot read config — {e}", file=sys.stderr)
+            sys.exit(2)
+        except (ValueError, TypeError) as e:
+            print(f"INVALID: bad config values — {e}", file=sys.stderr)
             sys.exit(1)
 
 
