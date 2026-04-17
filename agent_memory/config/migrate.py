@@ -8,24 +8,40 @@ from pathlib import Path
 from typing import Any
 
 
-def _to_toml(data: dict[str, Any], indent: int = 0) -> str:
-    """Tiny TOML emitter — only handles the shapes memwright produces."""
+def _escape_toml_string(s: str) -> str:
+    """Escape backslashes and double-quotes for TOML basic strings."""
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _to_toml(data: dict[str, Any], prefix: str = "") -> str:
+    """Tiny TOML emitter — only handles the shapes memwright produces.
+
+    ``prefix`` tracks the dotted table path for nested sections, e.g. "a.b".
+    ``None`` values are silently skipped (TOML has no null concept).
+    """
     scalars: list[str] = []
     tables: list[str] = []
     for key, val in data.items():
+        if val is None:
+            # TOML has no null — skip silently so legacy config.json files
+            # with unset optional fields migrate cleanly.
+            continue
         if isinstance(val, dict):
-            tables.append(f"\n[{key}]\n" + _to_toml(val, indent + 1))
+            section = f"{prefix}.{key}" if prefix else key
+            tables.append(f"\n[{section}]\n" + _to_toml(val, prefix=section))
         elif isinstance(val, str):
-            scalars.append(f'{key} = "{val}"')
+            scalars.append(f'{key} = "{_escape_toml_string(val)}"')
         elif isinstance(val, bool):
             scalars.append(f"{key} = {'true' if val else 'false'}")
         elif isinstance(val, (int, float)):
             scalars.append(f"{key} = {val}")
         elif isinstance(val, list):
-            inner = ", ".join(f'"{x}"' if isinstance(x, str) else str(x) for x in val)
+            inner = ", ".join(
+                f'"{_escape_toml_string(x)}"' if isinstance(x, str) else str(x)
+                for x in val
+            )
             scalars.append(f"{key} = [{inner}]")
-        else:
-            scalars.append(f"{key} = {json.dumps(val)}")
+        # Any other type (e.g. unexpected objects) is skipped gracefully.
     return "\n".join(scalars) + "".join(tables)
 
 

@@ -807,10 +807,14 @@ def _cmd_config(args):
     elif args.config_command == "migrate":
         from agent_memory.config.migrate import migrate_json_to_toml
         src = args.path / "config.json"
-        if not src.exists():
-            print(f"No config.json at {args.path}", file=sys.stderr)
+        try:
+            out = migrate_json_to_toml(src)
+        except json.JSONDecodeError as e:
+            print(f"ERROR: malformed JSON — {e}", file=sys.stderr)
             sys.exit(1)
-        out = migrate_json_to_toml(src)
+        except OSError as e:
+            print(f"ERROR: cannot write — {e}", file=sys.stderr)
+            sys.exit(1)
         print(f"Wrote {out}; original kept as {src.with_suffix('.json.bak')}")
 
 
