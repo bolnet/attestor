@@ -72,7 +72,9 @@ class GCPBackend(PostgresBackend):
         self, config: Dict[str, Any], gcp_fields: Dict[str, str]
     ) -> None:
         """Connect via AlloyDB Connector with IAM auth (ADC)."""
-        from google.cloud.alloydb.connector import Connector
+        from agent_memory.store._extras import require_extra
+        _alloydb = require_extra("google.cloud.alloydb.connector", extra="gcp")
+        Connector = _alloydb.Connector
 
         self._config = config
         self._connector = Connector()

@@ -7,8 +7,10 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Set
 
-import psycopg2
-import psycopg2.extras
+from agent_memory.store._extras import require_extra
+
+psycopg2 = require_extra("psycopg2", extra="postgres")
+require_extra("psycopg2.extras", extra="postgres")  # side-effect import
 
 from agent_memory.models import Memory
 from agent_memory.store.base import DocumentStore, VectorStore, GraphStore

@@ -7,7 +7,10 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from arango import ArangoClient
+from agent_memory.store._extras import require_extra
+
+_arango = require_extra("arango", extra="arangodb")
+ArangoClient = _arango.ArangoClient
 
 from agent_memory.models import Memory
 from agent_memory.store.base import DocumentStore, VectorStore, GraphStore

@@ -69,7 +69,10 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
         self._database_name = config.get("cosmos_database", "memwright")
 
         # Lazy import azure.cosmos
-        from azure.cosmos import CosmosClient, PartitionKey
+        from agent_memory.store._extras import require_extra
+        _azure_cosmos = require_extra("azure.cosmos", extra="azure")
+        CosmosClient = _azure_cosmos.CosmosClient
+        PartitionKey = _azure_cosmos.PartitionKey
 
         self._PartitionKey = PartitionKey
 

@@ -67,7 +67,8 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
         self._parse_config(config)
 
         # Lazy imports — fail only when actually used
-        import boto3
+        from agent_memory.store._extras import require_extra
+        boto3 = require_extra("boto3", extra="aws")
 
         self._session = boto3.Session(region_name=self._region)
 
