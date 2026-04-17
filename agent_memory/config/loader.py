@@ -18,13 +18,19 @@ def _read_toml(path: Path) -> Dict[str, Any]:
         import tomllib
     except ImportError:
         import tomli as tomllib
-    with open(path, "rb") as f:
-        return tomllib.load(f)
+    try:
+        with open(path, "rb") as f:
+            return tomllib.load(f)
+    except tomllib.TOMLDecodeError as exc:
+        raise ValueError(f"Invalid TOML in {path}: {exc}") from exc
 
 
 def _read_json(path: Path) -> Dict[str, Any]:
-    with open(path) as f:
-        return json.load(f)
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON in {path}: {exc}") from exc
 
 
 def _load_file(store_path: Path) -> Dict[str, Any]:
@@ -95,14 +101,15 @@ def load_settings(
     """
     file_data = _load_file(store_path)
 
-    profiles = file_data.pop("profiles", {})
+    profiles = file_data.get("profiles", {})
+    base = {k: v for k, v in file_data.items() if k != "profiles"}
     if profile:
         if profile not in profiles:
             raise ValueError(f"Unknown profile {profile!r}; available: {sorted(profiles)}")
-        file_data = _deep_merge(file_data, profiles[profile])
+        base = _deep_merge(base, profiles[profile])
 
     env_data = _env_overrides()
-    merged = _deep_merge(file_data, env_data)
+    merged = _deep_merge(base, env_data)
     if cli_overrides:
         merged = _deep_merge(merged, cli_overrides)
 

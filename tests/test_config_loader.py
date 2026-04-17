@@ -40,3 +40,30 @@ def test_unknown_profile_raises(tmp_path: Path):
     (tmp_path / "config.toml").write_text('backends = ["sqlite"]\n')
     with pytest.raises(ValueError, match="profile.*nope"):
         load_settings(store_path=tmp_path, profile="nope")
+
+
+def test_loads_from_json_fallback(tmp_path: Path):
+    (tmp_path / "config.json").write_text('{"backends": ["arangodb"]}')
+    s = load_settings(store_path=tmp_path)
+    assert s.backends == ["arangodb"]
+
+
+def test_cli_overrides_win(tmp_path: Path):
+    (tmp_path / "config.toml").write_text("default_token_budget = 1000\n")
+    s = load_settings(
+        store_path=tmp_path,
+        cli_overrides={"default_token_budget": 9999},
+    )
+    assert s.default_token_budget == 9999
+
+
+def test_malformed_toml_raises_value_error(tmp_path: Path):
+    (tmp_path / "config.toml").write_text("this is = not = valid = toml\n[\n")
+    with pytest.raises(ValueError, match="Invalid TOML"):
+        load_settings(store_path=tmp_path)
+
+
+def test_malformed_json_raises_value_error(tmp_path: Path):
+    (tmp_path / "config.json").write_text("{not valid json")
+    with pytest.raises(ValueError, match="Invalid JSON"):
+        load_settings(store_path=tmp_path)
