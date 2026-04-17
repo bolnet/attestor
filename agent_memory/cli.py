@@ -620,7 +620,8 @@ def _cmd_stats(args):
     with AgentMemory(args.path) as mem:
         s = mem.stats()
         print(f"Total memories: {s['total_memories']}")
-        print(f"Database size: {s['db_size_bytes']:,} bytes")
+        if "db_size_bytes" in s:
+            print(f"Database size: {s['db_size_bytes']:,} bytes")
         if s["by_status"]:
             print("By status:")
             for status, count in s["by_status"].items():
