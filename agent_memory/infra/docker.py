@@ -21,8 +21,8 @@ _docker = require_extra("docker", extra="docker")
 logger = logging.getLogger("agent_memory.infra.docker")
 
 _CONTAINER_PREFIX = "memwright-"
-_HEALTH_TIMEOUT_SECONDS = 30
-_HEALTH_POLL_INTERVAL_SECONDS = 1.0
+_START_TIMEOUT_SECONDS = 30
+_START_POLL_INTERVAL_SECONDS = 1.0
 
 
 @dataclass(frozen=True)
@@ -59,10 +59,10 @@ class DockerManager:
         """Start the container if not running; return its :class:`ContainerInfo`."""
         if not self._is_running(backend_name):
             self._start_container(backend_name, image, port, env)
-            if not self._wait_healthy(backend_name):
+            if not self._wait_running(backend_name):
                 raise RuntimeError(
-                    f"container {self.container_name(backend_name)} did not become healthy "
-                    f"within {_HEALTH_TIMEOUT_SECONDS}s"
+                    f"container {self.container_name(backend_name)} did not start within "
+                    f"{_START_TIMEOUT_SECONDS}s"
                 )
         return ContainerInfo(name=self.container_name(backend_name), port=port)
 
@@ -84,9 +84,9 @@ class DockerManager:
         name = self.container_name(backend_name)
         try:
             container = self._get_client().containers.get(name)
-            return container.status == "running"
-        except Exception:
+        except _docker.errors.NotFound:  # type: ignore[attr-defined]
             return False
+        return container.status == "running"
 
     def _start_container(
         self,
@@ -113,10 +113,10 @@ class DockerManager:
         )
         logger.info("started container %s on port %d", name, port)
 
-    def _wait_healthy(self, backend_name: str) -> bool:
-        deadline = time.monotonic() + _HEALTH_TIMEOUT_SECONDS
+    def _wait_running(self, backend_name: str) -> bool:
+        deadline = time.monotonic() + _START_TIMEOUT_SECONDS
         while time.monotonic() < deadline:
             if self._is_running(backend_name):
                 return True
-            time.sleep(_HEALTH_POLL_INTERVAL_SECONDS)
+            time.sleep(_START_POLL_INTERVAL_SECONDS)
         return False

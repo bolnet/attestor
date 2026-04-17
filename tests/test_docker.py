@@ -29,7 +29,7 @@ class TestDockerManager:
         dm = DockerManager()
         with patch.object(dm, "_is_running", return_value=False), \
              patch.object(dm, "_start_container") as mock_start, \
-             patch.object(dm, "_wait_healthy", return_value=True):
+             patch.object(dm, "_wait_running", return_value=True):
             info = dm.ensure_running(
                 backend_name="arangodb",
                 image="arangodb:3.12",
@@ -52,12 +52,12 @@ class TestDockerManager:
         mock_start.assert_not_called()
         assert info.name == "memwright-arangodb"
 
-    def test_ensure_running_raises_on_unhealthy(self) -> None:
+    def test_ensure_running_raises_when_start_times_out(self) -> None:
         dm = DockerManager()
         with patch.object(dm, "_is_running", return_value=False), \
              patch.object(dm, "_start_container"), \
-             patch.object(dm, "_wait_healthy", return_value=False):
-            with pytest.raises(RuntimeError, match="did not become healthy"):
+             patch.object(dm, "_wait_running", return_value=False):
+            with pytest.raises(RuntimeError, match="did not start within"):
                 dm.ensure_running(
                     backend_name="arangodb",
                     image="arangodb:3.12",
@@ -93,7 +93,7 @@ class TestMissingExtra:
 
         # Simulate `docker` SDK being absent
         monkeypatch.setitem(sys.modules, "docker", None)
-        sys.modules.pop("agent_memory.infra.docker", None)
+        monkeypatch.delitem(sys.modules, "agent_memory.infra.docker", raising=False)
 
         with pytest.raises(MissingExtraError) as exc:
             importlib.import_module("agent_memory.infra.docker")
