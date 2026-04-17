@@ -40,5 +40,14 @@ def test_toml_with_nested_backend_section(tmp_path: Path):
 
 def test_missing_both_returns_defaults(tmp_path: Path):
     """When neither config.toml nor config.json exists, return defaults."""
+    from agent_memory.utils.config import MemoryConfig
     cfg = load_config(tmp_path)
-    assert cfg.backends == ["sqlite", "chroma", "networkx"]
+    assert cfg == MemoryConfig()
+
+
+def test_malformed_toml_raises_valueerror(tmp_path: Path):
+    """A malformed config.toml must raise ValueError with the file path in the message."""
+    (tmp_path / "config.toml").write_text("backends = [unterminated")
+    import pytest
+    with pytest.raises(ValueError, match="Malformed TOML"):
+        load_config(tmp_path)

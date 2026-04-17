@@ -8,6 +8,12 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 
+try:
+    import tomllib  # Python 3.11+ stdlib
+except ImportError:  # pragma: no cover
+    import tomli as tomllib  # type: ignore[no-redef]
+
+
 DEFAULT_CONFIG = {
     "default_token_budget": 16000,
     "min_results": 3,
@@ -75,11 +81,10 @@ def load_config(path: Path) -> MemoryConfig:
 
     if toml_file.exists():
         try:
-            import tomllib  # Python 3.11+ stdlib
-        except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
-        with open(toml_file, "rb") as f:
-            data = tomllib.load(f)
+            with open(toml_file, "rb") as f:
+                data = tomllib.load(f)
+        except tomllib.TOMLDecodeError as exc:
+            raise ValueError(f"Malformed TOML config at {toml_file}: {exc}") from exc
         return MemoryConfig.from_dict(data)
 
     if json_file.exists():
