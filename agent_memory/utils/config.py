@@ -63,13 +63,20 @@ class MemoryConfig:
 
 
 def load_config(path: Path) -> MemoryConfig:
-    """Load config from a JSON file, falling back to defaults."""
-    config_file = path / "config.json"
-    if config_file.exists():
-        with open(config_file) as f:
-            data = json.load(f)
-        return MemoryConfig.from_dict(data)
-    return MemoryConfig()
+    """Load config via the new layered loader, returning a legacy MemoryConfig.
+
+    Kept for backward compat; new code should use agent_memory.config.load_settings.
+    """
+    from agent_memory.config.loader import load_settings
+
+    settings = load_settings(path)
+    # Use exclude_unset so user-supplied values that happen to match schema
+    # defaults (e.g., arangodb.mode == "local") still round-trip into
+    # backend_configs. exclude_defaults would strip them, breaking legacy
+    # save_config/load_config round-trip behavior.
+    data = settings.model_dump(exclude_unset=True)
+    data.pop("profiles", None)
+    return MemoryConfig.from_dict(data)
 
 
 def save_config(path: Path, config: MemoryConfig) -> None:
