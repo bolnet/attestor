@@ -253,6 +253,15 @@ def main(argv=None):
     hook_sub.add_parser("post-tool-use", help="PostToolUse hook")
     hook_sub.add_parser("stop", help="Stop hook")
 
+    p_config = subparsers.add_parser("config", help="Inspect or modify configuration")
+    config_sub = p_config.add_subparsers(dest="config_command", required=True, help="Config command")
+
+    p_config_show = config_sub.add_parser("show", help="Print resolved configuration as JSON")
+    p_config_show.add_argument("path", type=Path, help="Memory store path")
+
+    p_config_validate = config_sub.add_parser("validate", help="Validate configuration")
+    p_config_validate.add_argument("path", type=Path, help="Memory store path")
+
     args = parser.parse_args(argv)
 
     if not args.command:
@@ -281,6 +290,7 @@ def main(argv=None):
         "mab": _cmd_mab,
         "mcp": _cmd_mcp_serve,
         "hook": _cmd_hook,
+        "config": _cmd_config,
     }
     handlers[args.command](args)
 
@@ -758,6 +768,21 @@ def _cmd_mcp_serve(args):
 
     print(f"Starting MCP server for {store_path}...", file=sys.stderr)
     asyncio.run(run_server(store_path))
+
+
+def _cmd_config(args):
+    from agent_memory.utils.config import load_config
+
+    if args.config_command == "show":
+        cfg = load_config(args.path)
+        print(json.dumps(cfg.to_dict(), indent=2))
+    elif args.config_command == "validate":
+        try:
+            load_config(args.path)
+            print("OK: config is valid")
+        except Exception as e:
+            print(f"INVALID: {e}", file=sys.stderr)
+            sys.exit(1)
 
 
 def _cmd_hook(args):
