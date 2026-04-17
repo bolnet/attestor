@@ -73,9 +73,7 @@ BACKEND_REGISTRY: Dict[str, Dict[str, Any]] = {
 DEFAULT_BACKENDS = ["sqlite", "chroma", "networkx"]
 
 
-# Module-level constants referencing built-in registry entries.
-# These are the targets of the entry-point declarations in pyproject.toml —
-# they share the same underlying dict objects with BACKEND_REGISTRY (aliasing is intentional).
+# Entry-point targets. Aliases to the static registry — do NOT mutate.
 _BUILTIN_SQLITE = BACKEND_REGISTRY["sqlite"]
 _BUILTIN_CHROMA = BACKEND_REGISTRY["chroma"]
 _BUILTIN_NETWORKX = BACKEND_REGISTRY["networkx"]
@@ -84,6 +82,9 @@ _BUILTIN_POSTGRES = BACKEND_REGISTRY["postgres"]
 _BUILTIN_AWS = BACKEND_REGISTRY["aws"]
 _BUILTIN_AZURE = BACKEND_REGISTRY["azure"]
 _BUILTIN_GCP = BACKEND_REGISTRY["gcp"]
+
+
+_backends_discovered: bool = False
 
 
 def discover_backends() -> None:
@@ -96,9 +97,16 @@ def discover_backends() -> None:
     Static registry entries take precedence: if an entry point's name is already
     present in BACKEND_REGISTRY, the loader skips it. Failures to load a plugin
     are logged as warnings and do not prevent other plugins from loading.
+
+    Discovery is guarded by a module-level flag so subsequent calls are a no-op,
+    avoiding repeated warnings for failing plugins.
     """
+    global _backends_discovered
+    if _backends_discovered:
+        return
     from importlib.metadata import entry_points
 
+    required = {"module", "class", "roles", "init_style"}
     for ep in entry_points(group="memwright.backends"):
         if ep.name in BACKEND_REGISTRY:
             continue
@@ -107,7 +115,15 @@ def discover_backends() -> None:
         except Exception as e:
             logger.warning("Failed to load backend plugin %r: %s", ep.name, e)
             continue
+        if not isinstance(entry, dict) or not required.issubset(entry):
+            logger.warning(
+                "Backend plugin %r has invalid shape (expected keys %s), skipping",
+                ep.name,
+                required,
+            )
+            continue
         BACKEND_REGISTRY[ep.name] = entry
+    _backends_discovered = True
 
 
 def resolve_backends(
