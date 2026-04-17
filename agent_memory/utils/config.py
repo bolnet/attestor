@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Mapping
 
 
 DEFAULT_CONFIG = {
@@ -79,8 +79,59 @@ def load_config(path: Path) -> MemoryConfig:
     return MemoryConfig.from_dict(data)
 
 
+def _format_toml_value(value: Any) -> str:
+    """Serialize a Python scalar/list to a TOML literal."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    if isinstance(value, str):
+        # Use JSON encoding for safe escaping; TOML basic strings share syntax.
+        return json.dumps(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(_format_toml_value(v) for v in value) + "]"
+    if value is None:
+        # TOML has no null; emit empty string to avoid losing the key silently.
+        return '""'
+    raise TypeError(f"Unsupported TOML value type: {type(value).__name__}")
+
+
+def _emit_toml(data: Mapping[str, Any]) -> str:
+    """Minimal TOML emitter covering MemoryConfig.to_dict()'s shape.
+
+    Scalars/lists first, then nested tables (one per backend_configs entry).
+    Not a general-purpose emitter; avoids adding a tomli_w dependency just
+    for round-trip save/load.
+    """
+    scalars: List[str] = []
+    tables: List[str] = []
+    for key, value in data.items():
+        if isinstance(value, Mapping):
+            lines = [f"[{key}]"]
+            for sub_key, sub_value in value.items():
+                lines.append(f"{sub_key} = {_format_toml_value(sub_value)}")
+            tables.append("\n".join(lines))
+        else:
+            scalars.append(f"{key} = {_format_toml_value(value)}")
+    sections = []
+    if scalars:
+        sections.append("\n".join(scalars))
+    sections.extend(tables)
+    return "\n\n".join(sections) + "\n"
+
+
 def save_config(path: Path, config: MemoryConfig) -> None:
-    """Save config to a JSON file."""
+    """Persist config. If config.toml exists, write TOML; else write JSON.
+
+    This keeps the user's chosen format authoritative -- avoids a silent
+    divergence where save writes JSON but load_config prefers TOML, which
+    would cause in-memory mutations to be dropped on the next load.
+    """
+    data = config.to_dict()
+    toml_file = path / "config.toml"
+    if toml_file.exists():
+        toml_file.write_text(_emit_toml(data))
+        return
     config_file = path / "config.json"
     with open(config_file, "w") as f:
-        json.dump(config.to_dict(), f, indent=2)
+        json.dump(data, f, indent=2)
