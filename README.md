@@ -684,9 +684,29 @@ Default: `~/.memwright/`. Configurable with `--path` on any CLI command.
 └── chroma/          # ChromaDB vector store + embeddings
 ```
 
-### config.json
+### Config file: TOML (preferred) or JSON
 
-All fields optional. Defaults apply if the file doesn't exist:
+Memwright reads `config.toml` or `config.json` from the store path. If both are present, TOML wins. All fields are optional; defaults apply when no file exists.
+
+```toml
+# config.toml
+default_token_budget = 16000
+min_results = 3
+backends = ["sqlite", "chroma", "networkx"]
+enable_mmr = true
+mmr_lambda = 0.7
+fusion_mode = "rrf"
+confidence_gate = 0.0
+confidence_decay_rate = 0.001
+confidence_boost_rate = 0.03
+
+[arangodb]
+mode = "cloud"
+url = "http://localhost:8529"
+database = "memwright_user"
+```
+
+Equivalent JSON is still supported for backward compatibility:
 
 ```json
 {
@@ -700,6 +720,14 @@ All fields optional. Defaults apply if the file doesn't exist:
   "confidence_decay_rate": 0.001,
   "confidence_boost_rate": 0.03
 }
+```
+
+### Inspect, validate, migrate
+
+```bash
+memwright config show ./mystore       # print resolved config as JSON
+memwright config validate ./mystore   # exit non-zero on errors
+memwright config migrate ./mystore    # convert config.json → config.toml (keeps .bak)
 ```
 
 | Parameter | Default | Description |
