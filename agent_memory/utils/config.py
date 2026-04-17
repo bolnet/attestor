@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
+
+if sys.version_info >= (3, 11):
+    import tomllib as _toml_reader
+else:  # pragma: no cover - 3.10 fallback
+    import tomli as _toml_reader  # type: ignore[no-redef]
 
 
 DEFAULT_CONFIG = {
@@ -63,12 +69,19 @@ class MemoryConfig:
 
 
 def load_config(path: Path) -> MemoryConfig:
-    """Load config from a JSON file, falling back to defaults."""
-    config_file = path / "config.json"
-    if config_file.exists():
-        with open(config_file) as f:
+    """Load config from `config.toml` (preferred) or legacy `config.json`."""
+    toml_file = path / "config.toml"
+    if toml_file.exists():
+        with open(toml_file, "rb") as f:
+            data = _toml_reader.load(f)
+        return MemoryConfig.from_dict(data)
+
+    json_file = path / "config.json"
+    if json_file.exists():
+        with open(json_file) as f:
             data = json.load(f)
         return MemoryConfig.from_dict(data)
+
     return MemoryConfig()
 
 

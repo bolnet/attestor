@@ -5233,6 +5233,18 @@ files = [
 markers = {main = "python_version == \"3.10\"", dev = "python_full_version <= \"3.11.0a6\""}
 
 [[package]]
+name = "tomlkit"
+version = "0.14.0"
+description = "Style preserving TOML library"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "tomlkit-0.14.0-py3-none-any.whl", hash = "sha256:592064ed85b40fa213469f81ac584f67a4f2992509a7c3ea2d632208623a3680"},
+    {file = "tomlkit-0.14.0.tar.gz", hash = "sha256:cf00efca415dbd57575befb1f6634c4f42d2d87dbba376128adb42c121b87064"},
+]
+
+[[package]]
 name = "torch"
 version = "2.7.1"
 description = "Tensors and Dynamic neural networks in Python with strong GPU acceleration"
@@ -5557,7 +5569,6 @@ description = "The lightning-fast ASGI server."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "sys_platform != \"emscripten\" or python_version >= \"3.14\""
 files = [
     {file = "uvicorn-0.42.0-py3-none-any.whl", hash = "sha256:96c30f5c7abe6f74ae8900a70e92b85ad6613b745d4879eb9b16ccad15645359"},
     {file = "uvicorn-0.42.0.tar.gz", hash = "sha256:9b1f190ce15a2dd22e7758651d9b6d12df09a13d51ba5bf4fc33c383a48e1775"},
@@ -5887,4 +5898,4 @@ postgres = ["psycopg2-binary"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "7fa9179c9794c637f2eebbca2b7c767d20d2f51d7c0fe1cc8fda18412875baad"
+content-hash = "6173f007b6ae012fe4cf420c21facb3d660548f12171ca47ecfa4ceb703ec800"
