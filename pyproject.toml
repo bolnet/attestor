@@ -25,6 +25,7 @@ dependencies = [
     "networkx>=3.0",
     "sentence-transformers>=2.0.0",
     "mcp>=1.0.0",
+    "pydantic>=2.5",
 ]
 
 [project.urls]
