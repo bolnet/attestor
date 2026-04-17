@@ -23,22 +23,34 @@ def _get_mem():
     if _mem is None:
         from agent_memory.core import AgentMemory
 
-        data_dir = os.environ.get("MEMWRIGHT_DATA_DIR", "/tmp/memwright")
-        config: Dict[str, Any] = {"backends": ["arangodb"]}
+        data_dir = os.environ.get(
+            "MEMWRIGHT_DATA_DIR",
+            os.path.expanduser("~/.memwright"),
+        )
 
-        # ArangoDB connection from env
-        arango_url = os.environ.get("ARANGO_URL", "http://localhost:8529")
-        arango_password = os.environ.get("ARANGO_PASSWORD", "")
-        arango_database = os.environ.get("ARANGO_DATABASE", "memwright")
-
-        config["arangodb"] = {
-            "url": arango_url,
-            "database": arango_database,
-            "auth": {"username": "root", "password": arango_password},
-            "tls": {"verify": os.environ.get("ARANGO_TLS_VERIFY", "false").lower() == "true"},
-        }
-
-        _mem = AgentMemory(data_dir, config=config)
+        # If ARANGO_URL is set, use cloud ArangoDB; otherwise run the embedded
+        # stack (SQLite + ChromaDB + NetworkX). This keeps local self-hosting
+        # a one-command affair while still supporting cloud deployments.
+        arango_url = os.environ.get("ARANGO_URL")
+        if arango_url:
+            config: Dict[str, Any] = {
+                "backends": ["arangodb"],
+                "arangodb": {
+                    "mode": "cloud",
+                    "url": arango_url,
+                    "database": os.environ.get("ARANGO_DATABASE", "memwright"),
+                    "auth": {
+                        "username": os.environ.get("ARANGO_USERNAME", "root"),
+                        "password": os.environ.get("ARANGO_PASSWORD", ""),
+                    },
+                    "tls": {
+                        "verify": os.environ.get("ARANGO_TLS_VERIFY", "false").lower() == "true",
+                    },
+                },
+            }
+            _mem = AgentMemory(data_dir, config=config)
+        else:
+            _mem = AgentMemory(data_dir)
     return _mem
 
 
@@ -148,5 +160,13 @@ routes = [
     Route("/forget", forget, methods=["POST"]),
     Route("/memory/{memory_id}", get_memory, methods=["GET"]),
 ]
+
+# Attach the read-only UI at /ui/* (routes have absolute paths)
+try:
+    from agent_memory.ui.app import ui_routes
+
+    routes.extend(ui_routes())
+except Exception:  # pragma: no cover - UI is optional
+    pass
 
 app = Starlette(routes=routes)

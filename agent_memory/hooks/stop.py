@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 _EMPTY_RESPONSE = {}
 
@@ -23,7 +25,10 @@ def handle(payload: dict) -> dict:
         if not cwd:
             return _EMPTY_RESPONSE
 
-        store_path = f"{cwd}/.memwright"
+        store_path = os.environ.get(
+            "MEMWRIGHT_PATH",
+            str(Path.home() / ".memwright"),
+        )
 
         from agent_memory.core import AgentMemory
 

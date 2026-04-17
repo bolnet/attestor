@@ -1,16 +1,19 @@
-"""ArangoDB backend — single backend for document, vector, and graph roles."""
+"""ArangoDB backend — powered by OpenArangoDB.
+
+Uses OpenArangoDB (enterprise-equivalent features for ArangoDB CE) instead of
+raw python-arango.  Provides document, vector, and graph roles in one backend.
+"""
 
 from __future__ import annotations
 
 import logging
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from arango import ArangoClient
+from open_arangodb import ArangoDB
 
 from agent_memory.models import Memory
-from agent_memory.store.base import DocumentStore, VectorStore, GraphStore
+from agent_memory.store.base import DocumentStore, GraphStore, VectorStore
 from agent_memory.store.connection import CloudConnection
 
 logger = logging.getLogger("agent_memory")
@@ -24,6 +27,8 @@ def _sanitize_rel_type(rel_type: str) -> str:
 
 class ArangoBackend(DocumentStore, VectorStore, GraphStore):
     """Multi-role ArangoDB backend: document + vector + graph in one DB.
+
+    Powered by OpenArangoDB — enterprise-equivalent features for ArangoDB CE.
 
     Accepts raw config dict. See CloudConnection.from_config() for formats.
 
@@ -40,49 +45,29 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         conn = CloudConnection.from_config(config, backend_name="arangodb")
         self._conn = conn
 
-        # Resolve CA cert for TLS verification (ArangoGraph provides base64-encoded certs)
-        store_path = config.get("_store_path")
-        ca_cert_path = conn.tls.resolve_ca_cert_path(store_path)
-
-        # Build client kwargs
-        client_kwargs: Dict[str, Any] = {"hosts": conn.url}
-        if ca_cert_path:
-            client_kwargs["verify_override"] = ca_cert_path
-        elif not conn.tls.verify:
-            client_kwargs["verify_override"] = False
-
-        self._client = ArangoClient(**client_kwargs)
-
-        # Auto-create database if possible (works on local Docker and ArangoGraph root)
-        # Falls back gracefully if _system access is denied
-        self._ensure_database(conn)
-
-        self._db = self._client.db(
-            conn.database,
+        # Build OpenArangoDB instance
+        # Disable audit/CDC by default for performance (users can opt in)
+        self._oa = ArangoDB(
+            host=conn.url,
+            database=conn.database,
             username=conn.auth.username,
             password=conn.auth.password,
+            audit_enabled=config.get("audit_enabled", False),
+            cdc_enabled=config.get("cdc_enabled", False),
+            graph_enabled=True,
         )
+
+        # Expose raw python-arango db for AQL fallback queries
+        self._db = self._oa._db
+        self._client = self._oa._client
+
+        # Ensure collections and graph exist (same schema as before)
         self._init_collections()
         self._init_graph()
+
         self._embedder = None  # lazy-init via shared embeddings module
         self._embedding_fn = None  # backward compat for benchmark code
         self._vector_index_created = False
-
-    def _ensure_database(self, conn: CloudConnection) -> None:
-        """Try to create the database via _system. Skip if access denied."""
-        try:
-            sys_db = self._client.db(
-                "_system",
-                username=conn.auth.username,
-                password=conn.auth.password,
-            )
-            if not sys_db.has_database(conn.database):
-                sys_db.create_database(conn.database)
-                logger.info("Created database %r", conn.database)
-        except Exception as e:
-            # Cloud instances with restricted users can't access _system.
-            # Database must already exist in that case.
-            logger.debug("Could not access _system (expected on some cloud setups): %s", e)
 
     def _init_collections(self) -> None:
         """Create document collections and indexes."""
@@ -93,9 +78,9 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         for idx in col.indexes():
             if idx["type"] == "persistent":
                 existing.update(idx.get("fields", []))
-        for field in ["category", "entity", "status", "created_at"]:
-            if field not in existing:
-                col.add_index({"type": "persistent", "fields": [field]})
+        for field_name in ["category", "entity", "status", "created_at"]:
+            if field_name not in existing:
+                col.add_index({"type": "persistent", "fields": [field_name]})
 
     def _init_graph(self) -> None:
         """Create graph structure: entities (vertices) + relations (edges)."""
@@ -115,9 +100,11 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
 
     # ── DocumentStore ──
 
-    def _memory_to_doc(self, memory: Memory) -> Dict[str, Any]:
+    @staticmethod
+    def _memory_to_doc(memory: Memory) -> Dict[str, Any]:
         return {
             "_key": memory.id,
+            "memory_id": memory.id,
             "content": memory.content,
             "tags": memory.tags,
             "category": memory.category,
@@ -132,24 +119,6 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
             "status": memory.status,
             "metadata": memory.metadata,
         }
-
-    def _doc_to_memory(self, doc: Dict[str, Any]) -> Memory:
-        return Memory(
-            id=doc["_key"],
-            content=doc["content"],
-            tags=doc.get("tags", []),
-            category=doc.get("category", "general"),
-            entity=doc.get("entity"),
-            namespace=doc.get("namespace", "default"),
-            created_at=doc["created_at"],
-            event_date=doc.get("event_date"),
-            valid_from=doc["valid_from"],
-            valid_until=doc.get("valid_until"),
-            superseded_by=doc.get("superseded_by"),
-            confidence=doc.get("confidence", 1.0),
-            status=doc.get("status", "active"),
-            metadata=doc.get("metadata", {}),
-        )
 
     def insert(self, memory: Memory) -> Memory:
         col = self._db.collection("memories")
@@ -288,6 +257,26 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
             "by_status": by_status,
             "by_category": by_category,
         }
+
+    @staticmethod
+    def _doc_to_memory(doc: Dict[str, Any]) -> Memory:
+        """Convert raw AQL document → memwright Memory."""
+        return Memory(
+            id=doc["_key"],
+            content=doc["content"],
+            tags=doc.get("tags", []),
+            category=doc.get("category", "general"),
+            entity=doc.get("entity"),
+            namespace=doc.get("namespace", "default"),
+            created_at=doc["created_at"],
+            event_date=doc.get("event_date"),
+            valid_from=doc["valid_from"],
+            valid_until=doc.get("valid_until"),
+            superseded_by=doc.get("superseded_by"),
+            confidence=doc.get("confidence", 1.0),
+            status=doc.get("status", "active"),
+            metadata=doc.get("metadata", {}),
+        )
 
     # ── VectorStore ──
 
@@ -544,4 +533,4 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         pass  # ArangoDB persists automatically
 
     def close(self) -> None:
-        self._client.close()
+        self._oa.close()

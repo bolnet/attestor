@@ -443,8 +443,15 @@ def get_embedding_provider(
         _cached_provider = provider
         return provider
 
-    # 3. No fallback — require OpenAI/OpenRouter or cloud provider
-    raise RuntimeError(
-        "No embedding provider available. Set OPENROUTER_API_KEY or OPENAI_API_KEY. "
-        "Local sentence-transformers fallback has been removed."
-    )
+    # 3. Local sentence-transformers fallback (zero-config default)
+    try:
+        provider = LocalEmbeddingProvider()
+        logger.info("Using local sentence-transformers (%dD)", provider.dimension)
+        _cached_provider = provider
+        return provider
+    except Exception as e:
+        raise RuntimeError(
+            "No embedding provider available. Install sentence-transformers, "
+            "or set OPENROUTER_API_KEY / OPENAI_API_KEY, or configure a cloud provider. "
+            f"Local fallback failed: {e}"
+        ) from e

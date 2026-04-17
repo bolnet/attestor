@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Dict, List, Optional
 
 from agent_memory.models import Memory, RetrievalResult
@@ -277,6 +278,213 @@ class RetrievalOrchestrator:
 
         blended.sort(key=lambda r: r.score, reverse=True)
         return blended
+
+    def recall_debug(
+        self,
+        query: str,
+        token_budget: int = 2000,
+        namespace: Optional[str] = None,
+    ) -> Dict:
+        """Execute recall and return per-layer debug trace.
+
+        Returns dict with keys: query, layers (list of layer dicts),
+        final (list of result dicts), config.
+        """
+        layers = []
+
+        def _snap(results: List[RetrievalResult]) -> List[Dict]:
+            return [
+                {
+                    "id": r.memory.id,
+                    "content": r.memory.content[:200],
+                    "score": round(r.score, 4),
+                    "source": r.match_source,
+                    "entity": r.memory.entity,
+                    "category": r.memory.category,
+                }
+                for r in results
+            ]
+
+        all_results: List[RetrievalResult] = []
+        t_total = time.monotonic()
+
+        # Layer 1: Tag match
+        t_layer = time.monotonic()
+        tags = extract_tags(query)
+        tag_results: List[RetrievalResult] = []
+        if tags:
+            tag_memories = self.store.tag_search(tags, namespace=namespace)
+            for mem in tag_memories:
+                tag_results.append(
+                    RetrievalResult(memory=mem, score=1.0, match_source="tag")
+                )
+        all_results.extend(tag_results)
+        layers.append({
+            "name": "Tag Match",
+            "description": "FTS on extracted tags",
+            "tags": tags,
+            "count": len(tag_results),
+            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
+            "results": _snap(tag_results),
+        })
+
+        # Layer 2: Graph expansion
+        t_layer = time.monotonic()
+        graph_results: List[RetrievalResult] = []
+        expanded_queries = []
+        graph_context_triples: List[str] = []
+        if self.graph:
+            try:
+                for tag in tags:
+                    related = self.graph.get_related(tag, depth=2)
+                    expanded_queries.extend(related)
+                    if hasattr(self.graph, "get_edges"):
+                        edges = self.graph.get_edges(tag)
+                        for edge in edges:
+                            subj = edge.get("subject", "")
+                            pred = edge.get("predicate", "related_to")
+                            obj = edge.get("object", "")
+                            event_date = edge.get("event_date", "")
+                            date_str = f" ({event_date})" if event_date else ""
+                            graph_context_triples.append(
+                                f"{subj} {pred} {obj}{date_str}"
+                            )
+            except Exception:
+                pass
+
+            seen_ids = {r.memory.id for r in all_results}
+            for entity_name in expanded_queries[:8]:
+                entity_memories = self.store.list_memories(
+                    entity=entity_name, status="active",
+                    namespace=namespace, limit=5,
+                )
+                for mem in entity_memories:
+                    if mem.id not in seen_ids:
+                        r = RetrievalResult(
+                            memory=mem, score=0.5, match_source="graph",
+                        )
+                        graph_results.append(r)
+                        all_results.append(r)
+                        seen_ids.add(mem.id)
+
+            # Graph triples as synthetic memories
+            for triple_str in graph_context_triples[:20]:
+                r = RetrievalResult(
+                    memory=Memory(
+                        content=triple_str,
+                        category="graph_relation",
+                        tags=[],
+                    ),
+                    score=0.6,
+                    match_source="graph",
+                )
+                graph_results.append(r)
+                all_results.append(r)
+
+        layers.append({
+            "name": "Graph Expansion",
+            "description": "BFS depth=2, entity lookup, relation triples",
+            "expanded_entities": expanded_queries[:8],
+            "triples": len(graph_context_triples),
+            "count": len(graph_results),
+            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
+            "results": _snap(graph_results),
+        })
+
+        # Layer 3: Vector search
+        t_layer = time.monotonic()
+        vector_results: List[RetrievalResult] = []
+        if self.vector_store:
+            try:
+                vec_results = self.vector_store.search(
+                    query, limit=20, namespace=namespace
+                )
+                seen_ids = {r.memory.id for r in all_results}
+                for vr in vec_results:
+                    mid = vr["memory_id"]
+                    if mid in seen_ids:
+                        continue
+                    memory = self.store.get(mid)
+                    if not memory or memory.status != "active":
+                        continue
+                    if namespace and memory.namespace != namespace:
+                        continue
+                    distance = vr.get("distance", 1.0)
+                    score = max(0.0, 1.0 - distance)
+                    r = RetrievalResult(
+                        memory=memory, score=score, match_source="vector",
+                    )
+                    vector_results.append(r)
+                    all_results.append(r)
+                    seen_ids.add(mid)
+            except Exception:
+                pass
+
+        layers.append({
+            "name": "Vector Search",
+            "description": "Cosine similarity via ChromaDB",
+            "count": len(vector_results),
+            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
+            "results": _snap(vector_results),
+        })
+
+        # Layer 4: Fusion + Rank (RRF or graph blend)
+        t_layer = time.monotonic()
+        if self.fusion_mode == "graph_blend" and self.graph and len(all_results) >= 3:
+            fused = self._graph_blend(all_results)
+        else:
+            fused = self._reciprocal_rank_fusion(all_results)
+        fused = temporal_boost(fused, enabled=self.enable_temporal_boost)
+        query_entities = [t for t in tags if t[0].isupper()] if tags else None
+        fused = entity_boost(fused, query_entities)
+
+        layers.append({
+            "name": "Fusion + Rank",
+            "description": f"RRF k=60, temporal boost, entity boost" if self.fusion_mode == "rrf" else "Graph blend + temporal + entity boost",
+            "fusion_mode": self.fusion_mode,
+            "count": len(fused),
+            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
+            "results": _snap(fused),
+        })
+
+        # Layer 5: Diversity + Fit (MMR + token budget)
+        t_layer = time.monotonic()
+        if self.enable_mmr:
+            fused = mmr_rerank(fused, lambda_param=self.mmr_lambda)
+        fused = confidence_decay_boost(
+            fused,
+            decay_rate=self.confidence_decay_rate,
+            boost_rate=self.confidence_boost_rate,
+            gate=self.confidence_gate,
+        )
+        final = fit_to_budget(fused, token_budget)
+
+        layers.append({
+            "name": "Diversity + Fit",
+            "description": f"MMR λ={self.mmr_lambda}, confidence decay, token budget={token_budget}",
+            "mmr_enabled": self.enable_mmr,
+            "budget": token_budget,
+            "count": len(final),
+            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
+            "results": _snap(final),
+        })
+
+        total_ms = round((time.monotonic() - t_total) * 1000, 2)
+
+        return {
+            "query": query,
+            "namespace": namespace,
+            "token_budget": token_budget,
+            "total_latency_ms": total_ms,
+            "layers": layers,
+            "final_count": len(final),
+            "config": {
+                "fusion_mode": self.fusion_mode,
+                "mmr_lambda": self.mmr_lambda,
+                "confidence_gate": self.confidence_gate,
+                "confidence_decay_rate": self.confidence_decay_rate,
+            },
+        }
 
     def recall_as_context(
         self,

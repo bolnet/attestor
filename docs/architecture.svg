@@ -1,256 +1,130 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 560" font-family="Georgia, 'Times New Roman', serif">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f172a"/>
-      <stop offset="100%" style="stop-color:#1e293b"/>
-    </linearGradient>
-    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#C15F3C"/>
-      <stop offset="100%" style="stop-color:#e07a56"/>
-    </linearGradient>
-    <linearGradient id="coreGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#c2410c"/>
-      <stop offset="100%" style="stop-color:#9a3412"/>
-    </linearGradient>
-    <linearGradient id="storeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#1d4ed8"/>
-      <stop offset="100%" style="stop-color:#1e40af"/>
-    </linearGradient>
-    <linearGradient id="retrievalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#7c3aed"/>
-      <stop offset="100%" style="stop-color:#6d28d9"/>
-    </linearGradient>
-    <linearGradient id="interfaceGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#059669"/>
-      <stop offset="100%" style="stop-color:#047857"/>
-    </linearGradient>
-    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#0891b2"/>
-      <stop offset="100%" style="stop-color:#0e7490"/>
-    </linearGradient>
-    <linearGradient id="roleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#4338ca"/>
-      <stop offset="100%" style="stop-color:#3730a3"/>
-    </linearGradient>
-    <filter id="shadow" x="-5%" y="-5%" width="110%" height="120%">
-      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.3"/>
-    </filter>
-    <filter id="brandGlow" x="-10%" y="-10%" width="120%" height="120%">
-      <feGaussianBlur stdDeviation="6" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <marker id="arrowWhite" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#94a3b8"/>
+    <style>
+      .bg { fill: #F5F1E8; }
+      .card { fill: #FBF8F1; stroke: #1A1614; stroke-width: 1; }
+      .core { fill: #1A1614; stroke: #C15F3C; stroke-width: 2; }
+      .ink { fill: #1A1614; }
+      .cream { fill: #F5F1E8; }
+      .muted { fill: #6B5F4F; }
+      .accent { fill: #C15F3C; }
+      .rule { stroke: #1A1614; stroke-width: 0.75; }
+      .hair { stroke: #C9C0B0; stroke-width: 0.75; }
+      .wire { stroke: #1A1614; stroke-width: 1; fill: none; }
+      .wire-accent { stroke: #C15F3C; stroke-width: 1.5; fill: none; }
+      .mono { font-family: 'Menlo', 'Consolas', 'Courier New', monospace; }
+      .sans { font-family: 'Helvetica Neue', 'Arial', sans-serif; letter-spacing: 0.12em; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1A1614"/>
     </marker>
-    <marker id="arrowOrange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#fb923c"/>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#C15F3C"/>
     </marker>
   </defs>
 
-  <!-- Background -->
-  <rect width="1200" height="960" fill="url(#bgGrad)" rx="12"/>
+  <rect class="bg" width="1400" height="560"/>
 
-  <!-- ═══════════ BRAND HEADER ═══════════ -->
-  <rect x="400" y="12" width="400" height="52" rx="10" fill="url(#brandGrad)" filter="url(#brandGlow)" opacity="0.95"/>
-  <text x="600" y="36" text-anchor="middle" fill="#fff" font-size="26" font-weight="800" letter-spacing="4">MEMWRIGHT</text>
-  <text x="600" y="54" text-anchor="middle" fill="#fde8e0" font-size="11" letter-spacing="1">System Architecture</text>
+  <line class="rule" x1="40" y1="44" x2="1360" y2="44"/>
+  <line class="hair" x1="40" y1="50" x2="1360" y2="50"/>
+  <text class="ink sans" x="40" y="36" font-size="11">&#167; ARCHITECTURE &#183; MULTI-AGENT CLIENTS &#183; MEMWRIGHT CORE &#183; PLUGGABLE STORAGE</text>
+  <text class="muted sans" x="1360" y="36" font-size="11" text-anchor="end">FIG. 01 &#183; MEMWRIGHT</text>
 
-  <!-- ═══════════ INTERFACE LAYER ═══════════ -->
-  <text x="40" y="90" fill="#94a3b8" font-size="10" font-weight="600" letter-spacing="2">INTERFACE LAYER — how agents talk to Memwright</text>
+  <text class="accent sans" x="40" y="88" font-size="11">&#167; MULTI-AGENT CLIENTS</text>
+  <text class="accent sans" x="520" y="88" font-size="11">&#167; MEMWRIGHT CORE</text>
+  <text class="accent sans" x="1000" y="88" font-size="11">&#167; PLUGGABLE STORAGE</text>
 
-  <rect x="40" y="100" width="180" height="65" rx="8" fill="url(#interfaceGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="130" y="124" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">MCP Server</text>
-  <text x="130" y="140" text-anchor="middle" fill="#d1fae5" font-size="9">8 tools, 2 resources, 2 prompts</text>
-  <text x="130" y="153" text-anchor="middle" fill="#a7f3d0" font-size="8">Claude Code / Cursor / Windsurf</text>
+  <g transform="translate(40,110)">
+    <rect class="card" width="420" height="380" rx="2"/>
+    <text class="ink" x="24" y="40" font-size="22" font-weight="700">Agent team</text>
+    <text class="muted" x="24" y="62" font-size="12" font-style="italic">Orchestrator-worker &#183; planner-executor</text>
 
-  <rect x="235" y="100" width="180" height="65" rx="8" fill="url(#interfaceGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="325" y="124" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">REST API</text>
-  <text x="325" y="140" text-anchor="middle" fill="#d1fae5" font-size="9">Starlette ASGI (8 routes)</text>
-  <text x="325" y="153" text-anchor="middle" fill="#a7f3d0" font-size="8">Lambda / Cloud Run / Container Apps</text>
+    <g transform="translate(24,86)">
+      <rect class="card" x="0"   y="0"   width="180" height="40" rx="2"/>
+      <text class="ink sans" x="14" y="25" font-size="11">ORCHESTRATOR</text>
+      <rect class="card" x="192" y="0"   width="180" height="40" rx="2"/>
+      <text class="ink sans" x="206" y="25" font-size="11">PLANNER</text>
+      <rect class="card" x="0"   y="52"  width="180" height="40" rx="2"/>
+      <text class="ink sans" x="14" y="77" font-size="11">EXECUTOR</text>
+      <rect class="card" x="192" y="52"  width="180" height="40" rx="2"/>
+      <text class="ink sans" x="206" y="77" font-size="11">RESEARCHER</text>
+      <rect class="card" x="0"   y="104" width="180" height="40" rx="2"/>
+      <text class="ink sans" x="14" y="129" font-size="11">REVIEWER</text>
+      <rect class="card" x="192" y="104" width="180" height="40" rx="2"/>
+      <text class="ink sans" x="206" y="129" font-size="11">MONITOR</text>
+    </g>
 
-  <rect x="430" y="100" width="150" height="65" rx="8" fill="url(#interfaceGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="505" y="124" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">CLI</text>
-  <text x="505" y="140" text-anchor="middle" fill="#d1fae5" font-size="9">17+ commands</text>
-  <text x="505" y="153" text-anchor="middle" fill="#a7f3d0" font-size="8">memwright / agent-memory</text>
+    <line class="hair" x1="24" y1="262" x2="396" y2="262"/>
+    <text class="muted sans" x="24" y="284" font-size="10">CONTEXT &#183; IDENTITY &#183; ROLE &#183; NAMESPACE &#183; PARENT &#183; BUDGET</text>
 
-  <rect x="595" y="100" width="180" height="65" rx="8" fill="url(#interfaceGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="685" y="124" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Lifecycle Hooks</text>
-  <text x="685" y="140" text-anchor="middle" fill="#d1fae5" font-size="9">SessionStart | PostToolUse | Stop</text>
-  <text x="685" y="153" text-anchor="middle" fill="#a7f3d0" font-size="8">Auto-capture + context injection</text>
+    <g transform="translate(24,302)">
+      <rect class="card" x="0"   y="0" width="116" height="52" rx="2"/>
+      <text class="ink mono" x="58" y="22" font-size="13" text-anchor="middle" font-weight="700">Python</text>
+      <text class="muted" x="58" y="40" font-size="10" text-anchor="middle" font-style="italic">in-process</text>
+      <rect class="card" x="128" y="0" width="116" height="52" rx="2"/>
+      <text class="ink mono" x="186" y="22" font-size="13" text-anchor="middle" font-weight="700">REST</text>
+      <text class="muted" x="186" y="40" font-size="10" text-anchor="middle" font-style="italic">any language</text>
+      <rect class="card" x="256" y="0" width="116" height="52" rx="2"/>
+      <text class="ink mono" x="314" y="22" font-size="13" text-anchor="middle" font-weight="700">MCP</text>
+      <text class="muted" x="314" y="40" font-size="10" text-anchor="middle" font-style="italic">IDE agents</text>
+    </g>
+  </g>
 
-  <rect x="790" y="100" width="180" height="65" rx="8" fill="url(#interfaceGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="880" y="124" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Python SDK</text>
-  <text x="880" y="140" text-anchor="middle" fill="#d1fae5" font-size="9">AgentMemory + AgentContext</text>
-  <text x="880" y="153" text-anchor="middle" fill="#a7f3d0" font-size="8">Embedded or distributed (HTTP)</text>
+  <g transform="translate(520,110)">
+    <rect class="core" width="380" height="380" rx="2"/>
+    <text class="cream sans" x="24" y="38" font-size="11">&#167; CORE &#183; agent_memory/</text>
+    <text class="cream" x="24" y="78" font-size="28" font-weight="700">Memwright</text>
+    <text class="cream" x="24" y="104" font-size="12" font-style="italic" opacity="0.8">The memory layer for agent teams</text>
+    <line x1="24" y1="128" x2="356" y2="128" stroke="#C15F3C" stroke-width="0.5" opacity="0.6"/>
 
-  <rect x="985" y="100" width="175" height="65" rx="8" fill="url(#interfaceGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="1072" y="124" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">HTTP Client</text>
-  <text x="1072" y="140" text-anchor="middle" fill="#d1fae5" font-size="9">MemoryClient (stdlib only)</text>
-  <text x="1072" y="153" text-anchor="middle" fill="#a7f3d0" font-size="8">Remote agents → REST API</text>
+    <text class="accent sans" x="24" y="156" font-size="11">GOVERNANCE</text>
+    <text class="cream" x="24" y="180" font-size="13">Namespace isolation &#183; RBAC</text>
+    <text class="cream" x="24" y="200" font-size="13">Provenance &#183; Token budgets</text>
+    <text class="cream" x="24" y="220" font-size="13">Write quotas &#183; Review flags</text>
 
-  <!-- ═══════════ ALL → CORE arrows ═══════════ -->
-  <line x1="130" y1="165" x2="480" y2="200" stroke="#4ade80" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
-  <line x1="325" y1="165" x2="480" y2="200" stroke="#4ade80" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
-  <line x1="505" y1="165" x2="520" y2="200" stroke="#4ade80" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
-  <line x1="685" y1="165" x2="580" y2="200" stroke="#4ade80" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
-  <line x1="880" y1="165" x2="650" y2="200" stroke="#4ade80" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+    <text class="accent sans" x="24" y="256" font-size="11">RETRIEVAL &#183; 5-LAYER CASCADE</text>
+    <text class="cream" x="24" y="280" font-size="13">01 &#183; Tag match</text>
+    <text class="cream" x="24" y="298" font-size="13">02 &#183; Graph expansion (BFS)</text>
+    <text class="cream" x="24" y="316" font-size="13">03 &#183; Vector search</text>
+    <text class="cream" x="24" y="334" font-size="13">04 &#183; RRF fusion + PageRank</text>
+    <text class="cream" x="24" y="352" font-size="13">05 &#183; MMR diversity + budget fit</text>
 
-  <!-- ═══════════ MEMWRIGHT CORE ═══════════ -->
-  <text x="40" y="197" fill="#94a3b8" font-size="10" font-weight="600" letter-spacing="2">MEMWRIGHT CORE — the brain</text>
+    <text class="cream sans" x="356" y="374" font-size="10" text-anchor="end" opacity="0.7">ZERO LLM IN THE RETRIEVAL PATH</text>
+  </g>
 
-  <rect x="310" y="204" width="480" height="75" rx="10" fill="url(#coreGrad)" filter="url(#shadow)"/>
-  <rect x="312" y="206" width="476" height="71" rx="9" fill="none" stroke="#C15F3C" stroke-width="2" opacity="0.6"/>
-  <text x="550" y="228" text-anchor="middle" fill="#fff" font-size="17" font-weight="800">Memwright Engine</text>
-  <text x="550" y="247" text-anchor="middle" fill="#fed7aa" font-size="10">add() · recall() · search() · timeline() · forget() · extract()</text>
-  <text x="550" y="265" text-anchor="middle" fill="#fdba74" font-size="9">Dedup (SHA-256) · Contradiction detection · Namespace scoping · Graceful degradation</text>
+  <g>
+    <path class="wire" d="M 460 180 L 520 180" marker-end="url(#arrow)"/>
+    <path class="wire" d="M 460 240 L 520 240" marker-end="url(#arrow)"/>
+    <path class="wire" d="M 460 300 L 520 300" marker-end="url(#arrow)"/>
+  </g>
 
-  <!-- ═══════════ Core → 3 subsystems ═══════════ -->
-  <line x1="430" y1="279" x2="200" y2="335" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5" marker-end="url(#arrowOrange)"/>
-  <line x1="550" y1="279" x2="550" y2="335" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5" marker-end="url(#arrowOrange)"/>
-  <line x1="670" y1="279" x2="960" y2="335" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5" marker-end="url(#arrowOrange)"/>
+  <g>
+    <path class="wire-accent" d="M 900 200 L 1000 160" marker-end="url(#arrow-accent)"/>
+    <path class="wire-accent" d="M 900 300 L 1000 300" marker-end="url(#arrow-accent)"/>
+    <path class="wire-accent" d="M 900 400 L 1000 440" marker-end="url(#arrow-accent)"/>
+  </g>
 
-  <!-- ═══════════ TEMPORAL (Left) ═══════════ -->
-  <rect x="40" y="340" width="300" height="90" rx="10" fill="#7f1d1d" filter="url(#shadow)" opacity="0.9"/>
-  <text x="190" y="365" text-anchor="middle" fill="#fca5a5" font-size="12" font-weight="700">Temporal Manager</text>
-  <text x="190" y="383" text-anchor="middle" fill="#fecaca" font-size="9">Contradiction detection + auto-supersession</text>
-  <text x="190" y="399" text-anchor="middle" fill="#fecaca" font-size="9">Validity windows · Timeline ordering</text>
-  <text x="190" y="415" text-anchor="middle" fill="#fecaca" font-size="9">"Works at Google" auto-supersedes "Works at Meta"</text>
+  <g transform="translate(1000,110)">
+    <rect class="card" x="0" y="20"  width="360" height="110" rx="2"/>
+    <text class="accent sans" x="20" y="46" font-size="11">01 &#183; DOCUMENT</text>
+    <text class="ink" x="20" y="74" font-size="18" font-weight="700">Source of truth</text>
+    <text class="muted" x="20" y="96"  font-size="11">SQLite &#183; PostgreSQL &#183; AlloyDB &#183; ArangoDB</text>
+    <text class="muted" x="20" y="114" font-size="11">DynamoDB &#183; Cosmos DB</text>
 
-  <!-- ═══════════ RETRIEVAL PIPELINE (Center) ═══════════ -->
-  <text x="370" y="335" fill="#94a3b8" font-size="10" font-weight="600" letter-spacing="2">RETRIEVAL PIPELINE</text>
+    <rect class="card" x="0" y="150" width="360" height="110" rx="2"/>
+    <text class="accent sans" x="20" y="176" font-size="11">02 &#183; VECTOR</text>
+    <text class="ink" x="20" y="204" font-size="18" font-weight="700">Semantic search</text>
+    <text class="muted" x="20" y="226" font-size="11">ChromaDB &#183; pgvector &#183; ScaNN &#183; ArangoDB</text>
+    <text class="muted" x="20" y="244" font-size="11">OpenSearch Serverless &#183; Cosmos DiskANN</text>
 
-  <rect x="370" y="340" width="360" height="210" rx="10" fill="url(#retrievalGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="550" y="365" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">3-Layer Cascade</text>
+    <rect class="card" x="0" y="280" width="360" height="110" rx="2"/>
+    <text class="accent sans" x="20" y="306" font-size="11">03 &#183; GRAPH</text>
+    <text class="ink" x="20" y="334" font-size="18" font-weight="700">Entities &amp; multi-hop</text>
+    <text class="muted" x="20" y="356" font-size="11">NetworkX &#183; Apache AGE &#183; ArangoDB</text>
+    <text class="muted" x="20" y="374" font-size="11">Neptune &#183; NetworkX-on-Cosmos</text>
+  </g>
 
-  <rect x="390" y="375" width="100" height="28" rx="5" fill="#8b5cf6" stroke="#a78bfa" stroke-width="1"/>
-  <text x="440" y="394" text-anchor="middle" fill="#fff" font-size="9" font-weight="600">Tag Match</text>
-
-  <rect x="500" y="375" width="100" height="28" rx="5" fill="#8b5cf6" stroke="#a78bfa" stroke-width="1"/>
-  <text x="550" y="394" text-anchor="middle" fill="#fff" font-size="9" font-weight="600">Graph BFS</text>
-
-  <rect x="610" y="375" width="100" height="28" rx="5" fill="#8b5cf6" stroke="#a78bfa" stroke-width="1"/>
-  <text x="660" y="394" text-anchor="middle" fill="#fff" font-size="9" font-weight="600">Vector Search</text>
-
-  <text x="550" y="420" text-anchor="middle" fill="#c4b5fd" font-size="14">v</text>
-
-  <rect x="420" y="425" width="260" height="24" rx="5" fill="#6d28d9" stroke="#7c3aed" stroke-width="1"/>
-  <text x="550" y="442" text-anchor="middle" fill="#ede9fe" font-size="9" font-weight="600">RRF Fusion (k=60) or Graph Blend</text>
-
-  <text x="550" y="462" text-anchor="middle" fill="#c4b5fd" font-size="14">v</text>
-
-  <rect x="395" y="466" width="310" height="24" rx="5" fill="#6d28d9" stroke="#7c3aed" stroke-width="1"/>
-  <text x="550" y="483" text-anchor="middle" fill="#ede9fe" font-size="9" font-weight="600">Temporal +0.2 · Entity +0.3 · PageRank · Confidence Decay</text>
-
-  <text x="550" y="503" text-anchor="middle" fill="#c4b5fd" font-size="14">v</text>
-
-  <rect x="395" y="507" width="310" height="24" rx="5" fill="#5b21b6" stroke="#6d28d9" stroke-width="1"/>
-  <text x="550" y="524" text-anchor="middle" fill="#ede9fe" font-size="9" font-weight="600">MMR Diversity (Jaccard) · fit_to_budget(token_ceiling)</text>
-
-  <!-- ═══════════ EXTRACTION (Right of retrieval) ═══════════ -->
-  <rect x="760" y="340" width="220" height="90" rx="10" fill="#78350f" filter="url(#shadow)" opacity="0.9"/>
-  <text x="870" y="365" text-anchor="middle" fill="#fde68a" font-size="12" font-weight="700">Entity Extraction</text>
-  <text x="870" y="383" text-anchor="middle" fill="#fef3c7" font-size="9">Rule-based + LLM extraction</text>
-  <text x="870" y="399" text-anchor="middle" fill="#fef3c7" font-size="9">50+ known tools auto-detected</text>
-  <text x="870" y="415" text-anchor="middle" fill="#fef3c7" font-size="9">Populates graph on every add()</text>
-
-  <!-- Config box -->
-  <rect x="1000" y="340" width="160" height="90" rx="10" fill="#1e1b4b" filter="url(#shadow)" opacity="0.9"/>
-  <text x="1080" y="365" text-anchor="middle" fill="#c7d2fe" font-size="12" font-weight="700">Config</text>
-  <text x="1080" y="383" text-anchor="middle" fill="#e0e7ff" font-size="9">token_budget: 2000</text>
-  <text x="1080" y="397" text-anchor="middle" fill="#e0e7ff" font-size="9">mmr_lambda: 0.7</text>
-  <text x="1080" y="411" text-anchor="middle" fill="#e0e7ff" font-size="9">fusion_mode: rrf</text>
-  <text x="1080" y="425" text-anchor="middle" fill="#e0e7ff" font-size="9">decay: -0.001/hr</text>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- THE BOUNDARY — ABSTRACT ROLE INTERFACES            -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <text x="40" y="575" fill="#C15F3C" font-size="12" font-weight="800" letter-spacing="2">STORAGE BOUNDARY</text>
-  <text x="245" y="575" fill="#94a3b8" font-size="10">— Memwright talks to 3 abstract roles, not specific databases</text>
-
-  <!-- Dashed boundary line -->
-  <line x1="40" y1="583" x2="1160" y2="583" stroke="#C15F3C" stroke-width="2" stroke-dasharray="8,4" opacity="0.7"/>
-
-  <!-- 3 Abstract Roles -->
-  <rect x="40" y="595" width="340" height="70" rx="8" fill="url(#roleGrad)" filter="url(#shadow)"/>
-  <text x="210" y="618" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">DocumentStore</text>
-  <text x="210" y="636" text-anchor="middle" fill="#c7d2fe" font-size="10">insert · get · update · delete · list · tag_search</text>
-  <text x="210" y="651" text-anchor="middle" fill="#a5b4fc" font-size="9">The source of truth. Required — never degrades.</text>
-
-  <rect x="410" y="595" width="340" height="70" rx="8" fill="url(#roleGrad)" filter="url(#shadow)"/>
-  <text x="580" y="618" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">VectorStore</text>
-  <text x="580" y="636" text-anchor="middle" fill="#c7d2fe" font-size="10">add · search · delete · count</text>
-  <text x="580" y="651" text-anchor="middle" fill="#a5b4fc" font-size="9">Semantic similarity. Optional — degrades gracefully.</text>
-
-  <rect x="780" y="595" width="340" height="70" rx="8" fill="url(#roleGrad)" filter="url(#shadow)"/>
-  <text x="950" y="618" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">GraphStore</text>
-  <text x="950" y="636" text-anchor="middle" fill="#c7d2fe" font-size="10">add_entity · add_relation · get_related · BFS · PageRank</text>
-  <text x="950" y="651" text-anchor="middle" fill="#a5b4fc" font-size="9">Entity relationships. Optional — degrades gracefully.</text>
-
-  <!-- Arrows from retrieval to roles -->
-  <line x1="440" y1="550" x2="210" y2="595" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
-  <line x1="550" y1="550" x2="580" y2="595" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
-  <line x1="660" y1="550" x2="950" y2="595" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- LOCAL BACKENDS (3 separate systems)                 -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <text x="40" y="695" fill="#94a3b8" font-size="10" font-weight="600" letter-spacing="2">LOCAL MODE — 3 separate embedded systems, each fills 1 role</text>
-
-  <rect x="40" y="708" width="340" height="60" rx="8" fill="url(#storeGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="210" y="732" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">SQLite</text>
-  <text x="210" y="750" text-anchor="middle" fill="#93c5fd" font-size="9">WAL mode · 17 columns · 8 indexes · roles: {document}</text>
-
-  <rect x="410" y="708" width="340" height="60" rx="8" fill="url(#storeGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="580" y="732" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">ChromaDB</text>
-  <text x="580" y="750" text-anchor="middle" fill="#93c5fd" font-size="9">all-MiniLM-L6-v2 (384D) · HNSW cosine · roles: {vector}</text>
-
-  <rect x="780" y="708" width="340" height="60" rx="8" fill="url(#storeGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="950" y="732" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">NetworkX</text>
-  <text x="950" y="750" text-anchor="middle" fill="#93c5fd" font-size="9">MultiDiGraph · BFS · PageRank · JSON · roles: {graph}</text>
-
-  <!-- Role arrows from abstract to local -->
-  <line x1="210" y1="665" x2="210" y2="708" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrowWhite)"/>
-  <line x1="580" y1="665" x2="580" y2="708" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrowWhite)"/>
-  <line x1="950" y1="665" x2="950" y2="708" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrowWhite)"/>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- CLOUD BACKENDS (1 system fills ALL 3 roles)         -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <text x="40" y="800" fill="#94a3b8" font-size="10" font-weight="600" letter-spacing="2">CLOUD MODE — 1 database fills ALL 3 roles (document + vector + graph)</text>
-
-  <!-- Merge arrows showing all 3 roles converge -->
-  <line x1="210" y1="665" x2="150" y2="818" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3,3" opacity="0.3"/>
-  <line x1="580" y1="665" x2="150" y2="818" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3,3" opacity="0.3"/>
-  <line x1="950" y1="665" x2="150" y2="818" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3,3" opacity="0.3"/>
-
-  <rect x="40" y="818" width="185" height="60" rx="6" fill="url(#cloudGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="132" y="840" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">PostgreSQL</text>
-  <text x="132" y="855" text-anchor="middle" fill="#cffafe" font-size="8">pgvector + Apache AGE</text>
-  <text x="132" y="868" text-anchor="middle" fill="#a5f3fc" font-size="8">roles: {doc, vec, graph}</text>
-
-  <rect x="240" y="818" width="185" height="60" rx="6" fill="url(#cloudGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="332" y="840" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">ArangoDB</text>
-  <text x="332" y="855" text-anchor="middle" fill="#cffafe" font-size="8">Native doc + vec + graph</text>
-  <text x="332" y="868" text-anchor="middle" fill="#a5f3fc" font-size="8">roles: {doc, vec, graph}</text>
-
-  <rect x="440" y="818" width="185" height="60" rx="6" fill="url(#cloudGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="532" y="840" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">AWS</text>
-  <text x="532" y="855" text-anchor="middle" fill="#cffafe" font-size="8">DynamoDB + OpenSearch + Neptune</text>
-  <text x="532" y="868" text-anchor="middle" fill="#a5f3fc" font-size="8">roles: {doc, vec, graph}</text>
-
-  <rect x="640" y="818" width="185" height="60" rx="6" fill="url(#cloudGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="732" y="840" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">Azure</text>
-  <text x="732" y="855" text-anchor="middle" fill="#cffafe" font-size="8">Cosmos DB (DiskANN) + NetworkX</text>
-  <text x="732" y="868" text-anchor="middle" fill="#a5f3fc" font-size="8">roles: {doc, vec, graph}</text>
-
-  <rect x="840" y="818" width="185" height="60" rx="6" fill="url(#cloudGrad)" filter="url(#shadow)" opacity="0.95"/>
-  <text x="932" y="840" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">GCP</text>
-  <text x="932" y="855" text-anchor="middle" fill="#cffafe" font-size="8">AlloyDB + Vertex AI</text>
-  <text x="932" y="868" text-anchor="middle" fill="#a5f3fc" font-size="8">roles: {doc, vec, graph}</text>
-
-  <!-- ═══════════ KEY INSIGHT CALLOUT ═══════════ -->
-  <rect x="40" y="895" width="1120" height="48" rx="8" fill="#1e1b4b" stroke="#C15F3C" stroke-width="1.5" opacity="0.9"/>
-  <text x="600" y="916" text-anchor="middle" fill="#C15F3C" font-size="13" font-weight="800">KEY DESIGN</text>
-  <text x="600" y="934" text-anchor="middle" fill="#e0e7ff" font-size="10">Memwright never talks to databases directly. It talks to 3 abstract roles (DocumentStore, VectorStore, GraphStore). The backend registry decides which database fills each role. Local = 3 systems. Cloud = 1 system fills all 3.</text>
-
+  <line class="hair" x1="40" y1="510" x2="1360" y2="510"/>
+  <text class="muted sans" x="40" y="534" font-size="11">ONE API &#183; EVERY BACKEND &#183; <tspan class="ink">LIBRARY</tspan> &#183; <tspan class="ink">SIDECAR</tspan> &#183; <tspan class="ink">SHARED SERVICE</tspan></text>
+  <text class="muted sans" x="1360" y="534" font-size="11" text-anchor="end">SELF-HOSTED &#183; DETERMINISTIC &#183; MIT</text>
 </svg>

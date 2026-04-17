@@ -268,6 +268,33 @@ def main(argv=None):
     p_mab.add_argument("--env-file", default=None, help="Path to .env file for API keys")
     _add_backend_args(p_mab)
 
+    # api (REST API server)
+    p_api = subparsers.add_parser(
+        "api",
+        help="Start Starlette REST API server (uvicorn)",
+    )
+    p_api.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
+    p_api.add_argument("--port", type=int, default=8080, help="Bind port (default: 8080)")
+    p_api.add_argument(
+        "--path",
+        default=None,
+        help="Memory store path (default: $MEMWRIGHT_DATA_DIR or ~/.memwright)",
+    )
+
+    # ui (read-only web viewer)
+    p_ui = subparsers.add_parser(
+        "ui",
+        help="Start read-only web UI (Forensic Archive viewer)",
+    )
+    p_ui.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
+    p_ui.add_argument("--port", type=int, default=8080, help="Bind port (default: 8080)")
+    p_ui.add_argument(
+        "--path",
+        default=None,
+        help="Memory store path (default: $MEMWRIGHT_PATH or ~/.memwright)",
+    )
+    p_ui.add_argument("--open", action="store_true", help="Open browser on launch")
+
     # mcp (zero-config MCP server -- used by .mcp.json)
     p_mcp = subparsers.add_parser(
         "mcp",
@@ -307,6 +334,8 @@ def main(argv=None):
         "update": _cmd_update,
         "forget": _cmd_forget,
         "serve": _cmd_serve,
+        "api": _cmd_api,
+        "ui": _cmd_ui,
         "setup-claude-code": _cmd_setup_claude_code,
         "doctor": _cmd_doctor,
         "locomo": _cmd_locomo,
@@ -672,6 +701,28 @@ def _cmd_serve(args):
     asyncio.run(run_server(args.path))
 
 
+def _cmd_api(args):
+    try:
+        import uvicorn
+    except ImportError:
+        print("uvicorn is required. Run: pip install 'memwright[lambda]' or pip install uvicorn")
+        sys.exit(1)
+
+    if args.path:
+        os.environ["MEMWRIGHT_DATA_DIR"] = args.path
+
+    print(
+        f"Starting memwright REST API on http://{args.host}:{args.port}",
+        file=sys.stderr,
+    )
+    uvicorn.run(
+        "agent_memory.api:app",
+        host=args.host,
+        port=args.port,
+        log_level="info",
+    )
+
+
 def _cmd_setup_claude_code(args):
     import shutil
 
@@ -739,12 +790,11 @@ def _print_health_report(report):
             details.append(f"{check['nodes']} nodes, {check.get('edges', 0)} edges")
         if check.get("active_layers") is not None:
             details.append(f"{check['active_layers']}/{check['max_layers']} layers")
-        if check.get("note"):
-            details.append(check["note"])
-
         detail_str = f" ({', '.join(details)})" if details else ""
         print(f"  [{icon}] {name}{detail_str}")
 
+        if check.get("note"):
+            print(f"     ^ {check['note']}")
         if status == "error" and check.get("error"):
             print(f"     {check['error']}")
 
@@ -838,6 +888,28 @@ def _cmd_mcp_serve(args):
 
     print(f"Starting MCP server for {store_path}...", file=sys.stderr)
     asyncio.run(run_server(store_path))
+
+
+def _cmd_ui(args):
+    """Launch read-only web UI."""
+    store_path = args.path or os.environ.get(
+        "MEMWRIGHT_PATH", os.path.expanduser("~/.memwright")
+    )
+    os.environ["MEMWRIGHT_PATH"] = store_path
+    Path(store_path).mkdir(parents=True, exist_ok=True)
+
+    print(f"Memwright UI · {store_path}", file=sys.stderr)
+    print(f"→ http://{args.host}:{args.port}/ui/memories", file=sys.stderr)
+
+    if args.open:
+        import webbrowser, threading
+        url = f"http://{args.host}:{args.port}/ui/memories"
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+
+    import uvicorn
+    uvicorn.run(
+        "agent_memory.api:app", host=args.host, port=args.port, log_level="warning"
+    )
 
 
 def _cmd_hook(args):

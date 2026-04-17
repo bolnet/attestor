@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Memwright — Forensic Archive{% endblock %}</title>
+  <link rel="stylesheet" href="/ui/static/app.css?v=2">
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+</head>
+<body>
+  <header class="chrome">
+    <a class="mark" href="/ui/memories">
+      <span class="mark__glyph">m</span>
+      <span>
+        <span class="mark__word">memwright<em>.</em></span>
+        <span class="mark__sub">Forensic Archive · Read Only</span>
+      </span>
+    </a>
+
+    <nav class="chrome__nav">
+      <a class="tab" href="/ui/memories" {% if request.url.path.startswith("/ui/memories") %}aria-current="page"{% endif %}>01 · Memories</a>
+      <a class="tab" href="/ui/graph" {% if request.url.path.startswith("/ui/graph") %}aria-current="page"{% endif %}>02 · Graph</a>
+      <a class="tab" href="/ui/recall" {% if request.url.path.startswith("/ui/recall") %}aria-current="page"{% endif %}>03 · Recall</a>
+      <a class="tab" href="/ui/timeline" {% if request.url.path.startswith("/ui/timeline") %}aria-current="page"{% endif %}>04 · Timeline</a>
+      <a class="tab" href="/ui/agents" {% if request.url.path.startswith("/ui/agents") %}aria-current="page"{% endif %}>05 · Agents</a>
+      <a class="tab" href="/ui/health" {% if request.url.path.startswith("/ui/health") %}aria-current="page"{% endif %}>06 · Health</a>
+      <a class="tab" href="/ui/config" {% if request.url.path.startswith("/ui/config") %}aria-current="page"{% endif %}>07 · Config</a>
+      <a class="tab" href="/ui/ops" {% if request.url.path.startswith("/ui/ops") %}aria-current="page"{% endif %}>08 · Ops</a>
+    </nav>
+
+    <div class="chrome__ident">
+      <div><span class="dot"></span><b>NAMESPACE</b> {{ namespace_default }}</div>
+      <div>STORE · {{ store_path }}</div>
+      <div>{{ stats.total_memories or 0 }} records · {{ stats.active or stats.total_active or 0 }} active <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">&#9680;</button></div>
+    </div>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="ticker">
+    <div class="ticker__pulse" data-secs="0">Live · read-only</div>
+    <div class="ticker__mid">MEMWRIGHT v2 · DETERMINISTIC RETRIEVAL · NO LLM IN CRITICAL PATH</div>
+    <div>{{ stats.total_memories or 0 }} · ON DISK</div>
+  </footer>
+
+  <script src="/ui/static/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 560" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#C15F3C"/>
+    </marker>
+    <style>
+      .bg { fill: #F5F1E8; }
+      .ink { fill: #1A1614; }
+      .muted { fill: #6B5F4F; }
+      .accent { fill: #C15F3C; }
+      .paper { fill: #FBF8F1; stroke: #1A1614; stroke-width: 1; }
+      .rule { stroke: #1A1614; stroke-width: 0.75; }
+      .hair { stroke: #C9C0B0; stroke-width: 0.75; }
+      .axis { stroke: #1A1614; stroke-width: 2; }
+      .recall { stroke: #C15F3C; stroke-width: 1.25; stroke-dasharray: 4 3; fill: none; }
+      .mono { font-family: 'Menlo', 'Consolas', 'Courier New', monospace; }
+      .sans { font-family: 'Helvetica Neue', 'Arial', sans-serif; letter-spacing: 0.12em; }
+    </style>
+  </defs>
+
+  <!-- Paper -->
+  <rect class="bg" width="1400" height="560"/>
+
+  <!-- Masthead -->
+  <line class="rule" x1="40" y1="44" x2="1360" y2="44"/>
+  <line class="hair" x1="40" y1="50" x2="1360" y2="50"/>
+  <text class="ink sans" x="40" y="36" font-size="11">&#167; TIMELINE &#183; WRITE &#183; WRITE &#183; WRITE &#183; WRITE &#8230; READ &#183; ONE AGENT, FIVE DAYS, FULL CONTINUITY</text>
+  <text class="muted sans" x="1360" y="36" font-size="11" text-anchor="end">FIG. 01 &#183; MEMWRIGHT</text>
+
+  <!-- Axis -->
+  <line class="axis" x1="100" y1="280" x2="1300" y2="280"/>
+  <polygon points="1300,280 1290,275 1290,285" fill="#1A1614"/>
+
+  <!-- Dots (5 events) -->
+  <!-- T1 Mon -->
+  <circle cx="180" cy="280" r="16" fill="#1A1614"/>
+  <text class="ink sans" x="180" y="230" font-size="11" text-anchor="middle">MON &#183; 09:12</text>
+  <text class="muted sans" x="180" y="246" font-size="10" text-anchor="middle">MARKET RESEARCHER</text>
+  <text class="ink mono" x="180" y="326" font-size="11" text-anchor="middle">mem.add()</text>
+  <text class="ink" x="180" y="348" font-size="12" text-anchor="middle" font-style="italic">&#8220;JPM Q2 beat&#8221;</text>
+  <text class="muted" x="180" y="364" font-size="11" text-anchor="middle">Barnum guide-up</text>
+  <text class="muted mono" x="180" y="382" font-size="10" text-anchor="middle">entity: jpm</text>
+
+  <!-- T2 Tue -->
+  <circle cx="400" cy="280" r="16" fill="#1A1614"/>
+  <text class="ink sans" x="400" y="230" font-size="11" text-anchor="middle">TUE &#183; 14:40</text>
+  <text class="muted sans" x="400" y="246" font-size="10" text-anchor="middle">RISK ANALYST</text>
+  <text class="ink mono" x="400" y="326" font-size="11" text-anchor="middle">mem.add()</text>
+  <text class="ink" x="400" y="348" font-size="12" text-anchor="middle" font-style="italic">&#8220;Sector cap 6%&#8221;</text>
+  <text class="muted" x="400" y="364" font-size="11" text-anchor="middle">growth-mandate-7</text>
+  <text class="muted mono" x="400" y="382" font-size="10" text-anchor="middle">tag: risk</text>
+
+  <!-- T3 Wed -->
+  <circle cx="620" cy="280" r="16" fill="#1A1614"/>
+  <text class="ink sans" x="620" y="230" font-size="11" text-anchor="middle">WED &#183; 16:05</text>
+  <text class="muted sans" x="620" y="246" font-size="10" text-anchor="middle">PORTFOLIO PLANNER</text>
+  <text class="ink mono" x="620" y="326" font-size="11" text-anchor="middle">mem.add()</text>
+  <text class="ink" x="620" y="348" font-size="12" text-anchor="middle" font-style="italic">&#8220;Held JPM flat&#8221;</text>
+  <text class="muted" x="620" y="364" font-size="11" text-anchor="middle">pending CFO clarity</text>
+  <text class="muted mono" x="620" y="382" font-size="10" text-anchor="middle">kind: decision</text>
+
+  <!-- T4 Thu -->
+  <circle cx="840" cy="280" r="16" fill="#1A1614"/>
+  <text class="ink sans" x="840" y="230" font-size="11" text-anchor="middle">THU &#183; 10:30</text>
+  <text class="muted sans" x="840" y="246" font-size="10" text-anchor="middle">PLANNER &#8596; COMPLIANCE</text>
+  <text class="ink mono" x="840" y="326" font-size="11" text-anchor="middle">mem.add(kind=chat)</text>
+  <text class="ink" x="840" y="348" font-size="12" text-anchor="middle" font-style="italic">&#8220;Cap breach OK</text>
+  <text class="ink" x="840" y="364" font-size="12" text-anchor="middle" font-style="italic">if paired trim&#8221;</text>
+  <text class="muted mono" x="840" y="382" font-size="10" text-anchor="middle">thread &#8226; 2 speakers</text>
+
+  <!-- T5 Fri - READ event, accent -->
+  <circle cx="1200" cy="280" r="22" fill="#C15F3C" stroke="#1A1614" stroke-width="2"/>
+  <circle cx="1200" cy="280" r="8" fill="#FBF8F1"/>
+  <text class="accent sans" x="1200" y="224" font-size="11" text-anchor="middle" font-weight="700">FRI &#183; 08:55</text>
+  <text class="accent sans" x="1200" y="240" font-size="11" text-anchor="middle" font-weight="700">NEW TASK</text>
+  <text class="ink" x="1200" y="336" font-size="13" text-anchor="middle" font-weight="700">&#8220;Rebalance for Q3 print&#8221;</text>
+  <text class="muted" x="1200" y="354" font-size="11" text-anchor="middle" font-style="italic">fresh agent &#8226; empty context</text>
+  <text class="accent mono" x="1200" y="378" font-size="11" text-anchor="middle" font-weight="700">mem.load_context()</text>
+
+  <!-- Recall arcs — from Fri back to each prior dot -->
+  <path class="recall" d="M 1178,270 Q 700,120 196,268" marker-end="url(#arr)"/>
+  <path class="recall" d="M 1180,272 Q 800,150 416,270" marker-end="url(#arr)"/>
+  <path class="recall" d="M 1182,274 Q 900,180 636,272" marker-end="url(#arr)"/>
+  <path class="recall" d="M 1184,276 Q 1020,210 856,274" marker-end="url(#arr)"/>
+
+  <!-- Recall label -->
+  <text class="accent sans" x="700" y="108" font-size="11" text-anchor="middle" font-weight="700">&#8592; LOAD_CONTEXT RANKS, DEDUPES, BUDGET-FITS ALL FOUR PRIOR MEMORIES</text>
+  <text class="muted sans" x="700" y="124" font-size="10" text-anchor="middle">5-LAYER PIPELINE &#183; ZERO LLM CALLS &#183; DETERMINISTIC</text>
+
+  <!-- Outcome box at right -->
+  <g transform="translate(40,430)">
+    <rect class="paper" width="1320" height="96" rx="2"/>
+    <text class="muted sans" x="24" y="26" font-size="10">&#167; PRIMED CONTEXT WINDOW &#183; FRIDAY 08:56</text>
+    <line class="hair" x1="24" y1="36" x2="1296" y2="36"/>
+    <text class="ink" x="24" y="62" font-size="13"><tspan font-weight="700">Portfolio Planner resumes with continuity</tspan> &#8212; not from scratch.</text>
+    <text class="ink" x="24" y="82" font-size="12">Mon earnings signal &#8226; Tue risk cap &#8226; Wed prior stance &#8226; Thu compliance precedent &#8212; <tspan font-style="italic">all four ranked, deduped, 2000 tokens.</tspan></text>
+  </g>
+
+  <!-- Footer rule -->
+  <line class="rule" x1="40" y1="544" x2="1360" y2="544"/>
+</svg>

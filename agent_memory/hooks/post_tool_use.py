@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
+from pathlib import Path
 
 _EMPTY_RESPONSE = {}
 
@@ -24,13 +26,20 @@ def handle(payload: dict) -> dict:
     """
     try:
         cwd = payload.get("cwd")
-        tool = payload.get("tool")
-        if not cwd or not tool:
+        # Claude Code sends tool_name / tool_input / tool_response at top level.
+        # Older/alternate shape nests them under "tool".
+        tool_name = payload.get("tool_name") or (payload.get("tool") or {}).get("name", "")
+        tool_input = payload.get("tool_input") or (payload.get("tool") or {}).get("input", {}) or {}
+        tool_output = (
+            payload.get("tool_response")
+            or payload.get("tool_output")
+            or (payload.get("tool") or {}).get("output", "")
+            or ""
+        )
+        if isinstance(tool_output, dict):
+            tool_output = json.dumps(tool_output)[:500]
+        if not cwd or not tool_name:
             return _EMPTY_RESPONSE
-
-        tool_name = tool.get("name", "")
-        tool_input = tool.get("input", {})
-        tool_output = tool.get("output", "")
 
         content = None
         tags = []
@@ -67,7 +76,10 @@ def handle(payload: dict) -> dict:
             return _EMPTY_RESPONSE
 
         if content:
-            store_path = f"{cwd}/.memwright"
+            store_path = os.environ.get(
+                "MEMWRIGHT_PATH",
+                str(Path.home() / ".memwright"),
+            )
 
             from agent_memory.core import AgentMemory
 

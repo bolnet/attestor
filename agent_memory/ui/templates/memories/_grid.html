@@ -1,0 +1,32 @@
+<div class="grid" id="grid" data-query="{{ filters.q }}">
+  {% for m in memories %}
+    <a class="card" href="/ui/memories/{{ m.id }}" data-tilt="{{ '%.2f' % m.tilt }}">
+      <div class="card__head">
+        <span class="card__ns">{{ m.namespace }} · {{ m.category }}</span>
+        {% set kind = "superseded" if m.status != "active" else ("decayed" if m.confidence < 0.5 else "active") %}
+        <div class="stamp stamp--{{ kind }}" title="confidence {{ '%.3f' % m.confidence }}">
+          <span>
+            <span class="stamp__pct">{{ m.confidence_pct }}</span>
+            <span class="stamp__label">{{ kind|upper }}</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="card__body">{{ m.excerpt }}</div>
+
+      <hr class="card__rule">
+      <div class="card__foot">
+        <div class="tags">
+          {% for t in m.tags[:4] %}<span class="tag">{{ t }}</span>{% endfor %}
+          {% if m.tags|length > 4 %}<span class="tag">+{{ m.tags|length - 4 }}</span>{% endif %}
+        </div>
+        <div>
+          {% if m.entity %}<span>↣ {{ m.entity }}</span><br>{% endif %}
+          {{ m.created_date }} · {{ m.created_time }}
+        </div>
+      </div>
+    </a>
+  {% else %}
+    <div class="empty">No records surface for these constraints. <br>The archive may be empty, or your filters may be too narrow.</div>
+  {% endfor %}
+</div>

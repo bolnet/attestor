@@ -27,7 +27,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def backend():
-    """Create ArangoBackend connected to live ArangoDB."""
+    """Create ArangoBackend connected to live ArangoDB (via OpenArangoDB)."""
     from agent_memory.store.arango_backend import ArangoBackend
 
     config = {
@@ -38,11 +38,9 @@ def backend():
     }
     be = ArangoBackend(config)
     yield be
-    # Cleanup: drop test database
+    # Cleanup: drop test database via underlying python-arango client
     try:
-        from arango import ArangoClient
-        client = ArangoClient(hosts=ARANGO_URL, verify_override=False)
-        sys_db = client.db("_system", username="root", password=ARANGO_PASSWORD)
+        sys_db = be._oa._client.db("_system", username="root", password=ARANGO_PASSWORD)
         if sys_db.has_database(ARANGO_DATABASE):
             sys_db.delete_database(ARANGO_DATABASE)
     except Exception:
