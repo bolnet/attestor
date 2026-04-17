@@ -7,6 +7,9 @@ import sys
 from typing import Any
 
 from agent_memory.core import AgentMemory
+from agent_memory.store._extras import require_extra
+
+require_extra("mcp", extra="mcp")
 
 
 def _build_handlers(mem: AgentMemory) -> dict:

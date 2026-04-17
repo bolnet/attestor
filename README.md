@@ -66,19 +66,21 @@ Choose one method. The package name is `memwright` on PyPI.
 
 ```bash
 # Option A: uv (recommended on macOS)
-uv tool install memwright
+uv tool install "memwright[mcp]"
 
 # Option B: pipx
-pipx install memwright
+pipx install "memwright[mcp]"
 
 # Option C: pip (in a venv or with --user)
-pip install memwright
+pip install "memwright[mcp]"
 
 # Option D: poetry (add to an existing project)
-poetry add memwright
+poetry add "memwright[mcp]"
 ```
 
 > **First run downloads ~90MB** for the local embedding model (all-MiniLM-L6-v2). This happens once and is cached.
+
+> The `[mcp]` extra adds the MCP server (most users want this). Add backend extras like `[arangodb]`, `[postgres]`, `[aws]`, `[azure]`, `[gcp]`, or `[docker]` as needed — e.g. `pipx install "memwright[mcp,arangodb]"`. Use `[all]` to pull everything.
 
 ### Step 2: Connect to Claude Code
 
