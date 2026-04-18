@@ -21,7 +21,7 @@ class TestSessionStartHook:
     def test_empty_store_returns_empty_context(self, tmp_path):
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        memwright_path = store_path / ".memwright"
+        attestor_path = store_path / ".attestor"
         payload = {"event": "SessionStart", "session_id": "s1", "cwd": str(store_path)}
         result = session_start_handle(payload)
         assert "additionalContext" in result
@@ -30,11 +30,11 @@ class TestSessionStartHook:
     def test_returns_context_when_memories_exist(self, tmp_path):
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        memwright_path = store_path / ".memwright"
+        attestor_path = store_path / ".attestor"
 
         # Pre-populate memories
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(memwright_path))
+        mem = AgentMemory(str(attestor_path))
         mem.add("User prefers Python over JavaScript", tags=["preference"], category="preference")
         mem.add("Project uses FastAPI framework", tags=["tech"], category="project")
         mem.close()
@@ -49,7 +49,7 @@ class TestSessionStartHook:
         """Verify the 20000 token budget is passed to recall."""
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        memwright_path = store_path / ".memwright"
+        attestor_path = store_path / ".attestor"
 
         captured_budgets = []
 
@@ -83,7 +83,7 @@ class TestPostToolUseHook:
     def test_write_tool_captures_memory(self, tmp_path):
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        memwright_path = store_path / ".memwright"
+        attestor_path = store_path / ".attestor"
 
         payload = {
             "event": "PostToolUse",
@@ -100,7 +100,7 @@ class TestPostToolUseHook:
 
         # Verify memory was stored
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(memwright_path))
+        mem = AgentMemory(str(attestor_path))
         memories = mem.search(limit=10)
         mem.close()
         assert len(memories) >= 1
@@ -109,7 +109,7 @@ class TestPostToolUseHook:
     def test_edit_tool_captures_memory(self, tmp_path):
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        memwright_path = store_path / ".memwright"
+        attestor_path = store_path / ".attestor"
 
         payload = {
             "event": "PostToolUse",
@@ -125,7 +125,7 @@ class TestPostToolUseHook:
         assert result == {}
 
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(memwright_path))
+        mem = AgentMemory(str(attestor_path))
         memories = mem.search(limit=10)
         mem.close()
         assert len(memories) >= 1
@@ -134,7 +134,7 @@ class TestPostToolUseHook:
     def test_bash_tool_captures_memory(self, tmp_path):
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        memwright_path = store_path / ".memwright"
+        attestor_path = store_path / ".attestor"
 
         payload = {
             "event": "PostToolUse",
@@ -150,7 +150,7 @@ class TestPostToolUseHook:
         assert result == {}
 
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(memwright_path))
+        mem = AgentMemory(str(attestor_path))
         memories = mem.search(limit=10)
         mem.close()
         assert len(memories) >= 1
@@ -235,11 +235,11 @@ class TestStopHook:
     def test_stores_summary_when_memories_exist(self, tmp_path):
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        memwright_path = store_path / ".memwright"
+        attestor_path = store_path / ".attestor"
 
         # Pre-populate with some recent memories (simulating tool captures)
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(memwright_path))
+        mem = AgentMemory(str(attestor_path))
         mem.add("Created/wrote file src/main.py", tags=["file-change", "write"], category="project")
         mem.add("Edited file src/utils.py", tags=["file-change", "edit"], category="project")
         mem.add("Ran command: npm install express", tags=["command"], category="project")
@@ -250,7 +250,7 @@ class TestStopHook:
         assert result == {}
 
         # Verify summary memory was stored
-        mem = AgentMemory(str(memwright_path))
+        mem = AgentMemory(str(attestor_path))
         memories = mem.search(category="session", limit=10)
         mem.close()
         assert len(memories) >= 1
@@ -261,10 +261,10 @@ class TestStopHook:
     def test_summary_includes_file_change_counts(self, tmp_path):
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        memwright_path = store_path / ".memwright"
+        attestor_path = store_path / ".attestor"
 
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(memwright_path))
+        mem = AgentMemory(str(attestor_path))
         mem.add("Created/wrote file a.py", tags=["file-change", "write"], category="project")
         mem.add("Created/wrote file b.py", tags=["file-change", "write"], category="project")
         mem.add("Ran command: pytest", tags=["command"], category="project")
@@ -273,7 +273,7 @@ class TestStopHook:
         payload = {"event": "Stop", "session_id": "s1", "cwd": str(store_path)}
         stop_handle(payload)
 
-        mem = AgentMemory(str(memwright_path))
+        mem = AgentMemory(str(attestor_path))
         memories = mem.search(category="session", limit=10)
         mem.close()
         assert len(memories) >= 1
@@ -292,7 +292,7 @@ class TestStopHook:
 
 class TestMcpSubcommand:
     def test_mcp_parser_accepts_no_args(self):
-        """Verify `memwright mcp` parses without positional args."""
+        """Verify `attestor mcp` parses without positional args."""
         from attestor.cli import main
         from unittest.mock import patch, MagicMock
 
@@ -302,14 +302,14 @@ class TestMcpSubcommand:
             mock_asyncio.run = MagicMock()
             # This should not raise
             try:
-                main(["mcp", "--path", "/tmp/test-memwright-store"])
+                main(["mcp", "--path", "/tmp/test-attestor-store"])
             except SystemExit:
                 pass  # argparse may exit
 
     def test_mcp_default_path_resolution(self, monkeypatch):
-        """Verify default path uses MEMWRIGHT_PATH or ~/.memwright."""
+        """Verify default path uses ATTESTOR_PATH or ~/.attestor."""
         import os
-        monkeypatch.delenv("MEMWRIGHT_PATH", raising=False)
+        monkeypatch.delenv("ATTESTOR_PATH", raising=False)
 
         from attestor.cli import main
         from unittest.mock import patch, MagicMock, call
@@ -322,9 +322,9 @@ class TestMcpSubcommand:
                 pass
 
     def test_mcp_env_var_override(self, tmp_path, monkeypatch):
-        """Verify MEMWRIGHT_PATH env var is used as default."""
+        """Verify ATTESTOR_PATH env var is used as default."""
         custom_path = str(tmp_path / "custom-store")
-        monkeypatch.setenv("MEMWRIGHT_PATH", custom_path)
+        monkeypatch.setenv("ATTESTOR_PATH", custom_path)
 
         from attestor.cli import main
         from unittest.mock import patch, MagicMock
@@ -350,7 +350,7 @@ class TestMcpSubcommand:
 
 class TestHookSubcommand:
     def test_hook_session_start_exists(self):
-        """Verify `memwright hook session-start` is a valid subcommand."""
+        """Verify `attestor hook session-start` is a valid subcommand."""
         from attestor.cli import main
         from unittest.mock import patch
         import io
@@ -365,7 +365,7 @@ class TestHookSubcommand:
                 pass
 
     def test_hook_stop_exists(self):
-        """Verify `memwright hook stop` is a valid subcommand."""
+        """Verify `attestor hook stop` is a valid subcommand."""
         from attestor.cli import main
         from unittest.mock import patch
         import io

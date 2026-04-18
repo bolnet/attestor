@@ -84,7 +84,7 @@ def _common_context(request: Request, mem) -> Dict[str, Any]:
 
     return {
         "stats": stats,
-        "namespace_default": os.environ.get(brand.LEGACY_ENV_NAMESPACE, "default"),
+        "namespace_default": os.environ.get(brand.ENV_NAMESPACE, "default"),
         "store_path": resolve_store_path(),
     }
 

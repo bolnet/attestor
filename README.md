@@ -1182,8 +1182,6 @@ The local fallback downloads ~90MB on first use. All providers implement the sam
 
 ## CLI Reference
 
-Canonical CLI is `attestor`. Legacy aliases `memwright` and `agent-memory` also work for backward compatibility:
-
 ### MCP Server
 
 ```bash

@@ -59,8 +59,6 @@ all = [
 
 [project.scripts]
 attestor = "attestor.cli:main"
-agent-memory = "attestor.cli:main"
-memwright = "attestor.cli:main"
 
 [tool.poetry]
 packages = [{ include = "attestor" }]

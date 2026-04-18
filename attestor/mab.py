@@ -5,10 +5,10 @@ Accurate Retrieval, Test-Time Learning, Long-Range Understanding,
 and Conflict Resolution. 146 examples, 60-100 questions each.
 
 Usage:
-    agent-memory mab                               # Run AR + CR (default)
-    agent-memory mab --categories AR CR TTL LRU    # Run specific categories
-    agent-memory mab --max-examples 2              # Quick test
-    agent-memory mab --chunk-size 2048             # Smaller chunks
+    attestor mab                               # Run AR + CR (default)
+    attestor mab --categories AR CR TTL LRU    # Run specific categories
+    attestor mab --max-examples 2              # Quick test
+    attestor mab --chunk-size 2048             # Smaller chunks
 
 Requires: poetry add datasets openai  (not included in attestor base deps)
 """
