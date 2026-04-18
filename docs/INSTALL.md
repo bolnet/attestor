@@ -1,6 +1,6 @@
-# Memwright Install Guide
+# Attestor Install Guide
 
-A step-by-step guide to installing and verifying Memwright across different topologies. Each chapter is a self-contained setup you can follow from scratch.
+A step-by-step guide to installing and verifying Attestor across different topologies. Each chapter is a self-contained setup you can follow from scratch.
 
 **Chapters**
 
@@ -29,30 +29,30 @@ Choose one:
 
 ```bash
 # Via pip (into current environment)
-pip install memwright
+pip install attestor
 
 # Via pipx (isolated CLI tool)
-pipx install memwright
+pipx install attestor
 
 # Via poetry (project dependency)
-poetry add memwright
+poetry add attestor
 ```
 
 Verify the CLI is available:
 
 ```bash
-memwright --help
+attestor --help
 ```
 
 ### Step 2 — Create a store
 
 ```python
-from agent_memory import AgentMemory
+from attestor import AgentMemory
 
-mem = AgentMemory("~/.memwright")
+mem = AgentMemory("~/.attestor")
 ```
 
-On first call, Memwright:
+On first call, Attestor:
 1. Creates the directory if it doesn't exist
 2. Provisions SQLite with WAL mode, 17 columns, 6 indexes
 3. Initializes ChromaDB with local `all-MiniLM-L6-v2` embeddings (384 dimensions, ~90 MB download on first use)
@@ -95,13 +95,13 @@ The 5-layer retrieval pipeline runs:
 The doctor verifies all four components are healthy:
 
 ```bash
-memwright doctor ~/.memwright
+attestor doctor ~/.attestor
 ```
 
 Expected output:
 
 ```
-Memwright Doctor
+Attestor Doctor
 ==================================================
 
 Overall: ALL HEALTHY
@@ -118,24 +118,24 @@ All four checks must show `[OK]`. If vector or graph shows `[FAIL]`, the self-he
 
 ```bash
 # Add a memory
-memwright add ~/.memwright "API rate limit is 1000 req/min" --tags api,limits
+attestor add ~/.attestor "API rate limit is 1000 req/min" --tags api,limits
 
 # Recall
-memwright recall ~/.memwright "what are the rate limits?"
+attestor recall ~/.attestor "what are the rate limits?"
 
 # View timeline
-memwright timeline ~/.memwright --limit 10
+attestor timeline ~/.attestor --limit 10
 
 # Check stats
-memwright stats ~/.memwright
+attestor stats ~/.attestor
 ```
 
 ### What's on disk
 
-After setup, `~/.memwright/` contains:
+After setup, `~/.attestor/` contains:
 
 ```
-~/.memwright/
+~/.attestor/
 ├── memory.db          # SQLite — source of truth (WAL mode)
 ├── memory.db-wal      # SQLite write-ahead log
 ├── chroma/            # ChromaDB persistent storage
@@ -147,20 +147,20 @@ Total disk footprint: ~90 MB (mostly the sentence-transformers model). The SQLit
 
 ### Self-healing
 
-If ChromaDB or NetworkX fail at startup (e.g., corrupted model cache, missing graph file), Memwright degrades gracefully:
+If ChromaDB or NetworkX fail at startup (e.g., corrupted model cache, missing graph file), Attestor degrades gracefully:
 
 - **Vector down** — retrieval falls back to tag match + graph expansion
 - **Graph down** — retrieval falls back to tag match + vector search
 - **Document store** is the only hard dependency
 
-When `health()` or `memwright doctor` is called, failed stores are automatically re-initialized. If recovery succeeds, the store is wired back into the retrieval pipeline without a restart.
+When `health()` or `attestor doctor` is called, failed stores are automatically re-initialized. If recovery succeeds, the store is wired back into the retrieval pipeline without a restart.
 
 ### Claude Code integration
 
 The fastest path for Claude Code users:
 
 ```
-> install agent memory
+> install attestor
 ```
 
 This triggers the interactive wizard that configures:
@@ -175,8 +175,8 @@ Or manually add to `~/.claude/.mcp.json`:
 {
   "mcpServers": {
     "memory": {
-      "command": "memwright",
-      "args": ["mcp", "--store-path", "~/.memwright"]
+      "command": "attestor",
+      "args": ["mcp", "--store-path", "~/.attestor"]
     }
   }
 }
@@ -186,7 +186,7 @@ Or manually add to `~/.claude/.mcp.json`:
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `memwright: command not found` | Not on PATH | Use `pipx install memwright` or check `pip show memwright` |
+| `attestor: command not found` | Not on PATH | Use `pipx install attestor` or check `pip show attestor` |
 | ChromaDB shows `[FAIL]` | Model not downloaded | Run any `recall` — model downloads automatically on first embedding |
 | `safetensors` noise on startup | Rust model loader prints to stderr | Normal on first load; suppressed after warmup |
 | Doctor shows 0 vectors but N memories | Embedding failed for some memories | Re-add affected memories; check disk space for model cache |
@@ -201,7 +201,7 @@ Or manually add to `~/.claude/.mcp.json`:
 
 ## Chapter 02 — Sidecar REST API
 
-*Coming soon.* Run `memwright api --store-path ~/.memwright --port 8080` to expose the same API over HTTP. Any language can use the memory layer.
+*Coming soon.* Run `attestor api --store-path ~/.attestor --port 8080` to expose the same API over HTTP. Any language can use the memory layer.
 
 ---
 
@@ -212,10 +212,10 @@ Or manually add to `~/.claude/.mcp.json`:
 ### `mode: local` with auto-start
 
 With `backend = "arangodb"`, `mode = "local"`, and `docker = true` in
-`config.toml`, and the `[docker]` extra installed, Memwright will start an
-`arangodb:3.12` container named `memwright-arangodb` on port 8529 the first
+`config.toml`, and the `[docker]` extra installed, Attestor will start an
+`arangodb:3.12` container named `attestor-arangodb` on port 8529 the first
 time the store is opened. Without the `[docker]` extra the open will fail
-with an actionable error pointing at `pip install "memwright[docker]"`.
+with an actionable error pointing at `pip install "attestor[docker]"`.
 
 With `docker = false` (the default), `mode: local` assumes you manage the
 container yourself — this is the recommended path for CI and shared dev

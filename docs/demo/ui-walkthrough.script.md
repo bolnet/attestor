@@ -1,7 +1,7 @@
-# Memwright UI Walkthrough — Demo Script
+# Attestor UI Walkthrough — Demo Script
 
 **Duration**: ~3 minutes
-**Prerequisites**: `memwright ui --path ~/.memwright` running on port 8080
+**Prerequisites**: `attestor ui --path ~/.attestor` running on port 8080
 **Screens**: 13 stops across 8 tabs + interactions
 
 ---
@@ -16,7 +16,7 @@
 - Grid of memory cards with tilt-based confidence stamps
 - Category and entity labels on each card
 - Record count in top-right chrome ("26 records · 26 active")
-- Footer ticker: "MEMWRIGHT V2 · DETERMINISTIC RETRIEVAL · NO LLM IN CRITICAL PATH"
+- Footer ticker: "ATTESTOR V2 · DETERMINISTIC RETRIEVAL · NO LLM IN CRITICAL PATH"
 
 **Narration**: "This is the Evidence Board — every fact your agents have stored. Cards are ranked by confidence. Active, decayed, and superseded states are visually distinct."
 
@@ -211,7 +211,7 @@
 
 **Duration**: 5s
 
-**Narration**: "That's Memwright — 8 pages, 23 routes, zero LLM in the critical path. Self-hosted, deterministic retrieval, sub-10ms recalls. Install with one command: `install agent memory`."
+**Narration**: "That's Attestor — 8 pages, 23 routes, zero LLM in the critical path. Self-hosted, deterministic retrieval, sub-10ms recalls. Install with one command: `install attestor`."
 
 ---
 

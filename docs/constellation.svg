@@ -30,7 +30,7 @@
   <line class="rule" x1="40" y1="46" x2="1560" y2="46"/>
   <line class="hair" x1="40" y1="52" x2="1560" y2="52"/>
   <text class="ink sans" x="40" y="38" font-size="11">&#167; THE MOMENT &#8212; SIX STARS OUT OF EIGHT HUNDRED LIGHT UP, ONE QUESTION IS ANSWERED WITH CONTINUITY</text>
-  <text class="muted sans" x="1560" y="38" font-size="11" text-anchor="end">FIG. 00 &#183; MEMWRIGHT</text>
+  <text class="muted sans" x="1560" y="38" font-size="11" text-anchor="end">FIG. 00 &#183; ATTESTOR</text>
 
   <!-- ============================================================ -->
   <!-- LEFT: the constellation (accumulated memory across 4 weeks)  -->
@@ -253,7 +253,7 @@
     <text class="muted sans" x="560" y="16" font-size="11">&#183;</text>
     <text class="accent sans" x="580" y="16" font-size="11" font-weight="700">ZERO LLM CALLS</text>
 
-    <text class="ink" x="1520" y="18" font-size="18" font-style="italic" text-anchor="end">Memwright doesn&#8217;t search. It remembers.</text>
+    <text class="ink" x="1520" y="18" font-size="18" font-style="italic" text-anchor="end">Attestor doesn&#8217;t search. It remembers.</text>
   </g>
 
   <!-- Footer rule -->

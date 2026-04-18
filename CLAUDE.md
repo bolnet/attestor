@@ -1,15 +1,15 @@
-# Memwright (agent-memory)
+# Attestor (memwright)
 
 The memory layer for agent teams. Self-hosted, deterministic retrieval, zero LLM in the critical path.
 
-PyPI: `memwright` -- Python import: `agent_memory`.
+PyPI: `attestor` -- Python import: `attestor`. Legacy aliases `memwright` and `agent-memory` still work.
 
 ## Project Structure
 
 ```
-agent_memory/
+attestor/
   core.py              -- AgentMemory class (main public API)
-  client.py            -- MemoryClient (HTTP drop-in for remote Memwright)
+  client.py            -- MemoryClient (HTTP drop-in for remote Attestor)
   context.py           -- AgentContext (identity, role, namespace, token budget, provenance)
   models.py            -- Memory, RetrievalResult dataclasses
   cli.py               -- CLI entry point (22 subcommands)
@@ -87,8 +87,8 @@ Cloud backends optional: PostgreSQL (pgvector+AGE), ArangoDB, AWS, Azure, GCP.
 ## Runtime topologies
 
 - **Mode A — Embedded library**: `AgentMemory("./store")` in-process, sub-ms latency.
-- **Mode B — Sidecar**: `memwright api` on `localhost:8080`, language-agnostic HTTP client.
-- **Mode C — Shared service**: one Memwright service in front of an agent mesh (App Runner / Cloud Run / Container Apps).
+- **Mode B — Sidecar**: `attestor api` on `localhost:8080`, language-agnostic HTTP client.
+- **Mode C — Shared service**: one Attestor service in front of an agent mesh (App Runner / Cloud Run / Container Apps).
 
 Same API across all three. Only configuration changes.
 
@@ -98,24 +98,24 @@ Same API across all three. Only configuration changes.
 - Non-fatal errors in vector/graph are caught silently -- SQLite/document path never breaks
 - Degradation is explicit and tiered: vector down → tag+graph; graph down → tag+vector; doc store is the only hard dependency
 - Zero config: `AgentMemory("./path")` provisions all local backends automatically
-- PyPI name: `memwright`; import: `agent_memory`; both `memwright` and `agent-memory` are CLI entry points
+- PyPI name: `attestor`; import: `attestor`; `attestor`, `memwright`, and `agent-memory` all work as CLI entry points (latter two are legacy aliases)
 
 ## Install for Claude Code
 
-Single instruction users can give Claude Code: **`install agent memory`** (or run `/install-agent-memory`).
+Single instruction users can give Claude Code: **`install attestor`** (or run `/install-attestor`; legacy `/install-agent-memory` still works).
 
-This triggers `commands/install-agent-memory.md` which interviews the user on:
+This triggers `commands/install-attestor.md` which interviews the user on:
 1. Scope — global (`~/.claude/.mcp.json`) vs project (`.mcp.json`)
-2. Store path — default `~/.memwright/` or custom
+2. Store path — default `~/.attestor/` or custom (reads legacy `~/.memwright/` with deprecation warning)
 3. Backend — local (default) or cloud (Postgres/Arango/AWS/Azure/GCP)
 4. Embedding provider — local (default), OpenAI, or cloud-native
 5. Hooks — whether to wire session-start / post-tool-use / stop
 6. Namespace + default token budget
 
-Then it installs `memwright` via pipx/pip, writes the MCP config, optionally writes `settings.json` hooks, and runs `memwright doctor` to verify.
+Then it installs `attestor` via pipx/pip, writes the MCP config, optionally writes `settings.json` hooks, and runs `attestor doctor` to verify.
 
 ## Health Check
 
-Run `memwright doctor <store-path>` or call `mem.health()`. The MCP server exposes `memory_health` -- call it first when integrating.
+Run `attestor doctor <store-path>` or call `mem.health()`. The MCP server exposes `memory_health` -- call it first when integrating.
 
 Checks: Document Store, Vector Store, Graph Store, Retrieval Pipeline.

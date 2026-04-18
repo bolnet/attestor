@@ -27,11 +27,11 @@
 
   <line class="rule" x1="40" y1="44" x2="1360" y2="44"/>
   <line class="hair" x1="40" y1="50" x2="1360" y2="50"/>
-  <text class="ink sans" x="40" y="36" font-size="11">&#167; ARCHITECTURE &#183; MULTI-AGENT CLIENTS &#183; MEMWRIGHT CORE &#183; PLUGGABLE STORAGE</text>
-  <text class="muted sans" x="1360" y="36" font-size="11" text-anchor="end">FIG. 01 &#183; MEMWRIGHT</text>
+  <text class="ink sans" x="40" y="36" font-size="11">&#167; ARCHITECTURE &#183; MULTI-AGENT CLIENTS &#183; ATTESTOR CORE &#183; PLUGGABLE STORAGE</text>
+  <text class="muted sans" x="1360" y="36" font-size="11" text-anchor="end">FIG. 01 &#183; ATTESTOR</text>
 
   <text class="accent sans" x="40" y="88" font-size="11">&#167; MULTI-AGENT CLIENTS</text>
-  <text class="accent sans" x="520" y="88" font-size="11">&#167; MEMWRIGHT CORE</text>
+  <text class="accent sans" x="520" y="88" font-size="11">&#167; ATTESTOR CORE</text>
   <text class="accent sans" x="1000" y="88" font-size="11">&#167; PLUGGABLE STORAGE</text>
 
   <g transform="translate(40,110)">
@@ -72,8 +72,8 @@
 
   <g transform="translate(520,110)">
     <rect class="core" width="380" height="380" rx="2"/>
-    <text class="cream sans" x="24" y="38" font-size="11">&#167; CORE &#183; agent_memory/</text>
-    <text class="cream" x="24" y="78" font-size="28" font-weight="700">Memwright</text>
+    <text class="cream sans" x="24" y="38" font-size="11">&#167; CORE &#183; attestor/</text>
+    <text class="cream" x="24" y="78" font-size="28" font-weight="700">Attestor</text>
     <text class="cream" x="24" y="104" font-size="12" font-style="italic" opacity="0.8">The memory layer for agent teams</text>
     <line x1="24" y1="128" x2="356" y2="128" stroke="#C15F3C" stroke-width="0.5" opacity="0.6"/>
 

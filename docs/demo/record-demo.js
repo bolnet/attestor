@@ -1,4 +1,4 @@
-// Comprehensive Memwright UI demo recorder
+// Comprehensive Attestor UI demo recorder
 // Run: node docs/demo/record-demo.js
 // Requires: npm install playwright
 
@@ -131,7 +131,7 @@ const { chromium } = require('playwright');
   // Search for an entity in graph
   const graphSearch = page.locator('#graph-search');
   if (await graphSearch.count() > 0) {
-    await slowType('#graph-search', 'Memwright');
+    await slowType('#graph-search', 'Attestor');
     await page.waitForTimeout(2000);
     // Clear
     await page.fill('#graph-search', '');
