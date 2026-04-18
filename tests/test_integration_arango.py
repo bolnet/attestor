@@ -57,7 +57,7 @@ def arango_config():
         "arangodb": {
             "mode": "cloud",
             "url": f"http://localhost:{ARANGO_TEST_PORT}",
-            "database": "memwright_integration",
+            "database": "attestor_integration",
         },
         "default_token_budget": 2000,
         "min_results": 3,
@@ -72,8 +72,8 @@ def mem(arango_container, arango_config, tmp_path):
     # Cleanup database
     client = ArangoClient(hosts=f"http://localhost:{ARANGO_TEST_PORT}")
     sys_db = client.db("_system")
-    if sys_db.has_database("memwright_integration"):
-        sys_db.delete_database("memwright_integration")
+    if sys_db.has_database("attestor_integration"):
+        sys_db.delete_database("attestor_integration")
 
 
 @docker_required
@@ -179,7 +179,7 @@ class TestFullPipelineArango:
             "arangodb": {
                 "mode": "cloud",
                 "url": f"http://localhost:{ARANGO_TEST_PORT}",
-                "database": "memwright_import_test",
+                "database": "attestor_import_test",
             },
         }
         with AgentMemory(tmp_path / "mem2", config=config2) as mem2:
@@ -189,8 +189,8 @@ class TestFullPipelineArango:
         # Cleanup import test DB
         client = ArangoClient(hosts=f"http://localhost:{ARANGO_TEST_PORT}")
         sys_db = client.db("_system")
-        if sys_db.has_database("memwright_import_test"):
-            sys_db.delete_database("memwright_import_test")
+        if sys_db.has_database("attestor_import_test"):
+            sys_db.delete_database("attestor_import_test")
 
 
 @docker_required

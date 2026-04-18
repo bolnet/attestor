@@ -2,7 +2,7 @@
 
 Requires:
     ARANGO_URL and ARANGO_PASSWORD environment variables.
-    Optionally ARANGO_DATABASE (defaults to memwright_test).
+    Optionally ARANGO_DATABASE (defaults to attestor_test).
 
 Run:
     .venv/bin/pytest tests/test_arango_live.py -v
@@ -17,7 +17,7 @@ import pytest
 
 ARANGO_URL = os.environ.get("ARANGO_URL", "")
 ARANGO_PASSWORD = os.environ.get("ARANGO_PASSWORD", "")
-ARANGO_DATABASE = os.environ.get("ARANGO_DATABASE", "memwright_test")
+ARANGO_DATABASE = os.environ.get("ARANGO_DATABASE", "attestor_test")
 
 pytestmark = pytest.mark.skipif(
     not ARANGO_URL or not ARANGO_PASSWORD,

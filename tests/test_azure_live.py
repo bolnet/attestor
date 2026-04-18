@@ -31,13 +31,13 @@ def backend():
     config = {
         "cosmos_endpoint": COSMOS_ENDPOINT,
         "cosmos_key": COSMOS_KEY,
-        "cosmos_database": "memwright_test",
+        "cosmos_database": "attestor_test",
     }
     be = AzureBackend(config)
     yield be
     # Cleanup: delete test database
     try:
-        be._client.delete_database("memwright_test")
+        be._client.delete_database("attestor_test")
     except Exception:
         pass
     be.close()

@@ -307,7 +307,7 @@ def azure_backend(mock_cosmos):
     config = {
         "cosmos_endpoint": "https://test.documents.azure.com:443",
         "cosmos_key": "test-key-abc123==",
-        "cosmos_database": "memwright_test",
+        "cosmos_database": "attestor_test",
     }
     backend = AzureBackend(config)
     return backend
@@ -611,7 +611,7 @@ class TestAzureContainerCreation:
     def test_database_created_on_init(self, azure_backend):
         """Verify database is created if not exists."""
         assert azure_backend._database is not None
-        assert azure_backend._database.id == "memwright_test"
+        assert azure_backend._database.id == "attestor_test"
 
 
 # ═══════════════════════════════════════════════════════════════════════
