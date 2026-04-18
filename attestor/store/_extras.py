@@ -2,7 +2,7 @@
 """Optional-dependency loader with actionable error messages.
 
 Backends and infra modules call :func:`require_extra` at import time so that
-end users who forgot ``pip install "memwright[<extra>]"`` get a single-line,
+end users who forgot ``pip install "attestor[<extra>]"`` get a single-line,
 copy-paste-able fix instead of a raw ``ModuleNotFoundError``.
 """
 from __future__ import annotations
@@ -37,5 +37,5 @@ def require_extra(module: str, *, extra: str) -> ModuleType:
     except ImportError as exc:
         raise MissingExtraError(
             f"optional dependency '{module}' is not installed. "
-            f"install it with:  pip install \"memwright[{extra}]\""
+            f"install it with:  pip install \"attestor[{extra}]\""
         ) from exc

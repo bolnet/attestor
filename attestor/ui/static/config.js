@@ -1,4 +1,4 @@
-// Memwright — Configuration Viewer
+// Attestor — Configuration Viewer
 // Fetches /ui/config.json and renders system parameters in the Forensic Archive style.
 
 (function () {

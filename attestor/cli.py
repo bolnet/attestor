@@ -65,7 +65,7 @@ def _suppress_noisy_output():
 def main(argv=None):
     _suppress_noisy_output()
     parser = argparse.ArgumentParser(
-        prog="agent-memory",
+        prog="attestor",
         description="Embedded memory for AI agents.",
     )
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -474,7 +474,7 @@ def _print_mcp_config(tool: str, binary: str, store_path: str):
 
 
 def _mcp_entry(binary: str, store_path: str) -> dict:
-    """Canonical shape of the memwright MCP server entry."""
+    """Canonical shape of the attestor MCP server entry."""
     return {"command": binary, "args": ["mcp", "--path", store_path]}
 
 
@@ -497,7 +497,7 @@ def _load_claude_settings(settings_path: Path) -> dict:
 
 
 def _configure_claude_mcp(binary: str, store_path: str) -> None:
-    """Write the memwright MCP server entry into ~/.claude/settings.json."""
+    """Write the attestor MCP server entry into ~/.claude/settings.json."""
     settings_path = Path.home() / ".claude" / "settings.json"
     settings_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -706,7 +706,7 @@ def _cmd_api(args):
     try:
         import uvicorn
     except ImportError:
-        print("uvicorn is required. Run: pip install 'memwright[lambda]' or pip install uvicorn")
+        print("uvicorn is required. Run: pip install 'attestor[lambda]' or pip install uvicorn")
         sys.exit(1)
 
     from attestor import _branding as brand
@@ -715,7 +715,7 @@ def _cmd_api(args):
         os.environ[brand.LEGACY_ENV_DATA_DIR] = args.path
 
     print(
-        f"Starting memwright REST API on http://{args.host}:{args.port}",
+        f"Starting attestor REST API on http://{args.host}:{args.port}",
         file=sys.stderr,
     )
     uvicorn.run(
@@ -745,7 +745,7 @@ def _cmd_setup_claude_code(args):
 
 def _cmd_doctor(args):
     """Check health of all components."""
-    print("Memwright Doctor")
+    print("Attestor Doctor")
     print("=" * 50)
 
     store_path = getattr(args, "path", None)
@@ -900,7 +900,7 @@ def _cmd_ui(args):
     os.environ[brand.LEGACY_ENV_STORE_PATH] = store_path
     Path(store_path).mkdir(parents=True, exist_ok=True)
 
-    print(f"Memwright UI · {store_path}", file=sys.stderr)
+    print(f"Attestor UI · {store_path}", file=sys.stderr)
     print(f"→ http://{args.host}:{args.port}/ui/memories", file=sys.stderr)
 
     if args.open:
@@ -918,7 +918,7 @@ def _cmd_hook(args):
     """Dispatch to the appropriate hook handler."""
     hook_name = getattr(args, "hook_name", None)
     if not hook_name:
-        print("Usage: memwright hook {session-start|post-tool-use|stop}")
+        print("Usage: attestor hook {session-start|post-tool-use|stop}")
         return
 
     hook_handlers = {

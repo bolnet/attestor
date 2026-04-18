@@ -1,4 +1,4 @@
-// Memwright — Recall Pipeline Replay
+// Attestor — Recall Pipeline Replay
 // Renders the 5-layer retrieval cascade step by step.
 
 (function () {

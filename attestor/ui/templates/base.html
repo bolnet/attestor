@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Memwright — Forensic Archive{% endblock %}</title>
+  <title>{% block title %}Attestor — Forensic Archive{% endblock %}</title>
   <link rel="stylesheet" href="/ui/static/app.css?v=2">
   <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 </head>
@@ -12,7 +12,7 @@
     <a class="mark" href="/ui/memories">
       <span class="mark__glyph">m</span>
       <span>
-        <span class="mark__word">memwright<em>.</em></span>
+        <span class="mark__word">attestor<em>.</em></span>
         <span class="mark__sub">Forensic Archive · Read Only</span>
       </span>
     </a>
@@ -41,7 +41,7 @@
 
   <footer class="ticker">
     <div class="ticker__pulse" data-secs="0">Live · read-only</div>
-    <div class="ticker__mid">MEMWRIGHT v2 · DETERMINISTIC RETRIEVAL · NO LLM IN CRITICAL PATH</div>
+    <div class="ticker__mid">ATTESTOR v2 · DETERMINISTIC RETRIEVAL · NO LLM IN CRITICAL PATH</div>
     <div>{{ stats.total_memories or 0 }} · ON DISK</div>
   </footer>
 

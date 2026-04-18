@@ -1,4 +1,4 @@
-// Memwright — Temporal Timeline
+// Attestor — Temporal Timeline
 // Vertical timeline with supersession chains, as-of replay, and detail panel.
 
 (function () {

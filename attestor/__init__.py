@@ -1,4 +1,4 @@
-"""AgentMemory — Embedded memory for AI agents."""
+"""Attestor — Embedded memory for AI agents."""
 
 from attestor.core import AgentMemory
 from attestor.models import Memory, RetrievalResult

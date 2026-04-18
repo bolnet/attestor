@@ -260,7 +260,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
 
     @staticmethod
     def _doc_to_memory(doc: Dict[str, Any]) -> Memory:
-        """Convert raw AQL document → memwright Memory."""
+        """Convert raw AQL document → Attestor Memory."""
         return Memory(
             id=doc["_key"],
             content=doc["content"],

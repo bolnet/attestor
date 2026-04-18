@@ -20,7 +20,7 @@ from attestor.models import Memory, RetrievalResult
 
 
 class MemoryClient:
-    """HTTP client for the Memwright ASGI API.
+    """HTTP client for the Attestor ASGI API.
 
     Zero-dependency -- uses only stdlib urllib. Drop-in replacement
     for AgentMemory in read/write operations.

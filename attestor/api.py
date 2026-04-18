@@ -1,4 +1,4 @@
-"""Starlette ASGI app — HTTP API for Memwright over ArangoDB."""
+"""Starlette ASGI app — HTTP API for Attestor over ArangoDB."""
 
 from __future__ import annotations
 

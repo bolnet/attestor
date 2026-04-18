@@ -4,7 +4,7 @@
 // Theme toggle — must be global for onclick="toggleTheme()"
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
-  localStorage.setItem("memwright-theme", theme);
+  localStorage.setItem("attestor-theme", theme);
 }
 
 function toggleTheme() {
@@ -14,7 +14,7 @@ function toggleTheme() {
 
 // Apply saved theme immediately (before DOMContentLoaded to avoid flash)
 (function () {
-  var saved = localStorage.getItem("memwright-theme");
+  var saved = localStorage.getItem("attestor-theme");
   if (saved) applyTheme(saved);
 })();
 

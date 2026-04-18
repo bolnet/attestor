@@ -1,4 +1,4 @@
-"""MemoryAgentBench (MAB) benchmark runner for Memwright.
+"""MemoryAgentBench (MAB) benchmark runner for Attestor.
 
 MemoryAgentBench (ICLR 2026) evaluates memory systems across 4 competencies:
 Accurate Retrieval, Test-Time Learning, Long-Range Understanding,
@@ -10,7 +10,7 @@ Usage:
     agent-memory mab --max-examples 2              # Quick test
     agent-memory mab --chunk-size 2048             # Smaller chunks
 
-Requires: poetry add datasets openai  (not included in memwright base deps)
+Requires: poetry add datasets openai  (not included in attestor base deps)
 """
 
 from __future__ import annotations
@@ -370,7 +370,7 @@ def load_mab(
         from datasets import load_dataset
     except ImportError:
         raise ImportError(
-            "datasets library required. Install with: poetry add \"memwright[benchmark]\""
+            "datasets library required. Install with: poetry add \"attestor[benchmark]\""
         )
 
     if categories is None:
@@ -988,7 +988,7 @@ def print_mab(results: Dict[str, Any]) -> None:
     config = results["config"]
     timing = results["timing"]
 
-    print(f"\nMemoryAgentBench Results — Memwright")
+    print(f"\nMemoryAgentBench Results — Attestor")
     print("=" * 55)
     print(f"Categories: {', '.join(config['categories'])}")
     print(f"Answer model: {config['answer_model']}")

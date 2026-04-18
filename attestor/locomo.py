@@ -1,4 +1,4 @@
-"""LOCOMO benchmark runner for Memwright.
+"""LOCOMO benchmark runner for Attestor.
 
 LOCOMO (Long Conversation Memory) is the industry-standard benchmark
 for evaluating AI agent memory systems. Used by Mem0, Zep, Letta, etc.
@@ -8,7 +8,7 @@ Usage:
     agent-memory locomo --judge-model claude-haiku  # Cheaper judge
     agent-memory locomo --data ./locomo10.json       # Use local data file
 
-Requires: poetry add "memwright[extraction]"  (for the LLM judge)
+Requires: poetry add "attestor[extraction]"  (for the LLM judge)
 """
 
 from __future__ import annotations
@@ -252,7 +252,7 @@ def ingest_conversation(
     graph=None,
     resolve_pronouns: bool = False,
 ) -> int:
-    """Ingest a LOCOMO conversation into a Memwright store.
+    """Ingest a LOCOMO conversation into an Attestor store.
 
     If use_extraction=True, uses LLM to extract atomic facts and relation
     triples from each session. Triples are stored in the entity graph.
@@ -427,7 +427,7 @@ def answer_question(
     speaker_b: str = "B",
     enable_reflection: bool = True,
 ) -> str:
-    """Use Memwright recall + LLM synthesis to answer a LOCOMO question.
+    """Use Attestor recall + LLM synthesis to answer a LOCOMO question.
 
     With enable_reflection=True, checks if the initial retrieval is sufficient
     and does targeted follow-up queries if gaps are detected.
@@ -725,7 +725,7 @@ def run_locomo(
 
 def print_locomo(results: Dict[str, Any]) -> None:
     """Pretty-print LOCOMO benchmark results."""
-    print("LOCOMO Benchmark Results — Memwright")
+    print("LOCOMO Benchmark Results — Attestor")
     print("=======================================================")
     print(f"Judge model: {results['config']['judge_model']}")
     print(f"Conversations: {results['conversations']}")

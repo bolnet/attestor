@@ -1,4 +1,4 @@
-// Memwright — Agent Registry
+// Attestor — Agent Registry
 // Renders namespace-based agent dossier cards with drill-down detail.
 
 (function () {

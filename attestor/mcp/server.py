@@ -201,7 +201,7 @@ def _build_handlers(mem: AgentMemory) -> dict:
 def create_server(memory_path: str):
     """Create an MCP server exposing AgentMemory tools, resources, and prompts.
 
-    MCP is a core dependency — included with poetry add memwright.
+    MCP is a core dependency — included with poetry add attestor.
     """
     try:
         from mcp.server import Server

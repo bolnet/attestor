@@ -1,4 +1,4 @@
-"""Read-only web UI for Memwright — Starlette sub-app.
+"""Read-only web UI for Attestor — Starlette sub-app.
 
 Renders Jinja2 templates served with a "Forensic Archive" aesthetic.
 All routes are GET-only. The UI talks to AgentMemory directly; it never
@@ -182,7 +182,7 @@ async def memories_export_json(request: Request) -> JSONResponse:
     return JSONResponse(
         data,
         headers={
-            "Content-Disposition": 'attachment; filename="memwright-export.json"',
+            "Content-Disposition": 'attachment; filename="attestor-export.json"',
         },
     )
 
@@ -213,7 +213,7 @@ async def memories_export_csv(request: Request) -> Response:
         content=buf.getvalue(),
         media_type="text/csv",
         headers={
-            "Content-Disposition": 'attachment; filename="memwright-export.csv"',
+            "Content-Disposition": 'attachment; filename="attestor-export.csv"',
         },
     )
 
@@ -772,7 +772,7 @@ def ui_routes() -> list:
 
 
 def create_ui_app() -> Starlette:
-    """Standalone Starlette app for the UI. Use when running `memwright ui`."""
+    """Standalone Starlette app for the UI. Use when running `attestor ui`."""
     return Starlette(routes=ui_routes())
 
 

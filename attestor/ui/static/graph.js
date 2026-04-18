@@ -1,4 +1,4 @@
-// Memwright — Knowledge Graph (Cytoscape.js)
+// Attestor — Knowledge Graph (Cytoscape.js)
 // Forensic Archive aesthetic: aged-paper nodes, oxidized copper edges.
 
 (function () {
