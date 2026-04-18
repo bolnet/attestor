@@ -164,12 +164,14 @@ class AgentContext:
         """
         import os
 
-        path = os.environ.get("MEMWRIGHT_PATH")
-        url = os.environ.get("MEMWRIGHT_URL")
-        namespace = os.environ.get("MEMWRIGHT_NAMESPACE", "default")
-        budget = int(os.environ.get("MEMWRIGHT_TOKEN_BUDGET", "20000"))
+        from agent_memory import _branding as brand
+
+        path = os.environ.get(brand.LEGACY_ENV_STORE_PATH)
+        url = os.environ.get(brand.LEGACY_ENV_URL)
+        namespace = os.environ.get(brand.LEGACY_ENV_NAMESPACE, "default")
+        budget = int(os.environ.get(brand.LEGACY_ENV_TOKEN_BUDGET, "20000"))
         session_id = os.environ.get(
-            "MEMWRIGHT_SESSION_ID", uuid.uuid4().hex[:16]
+            brand.LEGACY_ENV_SESSION_ID, uuid.uuid4().hex[:16]
         )
 
         memory = None

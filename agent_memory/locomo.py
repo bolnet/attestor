@@ -551,7 +551,9 @@ def run_locomo(
         Dict with per-category and overall scores.
     """
     if data_path is None:
-        cache_dir = Path.home() / ".cache" / "memwright"
+        from agent_memory._paths import resolve_cache_dir
+
+        cache_dir = resolve_cache_dir()
         cache_dir.mkdir(parents=True, exist_ok=True)
         data_path = str(cache_dir / "locomo10.json")
         download_locomo(data_path)

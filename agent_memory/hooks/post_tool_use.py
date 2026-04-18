@@ -76,10 +76,9 @@ def handle(payload: dict) -> dict:
             return _EMPTY_RESPONSE
 
         if content:
-            store_path = os.environ.get(
-                "MEMWRIGHT_PATH",
-                str(Path.home() / ".memwright"),
-            )
+            from agent_memory._paths import resolve_store_path
+
+            store_path = resolve_store_path()
 
             from agent_memory.core import AgentMemory
 

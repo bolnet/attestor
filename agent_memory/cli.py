@@ -709,8 +709,10 @@ def _cmd_api(args):
         print("uvicorn is required. Run: pip install 'memwright[lambda]' or pip install uvicorn")
         sys.exit(1)
 
+    from agent_memory import _branding as brand
+
     if args.path:
-        os.environ["MEMWRIGHT_DATA_DIR"] = args.path
+        os.environ[brand.LEGACY_ENV_DATA_DIR] = args.path
 
     print(
         f"Starting memwright REST API on http://{args.host}:{args.port}",
@@ -877,11 +879,9 @@ def _cmd_mcp_serve(args):
         print("MCP package not found. Run: poetry install")
         sys.exit(1)
 
-    store_path = getattr(args, "path", None)
-    if not store_path:
-        store_path = os.environ.get(
-            "MEMWRIGHT_PATH", os.path.expanduser("~/.memwright")
-        )
+    from agent_memory._paths import resolve_store_path
+
+    store_path = resolve_store_path(getattr(args, "path", None))
 
     # Ensure store directory and DB exist
     Path(store_path).mkdir(parents=True, exist_ok=True)
@@ -893,10 +893,11 @@ def _cmd_mcp_serve(args):
 
 def _cmd_ui(args):
     """Launch read-only web UI."""
-    store_path = args.path or os.environ.get(
-        "MEMWRIGHT_PATH", os.path.expanduser("~/.memwright")
-    )
-    os.environ["MEMWRIGHT_PATH"] = store_path
+    from agent_memory import _branding as brand
+    from agent_memory._paths import resolve_store_path
+
+    store_path = resolve_store_path(args.path)
+    os.environ[brand.LEGACY_ENV_STORE_PATH] = store_path
     Path(store_path).mkdir(parents=True, exist_ok=True)
 
     print(f"Memwright UI · {store_path}", file=sys.stderr)

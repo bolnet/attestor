@@ -23,10 +23,9 @@ def _get_mem():
     if _mem is None:
         from agent_memory.core import AgentMemory
 
-        data_dir = os.environ.get(
-            "MEMWRIGHT_DATA_DIR",
-            os.path.expanduser("~/.memwright"),
-        )
+        from agent_memory._paths import resolve_data_dir
+
+        data_dir = resolve_data_dir()
 
         # If ARANGO_URL is set, use cloud ArangoDB; otherwise run the embedded
         # stack (SQLite + ChromaDB + NetworkX). This keeps local self-hosting

@@ -33,11 +33,9 @@ def _get_mem(request: Request):
         return mem
 
     from agent_memory.core import AgentMemory
+    from agent_memory._paths import resolve_store_path
 
-    data_dir = os.environ.get(
-        "MEMWRIGHT_PATH",
-        os.path.expanduser("~/.memwright"),
-    )
+    data_dir = resolve_store_path()
     app.state.memory = AgentMemory(data_dir)
     return app.state.memory
 
@@ -81,12 +79,13 @@ def _common_context(request: Request, mem) -> Dict[str, Any]:
         stats = mem.stats()
     except Exception:
         stats = {}
+    from agent_memory import _branding as brand
+    from agent_memory._paths import resolve_store_path
+
     return {
         "stats": stats,
-        "namespace_default": os.environ.get("MEMWRIGHT_NAMESPACE", "default"),
-        "store_path": os.environ.get(
-            "MEMWRIGHT_PATH", os.path.expanduser("~/.memwright")
-        ),
+        "namespace_default": os.environ.get(brand.LEGACY_ENV_NAMESPACE, "default"),
+        "store_path": resolve_store_path(),
     }
 
 

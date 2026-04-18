@@ -9,8 +9,10 @@ from pathlib import Path
 
 _EMPTY_RESPONSE = {"additionalContext": ""}
 
+from agent_memory import _branding as brand
+
 # Budget for session context injection. Env override prevents context exhaustion.
-_SESSION_BUDGET = int(os.environ.get("MEMWRIGHT_TOKEN_BUDGET", "5000"))
+_SESSION_BUDGET = int(os.environ.get(brand.LEGACY_ENV_TOKEN_BUDGET, "5000"))
 
 # Broad query to surface the most useful memories at session start.
 _SESSION_QUERY = "session context project overview recent decisions"
@@ -30,10 +32,9 @@ def handle(payload: dict) -> dict:
         if not cwd:
             return _EMPTY_RESPONSE
 
-        store_path = os.environ.get(
-            "MEMWRIGHT_PATH",
-            str(Path.home() / ".memwright"),
-        )
+        from agent_memory._paths import resolve_store_path
+
+        store_path = resolve_store_path()
 
         from agent_memory.core import AgentMemory
         from agent_memory.retrieval.scorer import pagerank_boost

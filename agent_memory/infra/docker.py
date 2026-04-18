@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass
 from typing import Dict
 
+from agent_memory import _branding as brand
 from agent_memory.store._extras import require_extra
 
 # Raises MissingExtraError at import time if the `docker` SDK is missing.
@@ -20,7 +21,7 @@ _docker = require_extra("docker", extra="docker")
 
 logger = logging.getLogger("agent_memory.infra.docker")
 
-_CONTAINER_PREFIX = "memwright-"
+_CONTAINER_PREFIX = brand.LEGACY_CONTAINER_PREFIX
 _START_TIMEOUT_SECONDS = 30
 _START_POLL_INTERVAL_SECONDS = 1.0
 

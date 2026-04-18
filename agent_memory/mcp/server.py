@@ -6,7 +6,16 @@ import json
 import sys
 from typing import Any
 
+from agent_memory import _branding as _brand
 from agent_memory.core import AgentMemory
+
+# URI scheme for MCP resources emitted and read by this server.
+# Phase 0 preserves the legacy ``memwright://`` scheme; Phase 4 switches
+# the emit scheme to ``attestor://`` while still accepting the legacy one
+# on read for back-compat.
+_URI_SCHEME: str = _brand.LEGACY_MCP_URI_SCHEME
+_ENTITY_PREFIX: str = f"{_URI_SCHEME}://entity/"
+_MEMORY_PREFIX: str = f"{_URI_SCHEME}://memory/"
 
 
 def _build_handlers(mem: AgentMemory) -> dict:
@@ -33,7 +42,7 @@ def _build_handlers(mem: AgentMemory) -> dict:
             for entity in mem._graph.get_entities():
                 resources.append(
                     Resource(
-                        uri=f"memwright://entity/{entity['key']}",
+                        uri=f"{_ENTITY_PREFIX}{entity['key']}",
                         name=entity["name"],
                         description=f"{entity['type']} entity",
                         mimeType="application/json",
@@ -44,7 +53,7 @@ def _build_handlers(mem: AgentMemory) -> dict:
         for m in mem.search(limit=50):
             resources.append(
                 Resource(
-                    uri=f"memwright://memory/{m.id}",
+                    uri=f"{_MEMORY_PREFIX}{m.id}",
                     name=m.content[:80],
                     description=f"{m.category} memory",
                     mimeType="application/json",
@@ -56,10 +65,10 @@ def _build_handlers(mem: AgentMemory) -> dict:
     async def read_resource(uri) -> str:
         uri_str = str(uri)
 
-        if uri_str.startswith("memwright://entity/"):
+        if uri_str.startswith(_ENTITY_PREFIX):
             if mem._graph is None:
                 raise ValueError("Graph not available")
-            key = uri_str[len("memwright://entity/"):]
+            key = uri_str[len(_ENTITY_PREFIX):]
             # Find matching entity
             entities = mem._graph.get_entities()
             match = next((e for e in entities if e["key"] == key), None)
@@ -74,8 +83,8 @@ def _build_handlers(mem: AgentMemory) -> dict:
                 "related": related,
             }, indent=2)
 
-        elif uri_str.startswith("memwright://memory/"):
-            memory_id = uri_str[len("memwright://memory/"):]
+        elif uri_str.startswith(_MEMORY_PREFIX):
+            memory_id = uri_str[len(_MEMORY_PREFIX):]
             memory = mem.get(memory_id)
             if memory is None:
                 raise ValueError(f"Memory not found: {memory_id}")
@@ -96,13 +105,13 @@ def _build_handlers(mem: AgentMemory) -> dict:
     async def list_resource_templates() -> list[ResourceTemplate]:
         return [
             ResourceTemplate(
-                uriTemplate="memwright://entity/{name}",
+                uriTemplate=f"{_URI_SCHEME}://entity/{{name}}",
                 name="Entity",
                 description="Look up an entity by name",
                 mimeType="application/json",
             ),
             ResourceTemplate(
-                uriTemplate="memwright://memory/{id}",
+                uriTemplate=f"{_URI_SCHEME}://memory/{{id}}",
                 name="Memory",
                 description="Look up a memory by ID",
                 mimeType="application/json",
