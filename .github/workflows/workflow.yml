@@ -5,8 +5,8 @@ on:
     types: [published]
 
 jobs:
-  build:
-    name: Build distribution
+  build-attestor:
+    name: Build attestor distribution
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,22 +25,63 @@ jobs:
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: dist-attestor
           path: dist/
 
-  publish:
-    name: Publish to PyPI
-    needs: build
+  build-memwright-shim:
+    name: Build memwright shim distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Build shim package
+        working-directory: packaging/memwright-shim
+        run: poetry build
+
+      - name: Upload shim distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-memwright-shim
+          path: packaging/memwright-shim/dist/
+
+  publish-attestor:
+    name: Publish attestor to PyPI
+    needs: build-attestor
     runs-on: ubuntu-latest
     environment: release
     permissions:
       id-token: write
     steps:
-      - name: Download distribution artifacts
+      - name: Download attestor distribution artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dist
+          name: dist-attestor
           path: dist/
 
       - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-memwright-shim:
+    name: Publish memwright shim to PyPI
+    needs: build-memwright-shim
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+    steps:
+      - name: Download memwright shim distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-memwright-shim
+          path: dist/
+
+      - name: Publish shim to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
