@@ -1,0 +1,1390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Attestor — The audit-grade memory backbone for regulated AI.</title>
+<meta name="description" content="Open-source, bitemporal, deterministic memory infrastructure for multi-agent AI systems. Self-hosted. MIT." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+/* ── Design tokens ───────────────────────────────────────────────── */
+:root{
+  --ink:        #0A0908;         /* near-black */
+  --ink-2:      #13110F;         /* surface */
+  --ink-3:      #1B1816;         /* surface raised */
+  --paper:      #F5F3EE;         /* off-white text */
+  --paper-dim:  #C9C5BA;         /* body dim */
+  --paper-mute: #8A857A;         /* captions / labels */
+  --rule:       rgba(245,243,238,0.12);
+  --rule-soft:  rgba(245,243,238,0.06);
+  --accent:     #C15F3C;         /* burnt terracotta */
+  --accent-dim: #8E432A;
+
+  --serif:      "Fraunces", "GT Sectra", "Times New Roman", serif;
+  --sans:       "IBM Plex Sans", "Söhne", system-ui, sans-serif;
+  --mono:       "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+
+  --shell: min(1240px, 100vw - 48px);
+  --col:   min(720px, 100vw - 48px);
+}
+
+/* ── Reset & base ────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--ink);
+  color:var(--paper);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.6;
+  font-weight:300;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  font-feature-settings:"kern" 1, "liga" 1, "calt" 1;
+}
+::selection{background:var(--accent);color:var(--paper)}
+a{color:inherit;text-decoration:none}
+img,svg{display:block;max-width:100%}
+hr{border:0;border-top:1px solid var(--rule);margin:0}
+
+/* ── Grain overlay for hero atmosphere ───────────────────────────── */
+.grain{
+  pointer-events:none;position:fixed;inset:0;z-index:1;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.96 0 0 0 0 0.95 0 0 0 0 0.93 0 0 0 0.03 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity:.6;mix-blend-mode:screen;
+}
+
+/* ── Top nav ─────────────────────────────────────────────────────── */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:50;
+  background:rgba(10,9,8,0.72);
+  backdrop-filter:saturate(140%) blur(14px);
+  -webkit-backdrop-filter:saturate(140%) blur(14px);
+  border-bottom:1px solid transparent;
+  transform:translateY(-100%);
+  transition:transform .35s cubic-bezier(.2,.7,.2,1), border-color .35s ease;
+}
+.nav.is-visible{transform:translateY(0);border-bottom-color:var(--rule)}
+.nav__inner{
+  display:flex;align-items:center;justify-content:space-between;
+  width:var(--shell);margin:0 auto;height:56px;
+  font-family:var(--sans);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+}
+.nav__brand{display:flex;align-items:baseline;gap:10px;font-weight:500}
+.nav__brand .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;transform:translateY(-1px)}
+.nav__links{display:flex;gap:28px}
+.nav__links a{color:var(--paper-mute);transition:color .2s ease;position:relative}
+.nav__links a:hover{color:var(--paper)}
+.nav__links a::after{
+  content:"";position:absolute;left:0;right:0;bottom:-18px;height:1px;background:var(--accent);
+  transform:scaleX(0);transform-origin:left;transition:transform .3s ease;
+}
+.nav__links a:hover::after{transform:scaleX(1)}
+.nav__cta{
+  font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:none;
+  color:var(--paper);border:1px solid var(--rule);padding:7px 12px;
+  transition:border-color .2s ease,background .2s ease;
+}
+.nav__cta:hover{border-color:var(--accent);background:rgba(193,95,60,.06)}
+@media (max-width:820px){.nav__links{display:none}.nav__cta{display:none}}
+
+/* ── Shell / columns ─────────────────────────────────────────────── */
+.shell{width:var(--shell);margin-inline:auto}
+.col{width:var(--col);margin-inline:auto}
+
+/* ── Typography primitives ───────────────────────────────────────── */
+.eyebrow{
+  font-family:var(--mono);font-size:11px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--paper-mute);
+}
+.section-label{
+  font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--accent);display:inline-flex;align-items:center;gap:10px;
+}
+.section-label .bar{width:28px;height:1px;background:var(--accent);display:inline-block}
+.display{
+  font-family:var(--serif);font-weight:400;font-variation-settings:"opsz" 72, "SOFT" 50;
+  letter-spacing:-0.02em;line-height:1.02;
+}
+.display em{font-style:italic;font-variation-settings:"opsz" 96}
+.subhead{
+  font-family:var(--serif);font-style:italic;font-variation-settings:"opsz" 48;
+  font-weight:400;color:var(--paper-dim);letter-spacing:-0.005em;
+}
+.lede{font-size:18px;line-height:1.7;color:var(--paper-dim);font-weight:300;max-width:62ch}
+.prose p{font-size:17px;line-height:1.75;color:var(--paper-dim);max-width:62ch}
+.prose p + p{margin-top:1em}
+
+/* Section head pattern: § 02 — Label ------------------------------- */
+.section-head{
+  display:grid;grid-template-columns:auto 1fr;gap:32px;align-items:baseline;
+  padding-top:120px;padding-bottom:48px;
+  border-top:1px solid var(--rule);
+}
+.section-head__kicker{
+  font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--paper-mute);white-space:nowrap;
+}
+.section-head__title{font-family:var(--serif);font-size:clamp(32px,4.2vw,52px);line-height:1.05;letter-spacing:-0.02em;font-weight:400}
+.section-head__sub{margin-top:10px;font-family:var(--serif);font-style:italic;font-size:clamp(18px,2vw,22px);color:var(--paper-dim);font-weight:400}
+@media (max-width:720px){
+  .section-head{grid-template-columns:1fr;gap:12px;padding-top:96px;padding-bottom:36px}
+}
+
+/* ── Hero ────────────────────────────────────────────────────────── */
+.hero{
+  position:relative;min-height:100vh;padding:120px 0 80px;display:flex;align-items:center;
+  overflow:hidden;
+}
+.hero__grid{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(to right, var(--rule-soft) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rule-soft) 1px, transparent 1px);
+  background-size: calc(100%/12) 100%, 100% 80px;
+  mask-image:radial-gradient(ellipse at 30% 40%, #000 30%, transparent 80%);
+  -webkit-mask-image:radial-gradient(ellipse at 30% 40%, #000 30%, transparent 80%);
+}
+.hero__inner{position:relative;z-index:2;width:var(--shell);margin-inline:auto}
+.hero__tagline{margin-bottom:40px;display:flex;align-items:center;gap:14px}
+.hero__tagline .dot{width:6px;height:6px;background:var(--accent);border-radius:50%}
+.hero h1{
+  font-family:var(--serif);font-weight:300;
+  font-size:clamp(44px, 7.8vw, 112px);line-height:0.98;letter-spacing:-0.035em;
+  max-width:16ch;margin:0 0 28px;
+  font-variation-settings:"opsz" 144, "SOFT" 30;
+}
+.hero h1 em{font-style:italic;font-weight:400;color:var(--paper);font-variation-settings:"opsz" 144}
+.hero h1 .accent{color:var(--accent)}
+.hero__sub{max-width:62ch;margin:0 0 48px;font-family:var(--serif);font-style:italic;font-size:clamp(18px,2vw,22px);color:var(--paper-dim);font-weight:400;line-height:1.5}
+.hero__sub .divider{color:var(--accent-dim);font-style:normal;margin:0 10px}
+
+/* install block */
+.install{
+  display:flex;align-items:stretch;width:min(480px,100%);
+  margin-bottom:28px;border:1px solid var(--rule);background:var(--ink-2);
+  transition:border-color .2s ease;
+}
+.install:hover{border-color:rgba(245,243,238,0.25)}
+.install__prompt{
+  padding:14px 14px 14px 18px;color:var(--accent);font-family:var(--mono);font-size:14px;
+  border-right:1px solid var(--rule);user-select:none;
+}
+.install code{flex:1;padding:14px 16px;font-family:var(--mono);font-size:14px;color:var(--paper);letter-spacing:-0.005em}
+.install__copy{
+  background:transparent;border:0;border-left:1px solid var(--rule);padding:0 16px;color:var(--paper-mute);
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+  transition:color .2s ease, background .2s ease;
+}
+.install__copy:hover{color:var(--accent);background:rgba(193,95,60,.06)}
+.install__copy.is-copied{color:var(--accent)}
+
+.hero__ctas{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:36px}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;padding:14px 22px;
+  font-family:var(--sans);font-size:13px;letter-spacing:.04em;font-weight:500;
+  border:1px solid var(--rule);background:transparent;color:var(--paper);cursor:pointer;
+  transition:border-color .25s ease, background .25s ease, color .25s ease;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn--primary{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+.btn--primary:hover{background:transparent;color:var(--paper);border-color:var(--paper)}
+.btn svg{width:14px;height:14px}
+
+.badges{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:72px}
+.badge{
+  display:inline-flex;align-items:center;gap:8px;padding:6px 12px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--paper-mute);
+  border:1px solid var(--rule);border-radius:1px;
+}
+.badge .k{color:var(--paper-mute)}
+.badge .v{color:var(--paper)}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+/* spec sheet */
+.spec{
+  display:grid;grid-template-columns:repeat(6,1fr);
+  border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  margin-top:24px;
+}
+.spec__cell{
+  padding:22px 20px;border-right:1px solid var(--rule);
+}
+.spec__cell:last-child{border-right:0}
+.spec__k{
+  font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--paper-mute);display:block;margin-bottom:10px;
+}
+.spec__v{font-family:var(--serif);font-size:26px;font-weight:400;color:var(--paper);letter-spacing:-0.01em}
+.spec__v .unit{font-family:var(--sans);font-size:12px;color:var(--paper-mute);letter-spacing:.08em;margin-left:6px;text-transform:uppercase;font-weight:400}
+@media (max-width:900px){.spec{grid-template-columns:repeat(3,1fr)}.spec__cell:nth-child(3n){border-right:0}.spec__cell:nth-child(1),.spec__cell:nth-child(2),.spec__cell:nth-child(3){border-bottom:1px solid var(--rule)}}
+@media (max-width:520px){.spec{grid-template-columns:repeat(2,1fr)}.spec__cell:nth-child(n){border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}.spec__cell:nth-child(2n){border-right:0}}
+
+/* ── Fade in on load ─────────────────────────────────────────────── */
+.reveal{opacity:0;transform:translateY(8px);animation:reveal 1s cubic-bezier(.2,.7,.2,1) forwards}
+.r1{animation-delay:.05s}.r2{animation-delay:.18s}.r3{animation-delay:.32s}.r4{animation-delay:.46s}.r5{animation-delay:.6s}.r6{animation-delay:.74s}.r7{animation-delay:.88s}
+@keyframes reveal{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;animation:none}}
+
+/* ── Problem / comparison ────────────────────────────────────────── */
+.pullquote{
+  margin:64px 0 72px;padding:0 0 0 28px;border-left:2px solid var(--accent);
+  font-family:var(--serif);font-style:italic;font-weight:400;color:var(--paper);
+  font-size:clamp(22px,3vw,32px);line-height:1.35;letter-spacing:-0.01em;max-width:56ch;
+  font-variation-settings:"opsz" 96;
+}
+.pullquote__attr{
+  display:block;margin-top:22px;font-family:var(--sans);font-style:normal;
+  font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--paper-mute);font-weight:400;
+}
+.pullquote__attr::before{content:"— "}
+
+.compare{
+  display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:48px;
+  border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+}
+.compare__col{padding:32px 28px;border-right:1px solid var(--rule)}
+.compare__col:last-child{border-right:0}
+.compare__col--bad{background:transparent}
+.compare__col--good{background:linear-gradient(180deg, rgba(193,95,60,.035), transparent)}
+.compare__hd{
+  font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--paper-mute);margin-bottom:22px;display:flex;align-items:center;gap:10px;
+}
+.compare__col--good .compare__hd{color:var(--accent)}
+.compare__list{list-style:none;padding:0;margin:0;counter-reset:cmp}
+.compare__list li{
+  position:relative;padding:16px 0 16px 34px;border-top:1px solid var(--rule-soft);
+  font-size:15px;line-height:1.55;color:var(--paper-dim);counter-increment:cmp;
+}
+.compare__list li:first-child{border-top:0}
+.compare__list li::before{
+  content:counter(cmp,decimal-leading-zero);
+  position:absolute;left:0;top:17px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--paper-mute);
+}
+.compare__col--good .compare__list li::before{color:var(--accent)}
+@media (max-width:720px){.compare{grid-template-columns:1fr}.compare__col{border-right:0;border-bottom:1px solid var(--rule)}.compare__col:last-child{border-bottom:0}}
+
+/* ── Principles / pillars ────────────────────────────────────────── */
+.pillars{display:flex;flex-direction:column;border-top:1px solid var(--rule);margin-top:24px}
+.pillar{
+  display:grid;grid-template-columns:140px 1fr;gap:32px;padding:44px 0;
+  border-bottom:1px solid var(--rule);align-items:baseline;
+}
+.pillar__num{
+  font-family:var(--serif);font-size:clamp(64px,8vw,120px);font-weight:300;
+  line-height:1;color:var(--paper);letter-spacing:-0.04em;
+  font-variation-settings:"opsz" 144;
+}
+.pillar__num .suffix{color:var(--accent);font-size:0.4em;vertical-align:super;margin-left:6px;letter-spacing:.1em;font-family:var(--mono);font-weight:400}
+.pillar__body h3{
+  font-family:var(--serif);font-size:clamp(22px,2.8vw,32px);font-weight:400;margin:0 0 14px;letter-spacing:-0.01em;
+}
+.pillar__body p{color:var(--paper-dim);font-size:16px;line-height:1.7;max-width:58ch;margin:0}
+@media (max-width:640px){.pillar{grid-template-columns:1fr;gap:8px;padding:32px 0}}
+
+/* ── Pipeline SVG container ──────────────────────────────────────── */
+.pipeline{
+  margin:48px 0 40px;padding:40px 32px;border:1px solid var(--rule);background:
+    linear-gradient(180deg, var(--ink-2), var(--ink));
+  overflow-x:auto;
+}
+.pipeline svg{width:100%;max-width:1100px;margin:0 auto;display:block;min-width:760px}
+.storage{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:40px;
+  border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+}
+.storage__cell{padding:32px 28px;border-right:1px solid var(--rule)}
+.storage__cell:last-child{border-right:0}
+.storage__k{
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.storage__k .idx{color:var(--paper-mute)}
+.storage__t{font-family:var(--serif);font-size:22px;font-weight:400;margin:0 0 10px;letter-spacing:-0.01em}
+.storage__p{color:var(--paper-dim);font-size:15px;line-height:1.6;margin:0}
+@media (max-width:720px){.storage{grid-template-columns:1fr}.storage__cell{border-right:0;border-bottom:1px solid var(--rule)}.storage__cell:last-child{border-bottom:0}}
+
+/* ── Timeline (bitemporal) ───────────────────────────────────────── */
+.timeline{
+  margin:48px 0;padding:36px 32px;border:1px solid var(--rule);background:var(--ink-2);
+  font-family:var(--mono);font-size:14px;color:var(--paper-dim);line-height:1.9;
+}
+.timeline .v{color:var(--accent);font-weight:500;margin-right:10px}
+.timeline .fact{color:var(--paper)}
+.timeline .meta{color:var(--paper-mute);font-size:12px;margin-left:38px;display:block}
+.timeline .op{color:var(--accent-dim);margin:8px 0 8px 38px;display:block;font-style:italic}
+.timeline .strike{text-decoration:line-through;text-decoration-color:var(--paper-mute);opacity:.55}
+
+.closing-line{
+  font-family:var(--serif);font-size:clamp(20px,2.4vw,26px);line-height:1.5;color:var(--paper);
+  font-weight:400;max-width:62ch;
+}
+.closing-line code{font-family:var(--mono);font-size:0.85em;color:var(--accent);background:var(--ink-2);padding:2px 8px;border:1px solid var(--rule);border-radius:1px}
+
+/* ── Multi-agent architecture ────────────────────────────────────── */
+.agents-svg{
+  margin:48px 0 48px;padding:40px 32px;border:1px solid var(--rule);background:var(--ink-2);overflow-x:auto;
+}
+.agents-svg svg{width:100%;max-width:880px;min-width:560px;margin:0 auto;display:block}
+
+.feature-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+  border-top:1px solid var(--rule);border-left:1px solid var(--rule);
+}
+.feature{
+  padding:32px 28px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  transition:background .25s ease;
+}
+.feature:hover{background:var(--ink-2)}
+.feature__n{
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--accent);margin-bottom:16px;
+}
+.feature__t{font-family:var(--serif);font-size:20px;font-weight:400;margin:0 0 10px;letter-spacing:-0.01em}
+.feature__p{color:var(--paper-dim);font-size:14.5px;line-height:1.6;margin:0}
+@media (max-width:900px){.feature-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.feature-grid{grid-template-columns:1fr}}
+
+/* ── Deployment cards ────────────────────────────────────────────── */
+.deploy{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-top:36px;
+  border-top:1px solid var(--rule);border-left:1px solid var(--rule);
+}
+.deploy__cell{
+  padding:28px 22px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  display:flex;flex-direction:column;gap:10px;
+}
+.deploy__glyph{width:32px;height:32px;color:var(--paper-mute);margin-bottom:8px}
+.deploy__t{font-family:var(--serif);font-size:18px;font-weight:400;margin:0;letter-spacing:-0.005em}
+.deploy__stack{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.04em;margin:0}
+.deploy__p{color:var(--paper-dim);font-size:13.5px;line-height:1.5;margin:0}
+@media (max-width:900px){.deploy{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.deploy{grid-template-columns:1fr}}
+
+/* ── Code blocks ─────────────────────────────────────────────────── */
+.code{
+  position:relative;margin:24px 0;border:1px solid var(--rule);background:var(--ink-2);
+  font-family:var(--mono);font-size:13.5px;line-height:1.7;overflow:hidden;
+}
+.code__hd{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 18px;border-bottom:1px solid var(--rule);
+  background:var(--ink-3);
+}
+.code__hd .name{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--paper-mute)}
+.code__copy{
+  background:transparent;border:0;color:var(--paper-mute);font-family:var(--mono);
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;padding:4px 8px;
+  display:inline-flex;gap:6px;align-items:center;transition:color .2s ease;
+}
+.code__copy:hover{color:var(--accent)}
+.code__copy.is-copied{color:var(--accent)}
+.code__copy svg{width:12px;height:12px}
+.code pre{margin:0;padding:22px 22px;overflow-x:auto;color:var(--paper)}
+.code .cm{color:var(--paper-mute);font-style:italic}
+.code .kw{color:var(--accent)}
+.code .str{color:#D6B895}
+.code .fn{color:var(--paper)}
+.code .prm{color:var(--paper-dim)}
+.code .num{color:#D6B895}
+
+/* tabs */
+.tabs{border:1px solid var(--rule);margin-top:24px;background:var(--ink-2)}
+.tabs__bar{display:flex;border-bottom:1px solid var(--rule)}
+.tabs__btn{
+  background:transparent;border:0;border-right:1px solid var(--rule);
+  padding:14px 22px;cursor:pointer;color:var(--paper-mute);
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  transition:color .2s ease,background .2s ease;
+  position:relative;
+}
+.tabs__btn:last-child{border-right:0}
+.tabs__btn[aria-selected="true"]{color:var(--paper);background:var(--ink-3)}
+.tabs__btn[aria-selected="true"]::after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--accent);
+}
+.tabs__btn:hover{color:var(--paper)}
+.tabs__panel{display:none}
+.tabs__panel[aria-hidden="false"]{display:block}
+.tabs .code{border:0;margin:0}
+
+/* ── Install CTA (Claude Code) ───────────────────────────────────── */
+.install-cta{
+  margin:40px 0 16px;padding:56px 48px;border:1px solid var(--rule);background:
+    radial-gradient(ellipse at 15% 0%, rgba(193,95,60,.08), transparent 60%),
+    var(--ink-2);
+}
+.install-cta__line{
+  display:flex;align-items:baseline;gap:18px;margin-bottom:8px;flex-wrap:wrap;
+}
+.install-cta__prompt{color:var(--accent);font-family:var(--mono);font-size:clamp(20px,2.6vw,28px)}
+.install-cta__words{
+  font-family:var(--mono);font-size:clamp(22px,3.4vw,40px);color:var(--paper);
+  letter-spacing:-0.01em;font-weight:500;
+  border-bottom:1px dashed var(--accent-dim);padding-bottom:4px;
+}
+.install-cta__copy{
+  margin-left:auto;
+  background:transparent;border:1px solid var(--rule);color:var(--paper-mute);
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  padding:8px 14px;cursor:pointer;transition:color .2s ease,border-color .2s ease;
+  display:inline-flex;gap:8px;align-items:center;
+}
+.install-cta__copy:hover{color:var(--accent);border-color:var(--accent)}
+.install-cta__copy.is-copied{color:var(--accent);border-color:var(--accent)}
+.install-cta__cap{
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--paper-mute);margin:20px 0 0;
+}
+.install-cta__cap .sep{color:var(--accent-dim);margin:0 10px}
+
+/* ── Pricing ─────────────────────────────────────────────────────── */
+.pricing{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:36px;
+  border-top:1px solid var(--rule);border-left:1px solid var(--rule);
+}
+.plan{
+  padding:36px 32px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  display:flex;flex-direction:column;gap:16px;
+}
+.plan--featured{background:linear-gradient(180deg, rgba(193,95,60,0.05), transparent 70%)}
+.plan__k{
+  font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--paper-mute);
+}
+.plan--featured .plan__k{color:var(--accent)}
+.plan__t{font-family:var(--serif);font-size:32px;font-weight:400;margin:0;letter-spacing:-0.02em}
+.plan__t .tag{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--paper-mute);text-transform:uppercase;margin-left:10px;vertical-align:middle}
+.plan__price{
+  font-family:var(--serif);font-size:18px;color:var(--paper);font-style:italic;margin:0;
+  padding-top:16px;border-top:1px solid var(--rule);
+}
+.plan__list{list-style:none;padding:0;margin:0}
+.plan__list li{
+  padding:10px 0;color:var(--paper-dim);font-size:14.5px;border-top:1px solid var(--rule-soft);
+  display:flex;gap:12px;align-items:flex-start;line-height:1.5;
+}
+.plan__list li:first-child{border-top:0}
+.plan__list li::before{content:"·";color:var(--accent);font-weight:700;flex-shrink:0;width:8px}
+.plan__cta{
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--paper-mute);padding:12px 0 4px;border-top:1px solid var(--rule);margin-top:auto;
+  display:inline-flex;align-items:center;gap:8px;transition:color .2s ease;
+}
+.plan__cta:hover{color:var(--accent)}
+.plan__cta .arrow{transition:transform .2s ease}
+.plan__cta:hover .arrow{transform:translateX(4px)}
+@media (max-width:900px){.pricing{grid-template-columns:1fr}}
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+.footer{margin-top:160px;padding:72px 0 40px;border-top:1px solid var(--rule)}
+.footer__inner{width:var(--shell);margin-inline:auto}
+.footer__grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;padding-bottom:56px;border-bottom:1px solid var(--rule)}
+.footer__mark{font-family:var(--serif);font-size:32px;font-weight:400;letter-spacing:-0.02em;margin:0 0 14px}
+.footer__blurb{color:var(--paper-dim);font-size:14.5px;line-height:1.6;max-width:34ch;margin:0}
+.footer__hd{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--paper-mute);margin:0 0 20px}
+.footer__list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+.footer__list a{font-size:14.5px;color:var(--paper-dim);transition:color .2s ease}
+.footer__list a:hover{color:var(--accent)}
+.footer__bottom{
+  display:flex;justify-content:space-between;align-items:center;padding-top:32px;flex-wrap:wrap;gap:16px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--paper-mute);
+}
+.footer__bottom .sep{color:var(--accent-dim);margin:0 10px}
+.footer__social{display:flex;gap:18px;align-items:center}
+.footer__social a{color:var(--paper-mute);transition:color .2s ease}
+.footer__social a:hover{color:var(--paper)}
+.footer__social svg{width:16px;height:16px}
+@media (max-width:820px){.footer__grid{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.footer__grid{grid-template-columns:1fr}}
+
+/* ── Utility ─────────────────────────────────────────────────────── */
+.accent{color:var(--accent)}
+.rule{border:0;border-top:1px solid var(--rule);margin:0}
+.mono{font-family:var(--mono)}
+.small{font-size:13px}
+.muted{color:var(--paper-mute)}
+.mt-0{margin-top:0}
+.mb-32{margin-bottom:32px}
+
+section{position:relative;z-index:2}
+.section{padding-bottom:40px}
+</style>
+</head>
+
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+
+<!-- ── Nav ─────────────────────────────────────────────────────── -->
+<nav class="nav" id="nav" aria-label="Primary">
+  <div class="nav__inner">
+    <a class="nav__brand" href="#top">
+      <span class="dot"></span>
+      <span>Attestor</span>
+    </a>
+    <div class="nav__links">
+      <a href="#problem">Problem</a>
+      <a href="#principles">Principles</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#deployment">Deployment</a>
+      <a href="#integrate">Integrate</a>
+      <a href="#editions">Editions</a>
+    </div>
+    <a class="nav__cta" href="https://github.com/bolnet/attestor">Documentation →</a>
+  </div>
+</nav>
+
+<!-- ── Hero ────────────────────────────────────────────────────── -->
+<header class="hero" id="top">
+  <div class="hero__grid" aria-hidden="true"></div>
+  <div class="hero__inner">
+    <div class="hero__tagline eyebrow reveal r1">
+      <span class="dot"></span>
+      <span>Attestor · Memory infrastructure for regulated AI · Est. 2026</span>
+    </div>
+
+    <h1 class="reveal r2">
+      What did the <em>agent</em> know,<br/>
+      and <em>when</em> did it know <span class="accent">it?</span>
+    </h1>
+
+    <p class="hero__sub reveal r3">
+      The audit-grade memory backbone for multi-agent AI.
+      <span class="divider">·</span> Bitemporal.
+      <span class="divider">·</span> Deterministic.
+      <span class="divider">·</span> Self-hosted.
+      <span class="divider">·</span> MIT.
+    </p>
+
+    <div class="install reveal r4" role="group" aria-label="Install command">
+      <span class="install__prompt" aria-hidden="true">$</span>
+      <code id="install-cmd">pip install attestor</code>
+      <button class="install__copy" data-copy="pip install attestor" aria-label="Copy install command">Copy</button>
+    </div>
+
+    <div class="hero__ctas reveal r5">
+      <a class="btn btn--primary" href="#integrate">
+        Documentation
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 11L11 3M11 3H5M11 3V9"/></svg>
+      </a>
+      <a class="btn" href="https://github.com/bolnet/attestor">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2 .37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+
+    <div class="badges reveal r6" aria-label="Project badges">
+      <span class="badge"><span class="dot"></span><span class="k">GitHub</span><span class="v">★ 2.4k</span></span>
+      <span class="badge"><span class="k">PyPI</span><span class="v">48k/mo</span></span>
+      <span class="badge"><span class="k">License</span><span class="v">MIT</span></span>
+      <span class="badge"><span class="k">Version</span><span class="v">2.0.1</span></span>
+    </div>
+
+    <div class="spec reveal r7" role="list" aria-label="Project specifications">
+      <div class="spec__cell" role="listitem">
+        <span class="spec__k">Storage Roles</span>
+        <span class="spec__v">3<span class="unit">doc · vec · graph</span></span>
+      </div>
+      <div class="spec__cell" role="listitem">
+        <span class="spec__k">Retrieval Layers</span>
+        <span class="spec__v">5<span class="unit">deterministic</span></span>
+      </div>
+      <div class="spec__cell" role="listitem">
+        <span class="spec__k">RBAC Roles</span>
+        <span class="spec__v">6<span class="unit">rwx</span></span>
+      </div>
+      <div class="spec__cell" role="listitem">
+        <span class="spec__k">Cloud Targets</span>
+        <span class="spec__v">3<span class="unit">aws · gcp · azure</span></span>
+      </div>
+      <div class="spec__cell" role="listitem">
+        <span class="spec__k">License</span>
+        <span class="spec__v">MIT<span class="unit">open source</span></span>
+      </div>
+      <div class="spec__cell" role="listitem">
+        <span class="spec__k">Python</span>
+        <span class="spec__v">3.10<span class="unit">+</span></span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ── §01 Problem ─────────────────────────────────────────────── -->
+<section id="problem" class="section">
+  <div class="shell">
+    <div class="section-head">
+      <span class="section-head__kicker">§ 01 — The Problem</span>
+      <div>
+        <h2 class="section-head__title">Why multi-agent systems fail audits.</h2>
+      </div>
+    </div>
+
+    <div class="col prose">
+      <p>
+        Every AI agent starts the day with amnesia. Single agents rediscover the same facts every run.
+        Multi-agent pipelines are worse — the planner's decisions never reach the executor, the researcher's
+        findings never reach the reviewer. Teams pass giant prompts between agents and hope nothing important
+        fell off the edge.
+      </p>
+      <p>
+        In a regulated environment, that's not technical debt. That's a compliance failure.
+        Auditors need to know what the agent knew, when it knew it, and which source grounded the decision.
+        Today, most teams can't answer that question. <strong style="color:var(--paper);font-weight:500">Attestor is built so you can.</strong>
+      </p>
+    </div>
+
+    <blockquote class="pullquote col">
+      We had a planner, a coder, a reviewer, a deployer — four agents in a pipeline. None of them knew what the
+      others learned. We were burning tokens on stale context and had no audit trail.
+      <span class="pullquote__attr">Engineering Lead, Fortune 100 Bank</span>
+    </blockquote>
+
+    <div class="compare" role="region" aria-label="Comparison">
+      <div class="compare__col compare__col--bad">
+        <div class="compare__hd">Without Attestor</div>
+        <ol class="compare__list">
+          <li>Each agent starts blind — no knowledge of what others learned.</li>
+          <li>Giant prompts between agents burn context tokens.</li>
+          <li>No access control — any agent can overwrite any state.</li>
+          <li>Contradictions from different agents go undetected.</li>
+          <li>Session ends, everything learned is gone forever.</li>
+        </ol>
+      </div>
+      <div class="compare__col compare__col--good">
+        <div class="compare__hd">With Attestor</div>
+        <ol class="compare__list">
+          <li>Shared memory — planner writes, coder reads, reviewer sees both.</li>
+          <li>Token-budget recall — each agent pulls only what fits.</li>
+          <li>Six RBAC roles, namespace isolation, write quotas per agent.</li>
+          <li>Contradictions auto-resolved, supersession preserved for audit.</li>
+          <li>Persistent across sessions, pipelines, and agent restarts.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── §02 Principles ──────────────────────────────────────────── -->
+<section id="principles" class="section">
+  <div class="shell">
+    <div class="section-head">
+      <span class="section-head__kicker">§ 02 — Principles</span>
+      <div>
+        <h2 class="section-head__title">Four stakes in the ground.</h2>
+        <p class="section-head__sub">The commitments Attestor will not compromise.</p>
+      </div>
+    </div>
+
+    <div class="pillars">
+      <article class="pillar">
+        <div class="pillar__num">01<span class="suffix">▸</span></div>
+        <div class="pillar__body">
+          <h3>Auditability</h3>
+          <p>Every memory is provenance-chained. Every recall is replayable. Every supersession is timestamped.
+             An auditor can reconstruct what any agent knew at any point in time.</p>
+        </div>
+      </article>
+      <article class="pillar">
+        <div class="pillar__num">02<span class="suffix">▸</span></div>
+        <div class="pillar__body">
+          <h3>Determinism</h3>
+          <p>No LLM in the critical path. Same query, same ranking, every time. Unit-testable.
+             SOC2-auditable. Defensible to the SEC, FINRA, and FDA.</p>
+        </div>
+      </article>
+      <article class="pillar">
+        <div class="pillar__num">03<span class="suffix">▸</span></div>
+        <div class="pillar__body">
+          <h3>Multi-agent safety</h3>
+          <p>Six RBAC roles, namespace isolation, contradiction resolution, write quotas. The only memory
+             layer that treats agent teams as first-class and prevents runaway agents from corrupting state.</p>
+        </div>
+      </article>
+      <article class="pillar">
+        <div class="pillar__num">04<span class="suffix">▸</span></div>
+        <div class="pillar__body">
+          <h3>Data sovereignty</h3>
+          <p>Self-hosted. Air-gappable. BYOK encryption. No SaaS middleman. Your data never leaves your infrastructure.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ── §03 Architecture ────────────────────────────────────────── -->
+<section id="architecture" class="section">
+  <div class="shell">
+    <div class="section-head">
+      <span class="section-head__kicker">§ 03 — Architecture</span>
+      <div>
+        <h2 class="section-head__title">Five retrieval layers. <em style="font-style:italic">Zero inference calls.</em></h2>
+        <p class="section-head__sub">When an agent calls recall, five cooperating layers find, fuse, score, and fit.</p>
+      </div>
+    </div>
+
+    <div class="col prose">
+      <p>
+        When an agent calls <code style="font-family:var(--mono);color:var(--accent);font-size:.9em">recall(query, budget)</code>,
+        five cooperating layers find, fuse, score, and fit the most relevant memories into the requested token ceiling.
+        Ten million memories in the store. Your context window never sees more than the budget. Same query, same ranking, always.
+      </p>
+    </div>
+
+    <div class="pipeline" aria-label="Five-layer retrieval pipeline diagram">
+      <svg viewBox="0 0 1080 280" role="img" aria-label="Retrieval pipeline">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#C15F3C"/>
+          </marker>
+          <style>
+            .stage-bg{fill:#13110F;stroke:rgba(245,243,238,.15);stroke-width:1}
+            .stage-bg.hl{stroke:#C15F3C;stroke-width:1.2}
+            .stage-n{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.18em;fill:#C15F3C;text-transform:uppercase}
+            .stage-t{font-family:"Fraunces",serif;font-size:17px;font-weight:400;fill:#F5F3EE}
+            .stage-d{font-family:"IBM Plex Sans",sans-serif;font-size:11px;fill:#8A857A;letter-spacing:.02em}
+            .flow{stroke:#C15F3C;stroke-width:1.2;fill:none}
+            .bracket{stroke:rgba(245,243,238,.18);stroke-width:1;fill:none}
+            .btext{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;fill:#8A857A;letter-spacing:.18em}
+          </style>
+        </defs>
+
+        <!-- Input query -->
+        <g>
+          <text x="30" y="40" class="stage-n">Query</text>
+          <rect x="22" y="50" width="140" height="64" class="stage-bg"/>
+          <text x="32" y="76" class="stage-t">recall(...)</text>
+          <text x="32" y="96" class="stage-d">query · budget · as_of</text>
+        </g>
+        <line x1="162" y1="82" x2="208" y2="82" class="flow" marker-end="url(#arrow)"/>
+
+        <!-- Layer 1 -->
+        <g>
+          <rect x="208" y="50" width="152" height="64" class="stage-bg"/>
+          <text x="218" y="46" class="stage-n">01 · Tag Match</text>
+          <text x="218" y="78" class="stage-t">SQLite FTS</text>
+          <text x="218" y="98" class="stage-d">literal + token</text>
+        </g>
+        <line x1="360" y1="82" x2="388" y2="82" class="flow" marker-end="url(#arrow)"/>
+
+        <!-- Layer 2 -->
+        <g>
+          <rect x="388" y="50" width="152" height="64" class="stage-bg"/>
+          <text x="398" y="46" class="stage-n">02 · Graph Exp.</text>
+          <text x="398" y="78" class="stage-t">BFS depth 2</text>
+          <text x="398" y="98" class="stage-d">entity walk</text>
+        </g>
+        <line x1="540" y1="82" x2="568" y2="82" class="flow" marker-end="url(#arrow)"/>
+
+        <!-- Layer 3 -->
+        <g>
+          <rect x="568" y="50" width="152" height="64" class="stage-bg"/>
+          <text x="578" y="46" class="stage-n">03 · Vector</text>
+          <text x="578" y="78" class="stage-t">Cosine ANN</text>
+          <text x="578" y="98" class="stage-d">384-D dense</text>
+        </g>
+        <line x1="720" y1="82" x2="748" y2="82" class="flow" marker-end="url(#arrow)"/>
+
+        <!-- Layer 4 -->
+        <g>
+          <rect x="748" y="50" width="152" height="64" class="stage-bg hl"/>
+          <text x="758" y="46" class="stage-n">04 · RRF + PR</text>
+          <text x="758" y="78" class="stage-t">k = 60</text>
+          <text x="758" y="98" class="stage-d">fusion + pagerank</text>
+        </g>
+        <line x1="900" y1="82" x2="928" y2="82" class="flow" marker-end="url(#arrow)"/>
+
+        <!-- Layer 5 -->
+        <g>
+          <rect x="928" y="50" width="132" height="64" class="stage-bg hl"/>
+          <text x="938" y="46" class="stage-n">05 · MMR</text>
+          <text x="938" y="78" class="stage-t">λ = 0.7</text>
+          <text x="938" y="98" class="stage-d">diverse + fit</text>
+        </g>
+
+        <!-- Brackets -->
+        <path class="bracket" d="M 208 145 Q 208 155 218 155 L 710 155 Q 720 155 720 145"/>
+        <text x="464" y="180" class="btext" text-anchor="middle">· Candidate Retrieval ·</text>
+
+        <path class="bracket" d="M 748 145 Q 748 155 758 155 L 1050 155 Q 1060 155 1060 145"/>
+        <text x="904" y="180" class="btext" text-anchor="middle">· Rank &amp; Fit ·</text>
+
+        <!-- Output -->
+        <g>
+          <rect x="420" y="210" width="240" height="50" class="stage-bg"/>
+          <text x="432" y="232" class="stage-t">Budgeted recall set</text>
+          <text x="432" y="250" class="stage-d">≤ budget tokens · ranked · deduped</text>
+        </g>
+        <path class="flow" d="M 540 145 L 540 180 L 540 210" marker-end="url(#arrow)"/>
+      </svg>
+    </div>
+
+    <div class="col">
+      <p class="lede" style="margin-top:24px">
+        Three storage roles, every memory persisted across all three.
+        Lose one role and Attestor degrades explicitly — it never silently returns stale results.
+      </p>
+    </div>
+
+    <div class="storage" role="list">
+      <div class="storage__cell" role="listitem">
+        <div class="storage__k"><span class="idx">Role 01</span> <span>Document</span></div>
+        <h4 class="storage__t">Source of truth</h4>
+        <p class="storage__p">Content, tags, entity, category, timestamps, provenance, confidence. SQLite locally, Postgres / Cosmos / DynamoDB / Arango in the cloud.</p>
+      </div>
+      <div class="storage__cell" role="listitem">
+        <div class="storage__k"><span class="idx">Role 02</span> <span>Vector</span></div>
+        <h4 class="storage__t">Semantic surface</h4>
+        <p class="storage__p">Dense embedding per memory. Finds memories by meaning when tags or words don't overlap the query.</p>
+      </div>
+      <div class="storage__cell" role="listitem">
+        <div class="storage__k"><span class="idx">Role 03</span> <span>Graph</span></div>
+        <h4 class="storage__t">Relationship traversal</h4>
+        <p class="storage__p">Entity nodes and typed edges. Query "Python" surfaces "Django" via the relationship graph and BFS depth 2.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── §04 Temporal ────────────────────────────────────────────── -->
+<section id="temporal" class="section">
+  <div class="shell">
+    <div class="section-head">
+      <span class="section-head__kicker">§ 04 — Temporal Correctness</span>
+      <div>
+        <h2 class="section-head__title">Attestor doesn't overwrite. <em style="font-style:italic">It supersedes.</em></h2>
+      </div>
+    </div>
+
+    <div class="col prose">
+      <p>
+        Every fact in Attestor has a validity window. When a fact changes, the old version is superseded — not deleted.
+        The timeline is replayable to any point in the past. Auditors can reconstruct exactly what the system knew at any
+        historical moment.
+      </p>
+    </div>
+
+    <div class="timeline col" role="region" aria-label="Supersession timeline example">
+      <div><span class="v">v1</span><span class="fact">JPM CFO is Jeremy Barnum</span></div>
+      <span class="meta">valid_from: 2022-05 · source: sec.gov/10-K · confidence: 0.98</span>
+      <span class="op">↓ superseded on 2026-04-11</span>
+
+      <div><span class="v">v2</span><span class="fact">JPM CFO is Jane Doe</span></div>
+      <span class="meta">valid_from: 2026-04-11 · source: wsj.com · confidence: 0.94</span>
+      <span class="op">↓ superseded on 2026-04-12</span>
+
+      <div><span class="v">v3</span><span class="fact">Appointment delayed, Barnum resumes interim</span></div>
+      <span class="meta">valid_from: 2026-04-12 · source: reuters.com · confidence: 0.91</span>
+    </div>
+
+    <div class="col">
+      <p class="closing-line">
+        <code>recall(query, as_of="2026-04-11")</code> replays what the system knew on that date.
+        Nothing is deleted. Nothing is lost.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ── §05 Multi-agent ─────────────────────────────────────────── -->
+<section id="agents" class="section">
+  <div class="shell">
+    <div class="section-head">
+      <span class="section-head__kicker">§ 05 — Built for Teams</span>
+      <div>
+        <h2 class="section-head__title">Not a chatbot plugin. <em style="font-style:italic">Infrastructure for agent teams.</em></h2>
+      </div>
+    </div>
+
+    <div class="agents-svg" aria-label="Multi-agent architecture diagram">
+      <svg viewBox="0 0 860 420" role="img" aria-label="Multi-agent architecture">
+        <defs>
+          <marker id="arrow2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#C15F3C"/>
+          </marker>
+          <style>
+            .node{fill:#13110F;stroke:rgba(245,243,238,.18);stroke-width:1}
+            .node--orch{stroke:#C15F3C;stroke-width:1.3}
+            .node--mem{fill:#1B1816;stroke:#C15F3C;stroke-width:1.3}
+            .n-t{font-family:"Fraunces",serif;font-size:16px;fill:#F5F3EE}
+            .n-r{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;fill:#8A857A;letter-spacing:.16em;text-transform:uppercase}
+            .line{stroke:rgba(245,243,238,.25);stroke-width:1;fill:none}
+            .line--rw{stroke:#C15F3C;stroke-dasharray:3 3}
+            .scope{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:9px;fill:#C15F3C;letter-spacing:.1em}
+          </style>
+        </defs>
+
+        <!-- Orchestrator -->
+        <g>
+          <rect x="340" y="20" width="180" height="60" class="node node--orch"/>
+          <text x="430" y="44" class="n-t" text-anchor="middle">Orchestrator</text>
+          <text x="430" y="62" class="n-r" text-anchor="middle">root · full permissions</text>
+        </g>
+
+        <!-- fan lines -->
+        <path d="M 430 80 L 430 110" class="line"/>
+        <path d="M 430 110 L 90 110 L 90 160" class="line"/>
+        <path d="M 430 110 L 245 110 L 245 160" class="line"/>
+        <path d="M 430 110 L 430 160" class="line"/>
+        <path d="M 430 110 L 615 110 L 615 160" class="line"/>
+        <path d="M 430 110 L 770 110 L 770 160" class="line"/>
+
+        <!-- sub-agents -->
+        <g>
+          <rect x="22" y="160" width="136" height="58" class="node"/>
+          <text x="90" y="183" class="n-t" text-anchor="middle">Planner</text>
+          <text x="90" y="200" class="n-r" text-anchor="middle">r / w</text>
+          <text x="90" y="234" class="scope" text-anchor="middle">namespace:proj</text>
+        </g>
+        <g>
+          <rect x="177" y="160" width="136" height="58" class="node"/>
+          <text x="245" y="183" class="n-t" text-anchor="middle">Executor</text>
+          <text x="245" y="200" class="n-r" text-anchor="middle">r / w+quota</text>
+          <text x="245" y="234" class="scope" text-anchor="middle">namespace:proj</text>
+        </g>
+        <g>
+          <rect x="362" y="160" width="136" height="58" class="node"/>
+          <text x="430" y="183" class="n-t" text-anchor="middle">Researcher</text>
+          <text x="430" y="200" class="n-r" text-anchor="middle">r / w+flag</text>
+          <text x="430" y="234" class="scope" text-anchor="middle">namespace:proj</text>
+        </g>
+        <g>
+          <rect x="547" y="160" width="136" height="58" class="node"/>
+          <text x="615" y="183" class="n-t" text-anchor="middle">Reviewer</text>
+          <text x="615" y="200" class="n-r" text-anchor="middle">r · supersede</text>
+          <text x="615" y="234" class="scope" text-anchor="middle">namespace:proj</text>
+        </g>
+        <g>
+          <rect x="702" y="160" width="136" height="58" class="node"/>
+          <text x="770" y="183" class="n-t" text-anchor="middle">Monitor</text>
+          <text x="770" y="200" class="n-r" text-anchor="middle">r only</text>
+          <text x="770" y="234" class="scope" text-anchor="middle">namespace:*</text>
+        </g>
+
+        <!-- to memory -->
+        <path d="M 90 218 L 90 280 L 430 280" class="line line--rw" marker-end="url(#arrow2)"/>
+        <path d="M 245 218 L 245 290 L 430 290" class="line line--rw" marker-end="url(#arrow2)"/>
+        <path d="M 430 218 L 430 300" class="line line--rw" marker-end="url(#arrow2)"/>
+        <path d="M 615 218 L 615 290 L 430 290" class="line line--rw" marker-end="url(#arrow2)"/>
+        <path d="M 770 218 L 770 280 L 430 280" class="line line--rw" marker-end="url(#arrow2)"/>
+
+        <!-- shared memory -->
+        <g>
+          <rect x="280" y="310" width="300" height="78" class="node--mem node"/>
+          <text x="430" y="336" class="n-t" text-anchor="middle">Shared Memory Store</text>
+          <text x="430" y="354" class="n-r" text-anchor="middle">document · vector · graph</text>
+          <text x="430" y="374" class="n-r" text-anchor="middle">bitemporal · provenance-chained</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="feature-grid">
+      <article class="feature">
+        <div class="feature__n">01</div>
+        <h4 class="feature__t">Namespace isolation</h4>
+        <p class="feature__p">Every agent, project, or tenant gets its own namespace. Isolated by default, shared when configured.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__n">02</div>
+        <h4 class="feature__t">Six RBAC roles</h4>
+        <p class="feature__p">Orchestrator, Planner, Executor, Researcher, Reviewer, Monitor. Read-only observers to full admins.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__n">03</div>
+        <h4 class="feature__t">Provenance tracking</h4>
+        <p class="feature__p">Know which agent wrote which memory, when, and under which parent session.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__n">04</div>
+        <h4 class="feature__t">Contradiction resolution</h4>
+        <p class="feature__p">Agent A says "user works at Google." Agent B says "user works at Meta." Attestor auto-supersedes. Full history preserved.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__n">05</div>
+        <h4 class="feature__t">Token budgets per agent</h4>
+        <p class="feature__p"><span class="mono accent">recall(query, budget=2000)</span>. Each agent receives exactly what fits its context window.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__n">06</div>
+        <h4 class="feature__t">Write quotas &amp; review flags</h4>
+        <p class="feature__p">Prevent a runaway agent from flooding the store with noise. Rate-limit, flag, or tag for human review.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ── §06 Deployment ──────────────────────────────────────────── -->
+<section id="deployment" class="section">
+  <div class="shell">
+    <div class="section-head">
+      <span class="section-head__kicker">§ 06 — Deployment</span>
+      <div>
+        <h2 class="section-head__title">Same API. <em style="font-style:italic">Every backend. Your infrastructure.</em></h2>
+      </div>
+    </div>
+
+    <div class="col prose">
+      <p>
+        One Python library. One Starlette ASGI container. Six deployment targets —
+        laptop, self-hosted VM, AWS, Azure, GCP, on-prem. The three storage roles swap per column.
+        Your agent code never learns which backend it's talking to.
+      </p>
+    </div>
+
+    <div class="col">
+      <div class="code" role="region" aria-label="Laptop install">
+        <div class="code__hd">
+          <span class="name">Laptop · zero config</span>
+          <button class="code__copy" data-copy="pip install attestor&#10;attestor api --host 0.0.0.0 --port 8080" aria-label="Copy code">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="8" height="8"/><path d="M2 10V2h8"/></svg>
+            Copy
+          </button>
+        </div>
+<pre><span class="cm">$</span> <span class="kw">pip</span> <span class="fn">install</span> <span class="str">attestor</span>
+<span class="cm">$</span> <span class="kw">attestor</span> <span class="fn">api</span> <span class="prm">--host</span> <span class="str">0.0.0.0</span> <span class="prm">--port</span> <span class="num">8080</span></pre>
+      </div>
+    </div>
+
+    <div class="deploy" role="list">
+      <div class="deploy__cell" role="listitem">
+        <svg class="deploy__glyph" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="6" width="26" height="17" rx="1"/><path d="M10 27h12M14 23v4M18 23v4"/></svg>
+        <h4 class="deploy__t">Laptop</h4>
+        <p class="deploy__stack">SQLite · Chroma · NetworkX</p>
+        <p class="deploy__p">Zero config. Embedded. Three storage roles in-process.</p>
+      </div>
+      <div class="deploy__cell" role="listitem">
+        <svg class="deploy__glyph" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="4" width="26" height="6"/><rect x="3" y="13" width="26" height="6"/><rect x="3" y="22" width="26" height="6"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="16" r="1" fill="currentColor"/><circle cx="7" cy="25" r="1" fill="currentColor"/></svg>
+        <h4 class="deploy__t">Self-host</h4>
+        <p class="deploy__stack">Postgres 16 · pgvector · AGE</p>
+        <p class="deploy__p">Docker. One database, all three roles. Full SQL audit.</p>
+      </div>
+      <div class="deploy__cell" role="listitem">
+        <svg class="deploy__glyph" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M7 20a5 5 0 0 1 0-10 7 7 0 0 1 13 1 5 5 0 0 1 3 9H7z"/></svg>
+        <h4 class="deploy__t">AWS</h4>
+        <p class="deploy__stack">App Runner · Arango Oasis</p>
+        <p class="deploy__p">One engine, three roles. Scale to fleet or to zero.</p>
+      </div>
+      <div class="deploy__cell" role="listitem">
+        <svg class="deploy__glyph" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M4 24l9-18 7 10-7 8z"/><path d="M13 24h15l-8-14"/></svg>
+        <h4 class="deploy__t">GCP</h4>
+        <p class="deploy__stack">Cloud Run · AlloyDB</p>
+        <p class="deploy__p">ScaNN vector · pgvector · AGE. Scale-to-zero pricing.</p>
+      </div>
+      <div class="deploy__cell" role="listitem">
+        <svg class="deploy__glyph" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6 22l10-18 10 18H6z"/><path d="M11 22l5-9 5 9"/></svg>
+        <h4 class="deploy__t">Azure</h4>
+        <p class="deploy__stack">Container Apps · Cosmos DiskANN</p>
+        <p class="deploy__p">Managed DiskANN vector · Gremlin graph · SQL.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── §07 Integrate ───────────────────────────────────────────── -->
+<section id="integrate" class="section">
+  <div class="shell">
+    <div class="section-head">
+      <span class="section-head__kicker">§ 07 — Integrate in Three Lines</span>
+      <div>
+        <h2 class="section-head__title">Python, REST, or MCP. <em style="font-style:italic">Pick your interface.</em></h2>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="tabs" role="tablist">
+        <div class="tabs__bar">
+          <button class="tabs__btn" role="tab" aria-selected="true" data-tab="py">Python</button>
+          <button class="tabs__btn" role="tab" aria-selected="false" data-tab="rest">REST</button>
+          <button class="tabs__btn" role="tab" aria-selected="false" data-tab="mcp">MCP</button>
+        </div>
+
+        <div class="tabs__panel" role="tabpanel" data-tab="py" aria-hidden="false">
+          <div class="code">
+            <div class="code__hd">
+              <span class="name">main.py</span>
+              <button class="code__copy" data-copy-id="py-code" aria-label="Copy Python example"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="8" height="8"/><path d="M2 10V2h8"/></svg>Copy</button>
+            </div>
+<pre id="py-code"><span class="kw">from</span> attestor <span class="kw">import</span> AgentMemory
+<span class="kw">from</span> attestor.context <span class="kw">import</span> AgentContext, AgentRole
+
+<span class="cm"># Orchestrator context — root of a multi-agent pipeline</span>
+ctx = AgentContext.from_env(
+    agent_id=<span class="str">"orchestrator"</span>,
+    namespace=<span class="str">"project:acme"</span>,
+    role=AgentRole.ORCHESTRATOR,
+    token_budget=<span class="num">20000</span>,
+)
+
+<span class="cm"># Spawn sub-agents with inherited provenance</span>
+planner = ctx.as_agent(<span class="str">"planner"</span>, role=AgentRole.PLANNER)
+planner.add_memory(
+    <span class="str">"Use event sourcing for the order service"</span>,
+    category=<span class="str">"technical"</span>,
+    entity=<span class="str">"order-service"</span>,
+)
+
+<span class="cm"># Executor reads what planner wrote — same namespace, ranked recall</span>
+executor = ctx.as_agent(<span class="str">"executor"</span>, role=AgentRole.EXECUTOR)
+results = executor.recall(<span class="str">"order service architecture"</span>, budget=<span class="num">2000</span>)</pre>
+          </div>
+        </div>
+
+        <div class="tabs__panel" role="tabpanel" data-tab="rest" aria-hidden="true">
+          <div class="code">
+            <div class="code__hd">
+              <span class="name">HTTP · Starlette ASGI</span>
+              <button class="code__copy" data-copy-id="rest-code" aria-label="Copy REST example"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="8" height="8"/><path d="M2 10V2h8"/></svg>Copy</button>
+            </div>
+<pre id="rest-code"><span class="cm"># Run as a REST API</span>
+<span class="cm">$</span> attestor api --host 0.0.0.0 --port 8080
+
+<span class="cm"># Eight endpoints, Terraform templates included</span>
+<span class="kw">POST</span> <span class="fn">/add</span>      <span class="fn">/recall</span>   <span class="fn">/search</span>   <span class="fn">/timeline</span>  <span class="fn">/forget</span>
+<span class="kw">GET</span>  <span class="fn">/stats</span>    <span class="fn">/memory/:id</span>              <span class="fn">/health</span>
+
+<span class="cm"># Response envelope</span>
+{ <span class="str">"ok"</span>: <span class="num">true</span>, <span class="str">"data"</span>: { <span class="prm">...</span> }, <span class="str">"meta"</span>: { <span class="str">"latency_ms"</span>: <span class="num">2.1</span> } }</pre>
+          </div>
+        </div>
+
+        <div class="tabs__panel" role="tabpanel" data-tab="mcp" aria-hidden="true">
+          <div class="code">
+            <div class="code__hd">
+              <span class="name">.mcp.json</span>
+              <button class="code__copy" data-copy-id="mcp-code" aria-label="Copy MCP example"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="8" height="8"/><path d="M2 10V2h8"/></svg>Copy</button>
+            </div>
+<pre id="mcp-code">{
+  <span class="str">"mcpServers"</span>: {
+    <span class="str">"attestor"</span>: {
+      <span class="str">"command"</span>: <span class="str">"attestor"</span>,
+      <span class="str">"args"</span>: [<span class="str">"mcp"</span>]
+    }
+  }
+}</pre>
+          </div>
+          <p class="prose" style="padding:0 22px 22px;color:var(--paper-mute);font-size:14px;margin:0;font-family:var(--sans)">
+            Eight tools exposed to any MCP client: Claude Code, Cursor, Windsurf, or a custom agent speaking stdio MCP.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── §08 Claude Code ─────────────────────────────────────────── -->
+<section id="claude-code" class="section">
+  <div class="shell">
+    <div class="section-head">
+      <span class="section-head__kicker">§ 08 — For Claude Code</span>
+      <div>
+        <h2 class="section-head__title">Three words in your terminal.</h2>
+      </div>
+    </div>
+
+    <div class="col prose">
+      <p>
+        Not a config file. Not an MCP setup guide. Three words.
+        Attestor interviews you, installs itself, wires the hooks, and runs a health check before you've put the kettle on.
+      </p>
+    </div>
+
+    <div class="col">
+      <div class="install-cta">
+        <div class="install-cta__line">
+          <span class="install-cta__prompt">&gt;</span>
+          <span class="install-cta__words">install agent memory</span>
+          <button class="install-cta__copy" data-copy="install agent memory" aria-label="Copy install command">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="8" height="8"/><path d="M2 10V2h8"/></svg>
+            Copy
+          </button>
+        </div>
+        <p class="install-cta__cap">
+          Paste into Claude Code
+          <span class="sep">·</span> Global or project scope
+          <span class="sep">·</span> Auto-merges MCP config
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── §09 Editions ────────────────────────────────────────────── -->
+<section id="editions" class="section">
+  <div class="shell">
+    <div class="section-head">
+      <span class="section-head__kicker">§ 09 — Editions</span>
+      <div>
+        <h2 class="section-head__title">Open at the core. <em style="font-style:italic">Hardened at the edge.</em></h2>
+      </div>
+    </div>
+
+    <div class="pricing">
+      <article class="plan plan--featured">
+        <div class="plan__k">Community</div>
+        <h3 class="plan__t">Open Source</h3>
+        <ul class="plan__list">
+          <li>MIT licensed, self-hosted</li>
+          <li>All core features</li>
+          <li>Five deployment targets</li>
+          <li>GitHub issue support</li>
+        </ul>
+        <p class="plan__price"><em>Free. Forever.</em></p>
+        <a class="plan__cta" href="https://github.com/bolnet/attestor">Read the docs <span class="arrow">→</span></a>
+      </article>
+
+      <article class="plan">
+        <div class="plan__k">Pro <span style="color:var(--paper-mute)">· Q3 2026</span></div>
+        <h3 class="plan__t">Pro</h3>
+        <ul class="plan__list">
+          <li>Everything in Community</li>
+          <li>Observability dashboard</li>
+          <li>SSO + SCIM</li>
+          <li>Priority support</li>
+        </ul>
+        <p class="plan__price"><em>Contact for pricing</em></p>
+        <a class="plan__cta" href="#">Join waitlist <span class="arrow">→</span></a>
+      </article>
+
+      <article class="plan">
+        <div class="plan__k">Enterprise <span style="color:var(--paper-mute)">· Q4 2026</span></div>
+        <h3 class="plan__t">Enterprise</h3>
+        <ul class="plan__list">
+          <li>Everything in Pro</li>
+          <li>FINRA redaction pack</li>
+          <li>BYOK encryption</li>
+          <li>Audit export · Splunk / Datadog</li>
+          <li>SLA + dedicated support</li>
+        </ul>
+        <p class="plan__price"><em>Contact for pricing</em></p>
+        <a class="plan__cta" href="#">Speak with sales <span class="arrow">→</span></a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ──────────────────────────────────────────────────── -->
+<footer class="footer" id="footer">
+  <div class="footer__inner">
+    <div class="footer__grid">
+      <div>
+        <h3 class="footer__mark">Attestor<span style="color:var(--accent)">.</span></h3>
+        <p class="footer__blurb">Memory infrastructure for regulated AI. Bitemporal. Deterministic. Self-hosted. Built to defend against an audit.</p>
+      </div>
+      <div>
+        <h4 class="footer__hd">Attestor</h4>
+        <ul class="footer__list">
+          <li><a href="#">About</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Security</a></li>
+          <li><a href="mailto:hello@attestor.dev">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="footer__hd">Resources</h4>
+        <ul class="footer__list">
+          <li><a href="#">Documentation</a></li>
+          <li><a href="https://github.com/bolnet/attestor">GitHub</a></li>
+          <li><a href="https://pypi.org/project/attestor/">PyPI</a></li>
+          <li><a href="#">MCP Registry</a></li>
+          <li><a href="#">Benchmarks</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="footer__hd">Legal</h4>
+        <ul class="footer__list">
+          <li><a href="#">License · MIT</a></li>
+          <li><a href="#">Privacy</a></li>
+          <li><a href="#">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer__bottom">
+      <div>
+        Attestor
+        <span class="sep">·</span> © 2026
+        <span class="sep">·</span> MIT Licensed
+        <span class="sep">·</span> Built by Surendra Singh
+        <span class="sep">·</span> New York
+      </div>
+      <div class="footer__social" aria-label="Social">
+        <a href="https://github.com/bolnet/attestor" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2 .37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+        <a href="https://x.com/" aria-label="X">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 6.9L15.4 0h-1.4L8.9 6L4.8 0H0l6.2 9L0 16.3h1.4l5.4-6.3l4.3 6.3H16L9.5 6.9zm-1.9 2.2l-.6-.9L1.9 1.1h2.2l4 5.7l.6.9l5.2 7.4H11.7L7.6 9.1z"/></svg>
+        </a>
+        <a href="https://linkedin.com/" aria-label="LinkedIn">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M13.6 0H2.4A2.4 2.4 0 000 2.4v11.2A2.4 2.4 0 002.4 16h11.2a2.4 2.4 0 002.4-2.4V2.4A2.4 2.4 0 0013.6 0zM4.8 13.4H2.4V6.2h2.4v7.2zM3.6 5.2a1.4 1.4 0 110-2.8 1.4 1.4 0 010 2.8zm10 8.2h-2.4V9.8c0-.9-.3-1.5-1.1-1.5-.6 0-1 .4-1.2.8-.1.1-.1.3-.1.6v3.7H6.4V6.2h2.4v1a2.4 2.4 0 012.2-1.2c1.6 0 2.6 1 2.6 3.2v4.2z"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ── Scripts ─────────────────────────────────────────────────── -->
+<script>
+(() => {
+  'use strict';
+
+  // Sticky nav reveal on scroll
+  const nav = document.getElementById('nav');
+  let lastY = 0;
+  const threshold = 240;
+  const onScroll = () => {
+    const y = window.scrollY;
+    if (y > threshold) nav.classList.add('is-visible');
+    else nav.classList.remove('is-visible');
+    lastY = y;
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // Copy-to-clipboard (supports data-copy="text" and data-copy-id="elementId")
+  const copy = async (text, btn) => {
+    try { await navigator.clipboard.writeText(text); }
+    catch { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+    const original = btn.textContent.trim();
+    btn.classList.add('is-copied');
+    // Preserve icons by only replacing the text node
+    const textNode = [...btn.childNodes].find(n => n.nodeType === 3 && n.textContent.trim().length);
+    if (textNode) { textNode.textContent = ' Copied'; }
+    else { btn.textContent = 'Copied'; }
+    setTimeout(() => {
+      btn.classList.remove('is-copied');
+      if (textNode) textNode.textContent = ' ' + original;
+      else btn.textContent = original;
+    }, 1600);
+  };
+  document.querySelectorAll('[data-copy], [data-copy-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      let text = btn.getAttribute('data-copy');
+      if (!text) {
+        const id = btn.getAttribute('data-copy-id');
+        const el = document.getElementById(id);
+        if (el) text = el.innerText;
+      }
+      if (text) copy(text, btn);
+    });
+  });
+
+  // Tabs
+  const tabs = document.querySelector('.tabs');
+  if (tabs) {
+    const btns = tabs.querySelectorAll('.tabs__btn');
+    const panels = tabs.querySelectorAll('.tabs__panel');
+    btns.forEach(b => b.addEventListener('click', () => {
+      const target = b.getAttribute('data-tab');
+      btns.forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false'));
+      panels.forEach(p => p.setAttribute('aria-hidden', p.getAttribute('data-tab') === target ? 'false' : 'true'));
+    }));
+  }
+})();
+</script>
+
+</body>
+</html>

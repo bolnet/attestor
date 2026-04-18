@@ -44,3 +44,16 @@ agent_memory/infra/lambda/.api_url
 # Accidental build output files
 =*
 .memwright/
+
+# Internal (non-user-facing plans, screenshots, demo recordings)
+_internal/
+
+# Local tooling caches
+.DS_Store
+.claude/
+.fastembed_cache/
+.playwright-mcp/
+.planning/
+node_modules/
+package.json
+package-lock.json
