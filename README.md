@@ -781,7 +781,7 @@ attestor/
 │   ├── config.py              # MemoryConfig dataclass + load/save
 │   └── tokens.py              # Token-budget helpers
 └── infra/                     # Reference Terraform templates (you supply state + credentials)
-    └── aws_openarangodb/      # VPC + ECS Fargate + ArangoDB sidecar + ALB (validated end-to-end)
+    └── aws_arango/            # VPC + ECS Fargate + ArangoDB CE sidecar + ALB (validated end-to-end)
 ```
 
 `core.py` is the only module intended as a public API — every other path is internal and may change between releases. Agents running in-process import `AgentMemory`; agents talking to a remote Attestor service import `MemoryClient` from `client.py` (same method surface, HTTP transport).
@@ -1127,7 +1127,7 @@ poetry add "attestor[all]"         # Everything
 The `attestor/infra/` directory ships **reference Terraform templates** &mdash; not push-button deploy scripts. Clone the template that matches your target cloud, set your own variables, supply your own credentials, and `terraform apply` from your own workstation. We have validated each template end-to-end; you keep ownership of state, secrets, and account.
 
 ```bash
-cd attestor/infra/aws_openarangodb
+cd attestor/infra/aws_arango
 cp variables.tf my.tfvars            # edit: arango_password, region, project_name
 terraform init
 terraform apply -var-file=my.tfvars
@@ -1139,7 +1139,7 @@ terraform destroy -var-file=my.tfvars
 
 | Cloud | Reference template | What it provisions | Status |
 |-------|--------------------|--------------------|--------|
-| Amazon Web Services | `attestor/infra/aws_openarangodb/` | VPC + ECR + ECS Fargate task (attestor + ArangoDB sidecar) + ALB | Validated end-to-end |
+| Amazon Web Services | `attestor/infra/aws_arango/` | VPC + ECR + ECS Fargate task (attestor + ArangoDB CE sidecar) + ALB | Validated end-to-end |
 | Microsoft Azure | Container Apps + Cosmos DB | Backend code ships in `store/azure_backend.py`; Terraform template forthcoming | Backend ready, template pending |
 | Google Cloud Platform | Cloud Run + AlloyDB | Backend code ships in `store/gcp_backend.py`; Terraform template forthcoming | Backend ready, template pending |
 

@@ -20,7 +20,7 @@ services:
   attestor:
     build:
       context: ../../..
-      dockerfile: attestor/infra/aws_openarangodb/Dockerfile
+      dockerfile: attestor/infra/aws_arango/Dockerfile
     ports:
       - "8000:8000"
     environment:

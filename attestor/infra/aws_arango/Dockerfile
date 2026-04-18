@@ -1,21 +1,17 @@
 FROM python:3.12-slim
 
 LABEL maintainer="aarjay"
-LABEL description="Attestor API — ArangoDB backend (thin image, no ML deps)"
+LABEL description="Attestor API — ArangoDB CE backend (thin image, no ML deps)"
 
 WORKDIR /app
 
-# Install only git (needed for pip+git deps) — no build-essential
-RUN apt-get update && apt-get install -y --no-install-recommends git \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install only what the ArangoDB API path needs:
-#   starlette, uvicorn, networkx, OpenArangoDB
+# Install only what the ArangoDB CE API path needs:
+#   starlette, uvicorn, networkx, python-arango
 # Explicitly skip chromadb, sentence-transformers, torch, mcp
 COPY pyproject.toml README.md ./
 COPY attestor/ attestor/
 RUN pip install --no-cache-dir \
-    "OpenArangoDB @ git+https://github.com/bolnet/open-argondb.git" \
+    "python-arango>=8.0.0" \
     networkx>=3.0 \
     starlette>=0.27.0 \
     uvicorn \

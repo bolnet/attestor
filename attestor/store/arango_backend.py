@@ -1,7 +1,8 @@
-"""ArangoDB backend — powered by OpenArangoDB.
+"""ArangoDB backend — talks to ArangoDB Community Edition via python-arango.
 
-Uses OpenArangoDB (enterprise-equivalent features for ArangoDB CE) instead of
-raw python-arango.  Provides document, vector, and graph roles in one backend.
+Provides document, vector, and graph roles in one backend. Uses only features
+present in ArangoDB CE (the C++ database server): doc collections, edge
+collections, named graphs, AQL, and the COSINE_SIMILARITY function.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Set
 
-from open_arangodb import ArangoDB
+from arango import ArangoClient
 
 from attestor.models import Memory
 from attestor.store.base import DocumentStore, GraphStore, VectorStore
@@ -28,7 +29,8 @@ def _sanitize_rel_type(rel_type: str) -> str:
 class ArangoBackend(DocumentStore, VectorStore, GraphStore):
     """Multi-role ArangoDB backend: document + vector + graph in one DB.
 
-    Powered by OpenArangoDB — enterprise-equivalent features for ArangoDB CE.
+    Talks to ArangoDB Community Edition via python-arango. Uses only CE
+    features: doc/edge collections, named graphs, AQL, COSINE_SIMILARITY.
 
     Accepts raw config dict. See CloudConnection.from_config() for formats.
 
@@ -45,21 +47,19 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         conn = CloudConnection.from_config(config, backend_name="arangodb")
         self._conn = conn
 
-        # Build OpenArangoDB instance
-        # Disable audit/CDC by default for performance (users can opt in)
-        self._oa = ArangoDB(
-            host=conn.url,
-            database=conn.database,
-            username=conn.auth.username,
-            password=conn.auth.password,
-            audit_enabled=config.get("audit_enabled", False),
-            cdc_enabled=config.get("cdc_enabled", False),
-            graph_enabled=True,
-        )
+        username = conn.auth.username
+        password = conn.auth.password
 
-        # Expose raw python-arango db for AQL fallback queries
-        self._db = self._oa._db
-        self._client = self._oa._client
+        # Build raw python-arango client against ArangoDB CE
+        verify = bool(config.get("tls", {}).get("verify", False))
+        self._client = ArangoClient(hosts=conn.url, verify_override=verify)
+
+        # Ensure target database exists (create via _system if missing)
+        sys_db = self._client.db("_system", username=username, password=password)
+        if not sys_db.has_database(conn.database):
+            sys_db.create_database(conn.database)
+
+        self._db = self._client.db(conn.database, username=username, password=password)
 
         # Ensure collections and graph exist (same schema as before)
         self._init_collections()
@@ -533,4 +533,4 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         pass  # ArangoDB persists automatically
 
     def close(self) -> None:
-        self._oa.close()
+        self._client.close()
