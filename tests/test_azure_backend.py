@@ -751,7 +751,7 @@ class TestAzureRegistry:
         from attestor.store.connection import ENGINE_DEFAULTS
         assert "azure" in ENGINE_DEFAULTS
         defaults = ENGINE_DEFAULTS["azure"]
-        assert defaults["cosmos_database"] == "memwright"
+        assert defaults["cosmos_database"] == "attestor"
         assert defaults["tls"]["verify"] is True
 
     def test_resolve_backends_azure(self):

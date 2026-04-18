@@ -94,7 +94,7 @@ class AWSBackend(DocumentStore, VectorStore, GraphStore):
         self._region = config.get("region", "us-east-1")
 
         ddb = config.get("dynamodb", {})
-        prefix = ddb.get("table_prefix", "memwright")
+        prefix = ddb.get("table_prefix", "attestor")
         self._table_name = f"{prefix}_memories"
 
         os_cfg = config.get("opensearch", {})

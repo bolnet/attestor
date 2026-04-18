@@ -48,7 +48,7 @@ class TestGCPConnectionDefaults:
         defaults = ENGINE_DEFAULTS["gcp"]
         assert defaults["url"] == "postgresql://localhost:5432"
         assert defaults["port"] == 5432
-        assert defaults["database"] == "memwright"
+        assert defaults["database"] == "attestor"
         assert defaults["region"] == "us-central1"
         assert defaults["project_id"] == ""
         assert defaults["cluster"] == ""

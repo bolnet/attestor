@@ -287,7 +287,7 @@ class ChromaEmbeddingAdapter:
 
     @staticmethod
     def name() -> str:
-        return "memwright:shared"
+        return "attestor:shared"
 
     @staticmethod
     def build_from_config(config: dict) -> "ChromaEmbeddingAdapter":
@@ -308,11 +308,28 @@ class ChromaEmbeddingAdapter:
         return ["cosine", "l2", "ip"]
 
 
-# Register with ChromaDB so it can resolve persisted "memwright:shared" configs
+class _LegacyMemwrightChromaAdapter(ChromaEmbeddingAdapter):
+    # ChromaDB persists the embedding function's name() into each collection's
+    # on-disk metadata. Stores created before the Attestor rename have
+    # "memwright:shared" baked in. Registering this subclass lets ChromaDB
+    # resolve those old collections without forcing users to migrate.
+    @staticmethod
+    def name() -> str:
+        return "memwright:shared"
+
+    @staticmethod
+    def build_from_config(config: dict) -> "_LegacyMemwrightChromaAdapter":
+        provider = get_embedding_provider()
+        return _LegacyMemwrightChromaAdapter(provider)
+
+
+# Register both the new "attestor:shared" name (default for fresh stores) and
+# the legacy "memwright:shared" name (so pre-rename stores still load).
 try:
     from chromadb.utils.embedding_functions import register_embedding_function
 
     register_embedding_function(ChromaEmbeddingAdapter)
+    register_embedding_function(_LegacyMemwrightChromaAdapter)
 except Exception:
     pass
 

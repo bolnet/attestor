@@ -38,7 +38,7 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
     Config keys:
         cosmos_endpoint: Cosmos DB account endpoint (or env AZURE_COSMOS_ENDPOINT)
         cosmos_key: Cosmos DB account key (or env AZURE_COSMOS_KEY)
-        cosmos_database: Database name (default "memwright")
+        cosmos_database: Database name (default "attestor")
 
     When no cosmos_key is provided, falls back to DefaultAzureCredential.
     """
@@ -66,7 +66,7 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
             or config.get("auth", {}).get("api_key")
             or os.environ.get("AZURE_COSMOS_KEY", "")
         )
-        self._database_name = config.get("cosmos_database", "memwright")
+        self._database_name = config.get("cosmos_database", "attestor")
 
         # Lazy import azure.cosmos
         from azure.cosmos import CosmosClient, PartitionKey

@@ -15,7 +15,7 @@ Supports two config formats (hybrid, following SQLAlchemy/Django/Prisma):
         {
             "mode": "cloud",
             "url": "https://cloud.example.com:8529",
-            "database": "memwright",
+            "database": "attestor",
             "auth": {"username": "root", "password": "$ARANGO_PASSWORD"},
             "tls": {"verify": true, "ca_cert": "/path/to/ca.pem"}
         }
@@ -40,14 +40,14 @@ ENGINE_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "arangodb": {
         "url": "http://localhost:8529",
         "port": 8529,
-        "database": "memwright",
+        "database": "attestor",
         "auth": {"username": "root", "password": ""},
         "tls": {"verify": False},
     },
     "postgres": {
         "url": "postgresql://localhost:5432",
         "port": 5432,
-        "database": "memwright",
+        "database": "attestor",
         "auth": {"username": "postgres", "password": ""},
         "tls": {"verify": False},
     },
@@ -61,14 +61,14 @@ ENGINE_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "surrealdb": {
         "url": "http://localhost:8000",
         "port": 8000,
-        "database": "memwright",
+        "database": "attestor",
         "auth": {"username": "root", "password": "root"},
         "tls": {"verify": False},
     },
     "gcp": {
         "url": "postgresql://localhost:5432",
         "port": 5432,
-        "database": "memwright",
+        "database": "attestor",
         "auth": {"username": "postgres", "password": ""},
         "project_id": "",
         "region": "us-central1",
@@ -79,14 +79,14 @@ ENGINE_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "azure": {
         "url": "",
         "cosmos_endpoint": "",
-        "cosmos_database": "memwright",
+        "cosmos_database": "attestor",
         "auth": {"api_key": ""},
         "tls": {"verify": True},
     },
     "aws": {
         "url": "",
         "region": "us-east-1",
-        "dynamodb": {"table_prefix": "memwright"},
+        "dynamodb": {"table_prefix": "attestor"},
         "opensearch": {"endpoint": "", "index": "memories"},
         "neptune": {"endpoint": ""},
         "auth": {},
@@ -98,7 +98,7 @@ ENGINE_DEFAULTS: Dict[str, Dict[str, Any]] = {
 BACKEND_DEFAULTS = ENGINE_DEFAULTS
 CLOUD_DEFAULTS: Dict[str, Any] = {
     "mode": "cloud",
-    "database": "memwright",
+    "database": "attestor",
     "auth": {"username": "", "password": "", "token": "", "api_key": ""},
     "tls": {"verify": True, "ca_cert": None},
 }
@@ -377,14 +377,14 @@ class CloudConnection:
     """Parsed, env-resolved connection config for any cloud backend.
 
     Supports both URL strings and structured dicts:
-        URL:  "arangodb://root:pass@host:8529/memwright"
-        Dict: {"url": "https://host:8529", "database": "memwright", ...}
+        URL:  "arangodb://root:pass@host:8529/attestor"
+        Dict: {"url": "https://host:8529", "database": "attestor", ...}
 
     Resolution: engine defaults → user config → env vars
     """
     mode: str = "cloud"
     url: str = "http://localhost:8529"
-    database: str = "memwright"
+    database: str = "attestor"
     port: int = 8529
     auth: AuthConfig = field(default_factory=AuthConfig)
     tls: TLSConfig = field(default_factory=TLSConfig)
@@ -408,7 +408,7 @@ class CloudConnection:
             merged = build_config(backend_name, config)
         else:
             merged = merge_config_layers(
-                {"database": "memwright", "tls": {"verify": True}},
+                {"database": "attestor", "tls": {"verify": True}},
                 _normalize_flat_auth(config),
             )
 
@@ -417,7 +417,7 @@ class CloudConnection:
 
         mode = merged.get("mode", "cloud")
         url = merged.get("url", "http://localhost:8529")
-        database = merged.get("database", "memwright")
+        database = merged.get("database", "attestor")
         port = merged.get("port", 8529)
 
         auth = AuthConfig.from_dict(merged.get("auth", {}))

@@ -243,7 +243,7 @@ class TestCloudConnection:
     def test_defaults(self):
         conn = CloudConnection.from_config({})
         assert conn.mode == "cloud"
-        assert conn.database == "memwright"
+        assert conn.database == "attestor"
         assert conn.tls.verify is True
 
     def test_env_resolved(self):

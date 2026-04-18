@@ -92,7 +92,30 @@ class TestChromaEmbeddingAdapter:
         assert len(result[0]) == 384
 
     def test_name(self, adapter):
-        assert adapter.name() == "memwright:shared"
+        assert adapter.name() == "attestor:shared"
+
+    def test_legacy_adapter_keeps_old_name_for_on_disk_backcompat(self):
+        from attestor.store.embeddings import _LegacyMemwrightChromaAdapter
+
+        legacy = _LegacyMemwrightChromaAdapter(LocalEmbeddingProvider())
+        assert legacy.name() == "memwright:shared"
+        # Still produces valid embeddings — subclass behavior, not a separate impl.
+        assert len(legacy(["hi"])[0]) == 384
+
+    def test_both_adapters_registered_with_chromadb(self):
+        # ChromaDB reads a collection's persisted name() at load time and looks
+        # it up against its registry. Both names must be resolvable — otherwise
+        # pre-rename stores fail to open after an upgrade.
+        try:
+            from chromadb.utils.embedding_functions import known_embedding_functions
+        except ImportError:
+            pytest.skip("chromadb not installed")
+
+        # Importing the module triggers registration as a side effect.
+        import attestor.store.embeddings  # noqa: F401
+
+        assert "attestor:shared" in known_embedding_functions
+        assert "memwright:shared" in known_embedding_functions
 
     def test_get_config(self, adapter):
         config = adapter.get_config()

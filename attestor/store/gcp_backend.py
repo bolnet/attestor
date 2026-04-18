@@ -35,7 +35,7 @@ class GCPBackend(PostgresBackend):
         region: GCP region (default: us-central1)
         cluster: AlloyDB cluster name
         instance: AlloyDB instance name
-        database: Database name (default: memwright)
+        database: Database name (default: attestor)
     """
 
     ROLES: Set[str] = {"document", "vector", "graph"}
@@ -56,7 +56,7 @@ class GCPBackend(PostgresBackend):
             "region": config.get("region", "us-central1"),
             "cluster": config.get("cluster", ""),
             "instance": config.get("instance", ""),
-            "database": config.get("database", "memwright"),
+            "database": config.get("database", "attestor"),
         }
 
     def _should_use_connector(self, gcp_fields: Dict[str, str]) -> bool:
