@@ -1,70 +1,146 @@
 """Runtime path resolution helpers.
 
-Phase 0 preserves legacy behavior exactly: environment reads still use
-MEMWRIGHT_* variable names and the default store still lives at
-``~/.memwright``. Centralizing these reads here means Phase 3 can add
-dual-read logic (ATTESTOR_PATH first, fall back to MEMWRIGHT_PATH,
-then ``~/.attestor``, then ``~/.memwright``) without touching call-sites.
+Phase 3: dual-read. New installs use ``~/.attestor`` and the ``ATTESTOR_*``
+env vars; existing ``~/.memwright`` installs (and ``MEMWRIGHT_*`` env vars)
+keep working, with a one-time user warning pointing users at
+``attestor migrate`` and a ``DeprecationWarning`` for legacy env vars.
+
+Resolution order for ``resolve_store_path``:
+  1. explicit ``override`` arg
+  2. ``$ATTESTOR_PATH``
+  3. ``$MEMWRIGHT_PATH`` (+ DeprecationWarning)
+  4. ``~/.attestor`` if it exists
+  5. ``~/.memwright`` if it exists and ``~/.attestor`` does not
+     (+ one-time migrate warning)
+  6. ``~/.attestor`` (new default)
+
+The same ordering applies to ``resolve_data_dir`` against
+``$ATTESTOR_DATA_DIR`` / ``$MEMWRIGHT_DATA_DIR``, and to ``resolve_cache_dir``
+against ``~/.cache/attestor`` / ``~/.cache/memwright``.
 """
 
 from __future__ import annotations
 
 import os
+import warnings
 from pathlib import Path
 from typing import Optional
 
 from . import _branding as brand
 
 
-def _legacy_default_store() -> str:
-    """Legacy ``~/.memwright`` default, expanded."""
-    return os.path.expanduser(f"~/{brand.LEGACY_STORE_DIRNAME}")
+# One-shot latch so users don't get the migrate warning on every recall ------
+_WARNED_LEGACY_DIR_ONCE: bool = False
 
 
-def _legacy_default_data_dir() -> str:
-    """Legacy default data dir (same as store path on local installs)."""
-    return os.path.expanduser(f"~/{brand.LEGACY_STORE_DIRNAME}")
+def _reset_warned_once() -> None:
+    """Test hook — clears the one-shot latch between tests."""
+    global _WARNED_LEGACY_DIR_ONCE
+    _WARNED_LEGACY_DIR_ONCE = False
+
+
+def _warn_legacy_dir_once(legacy_path: Path) -> None:
+    global _WARNED_LEGACY_DIR_ONCE
+    if _WARNED_LEGACY_DIR_ONCE:
+        return
+    _WARNED_LEGACY_DIR_ONCE = True
+    warnings.warn(
+        f"Using legacy memory store at {legacy_path}. "
+        f"Run `attestor migrate` to copy it to ~/.{brand.CACHE_DIRNAME} "
+        f"(the new default). The legacy path will keep working for now.",
+        UserWarning,
+        stacklevel=3,
+    )
+
+
+def _warn_legacy_env(legacy_name: str, new_name: str) -> None:
+    warnings.warn(
+        f"${legacy_name} is deprecated; use ${new_name} instead.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
+def _new_default_store() -> Path:
+    return Path.home() / brand.DEFAULT_STORE_DIRNAME
+
+
+def _legacy_default_store() -> Path:
+    return Path.home() / brand.LEGACY_STORE_DIRNAME
 
 
 def resolve_store_path(override: Optional[str] = None) -> str:
-    """Resolve the memory store path.
+    """Resolve the memory store path with dual-read compat.
 
-    Resolution order (Phase 0 — legacy only):
-      1. ``override`` if provided (e.g., from --path CLI flag)
-      2. $MEMWRIGHT_PATH
-      3. ``~/.memwright``
-
-    Phase 3 will insert $ATTESTOR_PATH ahead of $MEMWRIGHT_PATH and
-    ``~/.attestor`` ahead of ``~/.memwright``.
+    Precedence: ``override`` → ``$ATTESTOR_PATH`` → ``$MEMWRIGHT_PATH`` →
+    existing ``~/.attestor`` → existing ``~/.memwright`` → new ``~/.attestor``.
     """
     if override:
         return os.path.expanduser(override)
-    env_path = os.environ.get(brand.LEGACY_ENV_STORE_PATH)
-    if env_path:
-        return os.path.expanduser(env_path)
-    return _legacy_default_store()
+
+    new_env = os.environ.get(brand.ENV_STORE_PATH)
+    if new_env:
+        return os.path.expanduser(new_env)
+
+    legacy_env = os.environ.get(brand.LEGACY_ENV_STORE_PATH)
+    if legacy_env:
+        _warn_legacy_env(brand.LEGACY_ENV_STORE_PATH, brand.ENV_STORE_PATH)
+        return os.path.expanduser(legacy_env)
+
+    new_default = _new_default_store()
+    if new_default.exists():
+        return str(new_default)
+
+    legacy_default = _legacy_default_store()
+    if legacy_default.exists():
+        _warn_legacy_dir_once(legacy_default)
+        return str(legacy_default)
+
+    return str(new_default)
 
 
 def resolve_data_dir(override: Optional[str] = None) -> str:
     """Resolve the deployed-service data dir (Docker, App Runner, API).
 
-    Resolution order (Phase 0 — legacy only):
-      1. ``override`` if provided
-      2. $MEMWRIGHT_DATA_DIR
-      3. ``~/.memwright``
+    Same precedence as ``resolve_store_path`` but against
+    ``$ATTESTOR_DATA_DIR`` / ``$MEMWRIGHT_DATA_DIR``.
     """
     if override:
         return os.path.expanduser(override)
-    env_path = os.environ.get(brand.LEGACY_ENV_DATA_DIR)
-    if env_path:
-        return os.path.expanduser(env_path)
-    return _legacy_default_data_dir()
+
+    new_env = os.environ.get(brand.ENV_DATA_DIR)
+    if new_env:
+        return os.path.expanduser(new_env)
+
+    legacy_env = os.environ.get(brand.LEGACY_ENV_DATA_DIR)
+    if legacy_env:
+        _warn_legacy_env(brand.LEGACY_ENV_DATA_DIR, brand.ENV_DATA_DIR)
+        return os.path.expanduser(legacy_env)
+
+    new_default = _new_default_store()
+    if new_default.exists():
+        return str(new_default)
+
+    legacy_default = _legacy_default_store()
+    if legacy_default.exists():
+        _warn_legacy_dir_once(legacy_default)
+        return str(legacy_default)
+
+    return str(new_default)
 
 
 def resolve_cache_dir() -> Path:
     """Cache directory for benchmarks, embedding models, etc.
 
-    Phase 0: ``~/.cache/memwright``. Phase 3 will migrate to ``~/.cache/attestor``
-    with a fallback for existing users.
+    Prefers ``~/.cache/attestor``; falls back to ``~/.cache/memwright`` only
+    when the legacy cache exists and the new one does not.
     """
-    return Path.home() / ".cache" / brand.LEGACY_CACHE_DIRNAME
+    cache_root = Path.home() / ".cache"
+    new_cache = cache_root / brand.CACHE_DIRNAME
+    legacy_cache = cache_root / brand.LEGACY_CACHE_DIRNAME
+
+    if new_cache.exists():
+        return new_cache
+    if legacy_cache.exists():
+        return legacy_cache
+    return new_cache

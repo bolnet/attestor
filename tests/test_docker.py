@@ -85,7 +85,7 @@ class TestDockerManager:
 class TestMissingExtra:
     def test_import_raises_when_docker_sdk_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """If the optional `docker` SDK is missing, importing the module must
-        raise MissingExtraError pointing at `memwright[docker]`."""
+        raise MissingExtraError pointing at `attestor[docker]`."""
         import importlib
         import sys
 
@@ -97,4 +97,4 @@ class TestMissingExtra:
 
         with pytest.raises(MissingExtraError) as exc:
             importlib.import_module("attestor.infra.docker")
-        assert "memwright[docker]" in str(exc.value)
+        assert "attestor[docker]" in str(exc.value)

@@ -25,6 +25,6 @@ def test_ensure_docker_raises_actionable_error_when_flag_true_but_extra_missing(
     # Force require_extra to fail even if docker SDK is installed
     monkeypatch.setitem(sys.modules, "docker", None)
     mem = AgentMemory(str(tmp_path))
-    with pytest.raises(MissingExtraError, match=r"memwright\[docker\]"):
+    with pytest.raises(MissingExtraError, match=r"attestor\[docker\]"):
         mem._ensure_docker("arangodb", {"mode": "local", "docker": True})
     mem.close()

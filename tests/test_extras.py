@@ -20,7 +20,7 @@ def test_require_extra_raises_actionable_error_when_missing() -> None:
         require_extra("definitely_not_a_real_module_xyz", extra="ghost")
     msg = str(exc.value)
     assert "definitely_not_a_real_module_xyz" in msg
-    assert "memwright[ghost]" in msg
+    assert "attestor[ghost]" in msg
     assert "pip install" in msg
 
 

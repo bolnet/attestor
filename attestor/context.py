@@ -159,19 +159,27 @@ class AgentContext:
     def from_env(cls, agent_id: str, **overrides: Any) -> AgentContext:
         """Create context from environment variables.
 
-        Reads: MEMWRIGHT_PATH, MEMWRIGHT_URL, MEMWRIGHT_NAMESPACE,
-               MEMWRIGHT_TOKEN_BUDGET, MEMWRIGHT_SESSION_ID
+        Reads (in order of precedence): ATTESTOR_PATH/MEMWRIGHT_PATH,
+        ATTESTOR_URL/MEMWRIGHT_URL, ATTESTOR_NAMESPACE/MEMWRIGHT_NAMESPACE,
+        ATTESTOR_TOKEN_BUDGET/MEMWRIGHT_TOKEN_BUDGET,
+        ATTESTOR_SESSION_ID/MEMWRIGHT_SESSION_ID.
         """
         import os
 
         from attestor import _branding as brand
 
-        path = os.environ.get(brand.LEGACY_ENV_STORE_PATH)
-        url = os.environ.get(brand.LEGACY_ENV_URL)
-        namespace = os.environ.get(brand.LEGACY_ENV_NAMESPACE, "default")
-        budget = int(os.environ.get(brand.LEGACY_ENV_TOKEN_BUDGET, "20000"))
-        session_id = os.environ.get(
-            brand.LEGACY_ENV_SESSION_ID, uuid.uuid4().hex[:16]
+        def _prefer(new: str, legacy: str, default: str | None = None) -> str | None:
+            value = os.environ.get(new)
+            if value is not None:
+                return value
+            return os.environ.get(legacy, default)
+
+        path = _prefer(brand.ENV_STORE_PATH, brand.LEGACY_ENV_STORE_PATH)
+        url = _prefer(brand.ENV_URL, brand.LEGACY_ENV_URL)
+        namespace = _prefer(brand.ENV_NAMESPACE, brand.LEGACY_ENV_NAMESPACE, "default")
+        budget = int(_prefer(brand.ENV_TOKEN_BUDGET, brand.LEGACY_ENV_TOKEN_BUDGET, "20000"))
+        session_id = _prefer(
+            brand.ENV_SESSION_ID, brand.LEGACY_ENV_SESSION_ID, uuid.uuid4().hex[:16]
         )
 
         memory = None
@@ -205,7 +213,7 @@ class AgentContext:
             return self.memory
         raise RuntimeError(
             "No memory backend configured. Set memory= or memory_url= "
-            "or use MEMWRIGHT_PATH / MEMWRIGHT_URL env vars."
+            "or use ATTESTOR_PATH / ATTESTOR_URL env vars."
         )
 
     def add_memory(

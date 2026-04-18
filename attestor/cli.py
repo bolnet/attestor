@@ -215,6 +215,32 @@ def main(argv=None):
     )
     p_doctor.add_argument("path", nargs="?", default=None, help="Memory store path")
 
+    # migrate (copy ~/.memwright to ~/.attestor)
+    p_migrate = subparsers.add_parser(
+        "migrate",
+        help="Copy a legacy ~/.memwright store to ~/.attestor (keeps source intact)",
+    )
+    p_migrate.add_argument(
+        "--source",
+        default=None,
+        help="Source store path (default: ~/.memwright)",
+    )
+    p_migrate.add_argument(
+        "--dest",
+        default=None,
+        help="Destination store path (default: ~/.attestor)",
+    )
+    p_migrate.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report what would happen without writing anything",
+    )
+    p_migrate.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite the destination if it already exists",
+    )
+
     # locomo (LOCOMO benchmark)
     p_locomo = subparsers.add_parser(
         "locomo",
@@ -278,7 +304,7 @@ def main(argv=None):
     p_api.add_argument(
         "--path",
         default=None,
-        help="Memory store path (default: $MEMWRIGHT_DATA_DIR or ~/.memwright)",
+        help="Memory store path (default: $ATTESTOR_DATA_DIR or ~/.attestor; falls back to $MEMWRIGHT_DATA_DIR / ~/.memwright)",
     )
 
     # ui (read-only web viewer)
@@ -291,7 +317,7 @@ def main(argv=None):
     p_ui.add_argument(
         "--path",
         default=None,
-        help="Memory store path (default: $MEMWRIGHT_PATH or ~/.memwright)",
+        help="Memory store path (default: $ATTESTOR_PATH or ~/.attestor; falls back to $MEMWRIGHT_PATH / ~/.memwright)",
     )
     p_ui.add_argument("--open", action="store_true", help="Open browser on launch")
 
@@ -302,7 +328,7 @@ def main(argv=None):
     )
     p_mcp.add_argument(
         "--path", default=None,
-        help="Override store path (default: $MEMWRIGHT_PATH or ~/.memwright)",
+        help="Override store path (default: $ATTESTOR_PATH or ~/.attestor; falls back to $MEMWRIGHT_PATH / ~/.memwright)",
     )
 
     # hook (delegates to hook handlers)
@@ -338,6 +364,7 @@ def main(argv=None):
         "ui": _cmd_ui,
         "setup-claude-code": _cmd_setup_claude_code,
         "doctor": _cmd_doctor,
+        "migrate": _cmd_migrate,
         "locomo": _cmd_locomo,
         "mab": _cmd_mab,
         "mcp": _cmd_mcp_serve,
@@ -741,6 +768,36 @@ def _cmd_setup_claude_code(args):
     _configure_claude_mcp(agent_memory_bin, abs_path)
     if getattr(args, "hooks", False):
         _configure_claude_hooks(agent_memory_bin)
+
+
+def _cmd_migrate(args):
+    """Copy a legacy ~/.memwright store to ~/.attestor."""
+    from pathlib import Path
+
+    from attestor import _branding as brand
+    from attestor.migrate import MigrationError, migrate_store
+
+    home = Path.home()
+    source = Path(args.source).expanduser() if args.source else home / brand.LEGACY_STORE_DIRNAME
+    dest = Path(args.dest).expanduser() if args.dest else home / brand.DEFAULT_STORE_DIRNAME
+
+    print(f"Attestor Migrate: {source} -> {dest}")
+    try:
+        report = migrate_store(
+            source=source,
+            dest=dest,
+            dry_run=args.dry_run,
+            force=args.force,
+        )
+    except MigrationError as e:
+        print(f"Migration failed: {e}")
+        sys.exit(1)
+
+    mode = "DRY RUN" if report.dry_run else ("MIGRATED" if report.verified else "INCOMPLETE")
+    print(f"  {mode}: {report.file_count} files, {report.copied_bytes:,} bytes")
+    if not report.dry_run:
+        print(f"  Source breadcrumb: {report.source}/MIGRATED_TO_ATTESTOR.txt")
+        print(f"  Next: run `attestor doctor {report.dest}` to verify.")
 
 
 def _cmd_doctor(args):
