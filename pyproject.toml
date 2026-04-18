@@ -1,6 +1,6 @@
 [project]
-name = "memwright"
-version = "2.0.7"
+name = "attestor"
+version = "3.0.0"
 description = "Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval."
 readme = "README.md"
 license = "MIT"
@@ -31,9 +31,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/bolnet/agent-memory"
-Repository = "https://github.com/bolnet/agent-memory"
-Issues = "https://github.com/bolnet/agent-memory/issues"
+Homepage = "https://attestor.dev"
+Repository = "https://github.com/bolnet/attestor"
+Issues = "https://github.com/bolnet/attestor/issues"
 
 [project.optional-dependencies]
 extraction = ["openai>=1.0.0"]
@@ -58,11 +58,12 @@ all = [
 ]
 
 [project.scripts]
-agent-memory = "agent_memory.cli:main"
-memwright = "agent_memory.cli:main"
+attestor = "attestor.cli:main"
+agent-memory = "attestor.cli:main"
+memwright = "attestor.cli:main"
 
 [tool.poetry]
-packages = [{ include = "agent_memory" }]
+packages = [{ include = "attestor" }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.0"

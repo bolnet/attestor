@@ -6,7 +6,7 @@ import tempfile
 
 import pytest
 
-from agent_memory.cli import main
+from attestor.cli import main
 
 from .conftest import TEST_CONFIG
 

@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Memwright — Production-grade memory infrastructure for multi-agent systems</title>
-<meta name="description" content="Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval, token budgets. Deploys to AWS, Azure, GCP.">
+<title>Attestor — Auditable memory for agent teams</title>
+<meta name="description" content="What did the agent know, and when did it know it? Auditable, deterministic, bitemporal memory for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval. Self-hosted, no LLM in the critical path.">
 <meta name="theme-color" content="#0C0B09">
-<meta property="og:title" content="Memwright — Production-grade memory infrastructure for multi-agent systems">
-<meta property="og:description" content="The memory tier for agent systems that ship to production. Namespace isolation, RBAC, provenance, ranked retrieval. Deploys to AWS, Azure, GCP.">
+<meta property="og:title" content="Attestor — What did the agent know, and when did it know it?">
+<meta property="og:description" content="Auditable, deterministic, bitemporal memory for agent teams. Namespace isolation, RBAC, provenance, ranked retrieval. Self-hosted, no LLM in the critical path.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='serif' fill='%23E86A3B'>M</text></svg>">
@@ -16,7 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════════
-   SYSTEMS JOURNAL — MEMWRIGHT
+   SYSTEMS JOURNAL — ATTESTOR
    Typography: Fraunces (display) · IBM Plex Sans (body) · JetBrains Mono (code)
    ═══════════════════════════════════════════════════ */
 
@@ -759,7 +759,7 @@ section {
   transition: width 1.3s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .bar-memory { background: var(--accent-warm); }
-.bar-memwright { background: var(--accent); }
+.bar-attestor { background: var(--accent); }
 
 .chart-legend {
   display: flex;
@@ -1431,7 +1431,7 @@ footer.colophon {
      ═══════════════════════════════════════════════════ -->
 <div class="masthead-strip">
   <div class="container">
-    <span class="lead"><span class="dot"></span>MEMWRIGHT &mdash; A MEMORY JOURNAL FOR AGENTIC SYSTEMS</span>
+    <span class="lead"><span class="dot"></span>ATTESTOR &mdash; A MEMORY JOURNAL FOR AGENTIC SYSTEMS</span>
     <span>VOL. 02 &middot; REV. 0.1</span>
     <span>EST. 2026 &middot; NEW YORK</span>
     <span>MIT</span>
@@ -1443,7 +1443,7 @@ footer.colophon {
      ═══════════════════════════════════════════════════ -->
 <nav id="nav">
   <div class="nav-inner">
-    <a href="#" class="nav-logo">Memwright</a>
+    <a href="#" class="nav-logo">Attestor</a>
     <ul class="nav-links">
       <li><a href="#problem" data-num="01">Problem</a></li>
       <li><a href="#multiagent" data-num="02">Multi-Agent</a></li>
@@ -1453,8 +1453,8 @@ footer.colophon {
       <li><a href="#principles" data-num="06">Principles</a></li>
     </ul>
     <div class="nav-ctas">
-      <a href="https://pypi.org/project/memwright/" class="btn btn-ghost" target="_blank" rel="noopener">PyPI</a>
-      <a href="https://github.com/bolnet/agent-memory" class="btn btn-primary" target="_blank" rel="noopener">GitHub &rarr;</a>
+      <a href="https://pypi.org/project/attestor/" class="btn btn-ghost" target="_blank" rel="noopener">PyPI</a>
+      <a href="https://github.com/bolnet/attestor" class="btn btn-primary" target="_blank" rel="noopener">GitHub &rarr;</a>
     </div>
     <button class="nav-mobile-toggle" onclick="document.getElementById('nav').classList.toggle('mobile-open')" aria-label="Toggle menu">&#9776;</button>
   </div>
@@ -1473,22 +1473,22 @@ footer.colophon {
     </div>
 
     <h1 class="hero-headline">
-      Your agents don&rsquo;t forget. <em>They never knew.</em> <span class="soft">Today that changes.</span>
+      What did the agent know, <em>and when did it know it?</em>
     </h1>
 
     <div class="hero-grid">
       <div>
-        <p class="hero-sub">The memory layer for agent teams. Self&#8209;hosted. Deterministic retrieval. No LLM in the critical path.</p>
+        <p class="hero-sub">Auditable memory for agent teams. <em>Deterministic.</em> <em>Bitemporal.</em> Self&#8209;hosted, with no LLM in the critical path.</p>
         <p class="hero-sub-detail">One tier your whole pipeline shares &mdash; planner writes, executor reads, reviewer sees both. Namespaces, RBAC, provenance, temporal correctness, ranked retrieval, token budgets &mdash; built in, not bolted on. Python library, REST API, or containerized service. No SaaS middleman. No per&#8209;seat fees. No vendor lock&#8209;in. It&rsquo;s yours.</p>
 
-        <div class="hero-install" onclick="copyToClipboard(this, 'poetry add memwright')" title="Click to copy">
-          <span>poetry add memwright</span>
+        <div class="hero-install" onclick="copyToClipboard(this, 'poetry add attestor')" title="Click to copy">
+          <span>poetry add attestor</span>
           <span class="copy-icon">&#x2398;</span>
         </div>
         <div class="hero-cta-row" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">
-          <a href="https://github.com/bolnet/agent-memory" class="btn btn-primary" target="_blank" rel="noopener">Architecture &amp; deploy guide &rarr;</a>
-          <a href="https://github.com/bolnet/agent-memory/stargazers" target="_blank" rel="noopener"><img src="https://img.shields.io/github/stars/bolnet/agent-memory?style=for-the-badge&amp;label=GitHub&amp;color=111" alt="GitHub stars"></a>
-          <a href="https://pypi.org/project/memwright/" target="_blank" rel="noopener" title="Live monthly installs from PyPI"><img src="https://img.shields.io/pypi/dm/memwright?style=for-the-badge&amp;label=Installs%2Fmo&amp;color=C15F3C&amp;labelColor=1A1614" alt="PyPI monthly downloads" style="box-shadow:0 0 0 2px var(--accent);border-radius:4px;"></a>
+          <a href="https://github.com/bolnet/attestor" class="btn btn-primary" target="_blank" rel="noopener">Architecture &amp; deploy guide &rarr;</a>
+          <a href="https://github.com/bolnet/attestor/stargazers" target="_blank" rel="noopener"><img src="https://img.shields.io/github/stars/bolnet/attestor?style=for-the-badge&amp;label=GitHub&amp;color=111" alt="GitHub stars"></a>
+          <a href="https://pypi.org/project/attestor/" target="_blank" rel="noopener" title="Live monthly installs from PyPI"><img src="https://img.shields.io/pypi/dm/attestor?style=for-the-badge&amp;label=Installs%2Fmo&amp;color=C15F3C&amp;labelColor=1A1614" alt="PyPI monthly downloads" style="box-shadow:0 0 0 2px var(--accent);border-radius:4px;"></a>
           <span style="display:inline-flex;align-items:center;font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;">&larr;&nbsp;live from pypi</span>
         </div>
         <span class="hero-install-note">MIT &middot; Python 3.10&ndash;3.14 &middot; Production deploy in one command</span>
@@ -1559,8 +1559,8 @@ footer.colophon {
 <section id="reveal" style="padding:96px 0 48px;border-top:1px solid var(--rule);">
   <div class="container">
     <figure class="reveal" style="margin:0 auto;max-width:1040px;text-align:center;">
-      <img src="constellation.svg" alt="Six stars out of eight hundred light up — Memwright recalls exactly what this moment needs" style="display:block;width:100%;height:auto;">
-      <figcaption style="margin-top:28px;font-family:var(--ff-display);font-variation-settings:'opsz' 144,'wght' 380;font-size:clamp(28px,4vw,46px);line-height:1.1;letter-spacing:-0.02em;color:var(--paper);"><em style="font-variation-settings:'opsz' 144,'wght' 320;color:var(--accent);">Memwright doesn&rsquo;t search.</em> It remembers.</figcaption>
+      <img src="constellation.svg" alt="Six stars out of eight hundred light up — Attestor recalls exactly what this moment needs" style="display:block;width:100%;height:auto;">
+      <figcaption style="margin-top:28px;font-family:var(--ff-display);font-variation-settings:'opsz' 144,'wght' 380;font-size:clamp(28px,4vw,46px);line-height:1.1;letter-spacing:-0.02em;color:var(--paper);"><em style="font-variation-settings:'opsz' 144,'wght' 320;color:var(--accent);">Attestor doesn&rsquo;t search.</em> It remembers.</figcaption>
       <p style="margin:20px auto 0;max-width:60ch;font-family:var(--ff-display);font-variation-settings:'opsz' 18,'wght' 400;font-size:18px;line-height:1.6;color:var(--paper-dim);">Eight hundred memories in the store. Six light up. Not the six it <em>searched</em> &mdash; the six this moment <em>needs</em>. Your planner&rsquo;s decision from Monday. The researcher&rsquo;s finding from Wednesday. The reviewer&rsquo;s objection from yesterday. Ranked, deduped, fit to budget. <b>Zero LLM calls in the critical path.</b></p>
     </figure>
   </div>
@@ -1578,7 +1578,7 @@ footer.colophon {
     </div>
     <div class="reveal">
       <h2 class="section-head">Memory accumulates. <em>Load primes.</em></h2>
-      <p class="standfirst">Four writes across Mon&ndash;Thu land as persisted memories. Friday morning a fresh Portfolio Planner wakes up to a new task, calls <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">mem.load_context()</code>, and Memwright ranks + dedupes + budget-fits all four back into the context window. The agent resumes with full continuity &mdash; earnings signal, risk cap, prior stance, compliance precedent.</p>
+      <p class="standfirst">Four writes across Mon&ndash;Thu land as persisted memories. Friday morning a fresh Portfolio Planner wakes up to a new task, calls <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">mem.load_context()</code>, and Attestor ranks + dedupes + budget-fits all four back into the context window. The agent resumes with full continuity &mdash; earnings signal, risk cap, prior stance, compliance precedent.</p>
     </div>
     <figure class="reveal" style="margin:40px auto 16px;max-width:1040px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:24px;">
       <img src="timeline.svg" alt="Write · Write · Write · Write ... Read — memories accumulate across sessions, load_context primes the next task" style="display:block;width:100%;height:auto;">
@@ -1610,7 +1610,7 @@ footer.colophon {
 
     <div class="versus reveal">
       <div class="versus-col versus-bad">
-        <div class="versus-label">Without Memwright</div>
+        <div class="versus-label">Without Attestor</div>
         <div class="versus-item"><span class="marker">01</span><span>Each agent starts blind &mdash; no knowledge of what others learned</span></div>
         <div class="versus-item"><span class="marker">02</span><span>Giant prompts passed between agents burn context tokens</span></div>
         <div class="versus-item"><span class="marker">03</span><span>No access control &mdash; any agent can overwrite any state</span></div>
@@ -1618,7 +1618,7 @@ footer.colophon {
         <div class="versus-item"><span class="marker">05</span><span>Session ends, everything learned is gone forever</span></div>
       </div>
       <div class="versus-col versus-good">
-        <div class="versus-label">With Memwright</div>
+        <div class="versus-label">With Attestor</div>
         <div class="versus-item"><span class="marker">01</span><span>Shared memory &mdash; planner writes, coder reads, reviewer sees both</span></div>
         <div class="versus-item"><span class="marker">02</span><span>Token-budget recall &mdash; each agent pulls only what fits</span></div>
         <div class="versus-item"><span class="marker">03</span><span>Six RBAC roles, namespace isolation, write quotas per agent</span></div>
@@ -1636,26 +1636,26 @@ footer.colophon {
         <div class="chart-label">Month 1</div>
         <div class="chart-bars">
           <div class="chart-bar bar-memory" data-width="13.3" style="width: 0%">2K</div>
-          <div class="chart-bar bar-memwright" data-width="13.3" style="width: 0%">2K</div>
+          <div class="chart-bar bar-attestor" data-width="13.3" style="width: 0%">2K</div>
         </div>
       </div>
       <div class="chart-row">
         <div class="chart-label">Month 3</div>
         <div class="chart-bars">
           <div class="chart-bar bar-memory" data-width="53.3" style="width: 0%">8K</div>
-          <div class="chart-bar bar-memwright" data-width="13.3" style="width: 0%">2K</div>
+          <div class="chart-bar bar-attestor" data-width="13.3" style="width: 0%">2K</div>
         </div>
       </div>
       <div class="chart-row">
         <div class="chart-label">Month 6</div>
         <div class="chart-bars">
           <div class="chart-bar bar-memory" data-width="100" style="width: 0%">15K</div>
-          <div class="chart-bar bar-memwright" data-width="13.3" style="width: 0%">2K</div>
+          <div class="chart-bar bar-attestor" data-width="13.3" style="width: 0%">2K</div>
         </div>
       </div>
       <div class="chart-legend">
         <span><span class="legend-dot" style="background:var(--accent-warm)"></span>Prompt-passing</span>
-        <span><span class="legend-dot" style="background:var(--accent)"></span>Memwright</span>
+        <span><span class="legend-dot" style="background:var(--accent)"></span>Attestor</span>
       </div>
     </div>
 
@@ -1680,8 +1680,8 @@ footer.colophon {
     </div>
 
     <figure class="reveal" style="margin:48px auto 24px;max-width:880px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:28px;">
-      <img src="architecture.svg" alt="Memwright high-level architecture" style="display:block;width:100%;height:auto;"/>
-      <figcaption style="font-family:var(--ff-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#3a3530;text-align:center;margin-top:16px;">Fig. 1 &mdash; Agents talk to Memwright through Python, REST, or MCP. Storage is pluggable.</figcaption>
+      <img src="architecture.svg" alt="Attestor high-level architecture" style="display:block;width:100%;height:auto;"/>
+      <figcaption style="font-family:var(--ff-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#3a3530;text-align:center;margin-top:16px;">Fig. 1 &mdash; Agents talk to Attestor through Python, REST, or MCP. Storage is pluggable.</figcaption>
     </figure>
 
     <div class="capabilities reveal">
@@ -1703,7 +1703,7 @@ footer.colophon {
       <div class="capability">
         <span class="capability-num">04 / 06</span>
         <h3>Cross-agent contradiction resolution</h3>
-        <p>Agent A learns "user works at Google." Agent B learns "user works at Meta." Memwright auto-supersedes. Full history preserved. Zero inference calls in the critical path.</p>
+        <p>Agent A learns "user works at Google." Agent B learns "user works at Meta." Attestor auto-supersedes. Full history preserved. Zero inference calls in the critical path.</p>
       </div>
       <div class="capability">
         <span class="capability-num">05 / 06</span>
@@ -1897,7 +1897,7 @@ footer.colophon {
         <div class="reveal" style="padding:26px;border:1px solid var(--rule-strong);background:var(--ink-raise);border-left:3px solid var(--accent);">
           <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">PILLAR &middot; 02</div>
           <h4 style="font-family:var(--ff-display);font-size:26px;font-weight:600;margin:8px 0 12px;">Temporal</h4>
-          <p style="font-size:14.5px;line-height:1.65;color:var(--paper-dim);margin:0 0 14px;">Memwright doesn&rsquo;t overwrite. It <b>supersedes</b>. Every fact has a validity window. The timeline is replayable to any point in the past.</p>
+          <p style="font-size:14.5px;line-height:1.65;color:var(--paper-dim);margin:0 0 14px;">Attestor doesn&rsquo;t overwrite. It <b>supersedes</b>. Every fact has a validity window. The timeline is replayable to any point in the past.</p>
           <div style="font-family:var(--ff-mono);font-size:12px;color:var(--paper);background:var(--ink);border:1px solid var(--rule);padding:14px;line-height:1.6;">
 <b style="color:var(--muted);">v1</b> JPM CFO is Jeremy Barnum<br>
 <span style="color:var(--faint);">&nbsp;&nbsp;&nbsp;valid_from: 2022-05</span><br>
@@ -1952,9 +1952,9 @@ footer.colophon {
     <div class="reveal" style="margin:36px 0 40px;padding:28px 32px;background:var(--ink-raise);border:1px solid var(--rule-strong);border-left:4px solid var(--accent);border-radius:4px;">
       <div style="font-family:var(--ff-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.18em;color:var(--accent);margin-bottom:10px;">Run it on your laptop. No cloud, no cost.</div>
       <h3 style="font-family:var(--ff-display);font-size:28px;font-weight:500;margin:0 0 14px;color:var(--paper);">Self-host locally in <em>one command</em>.</h3>
-      <pre style="background:var(--ink);color:var(--paper);font-family:var(--ff-mono);font-size:14px;padding:18px 22px;border:1px solid var(--rule-strong);border-radius:4px;overflow-x:auto;margin:0 0 14px;"><span style="color:var(--accent);">$</span> pip install memwright
-<span style="color:var(--accent);">$</span> memwright api --host 0.0.0.0 --port 8080</pre>
-      <p style="margin:0;color:var(--paper-dim);font-size:15px;line-height:1.7;">Starlette ASGI on <code style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);color:var(--paper);padding:2px 6px;border:1px solid var(--rule-strong);border-radius:3px;">http://localhost:8080</code>. SQLite + ChromaDB + NetworkX provision automatically under <code style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);color:var(--paper);padding:2px 6px;border:1px solid var(--rule-strong);border-radius:3px;">~/.memwright</code>. Point every agent in your stack at the same URL &mdash; they share memory instantly. No Docker. No API keys. Air-gap it behind your firewall and walk away.</p>
+      <pre style="background:var(--ink);color:var(--paper);font-family:var(--ff-mono);font-size:14px;padding:18px 22px;border:1px solid var(--rule-strong);border-radius:4px;overflow-x:auto;margin:0 0 14px;"><span style="color:var(--accent);">$</span> pip install attestor
+<span style="color:var(--accent);">$</span> attestor api --host 0.0.0.0 --port 8080</pre>
+      <p style="margin:0;color:var(--paper-dim);font-size:15px;line-height:1.7;">Starlette ASGI on <code style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);color:var(--paper);padding:2px 6px;border:1px solid var(--rule-strong);border-radius:3px;">http://localhost:8080</code>. SQLite + ChromaDB + NetworkX provision automatically under <code style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);color:var(--paper);padding:2px 6px;border:1px solid var(--rule-strong);border-radius:3px;">~/.attestor</code>. Point every agent in your stack at the same URL &mdash; they share memory instantly. No Docker. No API keys. Air-gap it behind your firewall and walk away.</p>
     </div>
 
     <div class="matrix reveal">
@@ -1999,7 +1999,7 @@ footer.colophon {
     <!-- Same container, pluggable stores -->
     <div style="margin-top:56px;opacity:1;">
       <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Same container. <em>Pluggable stores.</em></h3>
-      <p class="standfirst" style="margin-top:0;">One Memwright image. Six targets. The three storage roles swap per column. That&rsquo;s the whole trick.</p>
+      <p class="standfirst" style="margin-top:0;">One Attestor image. Six targets. The three storage roles swap per column. That&rsquo;s the whole trick.</p>
       <figure class="reveal" style="margin:24px auto 8px;max-width:1100px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:20px;">
         <img src="deployment-matrix.svg" alt="Deployment matrix — one container, six targets, stores swap per column" style="display:block;width:100%;height:auto;">
         <figcaption style="font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:#3a3530;text-align:center;margin-top:12px;">Fig. 4 &mdash; <em>DocumentStore</em>, <em>VectorStore</em>, <em>GraphStore</em> &mdash; three interfaces. Every column is one triple of implementations.</figcaption>
@@ -2058,13 +2058,13 @@ footer.colophon {
         <div class="reveal" style="padding:22px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
           <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">MODE B</div>
           <h4 style="font-family:var(--ff-display);font-size:22px;font-weight:600;margin:6px 0 10px;">Sidecar container</h4>
-          <p style="font-size:14px;color:var(--paper-dim);line-height:1.6;margin:0 0 12px;"><code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">memwright api</code> on <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">localhost:8080</code>. Any language. Go or Rust agents call HTTP without Python in the image.</p>
+          <p style="font-size:14px;color:var(--paper-dim);line-height:1.6;margin:0 0 12px;"><code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">attestor api</code> on <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">localhost:8080</code>. Any language. Go or Rust agents call HTTP without Python in the image.</p>
           <div style="font-family:var(--ff-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.12em;">Isolation &middot; process</div>
         </div>
         <div class="reveal" style="padding:22px;border:1px solid var(--rule-strong);background:var(--ink-raise);border:1px solid var(--accent);">
           <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">MODE C</div>
           <h4 style="font-family:var(--ff-display);font-size:22px;font-weight:600;margin:6px 0 10px;">Shared service</h4>
-          <p style="font-size:14px;color:var(--paper-dim);line-height:1.6;margin:0 0 12px;">One Memwright service in front of an agent mesh. App Runner &middot; Cloud Run &middot; Container Apps. Managed storage behind. This is the production shape.</p>
+          <p style="font-size:14px;color:var(--paper-dim);line-height:1.6;margin:0 0 12px;">One Attestor service in front of an agent mesh. App Runner &middot; Cloud Run &middot; Container Apps. Managed storage behind. This is the production shape.</p>
           <div style="font-family:var(--ff-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.12em;">Scale &middot; multi&#8209;agent mesh</div>
         </div>
       </div>
@@ -2081,7 +2081,7 @@ footer.colophon {
     <div class="reveal" style="text-align:center;">
       <div style="font-family:var(--ff-mono);font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--accent);margin-bottom:20px;">&mdash; And one more thing &mdash;</div>
       <h2 style="font-family:var(--ff-display);font-variation-settings:'opsz' 144,'wght' 380;font-size:clamp(36px,5vw,64px);line-height:1.05;letter-spacing:-0.02em;color:var(--paper);max-width:20ch;margin:0 auto 20px;">For Claude Code, it&rsquo;s <em style="color:var(--accent);font-style:italic;font-variation-settings:'opsz' 144,'wght' 320;">three words.</em></h2>
-      <p style="font-family:var(--ff-display);font-variation-settings:'opsz' 18,'wght' 400;font-size:20px;line-height:1.55;color:var(--paper-dim);max-width:56ch;margin:0 auto 32px;">Not a config file. Not an MCP setup guide. Three words in your terminal. Memwright interviews you, installs itself, wires the hooks, and runs a health check before you&rsquo;ve put the kettle on.</p>
+      <p style="font-family:var(--ff-display);font-variation-settings:'opsz' 18,'wght' 400;font-size:20px;line-height:1.55;color:var(--paper-dim);max-width:56ch;margin:0 auto 32px;">Not a config file. Not an MCP setup guide. Three words in your terminal. Attestor interviews you, installs itself, wires the hooks, and runs a health check before you&rsquo;ve put the kettle on.</p>
       <div class="hero-install" onclick="copyToClipboard(this, 'install agent memory')" title="Click to copy" style="display:inline-flex;max-width:420px;margin:0 auto;">
         <span>install agent memory</span>
         <span class="copy-icon">&#x2398;</span>
@@ -2104,7 +2104,7 @@ footer.colophon {
 
     <div class="reveal">
       <h2 class="section-head">Three lines of Python. <em>That&rsquo;s the integration.</em></h2>
-      <p class="standfirst">Same call surface whether Memwright runs in&#8209;process on your laptop or behind a Cloud Run service. Pick the interface. Ship.</p>
+      <p class="standfirst">Same call surface whether Attestor runs in&#8209;process on your laptop or behind a Cloud Run service. Pick the interface. Ship.</p>
     </div>
 
     <div class="reveal">
@@ -2115,7 +2115,7 @@ footer.colophon {
       </div>
 
       <div id="tab-python" class="tab-panel active">
-        <div class="code-block" data-lang="Python &middot; Multi-agent pipeline"><button class="code-copy-btn" onclick="copyCodeBlock(this)">Copy</button><span class="keyword">from</span> <span class="fn">agent_memory</span> <span class="keyword">import</span> AgentMemory
+        <div class="code-block" data-lang="Python &middot; Multi-agent pipeline"><button class="code-copy-btn" onclick="copyCodeBlock(this)">Copy</button><span class="keyword">from</span> <span class="fn">attestor</span> <span class="keyword">import</span> AgentMemory
 <span class="keyword">from</span> <span class="fn">agent_memory.context</span> <span class="keyword">import</span> AgentContext, AgentRole
 
 <span class="comment"># Orchestrator context &mdash; root of a multi-agent pipeline</span>
@@ -2138,10 +2138,10 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
 
       <div id="tab-rest" class="tab-panel">
         <div class="code-block" data-lang="Bash &middot; Starlette ASGI"><button class="code-copy-btn" onclick="copyCodeBlock(this)">Copy</button><span class="comment"># Run as a REST API (Starlette ASGI + Uvicorn)</span>
-<span class="cmd">$ memwright api --host 0.0.0.0 --port 8080</span>
+<span class="cmd">$ attestor api --host 0.0.0.0 --port 8080</span>
 
 <span class="comment"># Same container ships to AWS App Runner, GCP Cloud Run,</span>
-<span class="comment"># or Azure Container Apps. Terraform templates in agent_memory/infra/.</span>
+<span class="comment"># or Azure Container Apps. Terraform templates in attestor/infra/.</span>
 
 <span class="comment"># Eight endpoints, Terraform included:</span>
 <span class="comment">#   POST /add         /recall       /search</span>
@@ -2153,13 +2153,13 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
       <div id="tab-mcp" class="tab-panel">
         <div class="code-block" data-lang="JSON &middot; Any MCP client"><button class="code-copy-btn" onclick="copyCodeBlock(this)">Copy</button><span class="comment"># Any MCP-compatible client (Claude Code, Cursor,</span>
 <span class="comment"># Windsurf, or a custom agent speaking stdio MCP)</span>
-<span class="cmd">$ poetry add memwright</span>
+<span class="cmd">$ poetry add attestor</span>
 
 <span class="comment"># Add to your client's MCP config:</span>
 {
   <span class="string">"mcpServers"</span>: {
     <span class="string">"memory"</span>: {
-      <span class="string">"command"</span>: <span class="string">"memwright"</span>,
+      <span class="string">"command"</span>: <span class="string">"attestor"</span>,
       <span class="string">"args"</span>: [<span class="string">"mcp"</span>]
     }
   }
@@ -2214,13 +2214,13 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
     <h2 class="closing-head reveal">Point every agent at <em>one URL.</em><br>They share memory instantly.</h2>
 
     <div class="closing-row reveal">
-      <div class="closing-install" onclick="copyToClipboard(this, 'pip install memwright')" title="Click to copy">
-        <span>pip install memwright</span>
+      <div class="closing-install" onclick="copyToClipboard(this, 'pip install attestor')" title="Click to copy">
+        <span>pip install attestor</span>
         <span class="copy-icon">&#x2398;</span>
       </div>
-      <a href="https://github.com/bolnet/agent-memory" class="btn btn-primary" target="_blank" rel="noopener">GitHub &rarr;</a>
-      <a href="https://pypi.org/project/memwright/" class="btn btn-ghost" target="_blank" rel="noopener">PyPI</a>
-      <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright" class="btn btn-ghost" target="_blank" rel="noopener">MCP Registry</a>
+      <a href="https://github.com/bolnet/attestor" class="btn btn-primary" target="_blank" rel="noopener">GitHub &rarr;</a>
+      <a href="https://pypi.org/project/attestor/" class="btn btn-ghost" target="_blank" rel="noopener">PyPI</a>
+      <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/attestor" class="btn btn-ghost" target="_blank" rel="noopener">MCP Registry</a>
     </div>
 
     <p class="closing-byline reveal">MIT. Self&#8209;hosted. Deterministic. Production deploy in one command. Designed and built by <a href="https://www.linkedin.com/in/singhsurendra/" target="_blank" rel="noopener">Surendra Singh</a> &mdash; fifteen years architecting production systems in financial services. <em>Thank you.</em></p>
@@ -2235,7 +2235,7 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
     <div class="colophon-grid">
       <div>
         <div class="col-label">Colophon</div>
-        <p class="colophon-body">Memwright is typeset in <em>Fraunces</em> by Undercase Type and <em>IBM Plex Sans</em> by Bold Monday. Source listings are set in <em>JetBrains Mono</em>. The journal is published under MIT and may be forked, adapted, or redistributed without royalty.</p>
+        <p class="colophon-body">Attestor is typeset in <em>Fraunces</em> by Undercase Type and <em>IBM Plex Sans</em> by Bold Monday. Source listings are set in <em>JetBrains Mono</em>. The journal is published under MIT and may be forked, adapted, or redistributed without royalty.</p>
       </div>
       <div>
         <div class="col-label">Masthead</div>
@@ -2250,22 +2250,22 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
         <div class="col-label">Filing</div>
         <ul class="colophon-list">
           <li><a href="privacy.html">Privacy</a></li>
-          <li><a href="https://github.com/bolnet/agent-memory/blob/main/LICENSE" target="_blank" rel="noopener">License</a></li>
-          <li><a href="https://github.com/bolnet/agent-memory/blob/main/README.md" target="_blank" rel="noopener">Documentation</a></li>
+          <li><a href="https://github.com/bolnet/attestor/blob/main/LICENSE" target="_blank" rel="noopener">License</a></li>
+          <li><a href="https://github.com/bolnet/attestor/blob/main/README.md" target="_blank" rel="noopener">Documentation</a></li>
         </ul>
       </div>
       <div>
         <div class="col-label">Distribution</div>
         <ul class="colophon-list">
-          <li><a href="https://pypi.org/project/memwright/" target="_blank" rel="noopener">PyPI</a></li>
-          <li><a href="https://github.com/bolnet/agent-memory" target="_blank" rel="noopener">GitHub</a></li>
-          <li><a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright" target="_blank" rel="noopener">MCP Registry</a></li>
+          <li><a href="https://pypi.org/project/attestor/" target="_blank" rel="noopener">PyPI</a></li>
+          <li><a href="https://github.com/bolnet/attestor" target="_blank" rel="noopener">GitHub</a></li>
+          <li><a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/attestor" target="_blank" rel="noopener">MCP Registry</a></li>
         </ul>
       </div>
     </div>
 
     <div class="colophon-mark">
-      <span class="left">Memwright<b>.</b></span>
+      <span class="left">Attestor<b>.</b></span>
       <span>&copy; 2026 Bolnet &middot; MIT &middot; New York</span>
       <span>Set in paper &middot; printed in terminal</span>
     </div>

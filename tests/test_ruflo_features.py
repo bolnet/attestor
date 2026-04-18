@@ -7,8 +7,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from agent_memory.models import Memory, RetrievalResult
-from agent_memory.retrieval.scorer import (
+from attestor.models import Memory, RetrievalResult
+from attestor.retrieval.scorer import (
     confidence_decay_boost,
     mmr_rerank,
     pagerank_boost,
@@ -187,7 +187,7 @@ class TestPageRankBoost:
 class TestContentHashDedup:
     def test_add_dedup(self, tmp_path):
         """Adding the same content twice should return the existing memory."""
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
 
         with AgentMemory(tmp_path / "dedup_test") as mem:
             m1 = mem.add("The sky is blue", tags=["fact"])
@@ -196,7 +196,7 @@ class TestContentHashDedup:
 
     def test_add_whitespace_dedup(self, tmp_path):
         """Content differing only by leading/trailing whitespace should dedup."""
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
 
         with AgentMemory(tmp_path / "ws_test") as mem:
             m1 = mem.add("hello world", tags=["test"])
@@ -205,7 +205,7 @@ class TestContentHashDedup:
 
     def test_different_content_not_deduped(self, tmp_path):
         """Different content should create separate memories."""
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
 
         with AgentMemory(tmp_path / "diff_test") as mem:
             m1 = mem.add("The sky is blue", tags=["fact"])
@@ -214,7 +214,7 @@ class TestContentHashDedup:
 
     def test_content_hash_stored(self, tmp_path):
         """Memory should have content_hash set after add."""
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
 
         with AgentMemory(tmp_path / "hash_test") as mem:
             m = mem.add("test content", tags=["test"])
@@ -230,7 +230,7 @@ class TestContentHashDedup:
 class TestAccessTracking:
     def test_recall_increments_access(self, tmp_path):
         """Recalling memories should increment their access_count."""
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
 
         with AgentMemory(tmp_path / "access_test") as mem:
             m = mem.add("Python is a programming language",
@@ -250,7 +250,7 @@ class TestAccessTracking:
 
 class TestNetworkXPageRank:
     def test_pagerank_basic(self, tmp_path):
-        from agent_memory.graph.networkx_graph import NetworkXGraph
+        from attestor.graph.networkx_graph import NetworkXGraph
 
         g = NetworkXGraph(tmp_path)
         g.add_entity("Hub")
@@ -269,14 +269,14 @@ class TestNetworkXPageRank:
         assert pr["hub"] > pr["spoke3"]
 
     def test_pagerank_empty_graph(self, tmp_path):
-        from agent_memory.graph.networkx_graph import NetworkXGraph
+        from attestor.graph.networkx_graph import NetworkXGraph
 
         g = NetworkXGraph(tmp_path)
         pr = g.pagerank()
         assert pr == {}
 
     def test_pagerank_cache_invalidation(self, tmp_path):
-        from agent_memory.graph.networkx_graph import NetworkXGraph
+        from attestor.graph.networkx_graph import NetworkXGraph
 
         g = NetworkXGraph(tmp_path)
         g.add_entity("A")
@@ -293,7 +293,7 @@ class TestNetworkXPageRank:
         assert "c" in pr2
 
     def test_pagerank_sums_to_one(self, tmp_path):
-        from agent_memory.graph.networkx_graph import NetworkXGraph
+        from attestor.graph.networkx_graph import NetworkXGraph
 
         g = NetworkXGraph(tmp_path)
         for name in ["A", "B", "C", "D"]:
@@ -313,7 +313,7 @@ class TestNetworkXPageRank:
 
 class TestRetrievalConfig:
     def test_new_config_fields_roundtrip(self, tmp_path):
-        from agent_memory.utils.config import MemoryConfig, load_config, save_config
+        from attestor.utils.config import MemoryConfig, load_config, save_config
 
         cfg = MemoryConfig(
             enable_mmr=False,
@@ -333,7 +333,7 @@ class TestRetrievalConfig:
         assert loaded.confidence_boost_rate == 0.05
 
     def test_default_config_values(self):
-        from agent_memory.utils.config import MemoryConfig
+        from attestor.utils.config import MemoryConfig
 
         cfg = MemoryConfig()
         assert cfg.enable_mmr is True

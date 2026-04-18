@@ -1,7 +1,7 @@
 """Tests for backend registry and resolver."""
 
 import pytest
-from agent_memory.store.registry import (
+from attestor.store.registry import (
     BACKEND_REGISTRY,
     DEFAULT_BACKENDS,
     BackendConflictError,
@@ -64,7 +64,7 @@ class TestBackendRegistry:
 class TestInstantiateBackend:
     def test_instantiate_sqlite(self, tmp_path):
         store = instantiate_backend("sqlite", tmp_path / "memory.db")
-        from agent_memory.store.sqlite_store import SQLiteStore
+        from attestor.store.sqlite_store import SQLiteStore
         assert isinstance(store, SQLiteStore)
         store.close()
 

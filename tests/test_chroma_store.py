@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from agent_memory.store.chroma_store import ChromaStore
+from attestor.store.chroma_store import ChromaStore
 
 
 @pytest.fixture

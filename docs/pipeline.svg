@@ -29,7 +29,7 @@
   <line class="rule" x1="40" y1="44" x2="1360" y2="44"/>
   <line class="hair" x1="40" y1="50" x2="1360" y2="50"/>
   <text class="ink sans sect" x="40" y="36">&#167; HIGH-LEVEL ARCHITECTURE &#183; RETRIEVAL PIPELINE &#183; FIVE LAYERS &#183; ZERO INFERENCE CALLS</text>
-  <text class="muted sans sect" x="1360" y="36" text-anchor="end">FIG. 03 &#183; MEMWRIGHT</text>
+  <text class="muted sans sect" x="1360" y="36" text-anchor="end">FIG. 03 &#183; ATTESTOR</text>
 
   <!-- Input -->
   <text class="muted sans tag" x="700" y="86" text-anchor="middle">AGENT CALL</text>

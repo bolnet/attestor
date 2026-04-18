@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from agent_memory.store._extras import MissingExtraError, require_extra
+from attestor.store._extras import MissingExtraError, require_extra
 
 
 def test_require_extra_returns_module_when_installed() -> None:
@@ -20,7 +20,7 @@ def test_require_extra_raises_actionable_error_when_missing() -> None:
         require_extra("definitely_not_a_real_module_xyz", extra="ghost")
     msg = str(exc.value)
     assert "definitely_not_a_real_module_xyz" in msg
-    assert "memwright[ghost]" in msg
+    assert "attestor[ghost]" in msg
     assert "pip install" in msg
 
 

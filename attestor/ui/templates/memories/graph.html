@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Knowledge Graph · Attestor{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <h1 class="page-head__title">Knowledge<br><em>Graph.</em></h1>
+  <div class="page-head__meta">
+    <div><b>{{ graph_stats.nodes or 0 }}</b> entities</div>
+    <div><b>{{ graph_stats.edges or 0 }}</b> relations</div>
+    <div>layout · force-directed</div>
+  </div>
+</section>
+
+<section class="workspace">
+  <aside class="rail">
+    <div class="rail__section">
+      <div class="rail__label">Search <span>entity</span></div>
+      <input class="field" type="search" id="graph-search"
+             placeholder="// find entity" autocomplete="off">
+    </div>
+
+    <div class="rail__section">
+      <div class="rail__label">Entity Type</div>
+      <select class="field" id="graph-type-filter">
+        <option value="">all types</option>
+      </select>
+    </div>
+
+    <div class="rail__section">
+      <div class="rail__label">Layout</div>
+      <select class="field" id="graph-layout">
+        <option value="cose">force-directed</option>
+        <option value="concentric">concentric</option>
+        <option value="breadthfirst">hierarchical</option>
+        <option value="circle">circle</option>
+        <option value="grid">grid</option>
+      </select>
+    </div>
+
+    <div class="rail__section">
+      <div class="rail__label">Node Size</div>
+      <select class="field" id="graph-sizing">
+        <option value="pagerank">pagerank</option>
+        <option value="degree">degree</option>
+        <option value="uniform">uniform</option>
+      </select>
+    </div>
+
+    <div class="rail__section">
+      <button class="btn btn--primary" id="graph-fit" type="button">Fit View</button>
+      <button class="btn" id="graph-reset" type="button" style="margin-top:8px;">Reset</button>
+    </div>
+
+    <div class="rail__section" id="graph-legend"></div>
+  </aside>
+
+  <section class="graph-area">
+    <div class="graph-canvas" id="cy"></div>
+
+    <div class="graph-inspector" id="inspector">
+      <div class="graph-inspector__empty">Select a node to inspect</div>
+    </div>
+  </section>
+</section>
+
+<script src="https://unpkg.com/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
+<script src="/ui/static/graph.js"></script>
+
+{% endblock %}

@@ -6,7 +6,7 @@ Unit tests mock GCP dependencies. No real AlloyDB or GCP credentials needed.
 from unittest.mock import MagicMock, patch
 import pytest
 
-from agent_memory.store.registry import BACKEND_REGISTRY, resolve_backends
+from attestor.store.registry import BACKEND_REGISTRY, resolve_backends
 
 try:
     import psycopg2  # noqa: F401
@@ -24,7 +24,7 @@ class TestGCPRegistry:
 
     def test_gcp_registry_entry(self):
         entry = BACKEND_REGISTRY["gcp"]
-        assert entry["module"] == "agent_memory.store.gcp_backend"
+        assert entry["module"] == "attestor.store.gcp_backend"
         assert entry["class"] == "GCPBackend"
         assert entry["roles"] == {"document", "vector", "graph"}
         assert entry["init_style"] == "config"
@@ -43,12 +43,12 @@ class TestGCPRegistry:
 
 class TestGCPConnectionDefaults:
     def test_gcp_engine_defaults(self):
-        from agent_memory.store.connection import ENGINE_DEFAULTS
+        from attestor.store.connection import ENGINE_DEFAULTS
 
         defaults = ENGINE_DEFAULTS["gcp"]
         assert defaults["url"] == "postgresql://localhost:5432"
         assert defaults["port"] == 5432
-        assert defaults["database"] == "memwright"
+        assert defaults["database"] == "attestor"
         assert defaults["region"] == "us-central1"
         assert defaults["project_id"] == ""
         assert defaults["cluster"] == ""
@@ -63,11 +63,11 @@ class TestGCPConnectionDefaults:
 class TestGCPBackendConnectorPath:
     """Test the AlloyDB Connector connection path."""
 
-    @patch("agent_memory.store.gcp_backend._has_alloydb_connector", return_value=True)
-    @patch("agent_memory.store.gcp_backend.Connector", create=True)
+    @patch("attestor.store.gcp_backend._has_alloydb_connector", return_value=True)
+    @patch("attestor.store.gcp_backend.Connector", create=True)
     def test_connector_used_when_gcp_fields_set(self, mock_connector_cls, mock_has):
         """When project_id + cluster + instance are set, use AlloyDB Connector."""
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         mock_connector = MagicMock()
         mock_conn = MagicMock()
@@ -75,7 +75,7 @@ class TestGCPBackendConnectorPath:
 
         # Patch the Connector import inside _init_via_connector
         with patch(
-            "agent_memory.store.gcp_backend.Connector", return_value=mock_connector
+            "attestor.store.gcp_backend.Connector", return_value=mock_connector
         ):
             mock_connector.connect.return_value = mock_conn
 
@@ -85,12 +85,12 @@ class TestGCPBackendConnectorPath:
             mock_embedder.provider_name = "vertex_ai"
 
             with patch(
-                "agent_memory.store.gcp_backend.get_embedding_provider",
+                "attestor.store.gcp_backend.get_embedding_provider",
                 create=True,
             ) as mock_get_embed:
                 # Patch the import inside _ensure_embedding_fn
                 with patch(
-                    "agent_memory.store.embeddings.get_embedding_provider",
+                    "attestor.store.embeddings.get_embedding_provider",
                     return_value=mock_embedder,
                 ):
                     mock_get_embed.return_value = mock_embedder
@@ -116,7 +116,7 @@ class TestGCPBackendConnectorPath:
 
     def test_should_use_connector_all_fields(self):
         """Connector used when all GCP fields are present."""
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         backend = GCPBackend.__new__(GCPBackend)
         fields = {
@@ -126,12 +126,12 @@ class TestGCPBackendConnectorPath:
             "instance": "inst",
             "database": "db",
         }
-        with patch("agent_memory.store.gcp_backend._has_alloydb_connector", return_value=True):
+        with patch("attestor.store.gcp_backend._has_alloydb_connector", return_value=True):
             assert backend._should_use_connector(fields) is True
 
     def test_should_not_use_connector_missing_fields(self):
         """Falls back to psycopg2 when GCP fields are missing."""
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         backend = GCPBackend.__new__(GCPBackend)
         fields = {
@@ -145,7 +145,7 @@ class TestGCPBackendConnectorPath:
 
     def test_should_not_use_connector_no_package(self):
         """Falls back to psycopg2 when AlloyDB Connector package is missing."""
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         backend = GCPBackend.__new__(GCPBackend)
         fields = {
@@ -155,7 +155,7 @@ class TestGCPBackendConnectorPath:
             "instance": "inst",
             "database": "db",
         }
-        with patch("agent_memory.store.gcp_backend._has_alloydb_connector", return_value=False):
+        with patch("attestor.store.gcp_backend._has_alloydb_connector", return_value=False):
             assert backend._should_use_connector(fields) is False
 
 
@@ -165,7 +165,7 @@ class TestGCPBackendPsycopgFallback:
     @pytest.mark.skipif(not HAS_PSYCOPG2, reason="psycopg2 not installed")
     def test_fallback_calls_parent_init(self):
         """Without GCP fields, GCPBackend delegates to PostgresBackend.__init__."""
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         with patch.object(
             GCPBackend.__bases__[0], "__init__", return_value=None
@@ -188,7 +188,7 @@ class TestScaNNIndex:
 
     def test_try_scann_success(self):
         """ScaNN index created when extension is available."""
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         backend = GCPBackend.__new__(GCPBackend)
         backend._conn = MagicMock()
@@ -211,7 +211,7 @@ class TestScaNNIndex:
 
     def test_try_scann_fallback_on_error(self):
         """HNSW kept when ScaNN extension is unavailable."""
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         backend = GCPBackend.__new__(GCPBackend)
         backend._conn = MagicMock()
@@ -236,7 +236,7 @@ class TestVertexAIPreference:
     """Test that GCPBackend prefers Vertex AI embeddings."""
 
     def test_ensure_embedding_fn_prefers_vertex(self):
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         backend = GCPBackend.__new__(GCPBackend)
         backend._embedder = None
@@ -247,7 +247,7 @@ class TestVertexAIPreference:
         mock_provider.dimension = 768
 
         with patch(
-            "agent_memory.store.embeddings.get_embedding_provider",
+            "attestor.store.embeddings.get_embedding_provider",
             return_value=mock_provider,
         ) as mock_get:
             backend._ensure_embedding_fn()
@@ -256,7 +256,7 @@ class TestVertexAIPreference:
             assert backend._embedding_fn is mock_provider
 
     def test_ensure_embedding_fn_noop_if_already_set(self):
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         backend = GCPBackend.__new__(GCPBackend)
         existing = MagicMock()
@@ -272,13 +272,13 @@ class TestInheritance:
     """Verify GCPBackend inherits PostgresBackend methods."""
 
     def test_is_subclass(self):
-        from agent_memory.store.gcp_backend import GCPBackend
-        from agent_memory.store.postgres_backend import PostgresBackend
+        from attestor.store.gcp_backend import GCPBackend
+        from attestor.store.postgres_backend import PostgresBackend
 
         assert issubclass(GCPBackend, PostgresBackend)
 
     def test_inherited_methods_exist(self):
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         inherited = [
             "insert", "get", "update", "delete", "list_memories",
@@ -291,7 +291,7 @@ class TestInheritance:
             assert hasattr(GCPBackend, method), f"Missing inherited method: {method}"
 
     def test_roles(self):
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         assert GCPBackend.ROLES == {"document", "vector", "graph"}
 
@@ -301,7 +301,7 @@ class TestCloseWithConnector:
     """Test close() cleans up AlloyDB Connector."""
 
     def test_close_with_connector(self):
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         backend = GCPBackend.__new__(GCPBackend)
         backend._conn = MagicMock()
@@ -314,7 +314,7 @@ class TestCloseWithConnector:
         backend._connector.close.assert_called_once()
 
     def test_close_without_connector(self):
-        from agent_memory.store.gcp_backend import GCPBackend
+        from attestor.store.gcp_backend import GCPBackend
 
         backend = GCPBackend.__new__(GCPBackend)
         backend._conn = MagicMock()

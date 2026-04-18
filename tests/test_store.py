@@ -4,8 +4,8 @@ import tempfile
 
 import pytest
 
-from agent_memory.models import Memory
-from agent_memory.store.sqlite_store import SQLiteStore
+from attestor.models import Memory
+from attestor.store.sqlite_store import SQLiteStore
 
 
 @pytest.fixture

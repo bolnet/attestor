@@ -25,7 +25,7 @@
   <line class="rule" x1="40" y1="46" x2="1360" y2="46"/>
   <line class="hair" x1="40" y1="52" x2="1360" y2="52"/>
   <text class="ink sans" x="40" y="38" font-size="11">&#167; PROMOTION PATH &#183; LAPTOP &#8594; DEV VM &#8594; MANAGED CLOUD &#183; SAME API, SAME CONTAINER, ONLY CONFIG CHANGES</text>
-  <text class="muted sans" x="1360" y="38" font-size="11" text-anchor="end">FIG. 05 &#183; MEMWRIGHT</text>
+  <text class="muted sans" x="1360" y="38" font-size="11" text-anchor="end">FIG. 05 &#183; ATTESTOR</text>
 
   <!-- Track (subway rail) -->
   <line class="track" x1="180" y1="230" x2="1220" y2="230"/>
@@ -52,8 +52,8 @@
     <text class="ink" x="20" y="32" font-size="20" font-weight="700">Laptop</text>
     <text class="muted" x="20" y="50" font-size="12" font-style="italic">prototype in five minutes</text>
     <line class="hair" x1="20" y1="62" x2="300" y2="62"/>
-    <text class="ink mono" x="20" y="84" font-size="12">pip install memwright</text>
-    <text class="ink mono" x="20" y="102" font-size="12">memwright api</text>
+    <text class="ink mono" x="20" y="84" font-size="12">pip install attestor</text>
+    <text class="ink mono" x="20" y="102" font-size="12">attestor api</text>
     <line class="hair" x1="20" y1="112" x2="300" y2="112"/>
     <text class="muted" x="20" y="124" font-size="10">SQLite &#183; ChromaDB &#183; NetworkX</text>
   </g>

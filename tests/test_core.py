@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from agent_memory import AgentMemory, Memory
+from attestor import AgentMemory, Memory
 
 # mem_dir, mem, and test_config fixtures come from conftest.py
 

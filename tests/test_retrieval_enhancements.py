@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from agent_memory.models import Memory, RetrievalResult
-from agent_memory.retrieval.scorer import (
+from attestor.models import Memory, RetrievalResult
+from attestor.retrieval.scorer import (
     confidence_decay_boost,
     mmr_rerank,
     pagerank_boost,
@@ -211,7 +211,7 @@ class TestAccessTracking:
 
 class TestNetworkXPageRank:
     def test_pagerank_returns_scores(self):
-        from agent_memory.graph.networkx_graph import NetworkXGraph
+        from attestor.graph.networkx_graph import NetworkXGraph
         import tempfile
         from pathlib import Path
 
@@ -230,7 +230,7 @@ class TestNetworkXPageRank:
             assert sum(pr.values()) == pytest.approx(1.0, abs=0.01)
 
     def test_pagerank_cached(self):
-        from agent_memory.graph.networkx_graph import NetworkXGraph
+        from attestor.graph.networkx_graph import NetworkXGraph
         import tempfile
         from pathlib import Path
 
@@ -244,7 +244,7 @@ class TestNetworkXPageRank:
             assert pr1 is pr2  # Same object = cached
 
     def test_pagerank_invalidated_on_add(self):
-        from agent_memory.graph.networkx_graph import NetworkXGraph
+        from attestor.graph.networkx_graph import NetworkXGraph
         import tempfile
         from pathlib import Path
 
@@ -260,7 +260,7 @@ class TestNetworkXPageRank:
             assert pr1 is not pr2  # Recomputed
 
     def test_empty_graph_returns_empty(self):
-        from agent_memory.graph.networkx_graph import NetworkXGraph
+        from attestor.graph.networkx_graph import NetworkXGraph
         import tempfile
         from pathlib import Path
 
@@ -275,7 +275,7 @@ class TestNetworkXPageRank:
 
 class TestConfigWiring:
     def test_mmr_config_wired(self, mem_dir):
-        from agent_memory import AgentMemory
+        from attestor import AgentMemory
         cfg = {"enable_mmr": False, "mmr_lambda": 0.5}
         m = AgentMemory(mem_dir, config=cfg)
         assert m._retrieval.enable_mmr is False
@@ -283,14 +283,14 @@ class TestConfigWiring:
         m.close()
 
     def test_fusion_mode_config(self, mem_dir):
-        from agent_memory import AgentMemory
+        from attestor import AgentMemory
         cfg = {"fusion_mode": "graph_blend"}
         m = AgentMemory(mem_dir, config=cfg)
         assert m._retrieval.fusion_mode == "graph_blend"
         m.close()
 
     def test_confidence_config(self, mem_dir):
-        from agent_memory import AgentMemory
+        from attestor import AgentMemory
         cfg = {"confidence_gate": 0.5, "confidence_decay_rate": 0.002}
         m = AgentMemory(mem_dir, config=cfg)
         assert m._retrieval.confidence_gate == 0.5

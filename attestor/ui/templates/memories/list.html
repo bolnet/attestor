@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Evidence Board · Attestor{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <h1 class="page-head__title">Evidence<br><em>Board.</em></h1>
+  <div class="page-head__meta">
+    <div><b>{{ total }}</b> records surfaced</div>
+    <div>dispatch · {{ stats.namespaces|length if stats.namespaces else 1 }} namespaces</div>
+    <div>latest · {{ memories[0].created_date if memories else "—" }}</div>
+  </div>
+</section>
+
+<section class="workspace">
+  <aside class="rail">
+    <form method="get"
+          action="/ui/memories"
+          hx-get="/ui/memories"
+          hx-target="#grid"
+          hx-select="#grid"
+          hx-push-url="true"
+          hx-trigger="change from:select delay:100ms, keyup changed delay:350ms from:input[type=search]">
+
+      <div class="rail__section">
+        <div class="rail__label">Query <span>FTS + Vector</span></div>
+        <input class="field" type="search" name="q" value="{{ filters.q }}"
+               placeholder="// pattern, keyword, phrase" autocomplete="off">
+      </div>
+
+      <div class="rail__section">
+        <div class="rail__label">Namespace</div>
+        <input class="field" type="text" name="namespace" value="{{ filters.namespace }}" placeholder="any">
+      </div>
+
+      <div class="rail__section">
+        <div class="rail__label">Category</div>
+        <input class="field" type="text" name="category" value="{{ filters.category }}" placeholder="any">
+      </div>
+
+      <div class="rail__section">
+        <div class="rail__label">Entity</div>
+        <input class="field" type="text" name="entity" value="{{ filters.entity }}" placeholder="any">
+      </div>
+
+      <div class="rail__section">
+        <div class="rail__label">Status</div>
+        <select class="field" name="status">
+          <option value="active" {% if filters.status == 'active' %}selected{% endif %}>active</option>
+          <option value="superseded" {% if filters.status == 'superseded' %}selected{% endif %}>superseded</option>
+          <option value="archived" {% if filters.status == 'archived' %}selected{% endif %}>archived</option>
+        </select>
+      </div>
+
+      <div class="rail__section">
+        <button class="btn btn--primary" type="submit">Recompile</button>
+        <a class="btn" href="/ui/memories" style="margin-top:8px;">Clear</a>
+      </div>
+    </form>
+  </aside>
+
+  <section>
+    {% include "memories/_grid.html" %}
+  </section>
+</section>
+
+{% endblock %}

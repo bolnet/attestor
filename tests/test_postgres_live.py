@@ -25,7 +25,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def backend():
     """Create PostgresBackend connected to Neon."""
-    from agent_memory.store.postgres_backend import PostgresBackend
+    from attestor.store.postgres_backend import PostgresBackend
 
     config = {"url": DATABASE_URL, "sslmode": "require"}
     be = PostgresBackend(config)
@@ -45,7 +45,7 @@ def memory_id():
 
 class TestPostgresLiveDocument:
     def test_insert_and_get(self, backend, memory_id):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mem = Memory(
             id=memory_id,
@@ -62,7 +62,7 @@ class TestPostgresLiveDocument:
         assert "neon" in fetched.tags
 
     def test_update(self, backend, memory_id):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mem = Memory(
             id=memory_id,
@@ -85,7 +85,7 @@ class TestPostgresLiveDocument:
         assert fetched.content == "updated"
 
     def test_delete(self, backend, memory_id):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mem = Memory(
             id=memory_id,
@@ -98,7 +98,7 @@ class TestPostgresLiveDocument:
         assert backend.get(memory_id) is None
 
     def test_list_memories(self, backend):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         ids = []
         for i in range(3):
@@ -117,7 +117,7 @@ class TestPostgresLiveDocument:
             assert mid in found_ids
 
     def test_tag_search(self, backend):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mid = f"tag-{uuid.uuid4().hex[:8]}"
         backend.insert(Memory(
@@ -138,7 +138,7 @@ class TestPostgresLiveDocument:
 
 class TestPostgresLiveVector:
     def test_add_and_search(self, backend):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mid = f"vec-{uuid.uuid4().hex[:8]}"
         backend.insert(Memory(
@@ -159,7 +159,7 @@ class TestPostgresLiveVector:
         assert count >= 0
 
     def test_similar_texts_rank_higher(self, backend):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mid1 = f"sim-{uuid.uuid4().hex[:8]}"
         mid2 = f"diff-{uuid.uuid4().hex[:8]}"

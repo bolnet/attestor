@@ -1,16 +1,16 @@
 ---
-description: Record a comprehensive demo video + voiceover script of the Memwright UI
+description: Record a comprehensive demo video + voiceover script of the Attestor UI
 argument-hint: "(no args — uses running server on port 8080)"
 allowed-tools: Bash, Read, Write, Edit, Glob, mcp__playwright__browser_navigate, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_evaluate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click, mcp__playwright__browser_fill_form, mcp__playwright__browser_press_key, mcp__playwright__browser_wait_for, mcp__playwright__browser_close, mcp__playwright__browser_resize
 ---
 
-# Record Memwright UI Demo
+# Record Attestor UI Demo
 
-Record a comprehensive demo walkthrough of the Memwright UI — a screen-recorded video that explores **every page, every interactive element, every sub-menu, input field, and animation**. Then generate a timestamped voiceover script the user can read for narration.
+Record a comprehensive demo walkthrough of the Attestor UI — a screen-recorded video that explores **every page, every interactive element, every sub-menu, input field, and animation**. Then generate a timestamped voiceover script the user can read for narration.
 
 ## Prerequisites
 
-1. Memwright UI must be running: `memwright ui --path <store>` on port 8080
+1. Attestor UI must be running: `attestor ui --path <store>` on port 8080
 2. Store should have 20+ seeded memories across multiple entities/namespaces
 3. Node.js + `playwright` npm package installed (`npm install playwright`)
 
@@ -52,7 +52,7 @@ The script navigates every page and interacts with every element. Here is the fu
 | 07 | Memory dossier | Click first card, scroll detail page | 4s |
 | 08 | Dossier tabs | Click all 6 tabs: provenance → supersession → embedding → graph → access → content, scroll each | 12s |
 | 09 | Knowledge graph | Land, click 2 nodes, show inspector panel | 7s |
-| 10 | Graph controls | Search "Memwright", switch layouts (concentric → circle → cose), change sizing (pagerank → degree), fit view | 12s |
+| 10 | Graph controls | Search "Attestor", switch layouts (concentric → circle → cose), change sizing (pagerank → degree), fit view | 12s |
 | 11 | Recall pipeline | Type query, set budget, execute, watch 5-layer animation, scroll results | 8s |
 | 12 | Budget explorer | Click Budget Explorer, wait for 5-budget comparison, scroll chart | 8s |
 | 13 | Timeline | Auto-load, scroll, click card → detail slide-in, close, filter superseded, reset | 12s |
@@ -117,7 +117,7 @@ After recording, generate a timestamped voiceover script at `docs/demo/voiceover
 
 Structure:
 ```markdown
-# Memwright UI — Voiceover Script
+# Attestor UI — Voiceover Script
 
 **Total duration**: ~4 minutes
 **Video**: `docs/demo/ui-walkthrough.webm`

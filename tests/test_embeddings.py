@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import MagicMock, patch
-from agent_memory.store.embeddings import (
+from attestor.store.embeddings import (
     ChromaEmbeddingAdapter,
     EmbeddingProvider,
     LocalEmbeddingProvider,
@@ -92,7 +92,30 @@ class TestChromaEmbeddingAdapter:
         assert len(result[0]) == 384
 
     def test_name(self, adapter):
-        assert adapter.name() == "memwright:shared"
+        assert adapter.name() == "attestor:shared"
+
+    def test_legacy_adapter_keeps_old_name_for_on_disk_backcompat(self):
+        from attestor.store.embeddings import _LegacyMemwrightChromaAdapter
+
+        legacy = _LegacyMemwrightChromaAdapter(LocalEmbeddingProvider())
+        assert legacy.name() == "memwright:shared"
+        # Still produces valid embeddings — subclass behavior, not a separate impl.
+        assert len(legacy(["hi"])[0]) == 384
+
+    def test_both_adapters_registered_with_chromadb(self):
+        # ChromaDB reads a collection's persisted name() at load time and looks
+        # it up against its registry. Both names must be resolvable — otherwise
+        # pre-rename stores fail to open after an upgrade.
+        try:
+            from chromadb.utils.embedding_functions import known_embedding_functions
+        except ImportError:
+            pytest.skip("chromadb not installed")
+
+        # Importing the module triggers registration as a side effect.
+        import attestor.store.embeddings  # noqa: F401
+
+        assert "attestor:shared" in known_embedding_functions
+        assert "memwright:shared" in known_embedding_functions
 
     def test_get_config(self, adapter):
         config = adapter.get_config()
@@ -150,7 +173,7 @@ class TestGetEmbeddingProvider:
         mock_provider.provider_name = "openai"
         mock_provider.dimension = 1536
 
-        with patch("agent_memory.store.embeddings._try_openai", return_value=mock_provider):
+        with patch("attestor.store.embeddings._try_openai", return_value=mock_provider):
             provider = get_embedding_provider()
             assert provider.provider_name == "openai"
 
@@ -160,13 +183,13 @@ class TestGetEmbeddingProvider:
         mock_bedrock.provider_name = "bedrock"
         mock_bedrock.dimension = 1024
 
-        with patch("agent_memory.store.embeddings._CLOUD_PROVIDERS", {"bedrock": lambda: mock_bedrock}):
+        with patch("attestor.store.embeddings._CLOUD_PROVIDERS", {"bedrock": lambda: mock_bedrock}):
             provider = get_embedding_provider(preferred="bedrock")
             assert provider.provider_name == "bedrock"
 
     def test_preferred_unavailable_falls_through(self):
         """When preferred cloud provider fails, should try OpenAI then local."""
-        with patch("agent_memory.store.embeddings._CLOUD_PROVIDERS", {"bedrock": lambda: None}):
+        with patch("attestor.store.embeddings._CLOUD_PROVIDERS", {"bedrock": lambda: None}):
             with patch.dict("os.environ", {}, clear=True):
                 env = {
                     k: v
@@ -186,9 +209,9 @@ class TestOpenAIEmbeddingProvider:
         mock_resp.data = [MagicMock(embedding=[0.1] * 1536)]
         mock_client_cls.return_value.embeddings.create.return_value = mock_resp
 
-        with patch("agent_memory.store.embeddings.OpenAIEmbeddingProvider.__init__", return_value=None) as mock_init:
+        with patch("attestor.store.embeddings.OpenAIEmbeddingProvider.__init__", return_value=None) as mock_init:
             # Test the class exists and has the right interface
-            from agent_memory.store.embeddings import OpenAIEmbeddingProvider
+            from attestor.store.embeddings import OpenAIEmbeddingProvider
 
             assert hasattr(OpenAIEmbeddingProvider, "embed")
             assert hasattr(OpenAIEmbeddingProvider, "embed_batch")
@@ -198,7 +221,7 @@ class TestOpenAIEmbeddingProvider:
 
 class TestBedrockEmbeddingProvider:
     def test_class_exists_with_correct_interface(self):
-        from agent_memory.store.embeddings import BedrockEmbeddingProvider
+        from attestor.store.embeddings import BedrockEmbeddingProvider
 
         assert hasattr(BedrockEmbeddingProvider, "embed")
         assert hasattr(BedrockEmbeddingProvider, "embed_batch")
@@ -208,7 +231,7 @@ class TestBedrockEmbeddingProvider:
 
 class TestAzureOpenAIEmbeddingProvider:
     def test_class_exists_with_correct_interface(self):
-        from agent_memory.store.embeddings import AzureOpenAIEmbeddingProvider
+        from attestor.store.embeddings import AzureOpenAIEmbeddingProvider
 
         assert hasattr(AzureOpenAIEmbeddingProvider, "embed")
         assert hasattr(AzureOpenAIEmbeddingProvider, "embed_batch")
@@ -218,7 +241,7 @@ class TestAzureOpenAIEmbeddingProvider:
 
 class TestVertexAIEmbeddingProvider:
     def test_class_exists_with_correct_interface(self):
-        from agent_memory.store.embeddings import VertexAIEmbeddingProvider
+        from attestor.store.embeddings import VertexAIEmbeddingProvider
 
         assert hasattr(VertexAIEmbeddingProvider, "embed")
         assert hasattr(VertexAIEmbeddingProvider, "embed_batch")

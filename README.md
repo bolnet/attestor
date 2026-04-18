@@ -4,13 +4,13 @@
 
 <p align="center"><sub>&sect; 00 &middot; MASTHEAD &middot; FILED UNDER INFRASTRUCTURE &middot; BY SURENDRA SINGH &middot; &mdash; FOR PUBLICATION &mdash;</sub></p>
 
-<p align="center"><sub><b>MEMWRIGHT</b> &mdash; A MEMORY JOURNAL FOR AGENTIC SYSTEMS &middot; VOL. 02 &middot; REV. 0.1 &middot; EST. 2026 &middot; NEW YORK &middot; MIT</sub></p>
+<p align="center"><sub><b>ATTESTOR</b> &mdash; A MEMORY JOURNAL FOR AGENTIC SYSTEMS &middot; VOL. 02 &middot; REV. 0.1 &middot; EST. 2026 &middot; NEW YORK &middot; MIT</sub></p>
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/bolnet/agent-memory/main/docs/logo.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/bolnet/agent-memory/main/docs/logo-dark.svg">
-    <img alt="Memwright" src="https://raw.githubusercontent.com/bolnet/agent-memory/main/docs/logo.svg" width="400">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/bolnet/attestor/main/docs/logo.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/bolnet/attestor/main/docs/logo-dark.svg">
+    <img alt="Attestor" src="https://raw.githubusercontent.com/bolnet/attestor/main/docs/logo.svg" width="400">
   </picture>
 </p>
 
@@ -19,12 +19,12 @@
 <p align="center"><sub>Self&#8209;hosted &middot; Deterministic retrieval &middot; No LLM in the critical path</sub></p>
 
 <p align="center">
-  <a href="https://pypi.org/project/memwright/"><img src="https://img.shields.io/pypi/v/memwright?color=C15F3C&style=flat-square" alt="PyPI"></a>
-  <a href="https://pypi.org/project/memwright/"><img src="https://img.shields.io/pypi/dm/memwright?style=flat-square&color=C15F3C" alt="PyPI downloads"></a>
-  <a href="https://github.com/bolnet/agent-memory/stargazers"><img src="https://img.shields.io/github/stars/bolnet/agent-memory?style=flat-square&color=C15F3C" alt="GitHub stars"></a>
-  <a href="https://pypi.org/project/memwright/"><img src="https://img.shields.io/pypi/pyversions/memwright?style=flat-square" alt="Python"></a>
-  <a href="https://github.com/bolnet/agent-memory/blob/main/LICENSE"><img src="https://img.shields.io/github/license/bolnet/agent-memory?style=flat-square" alt="License"></a>
-  <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/memwright"><img src="https://img.shields.io/badge/MCP-Registry-C15F3C?style=flat-square" alt="MCP Registry"></a>
+  <a href="https://pypi.org/project/attestor/"><img src="https://img.shields.io/pypi/v/attestor?color=C15F3C&style=flat-square" alt="PyPI"></a>
+  <a href="https://pypi.org/project/attestor/"><img src="https://img.shields.io/pypi/dm/attestor?style=flat-square&color=C15F3C" alt="PyPI downloads"></a>
+  <a href="https://github.com/bolnet/attestor/stargazers"><img src="https://img.shields.io/github/stars/bolnet/attestor?style=flat-square&color=C15F3C" alt="GitHub stars"></a>
+  <a href="https://pypi.org/project/attestor/"><img src="https://img.shields.io/pypi/pyversions/attestor?style=flat-square" alt="Python"></a>
+  <a href="https://github.com/bolnet/attestor/blob/main/LICENSE"><img src="https://img.shields.io/github/license/bolnet/attestor?style=flat-square" alt="License"></a>
+  <a href="https://registry.modelcontextprotocol.io/servers/io.github.bolnet/attestor"><img src="https://img.shields.io/badge/MCP-Registry-C15F3C?style=flat-square" alt="MCP Registry"></a>
 </p>
 
 <p align="center"><sub><a href="#problem">Problem &darr;</a> &middot; <a href="#multi-agent">Multi&#8209;Agent &darr;</a> &middot; <a href="#pipeline">Pipeline &darr;</a> &middot; <a href="#deploy">Deploy &darr;</a> &middot; <a href="#principles">Principles &darr;</a> &middot; <a href="#reference">Reference &darr;</a></sub></p>
@@ -32,10 +32,10 @@
 ---
 
 <p align="center">
-  <img src="docs/constellation.svg" alt="Six stars out of eight hundred light up — Memwright recalls exactly what this moment needs" width="100%">
+  <img src="docs/constellation.svg" alt="Six stars out of eight hundred light up — Attestor recalls exactly what this moment needs" width="100%">
 </p>
 
-<p align="center"><sub><b><i>Memwright doesn&rsquo;t search. It remembers.</i></b></sub></p>
+<p align="center"><sub><b><i>Attestor doesn&rsquo;t search. It remembers.</i></b></sub></p>
 
 ---
 
@@ -49,7 +49,7 @@
   <img src="docs/timeline.svg" alt="Write · Write · Write · Write ... Read — memories accumulate across sessions, load_context primes the next task" width="100%">
 </p>
 
-<sub><b>Memory accumulates. Load primes.</b> &nbsp;Four writes across Mon&ndash;Thu land as persisted memories. Friday morning a fresh Portfolio Planner wakes up to a new task, calls <code>mem.load_context()</code>, and Memwright ranks + dedupes + budget&#8209;fits all four back into the context window. The agent resumes with full continuity &mdash; earnings signal, risk cap, prior stance, compliance precedent &mdash; <b>not RAG over documents, but the agents&rsquo; own history replayed into a fresh context</b>. Zero LLM calls in the critical path.</sub>
+<sub><b>Memory accumulates. Load primes.</b> &nbsp;Four writes across Mon&ndash;Thu land as persisted memories. Friday morning a fresh Portfolio Planner wakes up to a new task, calls <code>mem.load_context()</code>, and Attestor ranks + dedupes + budget&#8209;fits all four back into the context window. The agent resumes with full continuity &mdash; earnings signal, risk cap, prior stance, compliance precedent &mdash; <b>not RAG over documents, but the agents&rsquo; own history replayed into a fresh context</b>. Zero LLM calls in the critical path.</sub>
 
 ---
 
@@ -61,7 +61,7 @@
 <p align="center"><sub>Namespace isolation &middot; RBAC &middot; Provenance tracking &middot; Temporal correctness &middot; Ranked retrieval &middot; Token budgets &mdash; built for orchestrator&#8209;worker and planner&#8209;executor pipelines. Python library, REST API, or containerized service. No SaaS middleman, no per&#8209;seat fees, no vendor lock&#8209;in.</sub></p>
 
 ```python
-from agent_memory import AgentMemory
+from attestor import AgentMemory
 
 mem = AgentMemory("./store")
 mem.add("Order service uses event sourcing", entity="order-service", tags=["arch"])
@@ -69,7 +69,7 @@ mem.recall("how is the order service structured?", budget=2000)
 ```
 
 ```bash
-poetry add memwright
+poetry add attestor
 ```
 
 <p align="center"><sub>MIT &middot; Python 3.10&ndash;3.14 &middot; Production deploy in one command</sub></p>
@@ -101,7 +101,7 @@ Single agents rediscover the same facts every run. Multi&#8209;agent pipelines a
 > *We had a planner, a coder, a reviewer, a deployer &mdash; four agents in a pipeline. None of them knew what the others learned. We were passing giant prompts between them and burning tokens on stale information.*
 
 <table>
-<tr><th>Without Memwright</th><th>With Memwright</th></tr>
+<tr><th>Without Attestor</th><th>With Attestor</th></tr>
 <tr><td>01 &mdash; Each agent starts blind &mdash; no knowledge of what others learned</td><td>01 &mdash; Shared memory &mdash; planner writes, coder reads, reviewer sees both</td></tr>
 <tr><td>02 &mdash; Giant prompts passed between agents burn context tokens</td><td>02 &mdash; Token&#8209;budget recall &mdash; each agent pulls only what fits</td></tr>
 <tr><td>03 &mdash; No access control &mdash; any agent can overwrite any state</td><td>03 &mdash; Six RBAC roles, namespace isolation, write quotas per agent</td></tr>
@@ -128,7 +128,7 @@ Every recall and write is scoped to an `AgentContext` &mdash; a lightweight data
 | 01 | **Namespace isolation** | Every agent, project, or tenant gets its own namespace. Planner writes, coder reads, reviewer sees both. Isolated by default, shared when you configure it. |
 | 02 | **Six RBAC roles** | Orchestrator, Planner, Executor, Researcher, Reviewer, Monitor. Read&#8209;only observers to full admins. |
 | 03 | **Provenance tracking** | Know which agent wrote which memory, when, and under which parent session. The reviewer can trace a decision back to the planner three sessions ago. |
-| 04 | **Cross&#8209;agent contradiction resolution** | Agent A learns *"user works at Google."* Agent B learns *"user works at Meta."* Memwright auto&#8209;supersedes. Full history preserved. Zero inference calls in the critical path. |
+| 04 | **Cross&#8209;agent contradiction resolution** | Agent A learns *"user works at Google."* Agent B learns *"user works at Meta."* Attestor auto&#8209;supersedes. Full history preserved. Zero inference calls in the critical path. |
 | 05 | **Token budgets per agent** | `recall(query, budget=2000)` &mdash; a summarizer uses 500 tokens; a deep reasoner uses 5,000. Each agent receives exactly what fits in its context window. |
 | 06 | **Write quotas &amp; review flags** | Rate&#8209;limit writes per namespace, flag writes for human review, add compliance tags for audit. |
 
@@ -299,7 +299,7 @@ flowchart TB
     Q2["<i>Semiconductor supply-chain<br/>risk after latest tariff move</i>"]
     Q3["<i>Earnings surprises in<br/>US regional banks, last 90 days</i>"]
 
-    subgraph QUERIES ["&sect; DECOMPOSED RECALL QUERIES &mdash; what the agent actually asks memwright"]
+    subgraph QUERIES ["&sect; DECOMPOSED RECALL QUERIES &mdash; what the agent actually asks attestor"]
         direction LR
         Q1 ~~~ Q2 ~~~ Q3
     end
@@ -483,7 +483,7 @@ flowchart TB
 
 ### Temporal &mdash; timeline &amp; supersession
 
-<sub>Memwright doesn&rsquo;t overwrite &mdash; it <b>supersedes</b>. Every fact has a validity window, and the timeline is replayable to any point in the past. Auditors can answer not just <i>&ldquo;what does the desk know?&rdquo;</i> but <i>&ldquo;what did the desk know on 2026-04-10 at 08:00?&rdquo;</i></sub>
+<sub>Attestor doesn&rsquo;t overwrite &mdash; it <b>supersedes</b>. Every fact has a validity window, and the timeline is replayable to any point in the past. Auditors can answer not just <i>&ldquo;what does the desk know?&rdquo;</i> but <i>&ldquo;what did the desk know on 2026-04-10 at 08:00?&rdquo;</i></sub>
 
 ```mermaid
 flowchart LR
@@ -570,14 +570,14 @@ flowchart LR
 
 Same API. Every backend. Your infrastructure, not theirs.
 
-Memwright ships as a Python library, a REST API, or a containerized service. Reference Terraform templates for Amazon Web Services (ECS Fargate + ArangoDB), Microsoft Azure (Container Apps + Cosmos DB), and Google Cloud Platform (Cloud Run + AlloyDB) live under `agent_memory/infra/`. Clone, set your own variables, `terraform apply` in your account &mdash; no SaaS middleman, no per-seat fees, no vendor lock-in.
+Attestor ships as a Python library, a REST API, or a containerized service. Reference Terraform templates for Amazon Web Services (ECS Fargate + ArangoDB), Microsoft Azure (Container Apps + Cosmos DB), and Google Cloud Platform (Cloud Run + AlloyDB) live under `attestor/infra/`. Clone, set your own variables, `terraform apply` in your account &mdash; no SaaS middleman, no per-seat fees, no vendor lock-in.
 
 ```bash
-$ pip install memwright
-$ memwright api --host 0.0.0.0 --port 8080
+$ pip install attestor
+$ attestor api --host 0.0.0.0 --port 8080
 ```
 
-<sub>Starlette ASGI on <code>http://localhost:8080</code>. SQLite + ChromaDB + NetworkX provision automatically under <code>~/.memwright</code>. Point every agent in your stack at the same URL &mdash; they share memory instantly. No Docker. No API keys. Air&#8209;gap it behind your firewall and walk away.</sub>
+<sub>Starlette ASGI on <code>http://localhost:8080</code>. SQLite + ChromaDB + NetworkX provision automatically under <code>~/.attestor</code>. Point every agent in your stack at the same URL &mdash; they share memory instantly. No Docker. No API keys. Air&#8209;gap it behind your firewall and walk away.</sub>
 
 | # | Target | Notes |
 |---|---|---|
@@ -591,21 +591,21 @@ $ memwright api --host 0.0.0.0 --port 8080
 ### Same container, pluggable stores
 
 <p align="center">
-  <img src="docs/deployment-matrix.svg" alt="Deployment matrix — one Memwright container, six targets, three storage roles swap per target" width="100%">
+  <img src="docs/deployment-matrix.svg" alt="Deployment matrix — one Attestor container, six targets, three storage roles swap per target" width="100%">
 </p>
 
 <sub><i>Every deployment is the same Python library wrapped in the same Starlette ASGI container. <code>DocumentStore</code>, <code>VectorStore</code>, and <code>GraphStore</code> are three interfaces; each column above is one implementation of each. Same API, same retrieval behavior, your infrastructure.</i></sub>
 
 ### Runtime topology &mdash; three integration modes
 
-<sub>The same Memwright engine runs in three shapes &mdash; same storage, same retrieval, different coupling. Pick by latency budget and blast radius.</sub>
+<sub>The same Attestor engine runs in three shapes &mdash; same storage, same retrieval, different coupling. Pick by latency budget and blast radius.</sub>
 
 ```mermaid
 flowchart TB
     subgraph M1 ["&sect; MODE A &mdash; EMBEDDED LIBRARY &bull; lowest latency"]
         direction LR
-        AG1["<b>Agent process</b><br/>Python &bull; import agent_memory"]
-        MW1["<b>Memwright in-proc</b><br/>AgentMemory('./store')"]
+        AG1["<b>Agent process</b><br/>Python &bull; import attestor"]
+        MW1["<b>Attestor in-proc</b><br/>AgentMemory('./store')"]
         ST1[("<b>Local stores</b><br/>SQLite · Chroma · NetworkX<br/>on local disk")]
         AG1 ==> MW1 ==> ST1
     end
@@ -613,7 +613,7 @@ flowchart TB
     subgraph M2 ["&sect; MODE B &mdash; SIDECAR CONTAINER &bull; process isolation"]
         direction LR
         AG2["<b>Agent container</b><br/>any language<br/>HTTP client"]
-        MW2["<b>Memwright sidecar</b><br/>memwright api<br/>on localhost:8080"]
+        MW2["<b>Attestor sidecar</b><br/>attestor api<br/>on localhost:8080"]
         ST2[("<b>Shared volume</b><br/>or managed backends")]
         AG2 ==>|"HTTP / MCP<br/>same pod"| MW2 ==> ST2
     end
@@ -623,7 +623,7 @@ flowchart TB
         AF1["<b>Agent A</b>"]
         AF2["<b>Agent B</b>"]
         AF3["<b>Agent C</b>"]
-        MW3["<b>Memwright service</b><br/>App Runner · Cloud Run<br/>· Container Apps"]
+        MW3["<b>Attestor service</b><br/>App Runner · Cloud Run<br/>· Container Apps"]
         ST3[("<b>Managed backends</b><br/>Postgres · ArangoDB · Cosmos")]
         AF1 ==> MW3
         AF2 ==> MW3
@@ -647,7 +647,7 @@ flowchart TB
     style ST3 fill:#FBF8F1,stroke:#1A1614,color:#1A1614
 ```
 
-<sub><b>Mode A</b> is sub-millisecond for a single agent prototyping on a laptop. <b>Mode B</b> adds language independence &mdash; a Go or Rust agent can call the sidecar over HTTP without Python in its image. <b>Mode C</b> is the production shape: one Memwright service in front of a multi-agent mesh, with managed storage behind. Code path is identical across all three &mdash; only configuration changes.</sub>
+<sub><b>Mode A</b> is sub-millisecond for a single agent prototyping on a laptop. <b>Mode B</b> adds language independence &mdash; a Go or Rust agent can call the sidecar over HTTP without Python in its image. <b>Mode C</b> is the production shape: one Attestor service in front of a multi-agent mesh, with managed storage behind. Code path is identical across all three &mdash; only configuration changes.</sub>
 
 ### Promotion path
 
@@ -675,7 +675,7 @@ flowchart TB
 
 ---
 
-<p align="center"><b>Install <code>memwright</code> and point your agents at one URL. They share memory instantly.</b></p>
+<p align="center"><b>Install <code>attestor</code> and point your agents at one URL. They share memory instantly.</b></p>
 
 <p align="center"><sub><a href="#reference">&darr; Reference documentation follows</a></sub></p>
 
@@ -709,11 +709,11 @@ flowchart TB
 ## Quick Start
 
 ```bash
-poetry add memwright
+poetry add attestor
 ```
 
 ```python
-from agent_memory import AgentMemory
+from attestor import AgentMemory
 
 mem = AgentMemory("./store")
 mem.add("Architecture decision: event sourcing for order service",
@@ -721,14 +721,14 @@ mem.add("Architecture decision: event sourcing for order service",
 results = mem.recall("how is the order service structured?", budget=2000)
 ```
 
-For REST API self-host, MCP integration, and cloud deploy — see [REST API](#rest-api), [MCP Integration](#mcp-integration), [Cloud Deployment](#cloud-deployment). `memwright doctor ~/.memwright` verifies all four components (Document Store, Vector Store, Graph Store, Retrieval Pipeline).
+For REST API self-host, MCP integration, and cloud deploy — see [REST API](#rest-api), [MCP Integration](#mcp-integration), [Cloud Deployment](#cloud-deployment). `attestor doctor ~/.attestor` verifies all four components (Document Store, Vector Store, Graph Store, Retrieval Pipeline).
 
 ---
 
 ## Architecture
 
 <p align="center">
-  <img src="docs/architecture.svg" alt="Memwright Architecture" width="100%">
+  <img src="docs/architecture.svg" alt="Attestor Architecture" width="100%">
 </p>
 
 The diagram above shows how a call to `AgentMemory.recall()` flows: the top-level API in `core.py` fans out across the three storage roles (document, vector, graph), the retrieval orchestrator fuses and ranks their results, and the scorer packs them into the caller&rsquo;s token budget. The tree below enumerates every module referenced in the diagram.
@@ -736,7 +736,7 @@ The diagram above shows how a call to `AgentMemory.recall()` flows: the top-leve
 ### Component Overview
 
 ```
-agent_memory/
+attestor/
 ├── core.py                    # AgentMemory — public API surface (add / recall / search / timeline / health)
 ├── models.py                  # Memory + RetrievalResult dataclasses
 ├── context.py                 # AgentContext — multi-agent provenance, RBAC, token budgets
@@ -784,7 +784,7 @@ agent_memory/
     └── aws_openarangodb/      # VPC + ECS Fargate + ArangoDB sidecar + ALB (validated end-to-end)
 ```
 
-`core.py` is the only module intended as a public API — every other path is internal and may change between releases. Agents running in-process import `AgentMemory`; agents talking to a remote Memwright service import `MemoryClient` from `client.py` (same method surface, HTTP transport).
+`core.py` is the only module intended as a public API — every other path is internal and may change between releases. Agents running in-process import `AgentMemory`; agents talking to a remote Attestor service import `MemoryClient` from `client.py` (same method surface, HTTP transport).
 
 ### Three Storage Roles
 
@@ -804,7 +804,7 @@ Cloud backends fill all three roles in a single service. Degradation is explicit
 
 ### Memory is infrastructure, not a prompt attachment
 
-Memwright runs as a separate tier — a library, a container, or a cloud service — that agents query on demand. Stored memories never enter the context window until an agent explicitly calls `recall()` with a token budget. Retrieval cost stays constant as the store grows from 100 to 5,000,000 memories; only the ranking candidate pool expands.
+Attestor runs as a separate tier — a library, a container, or a cloud service — that agents query on demand. Stored memories never enter the context window until an agent explicitly calls `recall()` with a token budget. Retrieval cost stays constant as the store grows from 100 to 5,000,000 memories; only the ranking candidate pool expands.
 
 ### Token cost is bounded by budget, not store size
 
@@ -813,7 +813,7 @@ Naive context-injection approach:
   Month 1:   2K tokens loaded every message
   Month 6:  15K tokens loaded every message  ← context crowded
 
-Memwright:
+Attestor:
   Month 1:   ≤2K tokens returned per recall  (ranked from 100 memories)
   Month 6:   ≤2K tokens returned per recall  (ranked from 5,000 memories)
                                              ← bounded cost, deeper recall
@@ -846,7 +846,7 @@ Store: 5,000 memories
 
 ## MCP Integration
 
-Memwright ships an MCP server so any MCP-compatible client (Claude Code, Cursor, Windsurf, custom agents) can store and retrieve memories. Start it with `memwright mcp`.
+Attestor ships an MCP server so any MCP-compatible client (Claude Code, Cursor, Windsurf, custom agents) can store and retrieve memories. Start it with `attestor mcp`.
 
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
@@ -865,8 +865,8 @@ Memwright ships an MCP server so any MCP-compatible client (Claude Code, Cursor,
 
 ### MCP Resources
 
-- **`memwright://entity/{name}`** — Entity details + related entities from graph
-- **`memwright://memory/{id}`** — Full memory object
+- **`attestor://entity/{name}`** — Entity details + related entities from graph
+- **`attestor://memory/{id}`** — Full memory object
 
 ### MCP Prompts
 
@@ -929,7 +929,7 @@ Querying "Python" also finds memories about "FastAPI" if they're connected in th
 ### Basic Usage
 
 ```python
-from agent_memory import AgentMemory
+from attestor import AgentMemory
 
 mem = AgentMemory("./my-agent")  # auto-provisions all backends
 
@@ -1004,10 +1004,10 @@ class Memory:
 
 ## Multi-Agent Systems
 
-Memwright is built for production multi-agent pipelines — orchestrator-worker, planner-executor, researcher-reviewer, and hierarchical swarms. Every recall and write is scoped to an `AgentContext` that carries identity, role, namespace, parent trail, token budget, write quota, and visibility policy. Contexts are immutable; spawning a sub-agent returns a new context with inherited provenance.
+Attestor is built for production multi-agent pipelines — orchestrator-worker, planner-executor, researcher-reviewer, and hierarchical swarms. Every recall and write is scoped to an `AgentContext` that carries identity, role, namespace, parent trail, token budget, write quota, and visibility policy. Contexts are immutable; spawning a sub-agent returns a new context with inherited provenance.
 
 ```python
-from agent_memory.context import AgentContext, AgentRole, Visibility
+from attestor.context import AgentContext, AgentRole, Visibility
 
 # Create a root context
 ctx = AgentContext.from_env(
@@ -1069,7 +1069,7 @@ Uses pgvector for vectors, Apache AGE for graph. AGE is optional — without it,
 ```python
 mem = AgentMemory("./store", config={
     "backends": ["postgres"],
-    "postgres": {"url": "postgresql://user:pass@host:5432/memwright"}
+    "postgres": {"url": "postgresql://user:pass@host:5432/attestor"}
 })
 ```
 
@@ -1080,7 +1080,7 @@ Native document, vector, and graph support in one database.
 ```python
 mem = AgentMemory("./store", config={
     "backends": ["arangodb"],
-    "arangodb": {"url": "https://instance.arangodb.cloud:8529", "database": "memwright"}
+    "arangodb": {"url": "https://instance.arangodb.cloud:8529", "database": "attestor"}
 })
 ```
 
@@ -1102,32 +1102,32 @@ Extends PostgreSQL backend with AlloyDB Connector (IAM auth) and Vertex AI embed
 ```python
 mem = AgentMemory("./store", config={
     "backends": ["gcp"],
-    "gcp": {"project_id": "my-project", "cluster": "memwright", "instance": "primary"}
+    "gcp": {"project_id": "my-project", "cluster": "attestor", "instance": "primary"}
 })
 ```
 
 ### Installing cloud extras
 
 ```bash
-poetry add "memwright[postgres]"    # PostgreSQL
-poetry add "memwright[arangodb]"    # ArangoDB
-poetry add "memwright[aws]"         # AWS (DynamoDB + OpenSearch + Neptune)
-poetry add "memwright[azure]"       # Azure Cosmos DB
-poetry add "memwright[gcp]"         # Google Cloud Platform AlloyDB + Vertex AI
-poetry add "memwright[docker]"      # opt-in local Docker auto-start for ArangoDB when backend.docker = true and mode = "local"
-poetry add "memwright[all]"         # Everything
+poetry add "attestor[postgres]"    # PostgreSQL
+poetry add "attestor[arangodb]"    # ArangoDB
+poetry add "attestor[aws]"         # AWS (DynamoDB + OpenSearch + Neptune)
+poetry add "attestor[azure]"       # Azure Cosmos DB
+poetry add "attestor[gcp]"         # Google Cloud Platform AlloyDB + Vertex AI
+poetry add "attestor[docker]"      # opt-in local Docker auto-start for ArangoDB when backend.docker = true and mode = "local"
+poetry add "attestor[all]"         # Everything
 ```
 
-- `pipx install "memwright[docker]"` &mdash; opt-in local Docker auto-start for ArangoDB when `backend.docker = true` and `mode = "local"`.
+- `pipx install "attestor[docker]"` &mdash; opt-in local Docker auto-start for ArangoDB when `backend.docker = true` and `mode = "local"`.
 
 ---
 
 ## Cloud Deployment
 
-The `agent_memory/infra/` directory ships **reference Terraform templates** &mdash; not push-button deploy scripts. Clone the template that matches your target cloud, set your own variables, supply your own credentials, and `terraform apply` from your own workstation. We have validated each template end-to-end; you keep ownership of state, secrets, and account.
+The `attestor/infra/` directory ships **reference Terraform templates** &mdash; not push-button deploy scripts. Clone the template that matches your target cloud, set your own variables, supply your own credentials, and `terraform apply` from your own workstation. We have validated each template end-to-end; you keep ownership of state, secrets, and account.
 
 ```bash
-cd agent_memory/infra/aws_openarangodb
+cd attestor/infra/aws_openarangodb
 cp variables.tf my.tfvars            # edit: arango_password, region, project_name
 terraform init
 terraform apply -var-file=my.tfvars
@@ -1139,7 +1139,7 @@ terraform destroy -var-file=my.tfvars
 
 | Cloud | Reference template | What it provisions | Status |
 |-------|--------------------|--------------------|--------|
-| Amazon Web Services | `agent_memory/infra/aws_openarangodb/` | VPC + ECR + ECS Fargate task (memwright + ArangoDB sidecar) + ALB | Validated end-to-end |
+| Amazon Web Services | `attestor/infra/aws_openarangodb/` | VPC + ECR + ECS Fargate task (attestor + ArangoDB sidecar) + ALB | Validated end-to-end |
 | Microsoft Azure | Container Apps + Cosmos DB | Backend code ships in `store/azure_backend.py`; Terraform template forthcoming | Backend ready, template pending |
 | Google Cloud Platform | Cloud Run + AlloyDB | Backend code ships in `store/gcp_backend.py`; Terraform template forthcoming | Backend ready, template pending |
 
@@ -1168,7 +1168,7 @@ Response envelope: `{"ok": true, "data": {...}}` or `{"ok": false, "error": "mes
 
 ## Embedding Providers
 
-Memwright auto-detects the best available embedding provider:
+Attestor auto-detects the best available embedding provider:
 
 | Priority | Provider | Model | Dimensions | Trigger |
 |----------|----------|-------|------------|---------|
@@ -1182,44 +1182,44 @@ The local fallback downloads ~90MB on first use. All providers implement the sam
 
 ## CLI Reference
 
-Both `memwright` and `agent-memory` work as entry points:
+Canonical CLI is `attestor`. Legacy aliases `memwright` and `agent-memory` also work for backward compatibility:
 
 ### MCP Server
 
 ```bash
-memwright mcp                          # Start MCP server (uses ~/.memwright)
-memwright mcp --path /custom/path      # Custom store location
+attestor mcp                          # Start MCP server (uses ~/.attestor)
+attestor mcp --path /custom/path      # Custom store location
 ```
 
 ### Memory Operations
 
 ```bash
-agent-memory add ./store "User prefers Python" --tags "pref,coding" --category preference
-agent-memory recall ./store "what language?" --budget 4000
-agent-memory search ./store --category project --entity Python --limit 20
-agent-memory list ./store --status active --category technical
-agent-memory timeline ./store --entity Python
-agent-memory get ./store <memory-id>
-agent-memory forget ./store <memory-id>
+attestor add ./store "User prefers Python" --tags "pref,coding" --category preference
+attestor recall ./store "what language?" --budget 4000
+attestor search ./store --category project --entity Python --limit 20
+attestor list ./store --status active --category technical
+attestor timeline ./store --entity Python
+attestor get ./store <memory-id>
+attestor forget ./store <memory-id>
 ```
 
 ### Maintenance
 
 ```bash
-agent-memory doctor ~/.memwright       # Health check (SQLite, ChromaDB, NetworkX, Retrieval)
-agent-memory stats ./store             # Memory counts, DB size, breakdowns
-agent-memory export ./store -o backup.json
-agent-memory import ./store backup.json
-agent-memory compact ./store           # Permanently delete archived memories
-agent-memory inspect ./store           # Raw DB inspection
+attestor doctor ~/.attestor            # Health check (SQLite, ChromaDB, NetworkX, Retrieval)
+attestor stats ./store                 # Memory counts, DB size, breakdowns
+attestor export ./store -o backup.json
+attestor import ./store backup.json
+attestor compact ./store               # Permanently delete archived memories
+attestor inspect ./store               # Raw DB inspection
 ```
 
 ### Lifecycle Hooks
 
 ```bash
-memwright hook session-start           # Inject context at agent session start
-memwright hook post-tool-use           # Auto-capture tool observations
-memwright hook stop                    # Generate session summary on exit
+attestor hook session-start           # Inject context at agent session start
+attestor hook post-tool-use           # Auto-capture tool observations
+attestor hook stop                    # Generate session summary on exit
 ```
 
 Hooks integrate with any harness that supports session lifecycle callbacks.
@@ -1230,10 +1230,10 @@ Hooks integrate with any harness that supports session lifecycle callbacks.
 
 ### Store location
 
-Default: `~/.memwright/`. Configurable with `--path` on any CLI command.
+Default: `~/.attestor/`. Configurable with `--path` on any CLI command.
 
 ```
-~/.memwright/
+~/.attestor/
 ├── memory.db        # SQLite database (core storage)
 ├── config.json      # Retrieval tuning parameters
 ├── graph.json       # NetworkX entity graph
@@ -1273,11 +1273,11 @@ All fields optional. Defaults apply if the file doesn't exist:
 
 | Variable | Purpose |
 |----------|---------|
-| `MEMWRIGHT_PATH` | Default store path |
-| `MEMWRIGHT_URL` | Remote API URL (distributed mode) |
-| `MEMWRIGHT_NAMESPACE` | Default namespace |
-| `MEMWRIGHT_TOKEN_BUDGET` | Default token budget |
-| `MEMWRIGHT_SESSION_ID` | Session ID for provenance tracking |
+| `ATTESTOR_PATH` | Default store path |
+| `ATTESTOR_URL` | Remote API URL (distributed mode) |
+| `ATTESTOR_NAMESPACE` | Default namespace |
+| `ATTESTOR_TOKEN_BUDGET` | Default token budget |
+| `ATTESTOR_SESSION_ID` | Session ID for provenance tracking |
 
 ---
 
@@ -1290,7 +1290,7 @@ All fields optional. Defaults apply if the file doesn't exist:
 poetry run pytest tests/ -v
 
 # With coverage
-poetry run pytest tests/ -v --cov=agent_memory --cov-report=term-missing
+poetry run pytest tests/ -v --cov=attestor --cov-report=term-missing
 
 # Live integration tests (need credentials)
 NEON_DATABASE_URL='postgresql://...' poetry run pytest tests/test_postgres_live.py -v
@@ -1317,7 +1317,7 @@ AZURE_COSMOS_ENDPOINT='https://...' poetry run pytest tests/test_azure_live.py -
 | Cursor | `.cursor/mcp.json` |
 | Windsurf | MCP config in settings |
 
-Same `memwright mcp` command for every client.
+Same `attestor mcp` command for every client.
 
 ### Python
 
@@ -1334,17 +1334,17 @@ Delete the `memory` entry from your MCP client's config file.
 ### 2. Uninstall the package
 
 ```bash
-poetry remove memwright
+poetry remove attestor
 ```
 
 ### 3. Delete stored memories (optional)
 
 ```bash
 # Export first if you want a backup
-agent-memory export ~/.memwright -o memwright-backup.json
+attestor export ~/.attestor -o attestor-backup.json
 
 # Then delete
-rm -rf ~/.memwright
+rm -rf ~/.attestor
 ```
 
 ---
@@ -1355,4 +1355,4 @@ MIT
 
 ---
 
-<sub>mcp-name: io.github.bolnet/memwright</sub>
+<sub>mcp-name: io.github.bolnet/attestor</sub>

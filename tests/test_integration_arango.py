@@ -14,8 +14,8 @@ try:
 except ImportError:
     HAS_ARANGO = False
 
-from agent_memory import AgentMemory, Memory
-from agent_memory.infra.docker import DockerManager
+from attestor import AgentMemory, Memory
+from attestor.infra.docker import DockerManager
 
 docker_required = pytest.mark.skipif(
     not HAS_ARANGO, reason="OpenArangoDB not installed"

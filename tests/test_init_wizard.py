@@ -1,4 +1,4 @@
-"""Tests for agent_memory.init_wizard."""
+"""Tests for attestor.init_wizard."""
 from __future__ import annotations
 
 import tempfile
@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 import tomlkit
 
-from agent_memory.init_wizard import (
+from attestor.init_wizard import (
     SUPPORTED_BACKENDS,
     InitResult,
     init_store,
@@ -69,7 +69,7 @@ class TestInitStore:
 
     def test_verify_success(self, tmp_store: Path):
         with patch(
-            "agent_memory.init_wizard._verify_store",
+            "attestor.init_wizard._verify_store",
             return_value=(True, None),
         ):
             result = init_store(tmp_store, backend="sqlite", verify=True)
@@ -78,7 +78,7 @@ class TestInitStore:
 
     def test_verify_rollback_on_failure(self, tmp_store: Path):
         with patch(
-            "agent_memory.init_wizard._verify_store",
+            "attestor.init_wizard._verify_store",
             return_value=(False, "RuntimeError: db locked"),
         ):
             with pytest.raises(RuntimeError, match="rolled back"):
@@ -87,14 +87,14 @@ class TestInitStore:
 
     def test_verify_rollback_removes_side_effect_artifacts(self, tmp_store: Path):
         """_verify_store side-effects (memory.db) must be cleaned up on rollback."""
-        from agent_memory.init_wizard import _verify_store
+        from attestor.init_wizard import _verify_store
 
         def fake_verify(path: Path):
             (path / "memory.db").write_bytes(b"fake")
             (path / "chroma").mkdir()
             return False, "simulated failure"
 
-        with patch("agent_memory.init_wizard._verify_store", side_effect=fake_verify):
+        with patch("attestor.init_wizard._verify_store", side_effect=fake_verify):
             with pytest.raises(RuntimeError):
                 init_store(tmp_store, backend="sqlite", verify=True)
 
@@ -139,7 +139,7 @@ class TestInteractiveWizard:
         prompts = iter(["arangodb", "cloud", "8530", "https://arango.example", "root"])
         monkeypatch.setattr("builtins.input", lambda _="": next(prompts))
         monkeypatch.setattr(
-            "agent_memory.init_wizard.getpass.getpass",
+            "attestor.init_wizard.getpass.getpass",
             lambda _="": "hunter2",
         )
 
@@ -161,7 +161,7 @@ class TestInteractiveWizard:
 
 class TestInitCLIFlags:
     def test_cli_init_writes_config_toml(self, tmp_store: Path):
-        from agent_memory.cli import main
+        from attestor.cli import main
 
         main(["init", str(tmp_store), "--non-interactive", "--backend", "sqlite"])
         assert (tmp_store / "config.toml").exists()
@@ -169,10 +169,10 @@ class TestInitCLIFlags:
         assert list(doc["backends"]) == ["sqlite", "chroma", "networkx"]
 
     def test_cli_init_verify_rolls_back_on_failure(self, tmp_store: Path):
-        from agent_memory.cli import main
+        from attestor.cli import main
 
         with patch(
-            "agent_memory.init_wizard._verify_store",
+            "attestor.init_wizard._verify_store",
             return_value=(False, "RuntimeError: boom"),
         ):
             with pytest.raises(SystemExit):
@@ -187,7 +187,7 @@ class TestInitCLIFlags:
     def test_cli_setup_claude_code_install_writes_settings(
         self, tmp_store: Path, tmp_path: Path, monkeypatch
     ):
-        from agent_memory.cli import main
+        from attestor.cli import main
 
         fake_home = tmp_path / "home"
         fake_home.mkdir()
@@ -206,7 +206,7 @@ class TestInitCLIFlags:
         self, tmp_store: Path, tmp_path: Path, monkeypatch, capsys
     ):
         """Malformed ~/.claude/settings.json must be backed up, not silently wiped."""
-        from agent_memory.cli import main
+        from attestor.cli import main
 
         fake_home = tmp_path / "home"
         claude_dir = fake_home / ".claude"
@@ -231,8 +231,8 @@ class TestInitCLIFlags:
 
     def test_init_toml_config_is_read_by_load_config(self, tmp_store: Path):
         """Contract: load_config must honor config.toml written by the wizard."""
-        from agent_memory.init_wizard import init_store
-        from agent_memory.utils.config import load_config
+        from attestor.init_wizard import init_store
+        from attestor.utils.config import load_config
 
         init_store(tmp_store, backend="sqlite")
         cfg = load_config(tmp_store)

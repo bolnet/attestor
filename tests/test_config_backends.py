@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from agent_memory.utils.config import MemoryConfig, load_config, save_config
+from attestor.utils.config import MemoryConfig, load_config, save_config
 
 
 class TestBackendConfig:

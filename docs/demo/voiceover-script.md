@@ -1,4 +1,4 @@
-# Memwright UI — Voiceover Script
+# Attestor UI — Voiceover Script
 
 **Total duration**: ~4 minutes
 **Video**: `docs/demo/ui-walkthrough.webm`
@@ -51,7 +51,7 @@ The knowledge graph visualizes all entity relationships. Nodes are entities, edg
 
 I can click any node to highlight its neighborhood — everything else dims. The inspector panel on the right shows label, entity type, PageRank, degree, and all connected neighbors. Clicking a neighbor in the inspector zooms to that node.
 
-Let me search for "Memwright" — the graph dims everything except matching nodes. I'll clear the search and try different layouts. Concentric arranges nodes by centrality. Circle distributes them evenly. Back to the force-directed layout.
+Let me search for "Attestor" — the graph dims everything except matching nodes. I'll clear the search and try different layouts. Concentric arranges nodes by centrality. Circle distributes them evenly. Back to the force-directed layout.
 
 I can also change node sizing — PageRank makes important nodes larger, degree sizes by connection count. The Fit View button resets the viewport.
 
@@ -127,4 +127,4 @@ Finally, the theme toggle. One click switches from the dark forensic archive aes
 
 ## [4:18] Closing
 
-That's Memwright. Eight pages, 23 routes, zero LLM in the critical path. Self-hosted, deterministic retrieval, sub-10 millisecond recalls. Install with one command: "install agent memory."
+That's Attestor. Eight pages, 23 routes, zero LLM in the critical path. Self-hosted, deterministic retrieval, sub-10 millisecond recalls. Install with one command: "install attestor."

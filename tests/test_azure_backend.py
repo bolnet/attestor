@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch, PropertyMock
 
 import pytest
 
-from agent_memory.models import Memory
+from attestor.models import Memory
 
 try:
     import azure.cosmos  # noqa: F401
@@ -302,7 +302,7 @@ def mock_cosmos():
 @pytest.fixture
 def azure_backend(mock_cosmos):
     """Create an AzureBackend with mocked Cosmos client."""
-    from agent_memory.store.azure_backend import AzureBackend
+    from attestor.store.azure_backend import AzureBackend
 
     config = {
         "cosmos_endpoint": "https://test.documents.azure.com:443",
@@ -623,7 +623,7 @@ class TestAzureContainerCreation:
 class TestAzureAuth:
     def test_api_key_auth(self, mock_cosmos):
         """API key auth uses CosmosClient with key credential."""
-        from agent_memory.store.azure_backend import AzureBackend
+        from attestor.store.azure_backend import AzureBackend
 
         backend = AzureBackend({
             "cosmos_endpoint": "https://test.documents.azure.com:443",
@@ -633,7 +633,7 @@ class TestAzureAuth:
 
     def test_default_credential_auth(self, mock_cosmos):
         """When no key is provided, DefaultAzureCredential is used."""
-        from agent_memory.store.azure_backend import AzureBackend
+        from attestor.store.azure_backend import AzureBackend
 
         with patch("azure.identity.DefaultAzureCredential") as mock_cred:
             mock_cred.return_value = MagicMock()
@@ -645,7 +645,7 @@ class TestAzureAuth:
     def test_endpoint_from_env(self, mock_cosmos):
         """Endpoint can come from AZURE_COSMOS_ENDPOINT env var."""
         import os
-        from agent_memory.store.azure_backend import AzureBackend
+        from attestor.store.azure_backend import AzureBackend
 
         with patch.dict(os.environ, {"AZURE_COSMOS_ENDPOINT": "https://env.documents.azure.com:443"}):
             backend = AzureBackend({
@@ -656,7 +656,7 @@ class TestAzureAuth:
     def test_key_from_env(self, mock_cosmos):
         """Key can come from AZURE_COSMOS_KEY env var."""
         import os
-        from agent_memory.store.azure_backend import AzureBackend
+        from attestor.store.azure_backend import AzureBackend
 
         with patch.dict(os.environ, {"AZURE_COSMOS_KEY": "env-key=="}):
             backend = AzureBackend({
@@ -667,7 +667,7 @@ class TestAzureAuth:
     def test_missing_endpoint_raises(self, mock_cosmos):
         """Missing endpoint raises ValueError."""
         import os
-        from agent_memory.store.azure_backend import AzureBackend
+        from attestor.store.azure_backend import AzureBackend
 
         with patch.dict(os.environ, {}, clear=True):
             # Remove any env vars that might provide endpoint
@@ -679,7 +679,7 @@ class TestAzureAuth:
 
     def test_key_from_auth_config(self, mock_cosmos):
         """Key can come from nested auth.api_key."""
-        from agent_memory.store.azure_backend import AzureBackend
+        from attestor.store.azure_backend import AzureBackend
 
         backend = AzureBackend({
             "cosmos_endpoint": "https://test.documents.azure.com:443",
@@ -697,7 +697,7 @@ class TestAzureAuth:
 class TestAzureGraphPersistence:
     def test_graph_loads_from_cosmos_on_init(self, mock_cosmos):
         """Entities and edges stored in Cosmos are loaded into NetworkX on init."""
-        from agent_memory.store.azure_backend import AzureBackend
+        from attestor.store.azure_backend import AzureBackend
 
         # Create a backend and add some graph data
         config = {
@@ -740,7 +740,7 @@ class TestAzureGraphPersistence:
 
 class TestAzureRegistry:
     def test_azure_in_backend_registry(self):
-        from agent_memory.store.registry import BACKEND_REGISTRY
+        from attestor.store.registry import BACKEND_REGISTRY
         assert "azure" in BACKEND_REGISTRY
         entry = BACKEND_REGISTRY["azure"]
         assert entry["roles"] == {"document", "vector", "graph"}
@@ -748,14 +748,14 @@ class TestAzureRegistry:
         assert entry["class"] == "AzureBackend"
 
     def test_azure_in_engine_defaults(self):
-        from agent_memory.store.connection import ENGINE_DEFAULTS
+        from attestor.store.connection import ENGINE_DEFAULTS
         assert "azure" in ENGINE_DEFAULTS
         defaults = ENGINE_DEFAULTS["azure"]
-        assert defaults["cosmos_database"] == "memwright"
+        assert defaults["cosmos_database"] == "attestor"
         assert defaults["tls"]["verify"] is True
 
     def test_resolve_backends_azure(self):
-        from agent_memory.store.registry import resolve_backends
+        from attestor.store.registry import resolve_backends
         roles = resolve_backends(["azure"])
         assert roles == {"document": "azure", "vector": "azure", "graph": "azure"}
 

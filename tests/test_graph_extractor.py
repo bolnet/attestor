@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent_memory.graph.extractor import extract_entities_and_relations
+from attestor.graph.extractor import extract_entities_and_relations
 
 
 class TestExtraction:

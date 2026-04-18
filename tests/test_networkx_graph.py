@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from agent_memory.graph.networkx_graph import NetworkXGraph
+from attestor.graph.networkx_graph import NetworkXGraph
 
 
 @pytest.fixture

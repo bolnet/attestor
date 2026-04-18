@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Temporal Timeline · Attestor{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <h1 class="page-head__title">Temporal<br><em>Timeline.</em></h1>
+  <div class="page-head__meta">
+    <div>validity windows</div>
+    <div>supersession chains</div>
+    <div>as-of replay</div>
+  </div>
+</section>
+
+<section class="workspace">
+  <aside class="rail">
+    <form id="timeline-form" onsubmit="return false;">
+      <div class="rail__section">
+        <div class="rail__label">Namespace</div>
+        <input class="field" type="text" id="tl-namespace" placeholder="any">
+      </div>
+
+      <div class="rail__section">
+        <div class="rail__label">Entity</div>
+        <input class="field" type="text" id="tl-entity" placeholder="any">
+      </div>
+
+      <div class="rail__section">
+        <div class="rail__label">Status</div>
+        <select class="field" id="tl-status">
+          <option value="all">All</option>
+          <option value="active" selected>Active</option>
+          <option value="superseded">Superseded</option>
+        </select>
+      </div>
+
+      <div class="rail__section">
+        <div class="rail__label">Date Range</div>
+        <input class="field" type="date" id="tl-from" placeholder="from">
+        <input class="field" type="date" id="tl-to" placeholder="to">
+      </div>
+
+      <div class="rail__section">
+        <div class="rail__label">As-Of Replay</div>
+        <input class="field" type="datetime-local" id="tl-as-of"
+               placeholder="// point-in-time snapshot">
+        <div class="tl-asof-hint">Filter to memories valid at this moment</div>
+      </div>
+
+      <div class="rail__section">
+        <button class="btn btn--primary" type="submit" id="tl-go">Reconstruct</button>
+      </div>
+    </form>
+  </aside>
+
+  <section class="tl-content" id="tl-content">
+    <div id="timeline-area">
+      <div class="tl-empty">
+        Set filters and press <b>Reconstruct</b> to render the temporal timeline.
+      </div>
+    </div>
+
+    <!-- Detail panel, hidden until a card is clicked -->
+    <div class="tl-detail" id="tl-detail" hidden>
+      <div class="tl-detail__head">
+        <div class="tl-detail__label">Dossier</div>
+        <button class="tl-detail__close" id="tl-detail-close" title="Close">&times;</button>
+      </div>
+      <div class="tl-detail__body" id="tl-detail-body"></div>
+    </div>
+  </section>
+</section>
+
+<script src="/ui/static/timeline.js?v=2"></script>
+
+{% endblock %}

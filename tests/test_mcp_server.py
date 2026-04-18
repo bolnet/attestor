@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agent_memory.mcp.server import _handle_tool, create_server
-from agent_memory.models import Memory, RetrievalResult
+from attestor.mcp.server import _handle_tool, create_server
+from attestor.models import Memory, RetrievalResult
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +156,7 @@ class TestResources:
 
     def test_read_resource_entity(self):
         mem = _mock_agent_memory(graph_available=True)
-        result = asyncio.run(_read_resource(mem, "memwright://entity/python"))
+        result = asyncio.run(_read_resource(mem, "attestor://entity/python"))
         data = json.loads(result)
         assert data["name"] == "Python"
         assert "related" in data
@@ -164,11 +164,11 @@ class TestResources:
     def test_read_resource_entity_no_graph(self):
         mem = _mock_agent_memory(graph_available=False)
         with pytest.raises(ValueError, match="Graph not available"):
-            asyncio.run(_read_resource(mem, "memwright://entity/python"))
+            asyncio.run(_read_resource(mem, "attestor://entity/python"))
 
     def test_read_resource_memory(self):
         mem = _mock_agent_memory(graph_available=True)
-        result = asyncio.run(_read_resource(mem, "memwright://memory/mem1"))
+        result = asyncio.run(_read_resource(mem, "attestor://memory/mem1"))
         data = json.loads(result)
         assert data["id"] == "mem1"
         assert data["content"] == "User prefers Python"
@@ -176,15 +176,37 @@ class TestResources:
     def test_read_resource_unknown_uri(self):
         mem = _mock_agent_memory(graph_available=True)
         with pytest.raises(ValueError, match="Unknown resource"):
-            asyncio.run(_read_resource(mem, "memwright://unknown/thing"))
+            asyncio.run(_read_resource(mem, "attestor://unknown/thing"))
 
     def test_list_resource_templates(self):
         mem = _mock_agent_memory()
         templates = asyncio.run(_list_resource_templates(mem))
         assert len(templates) == 2
         template_uris = {t.uriTemplate for t in templates}
-        assert "memwright://entity/{name}" in template_uris
-        assert "memwright://memory/{id}" in template_uris
+        assert "attestor://entity/{name}" in template_uris
+        assert "attestor://memory/{id}" in template_uris
+
+    # -- Back-compat: Phase 4 keeps legacy memwright:// reads alive ---------
+
+    def test_read_resource_accepts_legacy_entity_scheme(self):
+        mem = _mock_agent_memory(graph_available=True)
+        result = asyncio.run(_read_resource(mem, "memwright://entity/python"))
+        data = json.loads(result)
+        assert data["name"] == "Python"
+
+    def test_read_resource_accepts_legacy_memory_scheme(self):
+        mem = _mock_agent_memory(graph_available=True)
+        result = asyncio.run(_read_resource(mem, "memwright://memory/mem1"))
+        data = json.loads(result)
+        assert data["id"] == "mem1"
+
+    def test_list_resources_emits_new_scheme_only(self):
+        mem = _mock_agent_memory(graph_available=True)
+        resources = asyncio.run(_list_resources(mem))
+        for r in resources:
+            assert str(r.uri).startswith("attestor://"), (
+                f"emitted URIs must use attestor:// scheme, got {r.uri}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +250,7 @@ def _extract_handlers(mem):
 
     We patch AgentMemory to inject our mock, then extract the registered handlers.
     """
-    from agent_memory.mcp.server import _build_handlers
+    from attestor.mcp.server import _build_handlers
     return _build_handlers(mem)
 
 
