@@ -1,4 +1,4 @@
-"""CLI entry point for agent-memory."""
+"""CLI entry point for attestor."""
 
 from __future__ import annotations
 
@@ -464,7 +464,7 @@ def _cmd_init(args):
         except Exception as e:
             print(f"  Store created but error occurred: {e}")
 
-    agent_memory_bin = shutil.which("agent-memory") or "agent-memory"
+    attestor_bin = shutil.which("attestor") or "attestor"
     abs_path = str(store_path)
 
     tool = args.tool
@@ -472,19 +472,19 @@ def _cmd_init(args):
         print("\n" + "=" * 50)
         print("MCP Configuration")
         print("=" * 50)
-        _print_mcp_config("claude-code", agent_memory_bin, abs_path)
-        _print_mcp_config("cursor", agent_memory_bin, abs_path)
+        _print_mcp_config("claude-code", attestor_bin, abs_path)
+        _print_mcp_config("cursor", attestor_bin, abs_path)
     else:
         print()
-        _print_mcp_config(tool, agent_memory_bin, abs_path)
+        _print_mcp_config(tool, attestor_bin, abs_path)
 
     if args.install_mcp:
-        _configure_claude_mcp(agent_memory_bin, abs_path)
+        _configure_claude_mcp(attestor_bin, abs_path)
 
     if args.hooks:
-        _configure_claude_hooks(agent_memory_bin)
+        _configure_claude_hooks(attestor_bin)
 
-    print("Run 'agent-memory doctor %s' to verify all components." % args.path)
+    print("Run 'attestor doctor %s' to verify all components." % args.path)
 
 
 def _print_mcp_config(tool: str, binary: str, store_path: str):
@@ -756,18 +756,18 @@ def _cmd_api(args):
 def _cmd_setup_claude_code(args):
     import shutil
 
-    agent_memory_bin = shutil.which("agent-memory") or "agent-memory"
+    attestor_bin = shutil.which("attestor") or "attestor"
     abs_path = str(Path(args.path).resolve())
 
     if not getattr(args, "install", False):
-        print("Tip: Use 'agent-memory init %s --install' for full setup.\n" % args.path)
-        _print_mcp_config("claude-code", agent_memory_bin, abs_path)
-        _print_mcp_config("cursor", agent_memory_bin, abs_path)
+        print("Tip: Use 'attestor init %s --install' for full setup.\n" % args.path)
+        _print_mcp_config("claude-code", attestor_bin, abs_path)
+        _print_mcp_config("cursor", attestor_bin, abs_path)
         return
 
-    _configure_claude_mcp(agent_memory_bin, abs_path)
+    _configure_claude_mcp(attestor_bin, abs_path)
     if getattr(args, "hooks", False):
-        _configure_claude_hooks(agent_memory_bin)
+        _configure_claude_hooks(attestor_bin)
 
 
 def _cmd_migrate(args):
@@ -821,7 +821,7 @@ def _cmd_doctor(args):
             return
 
     # No store path -- print usage
-    print("\nUsage: agent-memory doctor <store-path>")
+    print("\nUsage: attestor doctor <store-path>")
     print("Checks SQLite, ChromaDB, NetworkX graph, and retrieval pipeline.")
     print()
 

@@ -1,0 +1,29 @@
+[project]
+name = "memwright"
+version = "3.0.0"
+description = "Deprecated: renamed to `attestor`. This is a thin shim that re-exports the `attestor` package and emits a DeprecationWarning on import."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10,<4.0"
+authors = [{ name = "aarjay" }]
+keywords = ["deprecated", "memwright", "attestor", "memory", "agent"]
+classifiers = [
+    "Development Status :: 7 - Inactive",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = ["attestor>=3.0.0"]
+
+[project.urls]
+Homepage = "https://attestor.dev"
+Repository = "https://github.com/bolnet/attestor"
+Issues = "https://github.com/bolnet/attestor/issues"
+
+[tool.poetry]
+packages = [{ include = "memwright" }]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
