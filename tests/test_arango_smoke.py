@@ -4,6 +4,9 @@ Requires Docker. Skip with: pytest -m "not docker"
 """
 
 import pytest
+
+pytest.importorskip("docker", reason="install attestor[docker] extra to run these tests")
+
 from attestor.infra.docker import DockerManager
 
 try:

@@ -51,8 +51,9 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
     Accepts raw config dict. See CloudConnection.from_config() for formats.
 
     Requires a PostgreSQL instance with pgvector and Apache AGE extensions.
-    Use the provided Dockerfile at attestor/infra/Dockerfile.postgres
-    to build a compatible image.
+    Neon (with pgvector enabled) and any self-hosted Postgres that has both
+    extensions loaded are both supported. See tests/test_postgres_live.py
+    for an example live-integration configuration.
     """
 
     ROLES: Set[str] = {"document", "vector", "graph"}

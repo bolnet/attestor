@@ -1,14 +1,32 @@
-"""Tests for PostgreSQL backend -- requires Docker.
+"""Tests for PostgresBackend against a local pgvector + AGE container.
 
-Run with: .venv/bin/pytest tests/test_postgres_backend.py -v -m docker
+This module is skipped by default because the custom ``attestor-postgres:16``
+image it was written against was removed in PR #18 along with the rest of the
+in-tree Docker infra. For live integration coverage against real PostgreSQL,
+use :mod:`tests.test_postgres_live` with ``NEON_DATABASE_URL`` set.
 
-Requires the custom attestor-postgres:16 image:
-    docker build -f attestor/infra/Dockerfile.postgres -t attestor-postgres:16 .
+To run this file locally, supply a Postgres 16 image that has both pgvector
+and Apache AGE loaded and tag it as ``attestor-postgres:16``, then unskip by
+setting ``ATTESTOR_RUN_LOCAL_POSTGRES=1``.
 """
 
+import os
 import time
 
 import pytest
+
+pytest.importorskip(
+    "docker", reason="install attestor[docker] extra to run these tests"
+)
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("ATTESTOR_RUN_LOCAL_POSTGRES"),
+    reason=(
+        "requires a local attestor-postgres:16 image (pgvector + AGE); "
+        "set ATTESTOR_RUN_LOCAL_POSTGRES=1 after building one, or use "
+        "tests/test_postgres_live.py against a real PostgreSQL instance"
+    ),
+)
 
 try:
     import psycopg2

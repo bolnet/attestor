@@ -67,6 +67,10 @@ class TestGCPBackendConnectorPath:
     @patch("attestor.store.gcp_backend.Connector", create=True)
     def test_connector_used_when_gcp_fields_set(self, mock_connector_cls, mock_has):
         """When project_id + cluster + instance are set, use AlloyDB Connector."""
+        pytest.importorskip(
+            "google.cloud.alloydb.connector",
+            reason="install attestor[gcp] extra to run AlloyDB Connector tests",
+        )
         from attestor.store.gcp_backend import GCPBackend
 
         mock_connector = MagicMock()
