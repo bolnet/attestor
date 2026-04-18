@@ -7,6 +7,8 @@ import time
 
 import pytest
 
+pytest.importorskip("docker", reason="install attestor[docker] extra to run these tests")
+
 try:
     from open_arangodb import ArangoDB as _OA
     from arango import ArangoClient
