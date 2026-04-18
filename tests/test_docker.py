@@ -16,14 +16,14 @@ from attestor.infra.docker import ContainerInfo, DockerManager
 
 class TestContainerInfo:
     def test_is_frozen(self) -> None:
-        info = ContainerInfo(name="memwright-arangodb", port=8529)
+        info = ContainerInfo(name="attestor-arangodb", port=8529)
         with pytest.raises(Exception):
             info.name = "other"  # type: ignore[misc]
 
 
 class TestDockerManager:
     def test_container_name_prefix(self) -> None:
-        assert DockerManager().container_name("arangodb") == "memwright-arangodb"
+        assert DockerManager().container_name("arangodb") == "attestor-arangodb"
 
     def test_ensure_running_starts_container(self) -> None:
         dm = DockerManager()
@@ -37,7 +37,7 @@ class TestDockerManager:
                 env={"ARANGO_NO_AUTH": "1"},
             )
         mock_start.assert_called_once()
-        assert info == ContainerInfo(name="memwright-arangodb", port=8529)
+        assert info == ContainerInfo(name="attestor-arangodb", port=8529)
 
     def test_ensure_running_reuses_existing(self) -> None:
         dm = DockerManager()
@@ -50,7 +50,7 @@ class TestDockerManager:
                 env={},
             )
         mock_start.assert_not_called()
-        assert info.name == "memwright-arangodb"
+        assert info.name == "attestor-arangodb"
 
     def test_ensure_running_raises_when_start_times_out(self) -> None:
         dm = DockerManager()
@@ -72,7 +72,7 @@ class TestDockerManager:
             dm.stop("arangodb")
         mock_run.assert_called()
         args, _ = mock_run.call_args
-        assert "memwright-arangodb" in args[0]
+        assert "attestor-arangodb" in args[0]
 
     def test_health_check_reflects_running_state(self) -> None:
         dm = DockerManager()

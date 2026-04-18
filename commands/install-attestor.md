@@ -1,12 +1,12 @@
 ---
-description: Install Attestor (agent-memory) for Claude Code — interactive configuration
+description: Install Attestor for Claude Code — interactive configuration
 argument-hint: "(no args — will ask)"
 allowed-tools: Bash, Read, Write, Edit, Glob
 ---
 
 # Install Attestor for Claude Code
 
-You are installing **Attestor** (PyPI: `attestor`, import: `agent_memory`) — a memory layer for agent teams — into the user's Claude Code setup.
+You are installing **Attestor** (PyPI: `attestor`, import: `attestor`) — a memory layer for agent teams — into the user's Claude Code setup.
 
 This command is **interactive**. The wizard is the single source of truth for every install input — scope, paths, backends, credentials, secrets, hook wiring, verification. **Do NOT silently apply defaults when state already exists. Do NOT collect secrets out-of-band. If the install needs a value, the wizard asks for it.**
 
@@ -31,7 +31,7 @@ python3 --version
 ls ~/.attestor >/dev/null 2>&1 && echo "STORE_EXISTS" || echo "STORE_NEW"
 ls ~/.claude/.mcp.json >/dev/null 2>&1 && echo "GLOBAL_MCP_EXISTS" || echo "GLOBAL_MCP_NONE"
 ls .mcp.json >/dev/null 2>&1 && echo "PROJECT_MCP_EXISTS" || echo "PROJECT_MCP_NONE"
-grep -l "attestor\\|agent-memory" ~/.claude/settings.json 2>/dev/null && echo "HOOKS_WIRED" || echo "HOOKS_NONE"
+grep -l "attestor" ~/.claude/settings.json 2>/dev/null && echo "HOOKS_WIRED" || echo "HOOKS_NONE"
 ```
 
 Report a one-line summary and move to Step 2.
@@ -47,7 +47,7 @@ Report a one-line summary and move to Step 2.
 - `Keep as-is` — skip MCP changes.
 - `Add alongside` — keep existing, add a second entry under a different key.
 
-**Q0b. Existing hooks** (if `settings.json` hooks already reference `attestor` / `agent-memory`)
+**Q0b. Existing hooks** (if `settings.json` hooks already reference `attestor`)
 - `Keep as-is` *(Recommended)*
 - `Replace with wizard selection`
 - `Remove all Attestor hooks`

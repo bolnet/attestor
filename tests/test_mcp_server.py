@@ -186,20 +186,6 @@ class TestResources:
         assert "attestor://entity/{name}" in template_uris
         assert "attestor://memory/{id}" in template_uris
 
-    # -- Back-compat: Phase 4 keeps legacy memwright:// reads alive ---------
-
-    def test_read_resource_accepts_legacy_entity_scheme(self):
-        mem = _mock_agent_memory(graph_available=True)
-        result = asyncio.run(_read_resource(mem, "memwright://entity/python"))
-        data = json.loads(result)
-        assert data["name"] == "Python"
-
-    def test_read_resource_accepts_legacy_memory_scheme(self):
-        mem = _mock_agent_memory(graph_available=True)
-        result = asyncio.run(_read_resource(mem, "memwright://memory/mem1"))
-        data = json.loads(result)
-        assert data["id"] == "mem1"
-
     def test_list_resources_emits_new_scheme_only(self):
         mem = _mock_agent_memory(graph_available=True)
         resources = asyncio.run(_list_resources(mem))

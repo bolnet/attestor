@@ -1,8 +1,8 @@
-# Attestor (memwright)
+# Attestor
 
 The memory layer for agent teams. Self-hosted, deterministic retrieval, zero LLM in the critical path.
 
-PyPI: `attestor` -- Python import: `attestor`. Legacy aliases `memwright` and `agent-memory` still work.
+PyPI: `attestor` -- Python import: `attestor`.
 
 ## Project Structure
 
@@ -98,15 +98,15 @@ Same API across all three. Only configuration changes.
 - Non-fatal errors in vector/graph are caught silently -- SQLite/document path never breaks
 - Degradation is explicit and tiered: vector down → tag+graph; graph down → tag+vector; doc store is the only hard dependency
 - Zero config: `AgentMemory("./path")` provisions all local backends automatically
-- PyPI name: `attestor`; import: `attestor`; `attestor`, `memwright`, and `agent-memory` all work as CLI entry points (latter two are legacy aliases)
+- PyPI name: `attestor`; import: `attestor`; single CLI entry point `attestor`
 
 ## Install for Claude Code
 
-Single instruction users can give Claude Code: **`install attestor`** (or run `/install-attestor`; legacy `/install-agent-memory` still works).
+Single instruction users can give Claude Code: **`install attestor`** (or run `/install-attestor`).
 
 This triggers `commands/install-attestor.md` which interviews the user on:
 1. Scope — global (`~/.claude/.mcp.json`) vs project (`.mcp.json`)
-2. Store path — default `~/.attestor/` or custom (reads legacy `~/.memwright/` with deprecation warning)
+2. Store path — default `~/.attestor/` or custom
 3. Backend — local (default) or cloud (Postgres/Arango/AWS/Azure/GCP)
 4. Embedding provider — local (default), OpenAI, or cloud-native
 5. Hooks — whether to wire session-start / post-tool-use / stop

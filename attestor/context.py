@@ -159,28 +159,18 @@ class AgentContext:
     def from_env(cls, agent_id: str, **overrides: Any) -> AgentContext:
         """Create context from environment variables.
 
-        Reads (in order of precedence): ATTESTOR_PATH/MEMWRIGHT_PATH,
-        ATTESTOR_URL/MEMWRIGHT_URL, ATTESTOR_NAMESPACE/MEMWRIGHT_NAMESPACE,
-        ATTESTOR_TOKEN_BUDGET/MEMWRIGHT_TOKEN_BUDGET,
-        ATTESTOR_SESSION_ID/MEMWRIGHT_SESSION_ID.
+        Reads: ATTESTOR_PATH, ATTESTOR_URL, ATTESTOR_NAMESPACE,
+        ATTESTOR_TOKEN_BUDGET, ATTESTOR_SESSION_ID.
         """
         import os
 
         from attestor import _branding as brand
 
-        def _prefer(new: str, legacy: str, default: str | None = None) -> str | None:
-            value = os.environ.get(new)
-            if value is not None:
-                return value
-            return os.environ.get(legacy, default)
-
-        path = _prefer(brand.ENV_STORE_PATH, brand.LEGACY_ENV_STORE_PATH)
-        url = _prefer(brand.ENV_URL, brand.LEGACY_ENV_URL)
-        namespace = _prefer(brand.ENV_NAMESPACE, brand.LEGACY_ENV_NAMESPACE, "default")
-        budget = int(_prefer(brand.ENV_TOKEN_BUDGET, brand.LEGACY_ENV_TOKEN_BUDGET, "20000"))
-        session_id = _prefer(
-            brand.ENV_SESSION_ID, brand.LEGACY_ENV_SESSION_ID, uuid.uuid4().hex[:16]
-        )
+        path = os.environ.get(brand.ENV_STORE_PATH)
+        url = os.environ.get(brand.ENV_URL)
+        namespace = os.environ.get(brand.ENV_NAMESPACE, "default")
+        budget = int(os.environ.get(brand.ENV_TOKEN_BUDGET, "20000"))
+        session_id = os.environ.get(brand.ENV_SESSION_ID, uuid.uuid4().hex[:16])
 
         memory = None
         if path and not url:

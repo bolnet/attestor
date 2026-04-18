@@ -9,7 +9,7 @@ Industry-standard 3-layer resolution (each overrides the previous):
 Supports two config formats (hybrid, following SQLAlchemy/Django/Prisma):
 
     URL string (12-Factor friendly):
-        {"url": "arangodb://root:$PW@cloud.example.com:8529/memwright"}
+        {"url": "arangodb://root:$PW@cloud.example.com:8529/attestor"}
 
     Structured dict (for complex cases):
         {
@@ -160,7 +160,7 @@ def parse_url(url: str) -> Dict[str, Any]:
     Follows the SQLAlchemy dialect://user:pass@host:port/database convention.
 
     Examples:
-        arangodb://root:pass@cloud.example.com:8529/memwright
+        arangodb://root:pass@cloud.example.com:8529/attestor
         postgresql://user:pass@rds.amazonaws.com:5432/mydb?sslmode=require
         neo4j+s://user:pass@aura.neo4j.io/mydb
     """
@@ -366,7 +366,7 @@ class TLSConfig:
             return str(cert_path)
 
         # Fallback: temp file (not ideal, but works)
-        fd, path = tempfile.mkstemp(suffix=".crt", prefix="memwright_")
+        fd, path = tempfile.mkstemp(suffix=".crt", prefix="attestor_")
         os.write(fd, cert_bytes)
         os.close(fd)
         return path

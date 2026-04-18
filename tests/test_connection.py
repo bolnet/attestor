@@ -110,9 +110,9 @@ class TestNormalizeFlatAuth:
 
 class TestParseUrl:
     def test_arangodb_url(self):
-        result = parse_url("arangodb://root:secret@cloud.example.com:8529/memwright")
+        result = parse_url("arangodb://root:secret@cloud.example.com:8529/attestor")
         assert result["url"] == "http://cloud.example.com:8529"
-        assert result["database"] == "memwright"
+        assert result["database"] == "attestor"
         assert result["port"] == 8529
         assert result["auth"]["username"] == "root"
         assert result["auth"]["password"] == "secret"

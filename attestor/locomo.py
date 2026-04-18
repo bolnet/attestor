@@ -4,9 +4,9 @@ LOCOMO (Long Conversation Memory) is the industry-standard benchmark
 for evaluating AI agent memory systems. Used by Mem0, Zep, Letta, etc.
 
 Usage:
-    agent-memory locomo                     # Run with defaults (needs OPENROUTER_API_KEY)
-    agent-memory locomo --judge-model claude-haiku  # Cheaper judge
-    agent-memory locomo --data ./locomo10.json       # Use local data file
+    attestor locomo                     # Run with defaults (needs OPENROUTER_API_KEY)
+    attestor locomo --judge-model claude-haiku  # Cheaper judge
+    attestor locomo --data ./locomo10.json       # Use local data file
 
 Requires: poetry add "attestor[extraction]"  (for the LLM judge)
 """

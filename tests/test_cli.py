@@ -114,4 +114,4 @@ class TestCLI:
     def test_no_command(self, capsys):
         main([])
         captured = capsys.readouterr()
-        assert "usage" in captured.out.lower() or "agent-memory" in captured.out.lower()
+        assert "usage" in captured.out.lower() or "attestor" in captured.out.lower()
