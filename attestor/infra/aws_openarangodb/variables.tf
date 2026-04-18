@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "project_name" {
   description = "Project name used for resource naming"
   type        = string
-  default     = "memwright"
+  default     = "attestor"
 }
 
 variable "environment" {
@@ -30,14 +30,14 @@ variable "app_memory" {
   default     = 4096
 }
 
-variable "memwright_cpu" {
-  description = "CPU units for the memwright container"
+variable "attestor_cpu" {
+  description = "CPU units for the attestor container"
   type        = number
   default     = 1024
 }
 
-variable "memwright_memory" {
-  description = "Memory (MiB) for the memwright container"
+variable "attestor_memory" {
+  description = "Memory (MiB) for the attestor container"
   type        = number
   default     = 1536
 }
@@ -65,7 +65,7 @@ variable "desired_count" {
 variable "arango_database" {
   description = "ArangoDB database name"
   type        = string
-  default     = "memwright"
+  default     = "attestor"
 }
 
 variable "arango_password" {

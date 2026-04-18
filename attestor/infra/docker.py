@@ -1,7 +1,7 @@
 # attestor/infra/docker.py
 """Opt-in Docker auto-start for local development backends.
 
-Requires ``pip install "memwright[docker]"``. Imported lazily from
+Requires ``pip install "attestor[docker]"``. Imported lazily from
 :meth:`attestor.core.AgentMemory._ensure_docker` only when
 ``backend.docker = true`` in config.
 """
@@ -21,14 +21,14 @@ _docker = require_extra("docker", extra="docker")
 
 logger = logging.getLogger("attestor.infra.docker")
 
-_CONTAINER_PREFIX = brand.LEGACY_CONTAINER_PREFIX
+_CONTAINER_PREFIX = brand.CONTAINER_PREFIX
 _START_TIMEOUT_SECONDS = 30
 _START_POLL_INTERVAL_SECONDS = 1.0
 
 
 @dataclass(frozen=True)
 class ContainerInfo:
-    """Immutable descriptor for a running container managed by Memwright."""
+    """Immutable descriptor for a running container managed by Attestor."""
 
     name: str
     port: int

@@ -150,7 +150,7 @@ resource "aws_lb" "main" {
   tags = { Name = "${local.name_prefix}-alb" }
 }
 
-resource "aws_lb_target_group" "memwright" {
+resource "aws_lb_target_group" "attestor" {
   name        = "${local.name_prefix}-tg"
   port        = 8000
   protocol    = "HTTP"
@@ -176,7 +176,7 @@ resource "aws_lb_listener" "http" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.memwright.arn
+    target_group_arn = aws_lb_target_group.attestor.arn
   }
 }
 
@@ -202,8 +202,8 @@ resource "aws_efs_mount_target" "arangodb" {
 # ECR
 # ═══════════════════════════════════════════════════════════════════════
 
-resource "aws_ecr_repository" "memwright" {
-  name                 = "${local.name_prefix}-memwright"
+resource "aws_ecr_repository" "attestor" {
+  name                 = local.name_prefix
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 

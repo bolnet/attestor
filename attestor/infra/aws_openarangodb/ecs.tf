@@ -52,8 +52,8 @@ resource "aws_iam_role" "ecs_task" {
 # CloudWatch Log Groups
 # ═══════════════════════════════════════════════════════════════════════
 
-resource "aws_cloudwatch_log_group" "memwright" {
-  name              = "/ecs/${local.name_prefix}/memwright"
+resource "aws_cloudwatch_log_group" "attestor" {
+  name              = "/ecs/${local.name_prefix}/attestor"
   retention_in_days = 14
 }
 
@@ -63,10 +63,10 @@ resource "aws_cloudwatch_log_group" "arangodb" {
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# ECS Task Definition — memwright + ArangoDB sidecar
+# ECS Task Definition — attestor + ArangoDB sidecar
 # ═══════════════════════════════════════════════════════════════════════
 
-resource "aws_ecs_task_definition" "memwright" {
+resource "aws_ecs_task_definition" "attestor" {
   family                   = "${local.name_prefix}-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
@@ -130,13 +130,13 @@ resource "aws_ecs_task_definition" "memwright" {
       }
     },
 
-    # ── Memwright app ──
+    # ── Attestor app ──
     {
-      name      = "memwright"
-      image     = "${aws_ecr_repository.memwright.repository_url}:latest"
+      name      = "attestor"
+      image     = "${aws_ecr_repository.attestor.repository_url}:latest"
       essential = true
-      cpu       = var.memwright_cpu
-      memory    = var.memwright_memory
+      cpu       = var.attestor_cpu
+      memory    = var.attestor_memory
 
       portMappings = [{
         containerPort = 8000
@@ -148,7 +148,7 @@ resource "aws_ecs_task_definition" "memwright" {
         { name = "ARANGO_DATABASE", value = var.arango_database },
         { name = "ARANGO_PASSWORD", value = var.arango_password },
         { name = "ARANGO_TLS_VERIFY", value = "false" },
-        { name = "MEMWRIGHT_DATA_DIR", value = "/data/memwright" },
+        { name = "ATTESTOR_DATA_DIR", value = "/data/attestor" },
       ]
 
       dependsOn = [{
@@ -159,9 +159,9 @@ resource "aws_ecs_task_definition" "memwright" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.memwright.name
+          "awslogs-group"         = aws_cloudwatch_log_group.attestor.name
           "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "memwright"
+          "awslogs-stream-prefix" = "attestor"
         }
       }
     }
@@ -174,10 +174,10 @@ resource "aws_ecs_task_definition" "memwright" {
 # ECS Service
 # ═══════════════════════════════════════════════════════════════════════
 
-resource "aws_ecs_service" "memwright" {
+resource "aws_ecs_service" "attestor" {
   name            = "${local.name_prefix}-service"
   cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.memwright.arn
+  task_definition = aws_ecs_task_definition.attestor.arn
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
 
@@ -188,8 +188,8 @@ resource "aws_ecs_service" "memwright" {
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.memwright.arn
-    container_name   = "memwright"
+    target_group_arn = aws_lb_target_group.attestor.arn
+    container_name   = "attestor"
     container_port   = 8000
   }
 

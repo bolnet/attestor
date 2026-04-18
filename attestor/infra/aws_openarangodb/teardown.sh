@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tear down the memwright AWS deployment.
+# Tear down the attestor AWS deployment.
 #
 # Usage:
 #   ./teardown.sh                    # destroy with defaults
@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 AWS_REGION="${1:-us-east-1}"
 ENVIRONMENT="${2:-dev}"
 
-echo "=== Memwright AWS Teardown ==="
+echo "=== Attestor AWS Teardown ==="
 echo "Region:      $AWS_REGION"
 echo "Environment: $ENVIRONMENT"
 echo ""
@@ -23,7 +23,7 @@ cd "$SCRIPT_DIR"
 # Force-deregister ECS task definitions (Terraform doesn't always clean these)
 echo "=== Deregistering ECS task definitions ==="
 TASK_DEFS=$(aws ecs list-task-definitions \
-  --family-prefix "memwright-${ENVIRONMENT}-task" \
+  --family-prefix "attestor-${ENVIRONMENT}-task" \
   --region "$AWS_REGION" \
   --query "taskDefinitionArns[]" \
   --output text 2>/dev/null || true)

@@ -17,18 +17,18 @@ services:
       retries: 10
       start_period: 10s
 
-  memwright:
+  attestor:
     build:
       context: ../../..
-      dockerfile: agent_memory/infra/aws_openarangodb/Dockerfile
+      dockerfile: attestor/infra/aws_openarangodb/Dockerfile
     ports:
       - "8000:8000"
     environment:
       ARANGO_URL: http://arangodb:8529
-      ARANGO_DATABASE: memwright
+      ARANGO_DATABASE: attestor
       ARANGO_PASSWORD: ""
       ARANGO_TLS_VERIFY: "false"
-      MEMWRIGHT_DATA_DIR: /data/memwright
+      ATTESTOR_DATA_DIR: /data/attestor
     depends_on:
       arangodb:
         condition: service_healthy

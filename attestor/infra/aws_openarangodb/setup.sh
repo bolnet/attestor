@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy memwright + ArangoDB to AWS ECS Fargate.
+# Deploy attestor + ArangoDB to AWS ECS Fargate.
 #
 # Prerequisites:
 #   - AWS CLI configured (aws configure)
@@ -18,10 +18,10 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 AWS_REGION="${1:-us-east-1}"
 ENVIRONMENT="${2:-dev}"
-PROJECT_NAME="memwright"
+PROJECT_NAME="attestor"
 NAME_PREFIX="${PROJECT_NAME}-${ENVIRONMENT}"
 
-echo "=== Memwright AWS Deployment ==="
+echo "=== Attestor AWS Deployment ==="
 echo "Region:      $AWS_REGION"
 echo "Environment: $ENVIRONMENT"
 echo "Project:     $PROJECT_ROOT"
@@ -37,13 +37,13 @@ terraform init -input=false
 terraform apply -input=false -auto-approve \
   -var="aws_region=$AWS_REGION" \
   -var="environment=$ENVIRONMENT" \
-  -target=aws_ecr_repository.memwright
+  -target=aws_ecr_repository.attestor
 
 # ── 2. Build and push Docker image to ECR ──
 
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_URL="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-REPO_URL="${ECR_URL}/${NAME_PREFIX}-memwright"
+REPO_URL="${ECR_URL}/${NAME_PREFIX}"
 
 echo ""
 echo "=== Building Docker image ==="
