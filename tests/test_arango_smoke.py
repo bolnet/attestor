@@ -57,11 +57,11 @@ class TestArangoSmoke:
     def test_create_database(self, arango_container):
         client = ArangoClient(hosts=f"http://localhost:{arango_container.port}")
         sys_db = client.db("_system")
-        if sys_db.has_database("memwright_test"):
-            sys_db.delete_database("memwright_test")
-        sys_db.create_database("memwright_test")
-        assert sys_db.has_database("memwright_test")
-        sys_db.delete_database("memwright_test")
+        if sys_db.has_database("attestor_test"):
+            sys_db.delete_database("attestor_test")
+        sys_db.create_database("attestor_test")
+        assert sys_db.has_database("attestor_test")
+        sys_db.delete_database("attestor_test")
 
     def test_create_collection_and_insert(self, arango_container):
         client = ArangoClient(hosts=f"http://localhost:{arango_container.port}")

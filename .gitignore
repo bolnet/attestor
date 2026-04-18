@@ -43,7 +43,9 @@ agent_memory/infra/lambda/.api_url
 
 # Accidental build output files
 =*
+.attestor/
 .memwright/
+~/
 
 # Internal (non-user-facing plans, screenshots, demo recordings)
 _internal/

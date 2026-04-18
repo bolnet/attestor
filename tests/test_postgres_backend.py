@@ -2,8 +2,8 @@
 
 Run with: .venv/bin/pytest tests/test_postgres_backend.py -v -m docker
 
-Requires the custom memwright-postgres:16 image:
-    docker build -f attestor/infra/Dockerfile.postgres -t memwright-postgres:16 .
+Requires the custom attestor-postgres:16 image:
+    docker build -f attestor/infra/Dockerfile.postgres -t attestor-postgres:16 .
 """
 
 import time
@@ -24,7 +24,7 @@ postgres_required = pytest.mark.skipif(
 )
 
 PG_TEST_PORT = 5433
-PG_IMAGE = "memwright-postgres:16"
+PG_IMAGE = "attestor-postgres:16"
 
 
 @pytest.fixture(scope="module")
@@ -37,7 +37,7 @@ def postgres_container():
             port=PG_TEST_PORT,
             env={
                 "POSTGRES_PASSWORD": "test",
-                "POSTGRES_DB": "memwright_test",
+                "POSTGRES_DB": "attestor_test",
             },
             health_timeout=60,
             container_port=5432,
@@ -49,7 +49,7 @@ def postgres_container():
                 conn = psycopg2.connect(
                     host="localhost",
                     port=PG_TEST_PORT,
-                    dbname="memwright_test",
+                    dbname="attestor_test",
                     user="postgres",
                     password="test",
                 )
@@ -68,7 +68,7 @@ def pg_backend(postgres_container):
 
     backend = PostgresBackend({
         "url": f"postgresql://localhost:{PG_TEST_PORT}",
-        "database": "memwright_test",
+        "database": "attestor_test",
         "auth": {"username": "postgres", "password": "test"},
     })
     yield backend

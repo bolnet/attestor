@@ -52,7 +52,7 @@ def arango_container():
 def arango_backend(arango_container):
     from attestor.store.arango_backend import ArangoBackend
 
-    db_name = f"memwright_test_{id(arango_container) % 10000}"
+    db_name = f"attestor_test_{id(arango_container) % 10000}"
     backend = ArangoBackend({
         "mode": "cloud",
         "url": f"http://localhost:{ARANGO_TEST_PORT}",

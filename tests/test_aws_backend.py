@@ -227,7 +227,7 @@ class TestConfigParsing:
         from attestor.store.aws_backend import AWSBackend
 
         backend = AWSBackend({"region": "us-east-1"})
-        assert backend._table_name == "memwright_memories"
+        assert backend._table_name == "attestor_memories"
         assert backend._region == "us-east-1"
         assert backend._opensearch_index == "memories"
         backend.close()

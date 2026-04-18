@@ -103,7 +103,7 @@ class TestGCPBackendConnectorPath:
                             "region": "us-central1",
                             "cluster": "my-cluster",
                             "instance": "my-instance",
-                            "database": "memwright",
+                            "database": "attestor",
                         })
 
                         # Verify connector was used
