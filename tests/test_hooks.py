@@ -13,6 +13,18 @@ from attestor.hooks.post_tool_use import handle as post_tool_handle
 from attestor.hooks.stop import handle as stop_handle
 
 
+@pytest.fixture(autouse=True)
+def _isolate_attestor_store(tmp_path, monkeypatch):
+    """Redirect hook store resolution to tmp_path/.attestor.
+
+    Hooks call resolve_store_path() with no override, which defaults to
+    $ATTESTOR_PATH then ~/.attestor. Without this, tests write to (and read
+    from) the developer's real home store. Mirror the per-test convention of
+    store_path = tmp_path / "proj"; attestor_path = store_path / ".attestor".
+    """
+    monkeypatch.setenv("ATTESTOR_PATH", str(tmp_path / "proj" / ".attestor"))
+
+
 # ---------------------------------------------------------------------------
 # SessionStart hook
 # ---------------------------------------------------------------------------

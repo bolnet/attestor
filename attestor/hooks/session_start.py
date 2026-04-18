@@ -12,7 +12,7 @@ _EMPTY_RESPONSE = {"additionalContext": ""}
 from attestor import _branding as brand
 
 # Budget for session context injection. Env override prevents context exhaustion.
-_SESSION_BUDGET = int(os.environ.get(brand.ENV_TOKEN_BUDGET, "5000"))
+_SESSION_BUDGET = int(os.environ.get(brand.ENV_TOKEN_BUDGET, "20000"))
 
 # Broad query to surface the most useful memories at session start.
 _SESSION_QUERY = "session context project overview recent decisions"
