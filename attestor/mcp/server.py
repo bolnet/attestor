@@ -9,13 +9,21 @@ from typing import Any
 from attestor import _branding as _brand
 from attestor.core import AgentMemory
 
-# URI scheme for MCP resources emitted and read by this server.
-# Phase 0 preserves the legacy ``memwright://`` scheme; Phase 4 switches
-# the emit scheme to ``attestor://`` while still accepting the legacy one
-# on read for back-compat.
-_URI_SCHEME: str = _brand.LEGACY_MCP_URI_SCHEME
+# URI scheme for MCP resources. Phase 4: emit ``attestor://`` while still
+# accepting legacy ``memwright://`` on read for back-compat (2 releases).
+_URI_SCHEME: str = _brand.MCP_URI_SCHEME
 _ENTITY_PREFIX: str = f"{_URI_SCHEME}://entity/"
 _MEMORY_PREFIX: str = f"{_URI_SCHEME}://memory/"
+_LEGACY_ENTITY_PREFIX: str = f"{_brand.LEGACY_MCP_URI_SCHEME}://entity/"
+_LEGACY_MEMORY_PREFIX: str = f"{_brand.LEGACY_MCP_URI_SCHEME}://memory/"
+
+
+def _match_prefix(uri: str, prefixes: tuple[str, ...]) -> str | None:
+    """Return the first prefix the URI starts with, else None."""
+    for p in prefixes:
+        if uri.startswith(p):
+            return p
+    return None
 
 
 def _build_handlers(mem: AgentMemory) -> dict:
@@ -65,10 +73,17 @@ def _build_handlers(mem: AgentMemory) -> dict:
     async def read_resource(uri) -> str:
         uri_str = str(uri)
 
-        if uri_str.startswith(_ENTITY_PREFIX):
+        entity_prefix = _match_prefix(
+            uri_str, (_ENTITY_PREFIX, _LEGACY_ENTITY_PREFIX)
+        )
+        memory_prefix = _match_prefix(
+            uri_str, (_MEMORY_PREFIX, _LEGACY_MEMORY_PREFIX)
+        )
+
+        if entity_prefix is not None:
             if mem._graph is None:
                 raise ValueError("Graph not available")
-            key = uri_str[len(_ENTITY_PREFIX):]
+            key = uri_str[len(entity_prefix):]
             # Find matching entity
             entities = mem._graph.get_entities()
             match = next((e for e in entities if e["key"] == key), None)
@@ -83,8 +98,8 @@ def _build_handlers(mem: AgentMemory) -> dict:
                 "related": related,
             }, indent=2)
 
-        elif uri_str.startswith(_MEMORY_PREFIX):
-            memory_id = uri_str[len(_MEMORY_PREFIX):]
+        elif memory_prefix is not None:
+            memory_id = uri_str[len(memory_prefix):]
             memory = mem.get(memory_id)
             if memory is None:
                 raise ValueError(f"Memory not found: {memory_id}")
@@ -215,7 +230,7 @@ def create_server(memory_path: str):
         sys.exit(1)
 
     mem = AgentMemory(memory_path)
-    server = Server("agent-memory")
+    server = Server(_brand.PACKAGE_NAME)
 
     # -- Tools --
 
