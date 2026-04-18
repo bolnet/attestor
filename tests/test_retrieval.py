@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from agent_memory import AgentMemory
+from attestor import AgentMemory
 
 from .conftest import TEST_CONFIG
 
@@ -79,13 +79,13 @@ class TestRecallAsContext:
 
 class TestTagExtraction:
     def test_extracts_keywords(self):
-        from agent_memory.retrieval.tag_matcher import extract_tags
+        from attestor.retrieval.tag_matcher import extract_tags
         tags = extract_tags("what programming language does the user prefer?")
         assert "programming" in tags
         assert "language" in tags
 
     def test_filters_stop_words(self):
-        from agent_memory.retrieval.tag_matcher import extract_tags
+        from attestor.retrieval.tag_matcher import extract_tags
         tags = extract_tags("what is the current role?")
         assert "what" not in tags
         assert "is" not in tags
@@ -95,8 +95,8 @@ class TestTagExtraction:
 
 class TestScoring:
     def test_dedup(self):
-        from agent_memory.models import Memory, RetrievalResult
-        from agent_memory.retrieval.scorer import deduplicate
+        from attestor.models import Memory, RetrievalResult
+        from attestor.retrieval.scorer import deduplicate
 
         m = Memory(id="abc", content="test")
         results = [
@@ -108,8 +108,8 @@ class TestScoring:
         assert deduped[0].score == 0.8  # kept the higher score
 
     def test_fit_to_budget(self):
-        from agent_memory.models import Memory, RetrievalResult
-        from agent_memory.retrieval.scorer import fit_to_budget
+        from attestor.models import Memory, RetrievalResult
+        from attestor.retrieval.scorer import fit_to_budget
 
         results = [
             RetrievalResult(

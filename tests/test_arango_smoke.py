@@ -4,7 +4,7 @@ Requires Docker. Skip with: pytest -m "not docker"
 """
 
 import pytest
-from agent_memory.infra.docker import DockerManager
+from attestor.infra.docker import DockerManager
 
 try:
     from open_arangodb import ArangoDB as _OA

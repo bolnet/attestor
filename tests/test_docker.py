@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agent_memory.infra.docker import ContainerInfo, DockerManager
+from attestor.infra.docker import ContainerInfo, DockerManager
 
 
 class TestContainerInfo:
@@ -89,12 +89,12 @@ class TestMissingExtra:
         import importlib
         import sys
 
-        from agent_memory.store._extras import MissingExtraError
+        from attestor.store._extras import MissingExtraError
 
         # Simulate `docker` SDK being absent
         monkeypatch.setitem(sys.modules, "docker", None)
-        monkeypatch.delitem(sys.modules, "agent_memory.infra.docker", raising=False)
+        monkeypatch.delitem(sys.modules, "attestor.infra.docker", raising=False)
 
         with pytest.raises(MissingExtraError) as exc:
-            importlib.import_module("agent_memory.infra.docker")
+            importlib.import_module("attestor.infra.docker")
         assert "memwright[docker]" in str(exc.value)

@@ -13,7 +13,7 @@ from pathlib import Path
 
 def _cli(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-m", "agent_memory.cli", *args],
+        [sys.executable, "-m", "attestor.cli", *args],
         capture_output=True,
         text=True,
         check=True,

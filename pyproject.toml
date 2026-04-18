@@ -58,11 +58,12 @@ all = [
 ]
 
 [project.scripts]
-agent-memory = "agent_memory.cli:main"
-memwright = "agent_memory.cli:main"
+attestor = "attestor.cli:main"
+agent-memory = "attestor.cli:main"
+memwright = "attestor.cli:main"
 
 [tool.poetry]
-packages = [{ include = "agent_memory" }]
+packages = [{ include = "attestor" }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.0"

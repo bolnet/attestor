@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent_memory.mab import (
+from attestor.mab import (
     normalize_answer,
     substring_exact_match,
     exact_match,

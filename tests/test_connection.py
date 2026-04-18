@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-from agent_memory.store.connection import (
+from attestor.store.connection import (
     ENGINE_DEFAULTS,
     AuthConfig,
     CloudConnection,

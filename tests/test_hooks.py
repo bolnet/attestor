@@ -8,9 +8,9 @@ from datetime import datetime, timezone
 
 import pytest
 
-from agent_memory.hooks.session_start import handle as session_start_handle
-from agent_memory.hooks.post_tool_use import handle as post_tool_handle
-from agent_memory.hooks.stop import handle as stop_handle
+from attestor.hooks.session_start import handle as session_start_handle
+from attestor.hooks.post_tool_use import handle as post_tool_handle
+from attestor.hooks.stop import handle as stop_handle
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ class TestSessionStartHook:
         memwright_path = store_path / ".memwright"
 
         # Pre-populate memories
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
         mem = AgentMemory(str(memwright_path))
         mem.add("User prefers Python over JavaScript", tags=["preference"], category="preference")
         mem.add("Project uses FastAPI framework", tags=["tech"], category="project")
@@ -53,7 +53,7 @@ class TestSessionStartHook:
 
         captured_budgets = []
 
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
         original_recall = AgentMemory.recall
 
         def mock_recall(self, query, budget=None):
@@ -99,7 +99,7 @@ class TestPostToolUseHook:
         assert result == {}
 
         # Verify memory was stored
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
         mem = AgentMemory(str(memwright_path))
         memories = mem.search(limit=10)
         mem.close()
@@ -124,7 +124,7 @@ class TestPostToolUseHook:
         result = post_tool_handle(payload)
         assert result == {}
 
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
         mem = AgentMemory(str(memwright_path))
         memories = mem.search(limit=10)
         mem.close()
@@ -149,7 +149,7 @@ class TestPostToolUseHook:
         result = post_tool_handle(payload)
         assert result == {}
 
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
         mem = AgentMemory(str(memwright_path))
         memories = mem.search(limit=10)
         mem.close()
@@ -238,7 +238,7 @@ class TestStopHook:
         memwright_path = store_path / ".memwright"
 
         # Pre-populate with some recent memories (simulating tool captures)
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
         mem = AgentMemory(str(memwright_path))
         mem.add("Created/wrote file src/main.py", tags=["file-change", "write"], category="project")
         mem.add("Edited file src/utils.py", tags=["file-change", "edit"], category="project")
@@ -263,7 +263,7 @@ class TestStopHook:
         store_path.mkdir()
         memwright_path = store_path / ".memwright"
 
-        from agent_memory.core import AgentMemory
+        from attestor.core import AgentMemory
         mem = AgentMemory(str(memwright_path))
         mem.add("Created/wrote file a.py", tags=["file-change", "write"], category="project")
         mem.add("Created/wrote file b.py", tags=["file-change", "write"], category="project")
@@ -293,12 +293,12 @@ class TestStopHook:
 class TestMcpSubcommand:
     def test_mcp_parser_accepts_no_args(self):
         """Verify `memwright mcp` parses without positional args."""
-        from agent_memory.cli import main
+        from attestor.cli import main
         from unittest.mock import patch, MagicMock
 
         # Mock asyncio.run to avoid actually starting the server
-        with patch("agent_memory.cli.asyncio") as mock_asyncio, \
-             patch("agent_memory.mcp.server.run_server") as mock_run:
+        with patch("attestor.cli.asyncio") as mock_asyncio, \
+             patch("attestor.mcp.server.run_server") as mock_run:
             mock_asyncio.run = MagicMock()
             # This should not raise
             try:
@@ -311,10 +311,10 @@ class TestMcpSubcommand:
         import os
         monkeypatch.delenv("MEMWRIGHT_PATH", raising=False)
 
-        from agent_memory.cli import main
+        from attestor.cli import main
         from unittest.mock import patch, MagicMock, call
 
-        with patch("agent_memory.cli.asyncio") as mock_asyncio:
+        with patch("attestor.cli.asyncio") as mock_asyncio:
             mock_asyncio.run = MagicMock()
             try:
                 main(["mcp", "--path", "/tmp/test-mcp-default"])
@@ -326,7 +326,7 @@ class TestMcpSubcommand:
         custom_path = str(tmp_path / "custom-store")
         monkeypatch.setenv("MEMWRIGHT_PATH", custom_path)
 
-        from agent_memory.cli import main
+        from attestor.cli import main
         from unittest.mock import patch, MagicMock
 
         captured_paths = []
@@ -335,9 +335,9 @@ class TestMcpSubcommand:
         def capture_run_server(path):
             captured_paths.append(path)
 
-        with patch("agent_memory.cli.asyncio") as mock_asyncio:
+        with patch("attestor.cli.asyncio") as mock_asyncio:
             mock_asyncio.run = MagicMock(side_effect=lambda coro: None)
-            with patch("agent_memory.mcp.server.run_server", side_effect=capture_run_server) as mock_srv:
+            with patch("attestor.mcp.server.run_server", side_effect=capture_run_server) as mock_srv:
                 try:
                     main(["mcp"])
                 except (SystemExit, Exception):
@@ -351,7 +351,7 @@ class TestMcpSubcommand:
 class TestHookSubcommand:
     def test_hook_session_start_exists(self):
         """Verify `memwright hook session-start` is a valid subcommand."""
-        from agent_memory.cli import main
+        from attestor.cli import main
         from unittest.mock import patch
         import io
 
@@ -366,7 +366,7 @@ class TestHookSubcommand:
 
     def test_hook_stop_exists(self):
         """Verify `memwright hook stop` is a valid subcommand."""
-        from agent_memory.cli import main
+        from attestor.cli import main
         from unittest.mock import patch
         import io
 

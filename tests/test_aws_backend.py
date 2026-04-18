@@ -17,7 +17,7 @@ except ImportError:
     # Provide a no-op mock_aws so pytest can collect decorators before skipif kicks in
     from contextlib import nullcontext as mock_aws
 
-from agent_memory.models import Memory
+from attestor.models import Memory
 
 pytestmark = pytest.mark.skipif(not HAS_MOTO, reason="moto not installed")
 
@@ -47,7 +47,7 @@ def aws_backend():
         os.environ["AWS_ACCESS_KEY_ID"] = "testing"
         os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
 
-        from agent_memory.store.aws_backend import AWSBackend
+        from attestor.store.aws_backend import AWSBackend
 
         config = {
             "region": "us-east-1",
@@ -224,7 +224,7 @@ class TestConfigParsing:
         os.environ["AWS_ACCESS_KEY_ID"] = "testing"
         os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
 
-        from agent_memory.store.aws_backend import AWSBackend
+        from attestor.store.aws_backend import AWSBackend
 
         backend = AWSBackend({"region": "us-east-1"})
         assert backend._table_name == "memwright_memories"
@@ -238,7 +238,7 @@ class TestConfigParsing:
         os.environ["AWS_ACCESS_KEY_ID"] = "testing"
         os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
 
-        from agent_memory.store.aws_backend import AWSBackend
+        from attestor.store.aws_backend import AWSBackend
 
         backend = AWSBackend({
             "region": "us-west-2",
@@ -282,7 +282,7 @@ class TestGraphStoreGracefulDegradation:
 
 class TestDecimalConversion:
     def test_float_to_decimal(self):
-        from agent_memory.store.aws_backend import _float_to_decimal
+        from attestor.store.aws_backend import _float_to_decimal
 
         assert _float_to_decimal(0.95) == Decimal("0.95")
         assert _float_to_decimal({"a": 1.5}) == {"a": Decimal("1.5")}
@@ -290,7 +290,7 @@ class TestDecimalConversion:
         assert _float_to_decimal("hello") == "hello"
 
     def test_decimal_to_float(self):
-        from agent_memory.store.aws_backend import _decimal_to_float
+        from attestor.store.aws_backend import _decimal_to_float
 
         assert _decimal_to_float(Decimal("0.95")) == 0.95
         assert _decimal_to_float({"a": Decimal("1.5")}) == {"a": 1.5}

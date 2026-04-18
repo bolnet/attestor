@@ -12,8 +12,8 @@ try:
 except ImportError:
     HAS_ARANGO = False
 
-from agent_memory.models import Memory
-from agent_memory.infra.docker import DockerManager
+from attestor.models import Memory
+from attestor.infra.docker import DockerManager
 
 docker_required = pytest.mark.skipif(
     not HAS_ARANGO, reason="OpenArangoDB not installed"
@@ -50,7 +50,7 @@ def arango_container():
 
 @pytest.fixture
 def arango_backend(arango_container):
-    from agent_memory.store.arango_backend import ArangoBackend
+    from attestor.store.arango_backend import ArangoBackend
 
     db_name = f"memwright_test_{id(arango_container) % 10000}"
     backend = ArangoBackend({

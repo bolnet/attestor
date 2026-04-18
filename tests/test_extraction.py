@@ -2,8 +2,8 @@
 
 import pytest
 
-from agent_memory.extraction.rule_based import extract_from_text
-from agent_memory.extraction.extractor import extract_memories
+from attestor.extraction.rule_based import extract_from_text
+from attestor.extraction.extractor import extract_memories
 
 
 class TestRuleBasedExtraction:

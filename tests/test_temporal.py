@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from agent_memory import AgentMemory
+from attestor import AgentMemory
 
 from .conftest import TEST_CONFIG
 

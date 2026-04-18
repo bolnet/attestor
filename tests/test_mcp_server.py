@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agent_memory.mcp.server import _handle_tool, create_server
-from agent_memory.models import Memory, RetrievalResult
+from attestor.mcp.server import _handle_tool, create_server
+from attestor.models import Memory, RetrievalResult
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +228,7 @@ def _extract_handlers(mem):
 
     We patch AgentMemory to inject our mock, then extract the registered handlers.
     """
-    from agent_memory.mcp.server import _build_handlers
+    from attestor.mcp.server import _build_handlers
     return _build_handlers(mem)
 
 

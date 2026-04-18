@@ -28,7 +28,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def backend():
     """Create ArangoBackend connected to live ArangoDB (via OpenArangoDB)."""
-    from agent_memory.store.arango_backend import ArangoBackend
+    from attestor.store.arango_backend import ArangoBackend
 
     config = {
         "url": ARANGO_URL,
@@ -55,7 +55,7 @@ def memory_id():
 
 class TestArangoLiveDocument:
     def test_insert_and_get(self, backend, memory_id):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mem = Memory(
             id=memory_id,
@@ -72,7 +72,7 @@ class TestArangoLiveDocument:
         assert "arango" in fetched.tags
 
     def test_update(self, backend, memory_id):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mem = Memory(
             id=memory_id,
@@ -96,7 +96,7 @@ class TestArangoLiveDocument:
         assert "updated" in fetched.tags
 
     def test_delete(self, backend, memory_id):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mem = Memory(
             id=memory_id,
@@ -112,7 +112,7 @@ class TestArangoLiveDocument:
         assert backend.delete("nonexistent-id-12345") is False
 
     def test_list_memories(self, backend):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         ids = []
         for i in range(3):
@@ -131,7 +131,7 @@ class TestArangoLiveDocument:
             assert mid in found_ids
 
     def test_tag_search(self, backend):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mid = f"tag-search-{uuid.uuid4().hex[:8]}"
         backend.insert(Memory(

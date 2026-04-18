@@ -1,7 +1,7 @@
 """Tests for abstract base interfaces."""
 
 import pytest
-from agent_memory.store.base import DocumentStore, VectorStore, GraphStore
+from attestor.store.base import DocumentStore, VectorStore, GraphStore
 
 
 class TestABCsCannotInstantiate:

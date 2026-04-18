@@ -2,8 +2,8 @@
 
 import pytest
 
-from agent_memory.models import Memory, RetrievalResult
-from agent_memory.retrieval.scorer import (
+from attestor.models import Memory, RetrievalResult
+from attestor.retrieval.scorer import (
     deduplicate,
     entity_boost,
     fit_to_budget,

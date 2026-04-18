@@ -26,7 +26,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def backend():
     """Create AzureBackend connected to live Cosmos DB."""
-    from agent_memory.store.azure_backend import AzureBackend
+    from attestor.store.azure_backend import AzureBackend
 
     config = {
         "cosmos_endpoint": COSMOS_ENDPOINT,
@@ -50,7 +50,7 @@ def memory_id():
 
 class TestAzureLiveDocument:
     def test_insert_and_get(self, backend, memory_id):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mem = Memory(
             id=memory_id,
@@ -67,7 +67,7 @@ class TestAzureLiveDocument:
         assert "azure" in fetched.tags
 
     def test_update(self, backend, memory_id):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mem = Memory(
             id=memory_id,
@@ -91,7 +91,7 @@ class TestAzureLiveDocument:
         assert "updated" in fetched.tags
 
     def test_delete(self, backend, memory_id):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mem = Memory(
             id=memory_id,
@@ -107,7 +107,7 @@ class TestAzureLiveDocument:
         assert backend.delete("nonexistent-id-12345") is False
 
     def test_list_memories(self, backend):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         ids = []
         for i in range(3):
@@ -126,7 +126,7 @@ class TestAzureLiveDocument:
             assert mid in found_ids
 
     def test_tag_search(self, backend):
-        from agent_memory.models import Memory
+        from attestor.models import Memory
 
         mid = f"tag-search-{uuid.uuid4().hex[:8]}"
         backend.insert(Memory(

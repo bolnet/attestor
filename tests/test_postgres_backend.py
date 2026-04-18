@@ -3,7 +3,7 @@
 Run with: .venv/bin/pytest tests/test_postgres_backend.py -v -m docker
 
 Requires the custom memwright-postgres:16 image:
-    docker build -f agent_memory/infra/Dockerfile.postgres -t memwright-postgres:16 .
+    docker build -f attestor/infra/Dockerfile.postgres -t memwright-postgres:16 .
 """
 
 import time
@@ -16,8 +16,8 @@ try:
 except ImportError:
     HAS_PSYCOPG2 = False
 
-from agent_memory.models import Memory
-from agent_memory.infra.docker import DockerManager
+from attestor.models import Memory
+from attestor.infra.docker import DockerManager
 
 postgres_required = pytest.mark.skipif(
     not HAS_PSYCOPG2, reason="psycopg2-binary not installed"
@@ -64,7 +64,7 @@ def postgres_container():
 
 @pytest.fixture
 def pg_backend(postgres_container):
-    from agent_memory.store.postgres_backend import PostgresBackend
+    from attestor.store.postgres_backend import PostgresBackend
 
     backend = PostgresBackend({
         "url": f"postgresql://localhost:{PG_TEST_PORT}",
