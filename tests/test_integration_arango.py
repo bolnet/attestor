@@ -10,7 +10,6 @@ import pytest
 pytest.importorskip("docker", reason="install attestor[docker] extra to run these tests")
 
 try:
-    from open_arangodb import ArangoDB as _OA
     from arango import ArangoClient
     HAS_ARANGO = True
 except ImportError:
@@ -20,7 +19,7 @@ from attestor import AgentMemory, Memory
 from attestor.infra.docker import DockerManager
 
 docker_required = pytest.mark.skipif(
-    not HAS_ARANGO, reason="OpenArangoDB not installed"
+    not HAS_ARANGO, reason="python-arango not installed"
 )
 
 ARANGO_TEST_PORT = 8530

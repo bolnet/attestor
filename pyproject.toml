@@ -37,7 +37,7 @@ Issues = "https://github.com/bolnet/attestor/issues"
 
 [project.optional-dependencies]
 extraction = ["openai>=1.0.0"]
-arangodb = []
+arangodb = ["python-arango>=8.0.0"]
 postgres = ["psycopg2-binary>=2.9.0"]
 aws = ["boto3>=1.28.0"]
 azure = ["azure-cosmos>=4.5.0", "azure-identity>=1.14.0", "azure-search-documents>=11.4.0"]
@@ -48,6 +48,7 @@ docker = ["docker>=6.0"]
 all = [
     "openai>=1.0.0",
     "psycopg2-binary>=2.9.0",
+    "python-arango>=8.0.0",
     "boto3>=1.28.0",
     "azure-cosmos>=4.5.0",
     "azure-identity>=1.14.0",
