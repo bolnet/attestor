@@ -2,12 +2,18 @@
 """Verify core._ensure_docker behavior when docker=true but extra is missing."""
 from __future__ import annotations
 
+import os
 import sys
 
 import pytest
 
 from attestor.core import AgentMemory
 from attestor.store._extras import MissingExtraError
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("POSTGRES_URL"),
+    reason="builds AgentMemory — requires POSTGRES_URL (embedded stack removed)",
+)
 
 
 def test_ensure_docker_is_noop_when_docker_flag_false(tmp_path, monkeypatch):

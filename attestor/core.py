@@ -15,7 +15,6 @@ from attestor.models import Memory, RetrievalResult
 from attestor.retrieval.orchestrator import RetrievalOrchestrator
 from attestor.store.base import DocumentStore, GraphStore, VectorStore
 from attestor.store.registry import (
-    BACKEND_REGISTRY,
     DEFAULT_BACKENDS,
     instantiate_backend,
     resolve_backends,
@@ -27,10 +26,10 @@ logger = logging.getLogger("attestor")
 
 
 class AgentMemory:
-    """Embedded memory for AI agents.
+    """Memory for AI agents, backed by Postgres (doc+pgvector) + Neo4j (graph).
 
     Usage:
-        mem = AgentMemory("./my-agent")
+        mem = AgentMemory("./my-agent", config={"backend_configs": {...}})
         mem.add("User prefers Python", tags=["preference"], category="preference")
         results = mem.recall("what language?")
     """
@@ -69,18 +68,9 @@ class AgentMemory:
         def _get_or_create(backend_name: str) -> Any:
             if backend_name in _instances:
                 return _instances[backend_name]
-            entry = BACKEND_REGISTRY[backend_name]
-            if entry["init_style"] == "config":
-                bcfg = backend_configs.get(backend_name, {})
-                self._ensure_docker(backend_name, bcfg)
-            # SQLiteStore expects a file path, not a directory
-            if backend_name == "sqlite":
-                store_path = self.path / "memory.db"
-            else:
-                store_path = self.path
-            instance = instantiate_backend(
-                backend_name, store_path, backend_configs.get(backend_name),
-            )
+            bcfg = backend_configs.get(backend_name, {})
+            self._ensure_docker(backend_name, bcfg)
+            instance = instantiate_backend(backend_name, self.path, bcfg)
             _instances[backend_name] = instance
             return instance
 
@@ -418,7 +408,7 @@ class AgentMemory:
                             break
                     return memories
             except Exception:
-                pass  # Fall through to SQLite search
+                pass  # Fall through to document store search
 
         return self._store.list_memories(
             status=status,
@@ -477,9 +467,8 @@ class AgentMemory:
     # -- Batch Operations --
 
     def batch_embed(self, batch_size: int = 100) -> int:
-        """Batch-index all active memories into ChromaDB.
+        """Batch-index all active memories into the vector store.
 
-        ChromaDB handles embedding generation internally.
         Returns count of memories processed.
         """
         if not self._vector_store:
@@ -543,9 +532,8 @@ class AgentMemory:
         if self._vector_store is None and "vector" in role_assignments:
             backend_name = role_assignments["vector"]
             try:
-                store_path = self.path if backend_name != "sqlite" else self.path / "memory.db"
                 self._vector_store = instantiate_backend(
-                    backend_name, store_path, backend_configs.get(backend_name),
+                    backend_name, self.path, backend_configs.get(backend_name),
                 )
                 self._retrieval.vector_store = self._vector_store
                 logger.info("Recovered vector store (%s)", backend_name)
@@ -558,9 +546,8 @@ class AgentMemory:
         if self._graph is None and "graph" in role_assignments:
             backend_name = role_assignments["graph"]
             try:
-                store_path = self.path if backend_name != "sqlite" else self.path / "memory.db"
                 self._graph = instantiate_backend(
-                    backend_name, store_path, backend_configs.get(backend_name),
+                    backend_name, self.path, backend_configs.get(backend_name),
                 )
                 self._retrieval.graph = self._graph
                 logger.info("Recovered graph store (%s)", backend_name)
@@ -578,8 +565,8 @@ class AgentMemory:
         reporting. This lets long-running processes (like the MCP server)
         self-heal without a restart.
 
-        Checks: SQLite, ChromaDB, NetworkX Graph, Retrieval Pipeline.
-        No Docker checks. No external API checks.
+        Checks: Document Store (Postgres), Vector Store (pgvector), Graph
+        Store (Neo4j), Retrieval Pipeline.
         """
         t0_health = time.monotonic()
 
@@ -609,13 +596,6 @@ class AgentMemory:
                 "memory_count": store_stats.get("total_memories", 0),
                 "latency_ms": latency,
             }
-            # SQLite-specific details
-            if hasattr(self._store, "db_path"):
-                details["db_path"] = str(self._store.db_path)
-                details["db_size_bytes"] = (
-                    self._store.db_path.stat().st_size
-                    if self._store.db_path.exists() else 0
-                )
             _check(check_name, "ok", **details)
         except Exception as e:
             _check("Document Store", "error", error=str(e))

@@ -146,9 +146,9 @@ When an agent calls `recall(query, budget)`, five cooperating layers find, fuse,
 
 | # | Layer | Backend | Mechanism |
 |---|---|---|---|
-| 01 | **Tag Match** | SQLite | Tag index, FTS, exact + partial hits |
-| 02 | **Graph Expansion** | NetworkX / AGE | Multi&#8209;hop BFS (depth 2) |
-| 03 | **Vector Search** | ChromaDB / pgvector | Cosine similarity |
+| 01 | **Tag Match** | Postgres | Tag index, FTS / trigram, exact + partial hits |
+| 02 | **Graph Expansion** | Neo4j (GDS) | Multi&#8209;hop BFS (depth 2) |
+| 03 | **Vector Search** | pgvector | Cosine similarity (HNSW) |
 | 04 | **Fusion + Rank** | In&#8209;process | RRF (k=60) + PageRank + confidence decay |
 | 05 | **Diversity + Fit** | In&#8209;process | MMR (&lambda;=0.7) + greedy token&#8209;budget pack |
 
@@ -577,7 +577,7 @@ $ pip install attestor
 $ attestor api --host 0.0.0.0 --port 8080
 ```
 
-<sub>Starlette ASGI on <code>http://localhost:8080</code>. SQLite + ChromaDB + NetworkX provision automatically under <code>~/.attestor</code>. Point every agent in your stack at the same URL &mdash; they share memory instantly. No Docker. No API keys. Air&#8209;gap it behind your firewall and walk away.</sub>
+<sub>Starlette ASGI on <code>http://localhost:8080</code>. Backed by Postgres (pgvector) + Neo4j (GDS) &mdash; run them locally via the included Docker Compose stack, or point at managed Postgres and Neo4j AuraDB. Every agent in your stack talks to the same URL &mdash; they share memory instantly. Self&#8209;hosted, in your infrastructure, behind your firewall.</sub>
 
 | # | Target | Notes |
 |---|---|---|
@@ -586,7 +586,7 @@ $ attestor api --host 0.0.0.0 --port 8080
 | 03 | **Google Cloud Platform** &mdash; Cloud Run + AlloyDB | AlloyDB (PostgreSQL + ScaNN + pgvector + AGE) behind Cloud Run. Terraform template included. |
 | 04 | **PostgreSQL** backend | pgvector + Apache AGE. Neon serverless or any Postgres 16. Doc &middot; Vector &middot; Graph |
 | 05 | **ArangoDB** backend | Multi&#8209;model: graph + document + vector in one engine. Oasis or self&#8209;hosted. |
-| 06 | **Local / On&#8209;Prem** | SQLite + ChromaDB + NetworkX. Air&#8209;gapped deployments. No network egress. |
+| 06 | **Local / On&#8209;Prem** | Self&#8209;hosted Postgres + Neo4j via the included Docker Compose stack. Air&#8209;gapped deployments, no egress to third parties. |
 
 ### Same container, pluggable stores
 
@@ -606,7 +606,7 @@ flowchart TB
         direction LR
         AG1["<b>Agent process</b><br/>Python &bull; import attestor"]
         MW1["<b>Attestor in-proc</b><br/>AgentMemory('./store')"]
-        ST1[("<b>Local stores</b><br/>SQLite · Chroma · NetworkX<br/>on local disk")]
+        ST1[("<b>Local stores</b><br/>Postgres (pgvector) · Neo4j (GDS)<br/>via Docker Compose")]
         AG1 ==> MW1 ==> ST1
     end
 
@@ -669,9 +669,9 @@ flowchart TB
 |---|---|---|
 | 01 | **Self&#8209;hosted by default** | Your data stays in your infrastructure. No SaaS middleman, no per&#8209;seat fees, no lock&#8209;in. Run on a laptop, a VM, or any cloud. |
 | 02 | **Deterministic retrieval** | Tag match, graph traversal, vector search, RRF fusion, MMR diversity &mdash; all deterministic. No LLM judges. No hidden inference calls in the critical path. |
-| 03 | **One API, every backend** | Same `mem.recall()` call whether the store is SQLite on a laptop or ArangoDB behind a Cloud Run service. Swap backends without rewriting agents. |
+| 03 | **One API, every backend** | Same `mem.recall()` call whether the store is a local Postgres + Neo4j pair or ArangoDB behind a Cloud Run service. Swap backends without rewriting agents. |
 | 04 | **Agent teams are first&#8209;class** | Namespaces, roles, quotas, and provenance are not bolt&#8209;ons. The primitives were designed for orchestrator&ndash;worker pipelines from day one. |
-| 05 | **Boring where it counts** | Postgres, SQLite, ChromaDB, NetworkX. Proven, debuggable, no magic. Terraform templates, not a hosted console. |
+| 05 | **Boring where it counts** | Postgres, pgvector, Neo4j, GDS. Proven, debuggable, no magic. Terraform templates, not a hosted console. |
 
 ---
 
@@ -708,20 +708,34 @@ flowchart TB
 
 ## Quick Start
 
+Attestor needs a Postgres (pgvector) + Neo4j (GDS) pair. Bring both up locally with the bundled Docker Compose stack:
+
+```bash
+cd attestor/infra/local
+cp .env.example .env      # set OPENAI_API_KEY
+docker compose up -d postgres neo4j
+```
+
+Install and point Attestor at the stack:
+
 ```bash
 poetry add attestor
+export POSTGRES_URL="postgresql://postgres:attestor@localhost:5432/attestor"
+export NEO4J_URI="bolt://localhost:7687"
+export NEO4J_USERNAME="neo4j"
+export NEO4J_PASSWORD="attestor"
 ```
 
 ```python
 from attestor import AgentMemory
 
-mem = AgentMemory("./store")
+mem = AgentMemory()       # reads env / config.toml
 mem.add("Architecture decision: event sourcing for order service",
         category="technical", entity="order-service", tags=["arch", "decision"])
 results = mem.recall("how is the order service structured?", budget=2000)
 ```
 
-For REST API self-host, MCP integration, and cloud deploy — see [REST API](#rest-api), [MCP Integration](#mcp-integration), [Cloud Deployment](#cloud-deployment). `attestor doctor ~/.attestor` verifies all four components (Document Store, Vector Store, Graph Store, Retrieval Pipeline).
+For REST API self-host, MCP integration, and cloud deploy — see [REST API](#rest-api), [MCP Integration](#mcp-integration), [Cloud Deployment](#cloud-deployment). `attestor doctor` verifies all components (Postgres document + pgvector, Neo4j graph, retrieval pipeline).
 
 ---
 
@@ -749,18 +763,16 @@ attestor/
 │   ├── base.py                # Abstract interfaces: DocumentStore, VectorStore, GraphStore
 │   ├── registry.py            # Backend factory + selection by config
 │   ├── connection.py          # Shared connection helpers
-│   ├── embeddings.py          # Provider auto-detect (local / OpenAI / Bedrock / Vertex AI / Azure OpenAI)
-│   ├── sqlite_store.py        # SQLite storage (WAL, 17 columns, 6 indexes)
-│   ├── chroma_store.py        # ChromaDB vector search (local sentence-transformers)
-│   ├── schema.sql             # SQLite schema definition
-│   ├── postgres_backend.py    # PostgreSQL (pgvector + Apache AGE)
-│   ├── arango_backend.py      # ArangoDB (native doc + vector + graph)
+│   ├── embeddings.py          # Provider auto-detect (OpenAI / Bedrock / Vertex AI / Azure OpenAI / local opt-in)
+│   ├── postgres_backend.py    # PostgreSQL + pgvector (document + vector roles)
+│   ├── neo4j_backend.py       # Neo4j + GDS (graph role, PageRank / BFS / Leiden)
+│   ├── schema.sql             # Postgres schema definition
+│   ├── arango_backend.py      # ArangoDB (native doc + vector + graph) — opt-in backend
 │   ├── aws_backend.py         # Amazon Web Services (DynamoDB + OpenSearch Serverless + Neptune)
-│   ├── azure_backend.py       # Microsoft Azure (Cosmos DB DiskANN + NetworkX persisted to Cosmos)
+│   ├── azure_backend.py       # Microsoft Azure (Cosmos DB DiskANN + NetworkX in-process for graph)
 │   └── gcp_backend.py         # Google Cloud Platform AlloyDB (PostgreSQL + ScaNN + Vertex AI embeddings)
 ├── graph/
-│   ├── networkx_graph.py      # NetworkX MultiDiGraph with PageRank + multi-hop BFS
-│   └── extractor.py           # Entity/relation extraction (50+ known tools)
+│   └── extractor.py           # Entity/relation extraction (4-output GraphRAG)
 ├── retrieval/
 │   ├── orchestrator.py        # 5-layer cascade with RRF fusion
 │   ├── tag_matcher.py         # Stop-word filtered tag extraction
@@ -790,13 +802,13 @@ attestor/
 
 Every backend implements one or more of these roles:
 
-| Role | Purpose | Local Default | Cloud Options |
-|------|---------|--------------|---------------|
-| **Document** | Core storage, CRUD, filtering | SQLite | PostgreSQL, AlloyDB, ArangoDB, DynamoDB, Cosmos DB |
-| **Vector** | Semantic similarity search | ChromaDB | pgvector, ScaNN (AlloyDB), ArangoDB, OpenSearch Serverless, Cosmos DiskANN |
-| **Graph** | Entity relationships, multi-hop BFS traversal | NetworkX | Apache AGE (Postgres/AlloyDB), ArangoDB, Neptune, NetworkX-on-Cosmos (Azure) |
+| Role | Purpose | Default | Alternatives |
+|------|---------|---------|--------------|
+| **Document** | Core storage, CRUD, filtering | Postgres | AlloyDB, ArangoDB, DynamoDB, Cosmos DB |
+| **Vector** | Semantic similarity search | Postgres (pgvector, HNSW) | ScaNN (AlloyDB), ArangoDB, OpenSearch Serverless, Cosmos DiskANN |
+| **Graph** | Entity relationships, multi-hop BFS, PageRank / Leiden | Neo4j (GDS) | Apache AGE (AlloyDB), ArangoDB, Neptune, NetworkX-in-process (Azure) |
 
-Cloud backends fill all three roles in a single service. Degradation is explicit and tiered: if the vector store is unreachable, retrieval falls back to tag + graph layers; if the graph store is unreachable, retrieval falls back to tag + vector; the document store is the only hard dependency. Non-fatal errors in vector or graph operations are caught and logged — the SQLite / document path never breaks.
+Backends fill one or more roles; the default topology is `postgres` (doc + vector) + `neo4j` (graph), with alternatives selectable via `config.toml`. Degradation is explicit and tiered: if the vector store is unreachable, retrieval falls back to tag + graph layers; if the graph store is unreachable, retrieval falls back to tag + vector; the document store is the only hard dependency. Non-fatal errors in vector or graph operations are caught and logged — the document path never breaks.
 
 ---
 
@@ -886,13 +898,13 @@ Query: "deployment setup"
   │  Extract entities from query → BFS traversal (depth=2)
   │  "deployment" → finds "AWS", "Docker", "Terraform" connections
   │
-  ├─ Layer 1: Tag Match (SQLite)
+  ├─ Layer 1: Tag Match (Postgres FTS / trigram)
   │  extract_tags(query) → tag_search() → score 1.0
   │
   ├─ Layer 2: Entity-Field Search
   │  Memories about graph-connected entities → score 0.5
   │
-  ├─ Layer 3: Vector Search (ChromaDB)
+  ├─ Layer 3: Vector Search (pgvector HNSW)
   │  Semantic similarity → score = 1 - cosine_distance
   │
   ├─ Layer 4: Graph Relation Triples
@@ -1174,9 +1186,9 @@ Attestor auto-detects the best available embedding provider:
 |----------|----------|-------|------------|---------|
 | 1 | Cloud-native | Bedrock Titan / Azure OpenAI / Vertex AI | 768-1536 | Cloud backend configured |
 | 2 | OpenAI / OpenRouter | text-embedding-3-small | 1536 | `OPENAI_API_KEY` or `OPENROUTER_API_KEY` set |
-| 3 | Local (default) | all-MiniLM-L6-v2 | 384 | Always available, no API key |
+| 3 | Local (opt-in) | all-MiniLM-L6-v2 | 384 | Install `attestor[local-embeddings]`; no API key needed |
 
-The local fallback downloads ~90MB on first use. All providers implement the same interface — switching is transparent.
+The local provider is opt-in — install the `local-embeddings` extra to pull `sentence-transformers` (~90MB on first use). All providers implement the same interface — switching is transparent.
 
 ---
 
@@ -1204,7 +1216,7 @@ attestor forget ./store <memory-id>
 ### Maintenance
 
 ```bash
-attestor doctor ~/.attestor            # Health check (SQLite, ChromaDB, NetworkX, Retrieval)
+attestor doctor                        # Health check (Postgres, pgvector, Neo4j, Retrieval)
 attestor stats ./store                 # Memory counts, DB size, breakdowns
 attestor export ./store -o backup.json
 attestor import ./store backup.json
@@ -1228,15 +1240,17 @@ Hooks integrate with any harness that supports session lifecycle callbacks.
 
 ### Store location
 
-Default: `~/.attestor/`. Configurable with `--path` on any CLI command.
+Default: `~/.attestor/` holds only local configuration. Storage lives in Postgres + Neo4j.
 
 ```
 ~/.attestor/
-├── memory.db        # SQLite database (core storage)
-├── config.json      # Retrieval tuning parameters
-├── graph.json       # NetworkX entity graph
-└── chroma/          # ChromaDB vector store + embeddings
+└── config.toml     # Retrieval tuning + backend connection info
 ```
+
+Storage state:
+
+- **Postgres** (documents + pgvector embeddings) — managed via your Postgres instance / Docker volume
+- **Neo4j** (graph nodes + edges) — managed via your Neo4j instance / Docker volume
 
 ### config.json
 
@@ -1246,7 +1260,7 @@ All fields optional. Defaults apply if the file doesn't exist:
 {
   "default_token_budget": 2000,
   "min_results": 3,
-  "backends": ["sqlite", "chroma", "networkx"],
+  "backends": ["postgres", "neo4j"],
   "enable_mmr": true,
   "mmr_lambda": 0.7,
   "fusion_mode": "rrf",
@@ -1284,7 +1298,7 @@ All fields optional. Defaults apply if the file doesn't exist:
 ### Running Tests
 
 ```bash
-# All unit tests — no Docker, no API keys
+# All unit tests — Postgres + Neo4j integration layers are env-gated
 poetry run pytest tests/ -v
 
 # With coverage
@@ -1300,7 +1314,7 @@ AZURE_COSMOS_ENDPOINT='https://...' poetry run pytest tests/test_azure_live.py -
 - **607 unit tests** covering all backends, retrieval, config, embeddings, and CLI
 - **14 live integration tests** per cloud backend (Neon, Azure, ArangoDB)
 - **Mock tests** for every cloud backend — no cloud account needed
-- All unit tests run without Docker or API keys
+- Unit tests run without external services; integration tests are env-gated on live Postgres / Neo4j / cloud backends
 
 ---
 

@@ -364,8 +364,8 @@ def create_server(memory_path: str):
                 name="memory_health",
                 description=(
                     "Check health of all memory system components. "
-                    "Reports status of SQLite, ChromaDB vector store, "
-                    "NetworkX graph, and retrieval pipeline. "
+                    "Reports status of the document store, vector store, "
+                    "graph store, and retrieval pipeline. "
                     "Call this first to verify the system is working."
                 ),
                 inputSchema={"type": "object", "properties": {}},

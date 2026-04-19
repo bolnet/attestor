@@ -14,7 +14,7 @@ import tomlkit
 
 log = logging.getLogger(__name__)
 
-SUPPORTED_BACKENDS = ("sqlite", "arangodb", "postgres")
+SUPPORTED_BACKENDS = ("postgres", "arangodb")
 _CREDENTIAL_KEYS = frozenset({"auth_password", "password", "secret", "api_key", "token"})
 
 
@@ -33,8 +33,8 @@ def _build_config(backend: str, backend_options: Mapping[str, Any] | None) -> to
     doc.add(tomlkit.comment("Secrets should use $ENV_VAR references, not plaintext."))
     doc.add(tomlkit.nl())
 
-    if backend == "sqlite":
-        backends = ["sqlite", "chroma", "networkx"]
+    if backend == "postgres":
+        backends = ["postgres", "neo4j"]
     else:
         backends = [backend]
 
@@ -108,7 +108,7 @@ def _verify_store(path: Path) -> tuple[bool, str | None]:
 def init_store(
     path: Path,
     *,
-    backend: str = "sqlite",
+    backend: str = "postgres",
     backend_options: Optional[Dict[str, Any]] = None,
     verify: bool = False,
 ) -> InitResult:
@@ -162,7 +162,7 @@ def init_store_interactive(path: Path, *, verify: bool = False) -> InitResult:
     """Prompt for backend choice and credentials, then init."""
     print(f"Initializing Attestor store at: {path}")
     print(f"\nAvailable backends: {', '.join(SUPPORTED_BACKENDS)}")
-    backend = input("Backend [sqlite]: ").strip() or "sqlite"
+    backend = input("Backend [postgres]: ").strip() or "postgres"
 
     backend_options: Dict[str, Any] = {}
     if backend == "arangodb":

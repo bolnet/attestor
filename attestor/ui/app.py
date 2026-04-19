@@ -611,7 +611,7 @@ async def config_json(request: Request) -> JSONResponse:
     retrieval = getattr(mem, "_retrieval", None)
 
     from attestor.store.registry import resolve_backends
-    backends = getattr(config, "backends", None) or ["sqlite", "chroma", "networkx"]
+    backends = getattr(config, "backends", None) or ["postgres", "neo4j"]
     try:
         role_assignments = resolve_backends(backends)
     except Exception:

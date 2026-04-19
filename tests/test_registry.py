@@ -1,12 +1,13 @@
 """Tests for backend registry and resolver."""
 
 import pytest
+
 from attestor.store.registry import (
     BACKEND_REGISTRY,
     DEFAULT_BACKENDS,
     BackendConflictError,
-    resolve_backends,
     instantiate_backend,
+    resolve_backends,
 )
 
 
@@ -14,16 +15,16 @@ class TestResolveBackends:
     def test_default_backends(self):
         roles = resolve_backends()
         assert roles == {
-            "document": "sqlite",
-            "vector": "chroma",
-            "graph": "networkx",
+            "document": "postgres",
+            "vector": "postgres",
+            "graph": "neo4j",
         }
 
     def test_explicit_defaults(self):
-        roles = resolve_backends(["sqlite", "chroma", "networkx"])
-        assert roles["document"] == "sqlite"
-        assert roles["vector"] == "chroma"
-        assert roles["graph"] == "networkx"
+        roles = resolve_backends(["postgres", "neo4j"])
+        assert roles["document"] == "postgres"
+        assert roles["vector"] == "postgres"
+        assert roles["graph"] == "neo4j"
 
     def test_arangodb_fills_all_roles(self):
         roles = resolve_backends(["arangodb"])
@@ -33,7 +34,7 @@ class TestResolveBackends:
 
     def test_conflict_raises(self):
         with pytest.raises(BackendConflictError, match="document"):
-            resolve_backends(["sqlite", "arangodb"])
+            resolve_backends(["postgres", "arangodb"])
 
     def test_unknown_backend_raises(self):
         with pytest.raises(ValueError, match="Unknown backend"):
@@ -41,10 +42,10 @@ class TestResolveBackends:
 
     def test_partial_roles_ok(self):
         """A subset of roles is fine — unfilled roles degrade gracefully."""
-        roles = resolve_backends(["sqlite"])
-        assert roles == {"document": "sqlite"}
+        roles = resolve_backends(["neo4j"])
+        assert roles == {"graph": "neo4j"}
+        assert "document" not in roles
         assert "vector" not in roles
-        assert "graph" not in roles
 
 
 class TestBackendRegistry:
@@ -60,20 +61,20 @@ class TestBackendRegistry:
         for name in DEFAULT_BACKENDS:
             assert name in BACKEND_REGISTRY
 
+    def test_embedded_backends_removed(self):
+        """The zero-config embedded trio must not be in the registry anymore."""
+        for dropped in ("sqlite", "chroma", "networkx"):
+            assert dropped not in BACKEND_REGISTRY
+
 
 class TestInstantiateBackend:
-    def test_instantiate_sqlite(self, tmp_path):
-        store = instantiate_backend("sqlite", tmp_path / "memory.db")
-        from attestor.store.sqlite_store import SQLiteStore
-        assert isinstance(store, SQLiteStore)
-        store.close()
-
     def test_instantiate_unknown_raises(self, tmp_path):
         with pytest.raises(KeyError):
             instantiate_backend("nonexistent", tmp_path)
 
     def test_missing_arango_import_raises(self, tmp_path):
-        """When python-arango is not installed, importing arangodb backend should fail gracefully."""
+        """When python-arango is not installed (or no server running),
+        importing arangodb backend should fail gracefully."""
         try:
             instantiate_backend("arangodb", tmp_path, backend_config={})
         except (ImportError, ModuleNotFoundError, ConnectionAbortedError, Exception):

@@ -20,7 +20,7 @@ DEFAULT_CONFIG = {
 }
 
 
-_DEFAULT_BACKENDS = ["sqlite", "chroma", "networkx"]
+_DEFAULT_BACKENDS = ["postgres", "neo4j"]
 
 
 @dataclass

@@ -1,4 +1,4 @@
-"""Tests for AgentMemory core class -- zero-config with ChromaDB + NetworkX."""
+"""Tests for AgentMemory core class — requires live Postgres (+ Neo4j)."""
 
 import json
 import os
@@ -14,31 +14,29 @@ from attestor import AgentMemory, Memory
 
 class TestInit:
     def test_creates_directory(self, mem_dir, test_config):
+        # With live backends, the store path just needs to exist and hold
+        # config.toml — no more SQLite `memory.db` on disk.
         path = os.path.join(mem_dir, "subdir", "nested")
+        if not os.environ.get("POSTGRES_URL"):
+            pytest.skip("requires live Postgres backend")
         m = AgentMemory(path, config=test_config)
         assert os.path.isdir(path)
-        assert os.path.isfile(os.path.join(path, "memory.db"))
-        assert os.path.isfile(os.path.join(path, "config.json"))
         m.close()
 
     def test_context_manager(self, mem_dir, test_config):
+        if not os.environ.get("POSTGRES_URL"):
+            pytest.skip("requires live Postgres backend")
         with AgentMemory(mem_dir, config=test_config) as m:
             m.add("test")
         # Should not raise
 
     def test_custom_config(self, mem_dir, test_config):
+        if not os.environ.get("POSTGRES_URL"):
+            pytest.skip("requires live Postgres backend")
         test_config["default_token_budget"] = 500
         m = AgentMemory(mem_dir, config=test_config)
         assert m.config.default_token_budget == 500
         m.close()
-
-    def test_zero_config_init(self):
-        """AgentMemory(tmp_path) succeeds with no env vars, no config file."""
-        with tempfile.TemporaryDirectory() as td:
-            m = AgentMemory(td)
-            assert m._vector_store is not None
-            assert m._graph is not None
-            m.close()
 
 
 class TestCRUD:
@@ -133,28 +131,21 @@ class TestBackendIntegration:
         assert len(sources) >= 1
 
     def test_health_all_healthy(self, mem):
-        """health() reports all components healthy."""
+        """health() reports all expected roles healthy on a live stack."""
         h = mem.health()
         assert h["healthy"] is True
         check_names = [c["name"] for c in h["checks"]]
-        assert "SQLiteStore" in check_names
-        assert "ChromaStore" in check_names
-        assert "NetworkXGraph" in check_names
+        # At least one document-store row (PostgresBackend or equivalent) +
+        # the pipeline row must always appear.
+        assert any("Postgres" in n or "Document" in n for n in check_names), check_names
         assert "Retrieval Pipeline" in check_names
         for c in h["checks"]:
             assert c["status"] == "ok", f"{c['name']} not ok: {c}"
 
-    def test_health_no_docker_checks(self, mem):
-        """Health report has no Docker/PostgreSQL/Neo4j check names."""
-        h = mem.health()
-        report_str = json.dumps(h).lower()
-        assert "docker" not in report_str
-        assert "postgresql" not in report_str
-        assert "neo4j" not in report_str
-        assert "pgvector" not in report_str
-
     def test_close_saves_graph(self):
-        """Graph entities persist after close and reopen."""
+        """Graph entities persist after close and reopen (requires live Neo4j)."""
+        if not (os.environ.get("POSTGRES_URL") and os.environ.get("NEO4J_URI")):
+            pytest.skip("requires live Postgres + Neo4j")
         with tempfile.TemporaryDirectory() as td:
             mem1 = AgentMemory(td)
             mem1.add("User works at Google", tags=["career"], entity="Google")

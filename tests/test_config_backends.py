@@ -12,7 +12,7 @@ from attestor.utils.config import MemoryConfig, load_config, save_config
 class TestBackendConfig:
     def test_default_backends(self):
         cfg = MemoryConfig()
-        assert cfg.backends == ["sqlite", "chroma", "networkx"]
+        assert cfg.backends == ["postgres", "neo4j"]
 
     def test_custom_backends(self):
         cfg = MemoryConfig.from_dict({
@@ -44,5 +44,5 @@ class TestBackendConfig:
 
     def test_default_config_unchanged(self):
         cfg = MemoryConfig.from_dict({"default_token_budget": 5000})
-        assert cfg.backends == ["sqlite", "chroma", "networkx"]
+        assert cfg.backends == ["postgres", "neo4j"]
         assert cfg.default_token_budget == 5000

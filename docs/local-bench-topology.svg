@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 720" font-family="-apple-system, Segoe UI, Inter, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#111827"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="550" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#111827">
+    Attestor local stack — bench topology
+  </text>
+  <text x="550" y="58" text-anchor="middle" font-size="13" fill="#6b7280">
+    docker-compose.yml: 1 API container + Postgres (pgvector) + Neo4j (GDS) on one bridge network
+  </text>
+
+  <!-- Host frame -->
+  <rect x="30" y="80" width="1040" height="600" rx="12" fill="#f9fafb" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="50" y="105" font-size="13" font-weight="600" fill="#374151">Mac host (darwin)</text>
+
+  <!-- Host-side bench client -->
+  <rect x="60" y="130" width="320" height="80" rx="8" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+  <text x="220" y="155" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">
+    bench_latency.py  (host .venv)
+  </text>
+  <text x="220" y="177" text-anchor="middle" font-size="11" fill="#374151">
+    50 iters × /add and /recall
+  </text>
+  <text x="220" y="194" text-anchor="middle" font-size="11" fill="#6b7280">
+    measures end-to-end HTTP latency
+  </text>
+
+  <!-- Docker network frame -->
+  <rect x="60" y="240" width="820" height="400" rx="10" fill="#eff6ff" stroke="#1d4ed8" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <text x="78" y="262" font-size="12" font-weight="700" fill="#1e3a8a">Docker bridge network · attestor-local_default</text>
+
+  <!-- API: single, slim -->
+  <rect x="280" y="290" width="380" height="120" rx="10" fill="#fff" stroke="#111827" stroke-width="1.5"/>
+  <text x="470" y="315" text-anchor="middle" font-size="14" font-weight="700" fill="#111827">
+    attestor-api-local
+  </text>
+  <text x="470" y="334" text-anchor="middle" font-size="11" fill="#374151">
+    image: attestor/api:3.0.0  (slim, no embedded DB)
+  </text>
+  <text x="470" y="351" text-anchor="middle" font-size="11" fill="#374151">
+    uvicorn → attestor.api  •  :8080 → host:8080
+  </text>
+  <text x="470" y="372" text-anchor="middle" font-size="11" fill="#4b5563">
+    drivers: psycopg2-binary, neo4j (Bolt)
+  </text>
+  <text x="470" y="390" text-anchor="middle" font-size="11" fill="#4b5563">
+    env: POSTGRES_URL, NEO4J_URI
+  </text>
+
+  <!-- DB: Postgres -->
+  <rect x="100" y="460" width="360" height="130" rx="10" fill="#dcfce7" stroke="#166534" stroke-width="1.5"/>
+  <text x="280" y="486" text-anchor="middle" font-size="14" font-weight="700" fill="#14532d">
+    attestor-pg-local
+  </text>
+  <text x="280" y="506" text-anchor="middle" font-size="11" fill="#14532d">
+    Postgres 16 + pgvector
+  </text>
+  <text x="280" y="525" text-anchor="middle" font-size="11" fill="#14532d">
+    document store (SoT) + vector HNSW
+  </text>
+  <text x="280" y="544" text-anchor="middle" font-size="11" fill="#064e3b">
+    internal: postgres:5432
+  </text>
+  <text x="280" y="565" text-anchor="middle" font-size="11" fill="#064e3b">
+    init: CREATE EXTENSION vector
+  </text>
+
+  <!-- DB: Neo4j -->
+  <rect x="480" y="460" width="360" height="130" rx="10" fill="#ede9fe" stroke="#6d28d9" stroke-width="1.5"/>
+  <text x="660" y="486" text-anchor="middle" font-size="14" font-weight="700" fill="#4c1d95">
+    attestor-neo4j-local
+  </text>
+  <text x="660" y="506" text-anchor="middle" font-size="11" fill="#4c1d95">
+    Neo4j 5.24 Community + GDS plugin
+  </text>
+  <text x="660" y="525" text-anchor="middle" font-size="11" fill="#4c1d95">
+    entity graph · Cypher · Leiden / PageRank
+  </text>
+  <text x="660" y="544" text-anchor="middle" font-size="11" fill="#3b0764">
+    internal: neo4j:7687 (Bolt)
+  </text>
+  <text x="660" y="565" text-anchor="middle" font-size="11" fill="#3b0764">
+    browser UI: http://localhost:7474
+  </text>
+
+  <!-- OpenRouter -->
+  <rect x="900" y="290" width="160" height="120" rx="10" fill="#fff" stroke="#7c3aed" stroke-width="2"/>
+  <text x="980" y="318" text-anchor="middle" font-size="13" font-weight="700" fill="#5b21b6">
+    OpenRouter
+  </text>
+  <text x="980" y="338" text-anchor="middle" font-size="11" fill="#5b21b6">
+    (internet)
+  </text>
+  <text x="980" y="362" text-anchor="middle" font-size="11" fill="#374151">
+    text-embedding-3-large
+  </text>
+  <text x="980" y="378" text-anchor="middle" font-size="11" fill="#374151">
+    1536 D (Matryoshka)
+  </text>
+  <text x="980" y="398" text-anchor="middle" font-size="11" fill="#6b7280">
+    ~300–500 ms / call
+  </text>
+
+  <!-- Host HTTP arrow to API -->
+  <line x1="300" y1="210" x2="430" y2="290" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+  <text x="325" y="260" font-size="11" fill="#1e3a8a">HTTP :8080</text>
+
+  <!-- API → Postgres (psycopg2) -->
+  <line x1="380" y1="410" x2="300" y2="460" stroke="#166534" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="295" y="440" font-size="11" fill="#14532d">psycopg2 (SQL)</text>
+
+  <!-- API → Neo4j (Bolt) -->
+  <line x1="560" y1="410" x2="640" y2="460" stroke="#6d28d9" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="585" y="440" font-size="11" fill="#4c1d95">neo4j driver (Bolt)</text>
+
+  <!-- API → OpenRouter -->
+  <line x1="660" y1="340" x2="900" y2="340" stroke="#7c3aed" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow-purple)"/>
+  <text x="730" y="332" font-size="11" fill="#5b21b6">embed() on every add/recall</text>
+
+  <!-- legend -->
+  <rect x="880" y="440" width="180" height="150" rx="10" fill="#fff" stroke="#d1d5db"/>
+  <text x="970" y="460" text-anchor="middle" font-size="11" font-weight="700" fill="#374151">legend</text>
+
+  <line x1="895" y1="480" x2="925" y2="480" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+  <text x="935" y="484" font-size="10.5" fill="#374151">host HTTP (bench)</text>
+
+  <line x1="895" y1="503" x2="925" y2="503" stroke="#166534" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="935" y="507" font-size="10.5" fill="#374151">psycopg2 → Postgres</text>
+
+  <line x1="895" y1="526" x2="925" y2="526" stroke="#6d28d9" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="935" y="530" font-size="10.5" fill="#374151">Bolt → Neo4j</text>
+
+  <line x1="895" y1="549" x2="925" y2="549" stroke="#7c3aed" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow-purple)"/>
+  <text x="935" y="553" font-size="10.5" fill="#374151">embedding → OpenRouter</text>
+
+  <text x="895" y="575" font-size="9.5" fill="#6b7280">
+    ~350 ms/op is OpenRouter; DB is
+  </text>
+  <text x="895" y="586" font-size="9.5" fill="#6b7280">
+    single-digit ms on each backend.
+  </text>
+</svg>

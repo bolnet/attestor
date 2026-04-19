@@ -189,8 +189,9 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         """Raise if AGE is not available."""
         if not self._has_age:
             raise NotImplementedError(
-                "Graph operations require Apache AGE extension. "
-                "Use NetworkX for graph role on this PostgreSQL instance."
+                "Graph operations require the Apache AGE extension on this "
+                "PostgreSQL instance. Configure a Neo4j backend for the graph "
+                "role instead."
             )
 
     def _age_execute(self, sql: str, params: Any = None) -> None:

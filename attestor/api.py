@@ -28,7 +28,7 @@ def _build_config() -> Optional[Dict[str, Any]]:
         1. POSTGRES_URL [+ optional NEO4J_URI]  -> Postgres (+ Neo4j) stack
         2. NEO4J_URI alone                      -> graph-only (rare; for tests)
         3. ARANGO_URL                           -> single-engine ArangoDB
-        4. None                                 -> embedded SQLite+Chroma+NetworkX
+        4. None                                 -> error; Attestor requires a configured backend
     """
     postgres_url = os.environ.get("POSTGRES_URL")
     neo4j_uri = os.environ.get("NEO4J_URI")

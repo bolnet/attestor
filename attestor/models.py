@@ -58,7 +58,7 @@ class Memory:
 
     @classmethod
     def from_row(cls, row: Dict[str, Any]) -> Memory:
-        """Create a Memory from a SQLite row dict."""
+        """Create a Memory from a document-store row dict."""
         tags = json.loads(row["tags"]) if isinstance(row["tags"], str) else row["tags"]
         metadata = (
             json.loads(row["metadata"])

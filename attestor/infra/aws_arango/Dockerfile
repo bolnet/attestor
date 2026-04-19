@@ -6,14 +6,13 @@ LABEL description="Attestor API — ArangoDB CE backend (thin image, no ML deps)
 WORKDIR /app
 
 # Install only what the ArangoDB CE API path needs:
-#   starlette, uvicorn, networkx, python-arango
-# Explicitly skip chromadb, sentence-transformers, torch, mcp
+#   starlette, uvicorn, python-arango
+# Arango runs its own graph engine, so no NetworkX/AGE is required here.
 COPY pyproject.toml README.md ./
 COPY attestor/ attestor/
 RUN pip install --no-cache-dir \
     "python-arango>=8.0.0" \
-    networkx>=3.0 \
-    starlette>=0.27.0 \
+    "starlette>=0.27.0" \
     uvicorn \
     && pip install --no-cache-dir --no-deps .
 

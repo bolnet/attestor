@@ -1,4 +1,4 @@
-"""Tests for CLI."""
+"""Tests for CLI — require a live Postgres backend (no embedded stack)."""
 
 import json
 import os
@@ -9,6 +9,11 @@ import pytest
 from attestor.cli import main
 
 from .conftest import TEST_CONFIG
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("POSTGRES_URL"),
+    reason="CLI tests require POSTGRES_URL (embedded stack removed)",
+)
 
 
 @pytest.fixture

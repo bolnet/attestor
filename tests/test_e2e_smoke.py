@@ -1,14 +1,16 @@
 # tests/test_e2e_smoke.py
 """End-to-end smoke test: init -> add -> recall -> stats.
 
-Uses the SQLite backend only so it runs on any dev machine with no external
-services or extras installed.
+Requires a live Postgres (and optionally Neo4j). Skipped when env is unset.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 
 def _cli(*args: str) -> subprocess.CompletedProcess[str]:
@@ -20,23 +22,23 @@ def _cli(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_full_flow_sqlite(tmp_path: Path) -> None:
+@pytest.mark.skipif(
+    not os.environ.get("POSTGRES_URL"),
+    reason="requires POSTGRES_URL to exercise a live backend",
+)
+def test_full_flow_postgres(tmp_path: Path) -> None:
     store = tmp_path / "store"
 
-    _cli("init", str(store), "--backend", "sqlite", "--non-interactive")
+    _cli("init", str(store), "--backend", "postgres", "--non-interactive")
     assert (store / "config.toml").exists(), "init must write config.toml"
 
-    # No `config validate` subcommand; use `doctor` as the validation step.
-    # SQLiteStore being OK is sufficient — vector store may be unavailable
-    # in environments without torch/sentence-transformers.
+    # `doctor` is the validation step — prints the health report to stdout.
     doctor = _cli("doctor", str(store))
-    assert "SQLiteStore" in doctor.stdout, doctor.stdout
+    assert "Document Store" in doctor.stdout or "PostgresBackend" in doctor.stdout, doctor.stdout
 
-    # `add` takes content as a positional arg, not a --content flag.
-    _cli("add", str(store), "ArangoDB is configured for local mode")
+    _cli("add", str(store), "ArangoDB is a unified graph + document database")
 
-    # `recall` depends on the vector store which may be unavailable in CI.
-    # Use `search` (SQLite FTS, always-on) to validate the content was stored.
+    # `search` exercises the FTS path on Postgres.
     search = _cli("search", str(store), "arango")
     assert "ArangoDB" in search.stdout, search.stdout
 
