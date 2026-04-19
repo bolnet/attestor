@@ -81,9 +81,9 @@ def main(argv=None):
     )
     p_init.add_argument(
         "--backend",
-        choices=["sqlite", "arangodb", "postgres"],
-        default="sqlite",
-        help="Backend to record in config.toml (default: sqlite)",
+        choices=["postgres", "arangodb"],
+        default="postgres",
+        help="Backend to record in config.toml (default: postgres)",
     )
     p_init.add_argument(
         "--verify",
