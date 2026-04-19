@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10,<4.0"
 authors = [{ name = "aarjay" }]
-keywords = ["ai", "agent", "memory", "multi-agent", "llm", "rbac", "namespace", "provenance", "sqlite", "chromadb", "networkx", "graph", "pgvector", "arangodb", "mcp", "agentic"]
+keywords = ["ai", "agent", "memory", "multi-agent", "llm", "rbac", "namespace", "provenance", "postgres", "pgvector", "neo4j", "graph", "arangodb", "mcp", "agentic"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -21,9 +21,6 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "chromadb>=0.4.0",
-    "networkx>=3.0",
-    "sentence-transformers>=2.0.0",
     "mcp>=1.0.0",
     "tomlkit>=0.12.0",
     "starlette>=0.27.0",
@@ -41,7 +38,7 @@ arangodb = ["python-arango>=8.0.0"]
 postgres = ["psycopg2-binary>=2.9.0"]
 neo4j = ["neo4j>=5.0.0"]
 aws = ["boto3>=1.28.0"]
-azure = ["azure-cosmos>=4.5.0", "azure-identity>=1.14.0", "azure-search-documents>=11.4.0"]
+azure = ["azure-cosmos>=4.5.0", "azure-identity>=1.14.0", "azure-search-documents>=11.4.0", "networkx>=3.0"]
 gcp = ["google-cloud-firestore>=2.11.0", "google-cloud-aiplatform>=1.38.0"]
 cloud-embeddings = ["openai>=1.0.0"]
 lambda = ["mangum>=0.17.0", "starlette>=0.27.0"]
@@ -56,6 +53,7 @@ all = [
     "azure-cosmos>=4.5.0",
     "azure-identity>=1.14.0",
     "azure-search-documents>=11.4.0",
+    "networkx>=3.0",
     "google-cloud-firestore>=2.11.0",
     "google-cloud-aiplatform>=1.38.0",
     "docker>=6.0",
