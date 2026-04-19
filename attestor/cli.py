@@ -50,15 +50,7 @@ def _suppress_noisy_output():
     import warnings
 
     warnings.filterwarnings("ignore")
-    for name in (
-        "sentence_transformers",
-        "transformers",
-        "huggingface_hub",
-        "chromadb",
-        "torch",
-        "safetensors",
-        "tqdm",
-    ):
+    for name in ("tqdm",):
         logging.getLogger(name).setLevel(logging.CRITICAL)
 
 
@@ -66,7 +58,7 @@ def main(argv=None):
     _suppress_noisy_output()
     parser = argparse.ArgumentParser(
         prog="attestor",
-        description="Embedded memory for AI agents.",
+        description="Memory for AI agents (Postgres + Neo4j).",
     )
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 

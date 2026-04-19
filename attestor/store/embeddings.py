@@ -2,8 +2,10 @@
 
 Fallback chain (each level tried only if the previous is unavailable):
     1. Cloud-native (Bedrock / Azure OpenAI / Vertex AI) — if credentials present
-    2. OpenAI / OpenRouter text-embedding-3-small — if API key set
-    3. Local sentence-transformers all-MiniLM-L6-v2 — always available
+    2. OpenAI / OpenRouter text-embedding-3-large — if API key set
+
+There is no local/zero-config fallback. Attestor requires an upstream
+embedding API — BYO credentials.
 
 Usage:
     provider = get_embedding_provider()          # auto-detect best available
@@ -237,97 +239,6 @@ class VertexAIEmbeddingProvider:
         return [r.values for r in results]
 
 
-class LocalEmbeddingProvider:
-    """Local sentence-transformers all-MiniLM-L6-v2 (384D)."""
-
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
-        import os as _os
-
-        from sentence_transformers import SentenceTransformer
-
-        # Suppress safetensors LOAD REPORT (printed from Rust, bypasses Python)
-        devnull_fd = _os.open(_os.devnull, _os.O_WRONLY)
-        saved_stdout = _os.dup(1)
-        saved_stderr = _os.dup(2)
-        try:
-            _os.dup2(devnull_fd, 1)
-            _os.dup2(devnull_fd, 2)
-            self._model = SentenceTransformer(model_name)
-        finally:
-            _os.dup2(saved_stdout, 1)
-            _os.dup2(saved_stderr, 2)
-            _os.close(devnull_fd)
-            _os.close(saved_stdout)
-            _os.close(saved_stderr)
-        self._dimension = self._model.get_sentence_embedding_dimension()
-
-    @property
-    def dimension(self) -> int:
-        return self._dimension
-
-    @property
-    def provider_name(self) -> str:
-        return "local"
-
-    def embed(self, text: str) -> List[float]:
-        return self._model.encode(text).tolist()
-
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        return self._model.encode(texts).tolist()
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# ChromaDB Adapter
-# ═══════════════════════════════════════════════════════════════════════
-
-
-class ChromaEmbeddingAdapter:
-    """Wraps an EmbeddingProvider to satisfy ChromaDB's EmbeddingFunction protocol.
-
-    ChromaDB >= 1.5 expects __call__, name(), embed_query(), get_config(),
-    build_from_config(). We implement the required subset.
-    """
-
-    def __init__(self, provider: EmbeddingProvider) -> None:
-        self._provider = provider
-
-    def __call__(self, input: List[str]) -> List[List[float]]:
-        return self._provider.embed_batch(input)
-
-    def embed_query(self, input: List[str]) -> List[List[float]]:
-        return self.__call__(input)
-
-    @staticmethod
-    def name() -> str:
-        return "attestor:shared"
-
-    @staticmethod
-    def build_from_config(config: dict) -> "ChromaEmbeddingAdapter":
-        # Fallback — ChromaDB calls this on collection load
-        provider = get_embedding_provider()
-        return ChromaEmbeddingAdapter(provider)
-
-    def get_config(self) -> dict:
-        return {"provider": self._provider.provider_name}
-
-    def is_legacy(self) -> bool:
-        return False
-
-    def default_space(self) -> str:
-        return "cosine"
-
-    def supported_spaces(self) -> List[str]:
-        return ["cosine", "l2", "ip"]
-
-
-try:
-    from chromadb.utils.embedding_functions import register_embedding_function
-
-    register_embedding_function(ChromaEmbeddingAdapter)
-except Exception:
-    pass
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # Factory
 # ═══════════════════════════════════════════════════════════════════════
@@ -441,7 +352,8 @@ def get_embedding_provider(
     Fallback chain:
         1. preferred cloud provider (if specified and available)
         2. OpenAI / OpenRouter (if API key set)
-        3. Local sentence-transformers (always available)
+
+    There is no local fallback — an upstream embedding API is required.
 
     Args:
         preferred: Cloud provider hint — "bedrock", "azure_openai", "vertex_ai".
@@ -452,11 +364,9 @@ def get_embedding_provider(
     """
     global _cached_provider
 
-    # Return cached instance if no specific preference requested
     if _cached_provider is not None and preferred is None:
         return _cached_provider
 
-    # 1. Try preferred cloud provider
     if preferred and preferred in _CLOUD_PROVIDERS:
         provider = _CLOUD_PROVIDERS[preferred]()
         if provider is not None:
@@ -465,21 +375,12 @@ def get_embedding_provider(
             return provider
         logger.debug("Preferred provider %r unavailable, trying fallbacks", preferred)
 
-    # 2. Try OpenAI / OpenRouter
     provider = _try_openai()
     if provider is not None:
         _cached_provider = provider
         return provider
 
-    # 3. Local sentence-transformers fallback (zero-config default)
-    try:
-        provider = LocalEmbeddingProvider()
-        logger.info("Using local sentence-transformers (%dD)", provider.dimension)
-        _cached_provider = provider
-        return provider
-    except Exception as e:
-        raise RuntimeError(
-            "No embedding provider available. Install sentence-transformers, "
-            "or set OPENROUTER_API_KEY / OPENAI_API_KEY, or configure a cloud provider. "
-            f"Local fallback failed: {e}"
-        ) from e
+    raise RuntimeError(
+        "No embedding provider available. Set OPENROUTER_API_KEY or OPENAI_API_KEY, "
+        "or configure a cloud provider (Bedrock / Azure OpenAI / Vertex AI)."
+    )

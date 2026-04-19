@@ -39,7 +39,7 @@ def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
     """Ensure benchmarks use OpenAI text-embedding-3-small via OpenRouter.
 
     Benchmarks always use OpenRouter for embeddings — no fallback to local models.
-    Works for all backends (ChromaDB, ArangoDB, future PostgreSQL).
+    Works for all backends (Postgres/pgvector, ArangoDB, Azure, AWS, GCP).
 
     Raises RuntimeError if OPENROUTER_API_KEY is not set.
     """
@@ -50,40 +50,6 @@ def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
             "Set it in .env or environment."
         )
 
-    try:
-        from attestor.store.chroma_store import ChromaStore
-
-        if isinstance(mem._vector_store, ChromaStore):
-            from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
-
-            # Honour the same env vars the API containers use so benchmarks and
-            # production runs share a single embedding surface.
-            model_env = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-            model_name = model_env if "/" in model_env else f"openai/{model_env}"
-            embedding_fn_kwargs: Dict[str, Any] = {
-                "api_key": openrouter_key,
-                "api_base": "https://openrouter.ai/api/v1",
-                "model_name": model_name,
-            }
-            dims_env = os.environ.get("OPENAI_EMBEDDING_DIMENSIONS")
-            if dims_env:
-                try:
-                    embedding_fn_kwargs["dimensions"] = int(dims_env)
-                except ValueError:
-                    pass
-            embedding_fn = OpenAIEmbeddingFunction(**embedding_fn_kwargs)
-            # Must delete existing collection — ChromaDB won't change
-            # embedding function on an existing collection
-            if mem._vector_store:
-                mem._vector_store._client.delete_collection("memories")
-            new_store = ChromaStore(mem.path, embedding_function=embedding_fn)
-            mem._vector_store = new_store
-            mem._retrieval.vector_store = new_store
-            return
-    except ImportError:
-        pass
-
-    # Non-ChromaDB backends (ArangoDB, PostgreSQL, Azure, AWS, GCP):
     vector_store = mem._vector_store
     if vector_store and hasattr(vector_store, "_ensure_embedding_fn"):
         # Reset so it re-initializes with OpenRouter key
