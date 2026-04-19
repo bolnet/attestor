@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -18,35 +18,82 @@ logger = logging.getLogger("attestor.api")
 _mem = None
 
 
+def _build_config() -> Optional[Dict[str, Any]]:
+    """Build backend config from env. Returns None for embedded default.
+
+    Layer 0 stack (preferred): POSTGRES_URL + NEO4J_URI together → Postgres
+    (doc + vector via pgvector) plus Neo4j (graph + GDS).
+
+    Resolution order:
+        1. POSTGRES_URL [+ optional NEO4J_URI]  -> Postgres (+ Neo4j) stack
+        2. NEO4J_URI alone                      -> graph-only (rare; for tests)
+        3. ARANGO_URL                           -> single-engine ArangoDB
+        4. None                                 -> embedded SQLite+Chroma+NetworkX
+    """
+    postgres_url = os.environ.get("POSTGRES_URL")
+    neo4j_uri = os.environ.get("NEO4J_URI")
+
+    cfg: Dict[str, Any] = {}
+    backends: list = []
+
+    if postgres_url:
+        backends.append("postgres")
+        cfg["postgres"] = {
+            "mode": "cloud",
+            "url": postgres_url,
+            "database": os.environ.get("POSTGRES_DATABASE", "attestor"),
+            "auth": {
+                "username": os.environ.get("POSTGRES_USERNAME", "postgres"),
+                "password": os.environ.get("POSTGRES_PASSWORD", ""),
+            },
+            "sslmode": os.environ.get("POSTGRES_SSLMODE"),
+        }
+
+    if neo4j_uri:
+        backends.append("neo4j")
+        cfg["neo4j"] = {
+            "mode": "cloud",
+            "url": neo4j_uri,
+            "database": os.environ.get("NEO4J_DATABASE", "neo4j"),
+            "auth": {
+                "username": os.environ.get("NEO4J_USERNAME", "neo4j"),
+                "password": os.environ.get("NEO4J_PASSWORD", ""),
+            },
+        }
+
+    if backends:
+        cfg["backends"] = backends
+        return cfg
+
+    arango_url = os.environ.get("ARANGO_URL")
+    if arango_url:
+        return {
+            "backends": ["arangodb"],
+            "arangodb": {
+                "mode": "cloud",
+                "url": arango_url,
+                "database": os.environ.get("ARANGO_DATABASE", "attestor"),
+                "auth": {
+                    "username": os.environ.get("ARANGO_USERNAME", "root"),
+                    "password": os.environ.get("ARANGO_PASSWORD", ""),
+                },
+                "tls": {
+                    "verify": os.environ.get("ARANGO_TLS_VERIFY", "false").lower() == "true",
+                },
+            },
+        }
+    return None
+
+
 def _get_mem():
     global _mem
     if _mem is None:
         from attestor.core import AgentMemory
-
         from attestor._paths import resolve_data_dir
 
         data_dir = resolve_data_dir()
-
-        # If ARANGO_URL is set, use cloud ArangoDB; otherwise run the embedded
-        # stack (SQLite + ChromaDB + NetworkX). This keeps local self-hosting
-        # a one-command affair while still supporting cloud deployments.
-        arango_url = os.environ.get("ARANGO_URL")
-        if arango_url:
-            config: Dict[str, Any] = {
-                "backends": ["arangodb"],
-                "arangodb": {
-                    "mode": "cloud",
-                    "url": arango_url,
-                    "database": os.environ.get("ARANGO_DATABASE", "attestor"),
-                    "auth": {
-                        "username": os.environ.get("ARANGO_USERNAME", "root"),
-                        "password": os.environ.get("ARANGO_PASSWORD", ""),
-                    },
-                    "tls": {
-                        "verify": os.environ.get("ARANGO_TLS_VERIFY", "false").lower() == "true",
-                    },
-                },
-            }
+        config = _build_config()
+        if config is not None:
             _mem = AgentMemory(data_dir, config=config)
         else:
             _mem = AgentMemory(data_dir)
