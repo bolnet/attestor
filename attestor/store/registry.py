@@ -47,7 +47,14 @@ BACKEND_REGISTRY: Dict[str, Dict[str, Any]] = {
     "postgres": {
         "module": "attestor.store.postgres_backend",
         "class": "PostgresBackend",
-        "roles": {"document", "vector", "graph"},
+        # AGE removed from default Postgres image; graph role belongs to Neo4j.
+        "roles": {"document", "vector"},
+        "init_style": "config",
+    },
+    "neo4j": {
+        "module": "attestor.store.neo4j_backend",
+        "class": "Neo4jBackend",
+        "roles": {"graph"},
         "init_style": "config",
     },
     "gcp": {

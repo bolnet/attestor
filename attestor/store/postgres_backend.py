@@ -423,23 +423,44 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         self._ensure_embedding_fn()
         return self._embedder.embed(text)
 
-    def add(self, memory_id: str, content: str) -> None:
-        """Generate embedding and store on the memory row."""
+    def add(self, memory_id: str, content: str, namespace: str = "default") -> None:
+        """Generate embedding and store on the memory row.
+
+        ``namespace`` is accepted for parity with other backends. Scoping is
+        enforced at the document row (memories.namespace) and propagated into
+        vector search below; this method updates the embedding column on the
+        existing row so no separate namespace write is required here.
+        """
+        del namespace  # reserved for future per-namespace index partitioning
         embedding = self._embed(content)
         self._execute(
             "UPDATE memories SET embedding = %s::vector WHERE id = %s",
             (str(embedding), memory_id),
         )
 
-    def search(self, query_text: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def search(
+        self,
+        query_text: str,
+        limit: int = 20,
+        namespace: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """Vector similarity search using pgvector cosine distance."""
         query_vec = self._embed(query_text)
-        rows = self._execute(
-            "SELECT id, content, embedding <=> %s::vector AS distance "
-            "FROM memories WHERE embedding IS NOT NULL "
-            "ORDER BY embedding <=> %s::vector LIMIT %s",
-            (str(query_vec), str(query_vec), limit),
-        )
+        if namespace is None:
+            rows = self._execute(
+                "SELECT id, content, embedding <=> %s::vector AS distance "
+                "FROM memories WHERE embedding IS NOT NULL "
+                "ORDER BY embedding <=> %s::vector LIMIT %s",
+                (str(query_vec), str(query_vec), limit),
+            )
+        else:
+            rows = self._execute(
+                "SELECT id, content, embedding <=> %s::vector AS distance "
+                "FROM memories "
+                "WHERE embedding IS NOT NULL AND namespace = %s "
+                "ORDER BY embedding <=> %s::vector LIMIT %s",
+                (str(query_vec), namespace, str(query_vec), limit),
+            )
         return [
             {"memory_id": r["id"], "content": r["content"], "distance": r["distance"]}
             for r in rows

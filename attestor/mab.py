@@ -56,11 +56,22 @@ def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
         if isinstance(mem._vector_store, ChromaStore):
             from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 
-            embedding_fn = OpenAIEmbeddingFunction(
-                api_key=openrouter_key,
-                api_base="https://openrouter.ai/api/v1",
-                model_name="openai/text-embedding-3-small",
-            )
+            # Honour the same env vars the API containers use so benchmarks and
+            # production runs share a single embedding surface.
+            model_env = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+            model_name = model_env if "/" in model_env else f"openai/{model_env}"
+            embedding_fn_kwargs: Dict[str, Any] = {
+                "api_key": openrouter_key,
+                "api_base": "https://openrouter.ai/api/v1",
+                "model_name": model_name,
+            }
+            dims_env = os.environ.get("OPENAI_EMBEDDING_DIMENSIONS")
+            if dims_env:
+                try:
+                    embedding_fn_kwargs["dimensions"] = int(dims_env)
+                except ValueError:
+                    pass
+            embedding_fn = OpenAIEmbeddingFunction(**embedding_fn_kwargs)
             # Must delete existing collection — ChromaDB won't change
             # embedding function on an existing collection
             if mem._vector_store:
