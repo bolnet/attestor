@@ -86,16 +86,58 @@ def extract_from_session(
             api_key=api_key,
         )
     except ImportError:
-        # Fallback: convert turns to messages format and use rule-based
-        messages = []
-        for turn in turns:
-            speaker = turn.get("speaker", "Unknown")
-            if speaker == "A":
-                speaker = speaker_a
-            elif speaker == "B":
-                speaker = speaker_b
-            messages.append({
-                "role": speaker,
-                "content": turn.get("text", ""),
-            })
+        messages = _turns_to_messages(turns, speaker_a, speaker_b)
         return _rule_extract(messages), []
+
+
+def extract_from_session_full(
+    turns: List[Dict[str, Any]],
+    speaker_a: str = "A",
+    speaker_b: str = "B",
+    session_date: str = "",
+    model: str = "openai/gpt-4.1-mini",
+    api_key: Optional[str] = None,
+) -> Tuple[
+    List[Memory],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+]:
+    """Extract facts + triples + entity profiles + concept profiles.
+
+    Returns (fact_memories, triples, entity_profiles, concept_profiles).
+    Falls back to (rule_facts, [], [], []) if openai is unavailable.
+    """
+    try:
+        from attestor.extraction.llm_extractor import llm_extract_session_full
+
+        return llm_extract_session_full(
+            turns=turns,
+            speaker_a=speaker_a,
+            speaker_b=speaker_b,
+            session_date=session_date,
+            model=model,
+            api_key=api_key,
+        )
+    except ImportError:
+        messages = _turns_to_messages(turns, speaker_a, speaker_b)
+        return _rule_extract(messages), [], [], []
+
+
+def _turns_to_messages(
+    turns: List[Dict[str, Any]],
+    speaker_a: str,
+    speaker_b: str,
+) -> List[Dict[str, str]]:
+    messages: List[Dict[str, str]] = []
+    for turn in turns:
+        speaker = turn.get("speaker", "Unknown")
+        if speaker == "A":
+            speaker = speaker_a
+        elif speaker == "B":
+            speaker = speaker_b
+        messages.append({
+            "role": speaker,
+            "content": turn.get("text", ""),
+        })
+    return messages

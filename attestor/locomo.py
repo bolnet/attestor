@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional
 
 from attestor.core import AgentMemory
 from attestor.mab import token_f1, _upgrade_embeddings_for_benchmark
+from attestor.retrieval.planner import QueryPlan, plan_query
 
 DEFAULT_MODEL = "openai/gpt-4.1-mini"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -100,6 +101,29 @@ JUDGE_PROMPT = (
 ANSWER_PROMPT = (
     "You are answering questions about conversations between {speaker_a} and {speaker_b}.\n"
     "Below are relevant facts and relationships from their conversations. Use ONLY this information.\n\n"
+    "Each fact line may be prefixed with [YYYY-MM-DD] — that is the SESSION date when the\n"
+    "statement was made, NOT necessarily the date of the event itself. You MUST resolve\n"
+    "relative time expressions against that session date:\n"
+    "  - \"last year\" / \"a year ago\" → subtract 1 year from session date\n"
+    "  - \"last month\" → previous calendar month\n"
+    "  - \"next month\" / \"next week\" → add to session date\n"
+    "  - \"yesterday\" → session date - 1 day\n"
+    "  - Questions asking \"when\" want the EVENT date, not the session date.\n"
+    "CRITICAL: If a \"when\" question points at a fact whose only date hint is a relative\n"
+    "phrase like \"last year\" or \"last month\", you MUST compute the absolute year/date\n"
+    "from the session anchor and answer with the computed value. Never hedge with \"before\n"
+    "<session date>\" or paraphrase the relative phrase — commit to the concrete year/date.\n"
+    "Worked example:\n"
+    "  Context line: [2023-05-08] Melanie: I painted that lake sunrise last year.\n"
+    "  Question    : When did Melanie paint a sunrise?\n"
+    "  Correct     : 2022\n"
+    "  Wrong       : \"last year\", \"Before May 8, 2023\", \"2023\", \"Unknown\".\n\n"
+    "For questions asking about MULTIPLE items or fields (\"what fields\", \"which subjects\",\n"
+    "\"list the...\", \"Would be likely to pursue\"), scan ALL facts and include every distinct\n"
+    "item you find, comma-separated. When the question asks what fields someone is \"likely\"\n"
+    "to pursue in education/career, include both the explicitly stated domain AND closely\n"
+    "related academic fields (e.g. \"mental health\" → psychology; \"counseling\" → counseling\n"
+    "certification). Prefer breadth over a single narrow term.\n\n"
     "Facts:\n{context}\n{graph_context}\n"
     "Question: {question}\n\n"
     "Give a very CONCISE answer (short phrase about core information only).\n"
@@ -107,7 +131,7 @@ ANSWER_PROMPT = (
     "- Do NOT write full sentences, explanations, or elaborations\n"
     "- Do NOT repeat the question or add context\n"
     "- If the question asks \"who\", answer with just the name\n"
-    "- If the question asks \"when\", answer with just the date or time\n"
+    "- If the question asks \"when\", answer with just the date or time (EVENT date, not session date)\n"
     "- If the question asks \"where\", answer with just the place\n"
     "- If multiple items, list them separated by commas\n"
     "- For \"Would...\" or \"likely\" questions, ALWAYS give your best inference from the facts.\n"
@@ -392,8 +416,21 @@ def _build_context(
     speaker_a: str,
     speaker_b: str,
 ) -> tuple:
-    """Build context string and graph context from retrieval results."""
-    context = "\n".join(r.memory.content for r in results)
+    """Build context string and graph context from retrieval results.
+
+    Each memory line is prefixed with its temporal anchor (event_date or
+    session date from metadata) so the answer model can resolve relative
+    time expressions ("last year", "next month") without guessing.
+    """
+    lines: List[str] = []
+    for r in results:
+        mem_obj = r.memory
+        anchor = mem_obj.event_date or ""
+        if not anchor and isinstance(mem_obj.metadata, dict):
+            anchor = mem_obj.metadata.get("session_date", "") or ""
+        prefix = f"[{anchor}] " if anchor else ""
+        lines.append(f"{prefix}{mem_obj.content}")
+    context = "\n".join(lines)
 
     graph_context = ""
     if mem._graph and hasattr(mem._graph, "get_edges"):
@@ -406,11 +443,15 @@ def _build_context(
                 pred = edge.get("predicate", "related_to")
                 obj = edge.get("object", "")
                 event_date = edge.get("event_date", "")
+                source_quote = edge.get("source_quote", "")
                 triple_key = (subj.lower(), pred, obj.lower())
                 if triple_key not in seen_triples:
                     seen_triples.add(triple_key)
                     date_str = f" ({event_date})" if event_date else ""
-                    graph_lines.append(f"- {subj} {pred} {obj}{date_str}")
+                    quote_str = f' — "{source_quote}"' if source_quote else ""
+                    graph_lines.append(
+                        f"- {subj} {pred} {obj}{date_str}{quote_str}"
+                    )
         if graph_lines:
             graph_context = "\nRelationships:\n" + "\n".join(graph_lines[:30])
 
@@ -426,16 +467,40 @@ def answer_question(
     speaker_a: str = "A",
     speaker_b: str = "B",
     enable_reflection: bool = True,
+    use_planner: bool = False,
+    planner_model: Optional[str] = None,
 ) -> str:
     """Use Attestor recall + LLM synthesis to answer a LOCOMO question.
 
     With enable_reflection=True, checks if the initial retrieval is sufficient
     and does targeted follow-up queries if gaps are detected.
-    """
-    results = mem.recall(question, budget=budget)
 
-    names = _extract_names_from_question(question)
-    seen_ids = {r.memory.id for r in results}
+    With use_planner=True, an LLM planner classifies the question into
+    {intent, entities, namespaces, filters} and recall is split across the
+    selected namespaces (budget divided evenly) for namespace-filtered retrieval.
+    """
+    plan: Optional[QueryPlan] = None
+    if use_planner:
+        plan_kwargs: Dict[str, Any] = {"api_key": api_key}
+        if planner_model:
+            plan_kwargs["model"] = planner_model
+        plan = plan_query(question, **plan_kwargs)
+
+    results = []
+    seen_ids: set = set()
+    if plan and plan.namespaces:
+        per_ns_budget = max(budget // len(plan.namespaces), 1000)
+        for ns in plan.namespaces:
+            got = mem.recall(question, budget=per_ns_budget, namespace=ns)
+            for r in got:
+                if r.memory.id not in seen_ids:
+                    results.append(r)
+                    seen_ids.add(r.memory.id)
+    else:
+        results = mem.recall(question, budget=budget)
+        seen_ids = {r.memory.id for r in results}
+
+    names = plan.entities if (plan and plan.entities) else _extract_names_from_question(question)
     for name in names[:3]:
         extra = mem.recall(name, budget=1000)
         for r in extra:

@@ -190,7 +190,8 @@ class Neo4jBackend(GraphStore):
             RETURN a.display_name AS subject,
                    type(r) AS predicate,
                    b.display_name AS object,
-                   coalesce(r.event_date, '') AS event_date
+                   coalesce(r.event_date, '') AS event_date,
+                   coalesce(r.source_quote, '') AS source_quote
         """
         seen: set = set()
         result: List[Dict[str, Any]] = []
@@ -205,6 +206,7 @@ class Neo4jBackend(GraphStore):
                     "predicate": row["predicate"],
                     "object": row["object"],
                     "event_date": row["event_date"],
+                    "source_quote": row["source_quote"],
                 })
         return result
 
