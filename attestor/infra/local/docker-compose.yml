@@ -1,0 +1,107 @@
+# Attestor local stack — three independent containers.
+#
+#   attestor-api-local      Slim HTTP API. Talks to PG (doc + vector) + Neo4j (graph).
+#   attestor-pg-local       Postgres 16 + pgvector — document store + vector HNSW.
+#   attestor-neo4j-local    Neo4j 5 Community + GDS plugin — graph + community detection.
+#
+# Layer 0 backend per project decision (2026-04-18):
+#   PG (relational SQL + pgvector) is SoT for doc + vector + bi-temporal.
+#   Neo4j is graph (Cypher + GDS).
+#
+# Usage:
+#   cp .env.example .env && $EDITOR .env       # add OPENROUTER_API_KEY
+#   docker compose up --build                  # builds + starts everything
+#   curl localhost:8080/health                 # API
+#   docker compose down -v                     # stop + wipe volumes
+
+name: attestor-local
+
+services:
+
+  # ─────────────────────── DB: Postgres 16 + pgvector ─────────────────────
+  postgres:
+    build:
+      context: .
+      dockerfile: postgres.Dockerfile
+    image: attestor/db-postgres:16
+    container_name: attestor-pg-local
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-attestor}
+      POSTGRES_DB: attestor
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d attestor"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+
+  # ─────────────────── DB: Neo4j 5 Community + GDS ────────────────────────
+  neo4j:
+    image: neo4j:5.24-community
+    container_name: attestor-neo4j-local
+    ports:
+      - "7474:7474"   # HTTP / Browser UI
+      - "7687:7687"   # Bolt
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-attestor}
+      NEO4J_PLUGINS: '["graph-data-science"]'
+      NEO4J_dbms_security_procedures_unrestricted: gds.*
+      NEO4J_dbms_security_procedures_allowlist: gds.*
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_memory_pagecache_size: 512m
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_plugins:/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7474 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  # ───────────────────────── API: slim, separate ──────────────────────────
+  attestor-api:
+    build:
+      context: ../../..
+      dockerfile: attestor/infra/local/api.Dockerfile
+    image: attestor/api:3.0.0
+    container_name: attestor-api-local
+    ports:
+      - "8080:8080"
+    environment:
+      POSTGRES_URL: postgresql://postgres:${POSTGRES_PASSWORD:-attestor}@postgres:5432/attestor
+      POSTGRES_DATABASE: attestor
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-attestor}
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-attestor}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-large}
+      OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-1536}
+      ATTESTOR_DATA_DIR: /data/attestor
+    volumes:
+      - attestor_data:/data/attestor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_plugins:
+  attestor_data:

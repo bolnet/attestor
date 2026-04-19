@@ -2,7 +2,7 @@
 .git/
 .github/
 .pytest_cache/
-__pycache__/
+**/__pycache__/
 *.pyc
 .DS_Store
 .env
@@ -15,6 +15,20 @@ benchmarks/
 *.egg-info/
 dist/
 build/
+node_modules/
 poetry.lock
-.terraform/
-*.tfstate*
+packaging/
+_internal/
+
+# Terraform state (can be hundreds of MB)
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+
+# Infra subdirs are deployment scaffolding — not needed inside the image.
+# Keep attestor/infra/{__init__.py,docker.py} because core.py has a lazy
+# import of attestor.infra.docker.DockerManager.
+attestor/infra/aws_arango/
+attestor/infra/local/
+attestor/infra/__pycache__/
