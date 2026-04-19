@@ -114,8 +114,10 @@ def _flatten_qa(
 
 
 def _postgres_config() -> dict[str, Any]:
-    """Build Postgres-only AgentMemory config. Workaround URL-auth bug by
-    extracting user/pass explicitly."""
+    """Build Layer 0 AgentMemory config: Postgres (doc+vector) + Neo4j (graph).
+
+    Neo4j is wired when NEO4J_URI is set; otherwise graph role is disabled.
+    """
     url = os.environ.get("NEON_DATABASE_URL") or os.environ.get("PG_CONNECTION_STRING")
     if not url:
         raise SystemExit("NEON_DATABASE_URL or PG_CONNECTION_STRING required")
@@ -123,15 +125,27 @@ def _postgres_config() -> dict[str, Any]:
     host = p.hostname or "localhost"
     port = p.port or 5432
     db = (p.path or "/").lstrip("/") or "attestor"
-    return {
+    cfg: dict[str, Any] = {
         "backends": ["postgres"],
         "postgres": {
             "url": f"postgresql://{host}:{port}",
             "database": db,
             "auth": {"username": p.username or "", "password": p.password or ""},
-            "sslmode": "require",
+            "sslmode": os.environ.get("PG_SSLMODE", "require"),
         },
     }
+    neo4j_uri = os.environ.get("NEO4J_URI")
+    if neo4j_uri:
+        cfg["backends"].append("neo4j")
+        cfg["neo4j"] = {
+            "url": neo4j_uri,
+            "database": os.environ.get("NEO4J_DATABASE", "neo4j"),
+            "auth": {
+                "username": os.environ.get("NEO4J_USERNAME", "neo4j"),
+                "password": os.environ.get("NEO4J_PASSWORD", ""),
+            },
+        }
+    return cfg
 
 
 def _dual_path_ingest(
@@ -428,11 +442,13 @@ def run(
         f"{max_questions or 'all'} question(s) each "
         f"[resolve_pronouns={resolve_pronouns}, enable_reflection={enable_reflection}]..."
     )
+    # `resolve_pronouns` is not wired into the dual-path ingest yet; retained
+    # on the CLI surface for parity with the legacy single-path evaluator.
+    del resolve_pronouns
     predictions = _precompute_predictions(
         convs,
         max_questions,
         api_key,
-        resolve_pronouns=resolve_pronouns,
         enable_reflection=enable_reflection,
         debug=debug,
     )
