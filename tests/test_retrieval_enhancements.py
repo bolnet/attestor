@@ -206,73 +206,20 @@ class TestAccessTracking:
 
 
 # ---------------------------------------------------------------------------
-# PageRank on NetworkXGraph
+# PageRank — covered by Neo4j GDS integration tests in
+# tests/test_integration_neo4j.py (skipped without NEO4J_URI). The in-process
+# NetworkX backend was dropped on 2026-04-19.
 # ---------------------------------------------------------------------------
-
-class TestNetworkXPageRank:
-    def test_pagerank_returns_scores(self):
-        from attestor.graph.networkx_graph import NetworkXGraph
-        import tempfile
-        from pathlib import Path
-
-        with tempfile.TemporaryDirectory() as td:
-            g = NetworkXGraph(Path(td))
-            g.add_entity("Alice", entity_type="person")
-            g.add_entity("Bob", entity_type="person")
-            g.add_entity("Project", entity_type="project")
-            g.add_relation("Alice", "Project", "works_on")
-            g.add_relation("Bob", "Project", "works_on")
-            g.add_relation("Alice", "Bob", "knows")
-
-            pr = g.pagerank()
-            assert len(pr) == 3
-            # Scores should sum to approximately 1.0
-            assert sum(pr.values()) == pytest.approx(1.0, abs=0.01)
-
-    def test_pagerank_cached(self):
-        from attestor.graph.networkx_graph import NetworkXGraph
-        import tempfile
-        from pathlib import Path
-
-        with tempfile.TemporaryDirectory() as td:
-            g = NetworkXGraph(Path(td))
-            g.add_entity("A")
-            g.add_entity("B")
-            g.add_relation("A", "B")
-            pr1 = g.pagerank()
-            pr2 = g.pagerank()
-            assert pr1 is pr2  # Same object = cached
-
-    def test_pagerank_invalidated_on_add(self):
-        from attestor.graph.networkx_graph import NetworkXGraph
-        import tempfile
-        from pathlib import Path
-
-        with tempfile.TemporaryDirectory() as td:
-            g = NetworkXGraph(Path(td))
-            g.add_entity("A")
-            g.add_entity("B")
-            g.add_relation("A", "B")
-            pr1 = g.pagerank()
-            g.add_entity("C")
-            g.add_relation("A", "C")
-            pr2 = g.pagerank()
-            assert pr1 is not pr2  # Recomputed
-
-    def test_empty_graph_returns_empty(self):
-        from attestor.graph.networkx_graph import NetworkXGraph
-        import tempfile
-        from pathlib import Path
-
-        with tempfile.TemporaryDirectory() as td:
-            g = NetworkXGraph(Path(td))
-            assert g.pagerank() == {}
 
 
 # ---------------------------------------------------------------------------
 # Config wiring
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(
+    not __import__("os").environ.get("POSTGRES_URL"),
+    reason="config-wiring tests build AgentMemory — require POSTGRES_URL",
+)
 class TestConfigWiring:
     def test_mmr_config_wired(self, mem_dir):
         from attestor import AgentMemory

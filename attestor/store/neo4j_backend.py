@@ -20,11 +20,26 @@ from attestor.store.connection import CloudConnection
 logger = logging.getLogger("attestor")
 
 _REL_TYPE_RE = re.compile(r"[^A-Za-z0-9_]")
+_NAME_PUNCT_RE = re.compile(r"[^\w\s-]", re.UNICODE)
+_WS_RE = re.compile(r"\s+")
 
 
 def _sanitize_rel_type(rel_type: str) -> str:
     """Normalize relation type to a valid Neo4j relationship type."""
     return _REL_TYPE_RE.sub("_", rel_type).upper() or "RELATED_TO"
+
+
+def _normalize_name(name: str) -> str:
+    """Canonicalize an entity name for use as a MERGE key.
+
+    Lowercases, strips punctuation (except ``-`` in hyphenated names),
+    collapses internal whitespace, and trims. Prevents "Caroline",
+    "caroline.", and "  Caroline  " from producing three distinct nodes.
+    """
+    if not name:
+        return ""
+    text = _NAME_PUNCT_RE.sub(" ", name.lower())
+    return _WS_RE.sub(" ", text).strip()
 
 
 class Neo4jBackend(GraphStore):
@@ -65,7 +80,7 @@ class Neo4jBackend(GraphStore):
         entity_type: str = "general",
         attributes: Optional[Dict[str, Any]] = None,
     ) -> None:
-        key = name.lower()
+        key = _normalize_name(name)
         attrs = dict(attributes) if attributes else {}
         with self._session() as s:
             s.run(
@@ -88,10 +103,11 @@ class Neo4jBackend(GraphStore):
         relation_type: str = "related_to",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
-        from_key = from_entity.lower()
-        to_key = to_entity.lower()
+        from_key = _normalize_name(from_entity)
+        to_key = _normalize_name(to_entity)
         rel = _sanitize_rel_type(relation_type)
         meta = dict(metadata) if metadata else {}
+        event_date = meta.get("event_date", "")
         with self._session() as s:
             s.run(
                 f"""
@@ -99,16 +115,16 @@ class Neo4jBackend(GraphStore):
                   ON CREATE SET a.display_name = $from_name, a.entity_type = 'general'
                 MERGE (b:Entity {{key: $to_key}})
                   ON CREATE SET b.display_name = $to_name, b.entity_type = 'general'
-                CREATE (a)-[r:`{rel}`]->(b)
+                MERGE (a)-[r:`{rel}` {{event_date: $event_date}}]->(b)
                 SET r += $meta, r.relation_type = $rel
                 """,
                 from_key=from_key, from_name=from_entity,
                 to_key=to_key, to_name=to_entity,
-                meta=meta, rel=rel,
+                meta=meta, rel=rel, event_date=event_date,
             )
 
     def get_related(self, entity: str, depth: int = 2) -> List[str]:
-        start = entity.lower()
+        start = _normalize_name(entity)
         d = max(1, int(depth))
         with self._session() as s:
             result = s.run(
@@ -122,7 +138,7 @@ class Neo4jBackend(GraphStore):
             return [row["name"] for row in result if row["name"]]
 
     def get_subgraph(self, entity: str, depth: int = 2) -> Dict[str, Any]:
-        start = entity.lower()
+        start = _normalize_name(entity)
         d = max(1, int(depth))
         with self._session() as s:
             nodes_rows = list(s.run(
@@ -184,7 +200,7 @@ class Neo4jBackend(GraphStore):
         return result
 
     def get_edges(self, entity: str) -> List[Dict[str, Any]]:
-        key = entity.lower()
+        key = _normalize_name(entity)
         cypher = """
             MATCH (a:Entity {key: $key})-[r]-(b:Entity)
             RETURN a.display_name AS subject,

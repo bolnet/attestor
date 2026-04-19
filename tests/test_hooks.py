@@ -1,9 +1,14 @@
-"""Tests for Claude Code lifecycle hooks."""
+"""Tests for Claude Code lifecycle hooks.
+
+Hooks instantiate AgentMemory, which requires a live Postgres backend now
+that the embedded stack is gone. Skipped when POSTGRES_URL is unset.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 from datetime import datetime, timezone
 
 import pytest
@@ -11,6 +16,11 @@ import pytest
 from attestor.hooks.session_start import handle as session_start_handle
 from attestor.hooks.post_tool_use import handle as post_tool_handle
 from attestor.hooks.stop import handle as stop_handle
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("POSTGRES_URL"),
+    reason="hooks exercise AgentMemory — require POSTGRES_URL",
+)
 
 
 @pytest.fixture(autouse=True)

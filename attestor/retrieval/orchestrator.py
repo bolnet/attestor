@@ -105,7 +105,7 @@ class RetrievalOrchestrator:
                         )
                         seen_ids.add(mem.id)
 
-        # Layer 3: Vector similarity (ChromaDB)
+        # Layer 3: Vector similarity (pgvector / Arango / other VectorStore)
         if self.vector_store:
             try:
                 vec_results = self.vector_store.search(
@@ -422,7 +422,7 @@ class RetrievalOrchestrator:
 
         layers.append({
             "name": "Vector Search",
-            "description": "Cosine similarity via ChromaDB",
+            "description": "Cosine similarity via vector backend",
             "count": len(vector_results),
             "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
             "results": _snap(vector_results),

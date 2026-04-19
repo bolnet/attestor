@@ -8,7 +8,7 @@ decision (2026-04-18): **Postgres SQL + pgvector + Neo4j**.
 
 | Container | Image | Role |
 |---|---|---|
-| `attestor-api-local` | `attestor/api:3.0.0` | Slim HTTP API. **No** embedded DB, no ChromaDB, no SQLite paths, no sentence-transformers, no torch. |
+| `attestor-api-local` | `attestor/api:3.0.0` | Slim HTTP API. **No** embedded DB, no sentence-transformers, no torch. |
 | `attestor-pg-local` | `attestor/db-postgres:16` (built from `pgvector/pgvector:pg16`) | Postgres 16 + `pgvector` — document store + vector HNSW. |
 | `attestor-neo4j-local` | `neo4j:5.24-community` | Neo4j 5 + GDS Community plugin — graph + community detection. |
 

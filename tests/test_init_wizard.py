@@ -1,6 +1,11 @@
-"""Tests for attestor.init_wizard."""
+"""Tests for attestor.init_wizard.
+
+End-to-end init flow requires a live Postgres backend now that the
+embedded stack is gone. Skipped when POSTGRES_URL is unset.
+"""
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -13,6 +18,11 @@ from attestor.init_wizard import (
     InitResult,
     init_store,
     init_store_interactive,
+)
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("POSTGRES_URL"),
+    reason="init_wizard tests require POSTGRES_URL (embedded stack removed)",
 )
 
 

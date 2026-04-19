@@ -1,5 +1,10 @@
-"""Tests for retrieval orchestrator and components."""
+"""Tests for retrieval orchestrator and components.
 
+AgentMemory now needs a live Postgres backend, so these tests skip unless
+POSTGRES_URL is set.
+"""
+
+import os
 import tempfile
 
 import pytest
@@ -7,6 +12,11 @@ import pytest
 from attestor import AgentMemory
 
 from .conftest import TEST_CONFIG
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("POSTGRES_URL"),
+    reason="requires POSTGRES_URL (embedded stack removed)",
+)
 
 
 @pytest.fixture

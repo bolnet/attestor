@@ -33,9 +33,9 @@
 
   /* Map check name to a human-friendly label + accent color variable */
   var COMPONENT_META = {
-    "Document Store":     { icon: "D", color: "var(--brass)",     shortName: "SQLiteStore" },
-    "Vector Store":       { icon: "V", color: "var(--verdigris)", shortName: "ChromaDB / Vector" },
-    "Graph Store":        { icon: "G", color: "var(--indigo)",    shortName: "NetworkX / Graph" },
+    "Document Store":     { icon: "D", color: "var(--brass)",     shortName: "Document Store" },
+    "Vector Store":       { icon: "V", color: "var(--verdigris)", shortName: "Vector Store" },
+    "Graph Store":        { icon: "G", color: "var(--indigo)",    shortName: "Graph Store" },
     "Retrieval Pipeline": { icon: "R", color: "var(--rust)",      shortName: "Retrieval Pipeline" },
   };
 

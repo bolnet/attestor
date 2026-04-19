@@ -184,6 +184,10 @@ class TestPageRankBoost:
 # Content Hash Dedup
 # ===========================================================================
 
+@pytest.mark.skipif(
+    not __import__("os").environ.get("POSTGRES_URL"),
+    reason="dedup tests build AgentMemory — require POSTGRES_URL",
+)
 class TestContentHashDedup:
     def test_add_dedup(self, tmp_path):
         """Adding the same content twice should return the existing memory."""
@@ -227,6 +231,10 @@ class TestContentHashDedup:
 # Access Tracking
 # ===========================================================================
 
+@pytest.mark.skipif(
+    not __import__("os").environ.get("POSTGRES_URL"),
+    reason="access-tracking tests build AgentMemory — require POSTGRES_URL",
+)
 class TestAccessTracking:
     def test_recall_increments_access(self, tmp_path):
         """Recalling memories should increment their access_count."""
@@ -244,67 +252,10 @@ class TestAccessTracking:
             assert updated.last_accessed is not None
 
 
-# ===========================================================================
-# NetworkX PageRank
-# ===========================================================================
-
-class TestNetworkXPageRank:
-    def test_pagerank_basic(self, tmp_path):
-        from attestor.graph.networkx_graph import NetworkXGraph
-
-        g = NetworkXGraph(tmp_path)
-        g.add_entity("Hub")
-        g.add_entity("Spoke1")
-        g.add_entity("Spoke2")
-        g.add_entity("Spoke3")
-        g.add_relation("Spoke1", "Hub")
-        g.add_relation("Spoke2", "Hub")
-        g.add_relation("Spoke3", "Hub")
-
-        pr = g.pagerank()
-        assert len(pr) == 4
-        # Hub should have highest PageRank
-        assert pr["hub"] > pr["spoke1"]
-        assert pr["hub"] > pr["spoke2"]
-        assert pr["hub"] > pr["spoke3"]
-
-    def test_pagerank_empty_graph(self, tmp_path):
-        from attestor.graph.networkx_graph import NetworkXGraph
-
-        g = NetworkXGraph(tmp_path)
-        pr = g.pagerank()
-        assert pr == {}
-
-    def test_pagerank_cache_invalidation(self, tmp_path):
-        from attestor.graph.networkx_graph import NetworkXGraph
-
-        g = NetworkXGraph(tmp_path)
-        g.add_entity("A")
-        g.add_entity("B")
-        g.add_relation("A", "B")
-        pr1 = g.pagerank()
-
-        # Add new node — cache should invalidate
-        g.add_entity("C")
-        g.add_relation("B", "C")
-        pr2 = g.pagerank()
-
-        assert len(pr2) == 3
-        assert "c" in pr2
-
-    def test_pagerank_sums_to_one(self, tmp_path):
-        from attestor.graph.networkx_graph import NetworkXGraph
-
-        g = NetworkXGraph(tmp_path)
-        for name in ["A", "B", "C", "D"]:
-            g.add_entity(name)
-        g.add_relation("A", "B")
-        g.add_relation("B", "C")
-        g.add_relation("C", "D")
-        g.add_relation("D", "A")
-
-        pr = g.pagerank()
-        assert sum(pr.values()) == pytest.approx(1.0, abs=0.01)
+# NOTE: The NetworkX PageRank test block was dropped in 2026-04-19 when the
+# embedded NetworkX graph backend was removed. PageRank on the new stack is
+# served by Neo4j GDS and is exercised by tests/test_integration_neo4j.py
+# (when NEO4J_URI is set).
 
 
 # ===========================================================================

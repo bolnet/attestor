@@ -63,9 +63,9 @@
 
     // Backend file paths
     var paths = data.store_paths || {};
-    if (paths.db_path) html += kvRowCode("SQLite Path", paths.db_path);
+    if (paths.db_path) html += kvRowCode("Document Path", paths.db_path);
     if (paths.graph_path) html += kvRowCode("Graph Path", paths.graph_path);
-    if (paths.db_size_bytes != null) html += kvRow("SQLite Size", fmtBytes(paths.db_size_bytes));
+    if (paths.db_size_bytes != null) html += kvRow("Document Size", fmtBytes(paths.db_size_bytes));
 
     html += '</dl>';
 

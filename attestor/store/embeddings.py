@@ -333,8 +333,8 @@ _CLOUD_PROVIDERS = {
     "vertex_ai": _try_vertex_ai,
 }
 
-# Module-level cache — prevents ChromaDB build_from_config from reloading
-# the SentenceTransformer model on every collection operation.
+# Module-level cache — prevents re-initialising the embedding provider
+# (e.g. boto3 clients, API sessions) on every call.
 _cached_provider: Optional[EmbeddingProvider] = None
 
 

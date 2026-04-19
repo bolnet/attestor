@@ -203,7 +203,7 @@ def main(argv=None):
     # doctor (health check)
     p_doctor = subparsers.add_parser(
         "doctor",
-        help="Check health of all components (SQLite, ChromaDB, NetworkX, retrieval)",
+        help="Check health of all components (document, vector, graph, retrieval)",
     )
     p_doctor.add_argument("path", nargs="?", default=None, help="Memory store path")
 
@@ -357,8 +357,8 @@ def _add_backend_args(parser: argparse.ArgumentParser) -> None:
     """Add --backend and --backend-config arguments to a subparser."""
     parser.add_argument(
         "--backend", default=None,
-        help="Backend to use: sqlite (default), arangodb. "
-             "Overrides default SQLite+ChromaDB+NetworkX stack.",
+        help="Backend to use: postgres (default), neo4j, arangodb, aws, azure, gcp. "
+             "Overrides default Postgres+Neo4j stack.",
     )
     parser.add_argument(
         "--backend-config", default=None,
@@ -424,7 +424,7 @@ def _cmd_init(args):
             import logging
             logging.getLogger("attestor").setLevel(logging.WARNING)
             mem = AgentMemory(str(store_path))
-            print(f"  SQLite: {store_path}/memory.db")
+            print(f"  Store initialized at {store_path}")
             mem.close()
         except Exception as e:
             print(f"  Store created but error occurred: {e}")
@@ -757,7 +757,7 @@ def _cmd_doctor(args):
 
     # No store path -- print usage
     print("\nUsage: attestor doctor <store-path>")
-    print("Checks SQLite, ChromaDB, NetworkX graph, and retrieval pipeline.")
+    print("Checks document store, vector store, graph store, and retrieval pipeline.")
     print()
 
 

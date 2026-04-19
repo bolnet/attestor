@@ -27,15 +27,14 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY attestor/ attestor/
 
-# Install only what the HTTP + backend-client paths need.
-# --no-deps on attestor itself skips chromadb/sentence-transformers/mcp.
+# Install only what the HTTP + Postgres + Neo4j paths need.
+# --no-deps on attestor itself keeps this image lean (no azure/arango extras).
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir \
         "starlette>=0.27.0" \
         "uvicorn[standard]>=0.23.0" \
         "psycopg2-binary>=2.9.0" \
         "neo4j>=5.0.0" \
-        "networkx>=3.0" \
         "openai>=1.0.0" \
         "tomlkit>=0.12.0" \
     && pip install --no-cache-dir --no-deps .
