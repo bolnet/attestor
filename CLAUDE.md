@@ -12,23 +12,22 @@ attestor/
   client.py            -- MemoryClient (HTTP drop-in for remote Attestor)
   context.py           -- AgentContext (identity, role, namespace, token budget, provenance)
   models.py            -- Memory, RetrievalResult dataclasses
-  cli.py               -- CLI entry point (22 subcommands)
-  api.py               -- Starlette ASGI REST API (8 routes)
+  cli.py               -- CLI entry point
+  api.py               -- Starlette ASGI REST API
   store/
     base.py            -- DocumentStore / VectorStore / GraphStore interfaces
-    registry.py        -- Backend selection by config
+    registry.py        -- Backend selection; default = postgres + neo4j
+    connection.py      -- Config layering / env resolution
     embeddings.py      -- Provider auto-detect (local / OpenAI / Bedrock / Vertex / Azure)
-    sqlite_store.py    -- SQLite document store (WAL, 17 cols, 6 indexes)
-    chroma_store.py    -- ChromaDB vector store (local all-MiniLM-L6-v2)
-    postgres_backend.py-- pgvector + Apache AGE (Neon/any Postgres 16)
-    arango_backend.py  -- ArangoDB (doc + vector + graph in one)
+    postgres_backend.py-- pgvector (document + vector roles)
+    neo4j_backend.py   -- Neo4j + GDS (graph role, PageRank / BFS)
+    arango_backend.py  -- ArangoDB (doc + vector + graph in one, scoped backend only)
     aws_backend.py     -- DynamoDB + OpenSearch Serverless + Neptune
-    azure_backend.py   -- Cosmos DB DiskANN
+    azure_backend.py   -- Cosmos DB DiskANN (+ NetworkX in-process for graph)
     gcp_backend.py     -- AlloyDB (pgvector + AGE + ScaNN)
     schema.sql
   graph/
-    networkx_graph.py  -- MultiDiGraph, PageRank, multi-hop BFS, JSON persistence
-    extractor.py       -- Entity/relation extraction
+    extractor.py       -- Entity/relation extraction (4-output GraphRAG)
   retrieval/
     orchestrator.py    -- 5-layer cascade with RRF fusion
     tag_matcher.py
@@ -37,46 +36,48 @@ attestor/
     manager.py         -- Contradiction detection, supersession, timeline, as_of replay
   extraction/          -- Rule-based + optional LLM memory extraction
   mcp/
-    server.py          -- MCP server (8 tools, 2 resources, 2 prompts)
+    server.py          -- MCP server (tools + resources + prompts)
   hooks/
     session_start.py   -- Context injection at session start
     post_tool_use.py   -- Auto-capture from Write/Edit/Bash
     stop.py            -- Session summary on exit
   utils/
     config.py, tokens.py
-  infra/               -- Reference Terraform (AWS ECS+ArangoDB, Azure, GCP AlloyDB)
-tests/                 -- 607 unit tests, no Docker, no API keys
+  infra/               -- Reference Terraform (AWS, Azure, GCP AlloyDB)
+tests/                 -- Unit tests (live cloud tests env-gated)
 ```
 
 ## Prerequisites
 
-None for local use. All local backends are embedded and zero-config:
-- **SQLite** -- built into Python
-- **ChromaDB** -- local sentence-transformers (all-MiniLM-L6-v2, 384D, ~90MB on first use)
-- **NetworkX** -- in-process graph with JSON persistence
+Attestor requires two services for the default topology:
 
-Cloud backends optional: PostgreSQL (pgvector+AGE), ArangoDB, AWS, Azure, GCP.
+- **PostgreSQL 16+ with pgvector** -- holds the document and vector roles.
+- **Neo4j 5+ with GDS** -- holds the graph role (PageRank, multi-hop BFS, Leiden).
+
+Local development can run both via Docker (`attestor/infra/local/`). Cloud deployments can swap in a managed Postgres (Neon, RDS, Cloud SQL, AlloyDB) and managed Neo4j (AuraDB) or keep both self-hosted.
+
+Other backends available as opt-in: ArangoDB, AWS (DynamoDB + OpenSearch + Neptune), Azure (Cosmos DB + NetworkX), GCP (AlloyDB with AGE).
 
 ## Development
 
 - Poetry manages dependencies -- `poetry run pytest`, `poetry run python`
-- Run tests: `poetry run pytest tests/ -v` (no Docker, no API keys)
-- Live integration tests (env-gated): Neon, Azure, ArangoDB
+- Unit tests: `.venv/bin/pytest tests/ -q` (no external services required for unit layer)
+- Live integration tests (env-gated): Postgres/Neon, Neo4j/AuraDB, Azure, ArangoDB
 
 ## Architecture
 
-**Three storage roles, every memory persisted across all three:**
+**Three storage roles, every memory persisted across the required backends:**
 
-| Role | Purpose | Local | Cloud |
-|------|---------|-------|-------|
-| Document | Source of truth (content, tags, entity, ts, provenance, confidence) | SQLite | Postgres, AlloyDB, Arango, DynamoDB, Cosmos |
-| Vector | Dense embedding per memory | ChromaDB | pgvector, ScaNN, Arango, OpenSearch, Cosmos DiskANN |
-| Graph | Entity nodes + typed edges (`uses`, `authored-by`, `supersedes`) | NetworkX | Apache AGE, Arango, Neptune |
+| Role | Purpose | Default Backend | Alternatives |
+|------|---------|-----------------|--------------|
+| Document | Source of truth (content, tags, entity, ts, provenance, confidence) | Postgres | AlloyDB, Arango, DynamoDB, Cosmos |
+| Vector | Dense embedding per memory | Postgres (pgvector) | AlloyDB ScaNN, Arango, OpenSearch, Cosmos DiskANN |
+| Graph | Entity nodes + typed edges (`uses`, `authored-by`, `supersedes`) | Neo4j (GDS) | AGE (AlloyDB), Arango, Neptune, NetworkX (Azure) |
 
 **5-layer retrieval pipeline (deterministic, no LLM):**
-1. Tag Match (SQLite FTS)
-2. Graph Expansion (BFS depth=2)
-3. Vector Search (cosine similarity)
+1. Tag Match (Postgres FTS / trigram)
+2. Graph Expansion (Neo4j BFS depth=2)
+3. Vector Search (pgvector cosine)
 4. Fusion + Rank (RRF k=60, PageRank, confidence decay)
 5. Diversity + Fit (MMR λ=0.7, greedy token-budget pack)
 
@@ -86,18 +87,17 @@ Cloud backends optional: PostgreSQL (pgvector+AGE), ArangoDB, AWS, Azure, GCP.
 
 ## Runtime topologies
 
-- **Mode A — Embedded library**: `AgentMemory("./store")` in-process, sub-ms latency.
-- **Mode B — Sidecar**: `attestor api` on `localhost:8080`, language-agnostic HTTP client.
-- **Mode C — Shared service**: one Attestor service in front of an agent mesh (App Runner / Cloud Run / Container Apps).
+- **Mode A — Embedded library**: `AgentMemory(config)` in-process, talks directly to Postgres + Neo4j.
+- **Mode B — Sidecar**: `attestor api` on `localhost:8080`, language-agnostic HTTP client shares the same Postgres + Neo4j.
+- **Mode C — Shared service**: one Attestor service in front of an agent mesh (App Runner / Cloud Run / Container Apps) backed by managed Postgres + Neo4j.
 
 Same API across all three. Only configuration changes.
 
 ## Key Conventions
 
-- Local path: all backends embedded, no external services required
-- Non-fatal errors in vector/graph are caught silently -- SQLite/document path never breaks
-- Degradation is explicit and tiered: vector down → tag+graph; graph down → tag+vector; doc store is the only hard dependency
-- Zero config: `AgentMemory("./path")` provisions all local backends automatically
+- Postgres is the source of truth. Neo4j is derived graph state rebuildable from Postgres.
+- Non-fatal errors in vector/graph are caught and logged -- the document path never breaks.
+- Degradation is explicit and tiered: vector down → tag+graph; graph down → tag+vector; the document store is the only hard dependency.
 - PyPI name: `attestor`; import: `attestor`; single CLI entry point `attestor`
 
 ## Install for Claude Code
@@ -106,16 +106,17 @@ Single instruction users can give Claude Code: **`install attestor`** (or run `/
 
 This triggers `commands/install-attestor.md` which interviews the user on:
 1. Scope — global (`~/.claude/.mcp.json`) vs project (`.mcp.json`)
-2. Store path — default `~/.attestor/` or custom
-3. Backend — local (default) or cloud (Postgres/Arango/AWS/Azure/GCP)
-4. Embedding provider — local (default), OpenAI, or cloud-native
-5. Hooks — whether to wire session-start / post-tool-use / stop
-6. Namespace + default token budget
+2. Postgres connection (local Docker, Neon, RDS, etc.)
+3. Neo4j connection (local Docker, AuraDB, etc.)
+4. Backend override (default postgres+neo4j, or arangodb/aws/azure/gcp)
+5. Embedding provider — local sentence-transformers (opt-in), OpenAI, or cloud-native
+6. Hooks — whether to wire session-start / post-tool-use / stop
+7. Namespace + default token budget
 
 Then it installs `attestor` via pipx/pip, writes the MCP config, optionally writes `settings.json` hooks, and runs `attestor doctor` to verify.
 
 ## Health Check
 
-Run `attestor doctor <store-path>` or call `mem.health()`. The MCP server exposes `memory_health` -- call it first when integrating.
+Run `attestor doctor` or call `mem.health()`. The MCP server exposes `memory_health` -- call it first when integrating.
 
-Checks: Document Store, Vector Store, Graph Store, Retrieval Pipeline.
+Checks: Document Store (Postgres), Vector Store (pgvector), Graph Store (Neo4j), Retrieval Pipeline.
