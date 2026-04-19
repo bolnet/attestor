@@ -47,13 +47,19 @@ class EmbeddingProvider(Protocol):
 
 
 class OpenAIEmbeddingProvider:
-    """OpenAI or OpenRouter text-embedding-3-small (1536D)."""
+    """OpenAI or OpenRouter embeddings.
+
+    Default model is ``text-embedding-3-large`` (3072D native). Passing
+    ``dimensions`` requests a Matryoshka-reduced vector (e.g. 1536 for
+    stock pgvector HNSW compatibility).
+    """
 
     def __init__(
         self,
         api_key: str,
         base_url: Optional[str] = None,
-        model: str = "text-embedding-3-small",
+        model: str = "text-embedding-3-large",
+        dimensions: Optional[int] = None,
     ) -> None:
         from openai import OpenAI
 
@@ -62,9 +68,15 @@ class OpenAIEmbeddingProvider:
             kwargs["base_url"] = base_url
         self._client = OpenAI(**kwargs)
         self._model = model
-        # Probe dimension with a test embedding
-        resp = self._client.embeddings.create(input=["dim"], model=self._model)
+        self._dimensions = dimensions
+        resp = self._client.embeddings.create(**self._create_kwargs(["dim"]))
         self._dimension = len(resp.data[0].embedding)
+
+    def _create_kwargs(self, texts: List[str]) -> Dict[str, Any]:
+        kwargs: Dict[str, Any] = {"input": texts, "model": self._model}
+        if self._dimensions is not None:
+            kwargs["dimensions"] = self._dimensions
+        return kwargs
 
     @property
     def dimension(self) -> int:
@@ -75,11 +87,11 @@ class OpenAIEmbeddingProvider:
         return "openai"
 
     def embed(self, text: str) -> List[float]:
-        resp = self._client.embeddings.create(input=[text], model=self._model)
+        resp = self._client.embeddings.create(**self._create_kwargs([text]))
         return resp.data[0].embedding
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        resp = self._client.embeddings.create(input=texts, model=self._model)
+        resp = self._client.embeddings.create(**self._create_kwargs(texts))
         return [d.embedding for d in resp.data]
 
 
@@ -360,26 +372,43 @@ def _try_vertex_ai() -> Optional[EmbeddingProvider]:
 
 
 def _try_openai() -> Optional[EmbeddingProvider]:
-    """Try OpenAI or OpenRouter."""
+    """Try OpenAI or OpenRouter.
+
+    Controlled by env:
+        OPENAI_EMBEDDING_MODEL      default ``text-embedding-3-large``
+        OPENAI_EMBEDDING_DIMENSIONS default ``1536`` (Matryoshka reduction)
+    """
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
+
+    model = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
+    dim_env = os.environ.get("OPENAI_EMBEDDING_DIMENSIONS", "1536")
+    try:
+        dimensions: Optional[int] = int(dim_env) if dim_env else None
+    except ValueError:
+        dimensions = None
 
     if openrouter_key:
         try:
             provider = OpenAIEmbeddingProvider(
                 api_key=openrouter_key,
                 base_url="https://openrouter.ai/api/v1",
-                model="openai/text-embedding-3-small",
+                model=f"openai/{model}",
+                dimensions=dimensions,
             )
-            logger.info("Using OpenAI text-embedding-3-small via OpenRouter (%dD)", provider.dimension)
+            logger.info("Using %s via OpenRouter (%dD)", model, provider.dimension)
             return provider
         except Exception as e:
             logger.warning("OpenRouter embeddings failed: %s", e)
 
     if openai_key:
         try:
-            provider = OpenAIEmbeddingProvider(api_key=openai_key)
-            logger.info("Using OpenAI text-embedding-3-small (%dD)", provider.dimension)
+            provider = OpenAIEmbeddingProvider(
+                api_key=openai_key,
+                model=model,
+                dimensions=dimensions,
+            )
+            logger.info("Using %s (%dD)", model, provider.dimension)
             return provider
         except Exception as e:
             logger.warning("OpenAI embeddings failed: %s", e)
