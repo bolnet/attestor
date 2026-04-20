@@ -50,6 +50,12 @@ agent_memory/infra/lambda/.api_url
 # Internal (non-user-facing plans, screenshots, demo recordings)
 _internal/
 
+# Eval run artifacts (traces, stdout/stderr captures, pid files).
+# Keep hand-curated failure/delta JSONs so reruns are reproducible.
+logs/*.jsonl
+logs/*.log
+logs/*.pid
+
 # Local tooling caches
 .DS_Store
 .claude/

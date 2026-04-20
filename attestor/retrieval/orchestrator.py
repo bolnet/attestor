@@ -1,4 +1,17 @@
-"""3-layer retrieval cascade orchestrator."""
+"""Semantic-first retrieval orchestrator.
+
+Pipeline (permanent as of 2026-04-19):
+    1. Vector semantic search (top-K=50)
+    2. Graph narrow — soft boost by hop-distance from each hit's entity
+       to the question entities (BFS depth ≤ 2 via Neo4j)
+    3. Inject typed-edge triples as synthetic memories (for LLM reasoning)
+    4. MMR diversity rerank (if enabled)
+    5. Confidence decay + temporal boost (if enabled)
+    6. Fit to token budget
+
+Every call writes a JSONL trace to ``logs/attestor_trace.jsonl``
+(disable via ``ATTESTOR_TRACE=0``).
+"""
 
 from __future__ import annotations
 
@@ -12,15 +25,24 @@ from attestor.retrieval.scorer import (
     entity_boost,
     fit_to_budget,
     mmr_rerank,
-    pagerank_boost,
     temporal_boost,
 )
 from attestor.retrieval.tag_matcher import extract_tags
+from attestor.retrieval.trace import write as trace_write
 from attestor.store.base import DocumentStore
 
 
+VECTOR_TOP_K = 50
+GRAPH_MAX_DEPTH = 2
+# Affinity bonus added to the normalized vector score per hop distance.
+GRAPH_AFFINITY_BONUS = {0: 0.30, 1: 0.20, 2: 0.10}
+GRAPH_UNREACHABLE_PENALTY = -0.05
+VECTOR_WEIGHT = 0.7
+GRAPH_WEIGHT = 0.3
+
+
 class RetrievalOrchestrator:
-    """Orchestrates the 3-layer retrieval cascade."""
+    """Semantic-first retrieval with graph narrowing."""
 
     def __init__(
         self,
@@ -40,9 +62,115 @@ class RetrievalOrchestrator:
         self.confidence_boost_rate: float = 0.03
         self.enable_mmr: bool = True
         self.mmr_lambda: float = 0.7
-        self.fusion_mode: str = "rrf"  # "rrf" or "graph_blend"
-        self.graph_blend_vector_weight: float = 0.7
-        self.graph_blend_graph_weight: float = 0.3
+        # Retained for callers; has no effect in semantic-first pipeline.
+        self.fusion_mode: str = "semantic_first"
+
+    # ── Helpers ──
+
+    def _question_entities(self, query: str) -> List[str]:
+        """Proper-noun-ish tokens from the question.
+
+        Detects capitalized tokens in the ORIGINAL query (before extract_tags
+        lowercases), then intersects with the stopword-filtered tag list so we
+        keep meaningful entities (Caroline, LGBTQ) and drop sentence-initial
+        function words ('When', 'What', 'The').
+        """
+        import re as _re
+        capitals = {
+            m.group(0)
+            for m in _re.finditer(r"[A-Z][A-Za-z0-9']*", query)
+        }
+        tag_set = set(extract_tags(query))  # lowercased, stopword-filtered
+        entities: List[str] = []
+        seen = set()
+        for cap in capitals:
+            bare = cap.rstrip("'s").rstrip("'")  # strip possessive
+            key = bare.lower()
+            if key in tag_set and key not in seen:
+                entities.append(bare)
+                seen.add(key)
+        return entities
+
+    def _graph_affinity_map(
+        self, question_entities: List[str]
+    ) -> Dict[str, int]:
+        """Map lowercased candidate-entity → min hop distance to any question entity.
+
+        Empty map when no graph is available or the question has no entities.
+        """
+        affinity: Dict[str, int] = {}
+        if not self.graph or not question_entities:
+            return affinity
+
+        for q_ent in question_entities:
+            q_key = q_ent.lower()
+            affinity[q_key] = min(affinity.get(q_key, 0), 0)
+
+            try:
+                d1 = self.graph.get_related(q_ent, depth=1)
+            except Exception:
+                d1 = []
+            for name in d1:
+                k = (name or "").lower()
+                if k and affinity.get(k, 99) > 1:
+                    affinity[k] = 1
+
+            try:
+                d2 = self.graph.get_related(q_ent, depth=GRAPH_MAX_DEPTH)
+            except Exception:
+                d2 = []
+            for name in d2:
+                k = (name or "").lower()
+                if k and affinity.get(k, 99) > GRAPH_MAX_DEPTH:
+                    affinity[k] = GRAPH_MAX_DEPTH
+        return affinity
+
+    def _graph_context_triples(
+        self, question_entities: List[str]
+    ) -> List[str]:
+        """Render typed edges incident to question entities as inline strings."""
+        triples: List[str] = []
+        if not self.graph or not hasattr(self.graph, "get_edges"):
+            return triples
+        seen = set()
+        for ent in question_entities:
+            try:
+                edges = self.graph.get_edges(ent)
+            except Exception:
+                continue
+            for edge in edges[:30]:
+                subj = edge.get("subject", "")
+                pred = edge.get("predicate", "related_to")
+                obj = edge.get("object", "")
+                date = edge.get("event_date", "")
+                quote = edge.get("source_quote", "")
+                key = (subj.lower(), pred, obj.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                date_str = f" ({date})" if date else ""
+                quote_str = f' — "{quote}"' if quote else ""
+                triples.append(f"{subj} {pred} {obj}{date_str}{quote_str}")
+        return triples
+
+    def _blend_score(
+        self, vector_sim: float, hop: Optional[int]
+    ) -> tuple[float, float]:
+        """Blend normalized vector similarity with graph affinity bonus.
+
+        Returns (final_score, graph_bonus) for tracing.
+        """
+        vec_norm = max(0.0, min(1.0, vector_sim))
+        if hop is None:
+            bonus = GRAPH_UNREACHABLE_PENALTY
+        else:
+            bonus = GRAPH_AFFINITY_BONUS.get(hop, 0.0)
+        final = VECTOR_WEIGHT * vec_norm + GRAPH_WEIGHT * max(0.0, bonus)
+        if hop is None:
+            final += GRAPH_UNREACHABLE_PENALTY
+        return final, bonus
+
+    # ── Public API ──
 
     def recall(
         self,
@@ -50,326 +178,75 @@ class RetrievalOrchestrator:
         token_budget: int = 2000,
         namespace: Optional[str] = None,
     ) -> List[RetrievalResult]:
-        """Execute the retrieval cascade: Tags → Graph → Vectors."""
+        """Semantic-first recall with graph narrowing."""
+        t_total = time.monotonic()
+        question_entities = self._question_entities(query)
+
+        # ── Step 1: Vector top-K ──
+        vector_hits_raw: List[Dict] = []
         results: List[RetrievalResult] = []
-
-        # Layer 0: Graph expansion (find related entities via graph traversal)
-        expanded_queries = []
-        graph_context_triples: List[str] = []
-        if self.graph:
-            try:
-                tags = extract_tags(query)
-                for tag in tags:
-                    # Get related entities at depth=2 for multi-hop
-                    related = self.graph.get_related(tag, depth=2)
-                    expanded_queries.extend(related)
-
-                    # Get typed edges for relationship context
-                    if hasattr(self.graph, "get_edges"):
-                        edges = self.graph.get_edges(tag)
-                        for edge in edges:
-                            subj = edge.get("subject", "")
-                            pred = edge.get("predicate", "related_to")
-                            obj = edge.get("object", "")
-                            event_date = edge.get("event_date", "")
-                            date_str = f" ({event_date})" if event_date else ""
-                            graph_context_triples.append(
-                                f"{subj} {pred} {obj}{date_str}"
-                            )
-            except Exception:
-                pass
-
-        # Layer 1: Tag match
-        tags = extract_tags(query)
-        if tags:
-            tag_memories = self.store.tag_search(tags, namespace=namespace)
-            for mem in tag_memories:
-                results.append(
-                    RetrievalResult(memory=mem, score=1.0, match_source="tag")
-                )
-
-        # Layer 2: Entity-field search for graph-connected entities
-        if self.graph and expanded_queries:
-            seen_ids = {r.memory.id for r in results}
-            for entity_name in expanded_queries[:8]:
-                entity_memories = self.store.list_memories(
-                    entity=entity_name, status="active",
-                    namespace=namespace, limit=5,
-                )
-                for mem in entity_memories:
-                    if mem.id not in seen_ids:
-                        results.append(
-                            RetrievalResult(
-                                memory=mem, score=0.5, match_source="graph",
-                            )
-                        )
-                        seen_ids.add(mem.id)
-
-        # Layer 3: Vector similarity (pgvector / Arango / other VectorStore)
         if self.vector_store:
             try:
-                vec_results = self.vector_store.search(
-                    query, limit=20, namespace=namespace
+                vector_hits_raw = self.vector_store.search(
+                    query, limit=VECTOR_TOP_K, namespace=namespace
                 )
-                seen_ids = {r.memory.id for r in results}
-                for vr in vec_results:
-                    mid = vr["memory_id"]
-                    if mid in seen_ids:
-                        continue
-                    memory = self.store.get(mid)
-                    if not memory or memory.status != "active":
-                        continue
-                    if namespace and memory.namespace != namespace:
-                        continue
-                    distance = vr.get("distance", 1.0)
-                    score = max(0.0, 1.0 - distance)
-                    results.append(
-                        RetrievalResult(
-                            memory=memory, score=score, match_source="vector",
-                        )
-                    )
-                    seen_ids.add(mid)
             except Exception:
-                pass
+                vector_hits_raw = []
 
-        # Layer 4: Inject graph relationship triples as synthetic memories
-        # These give the LLM structured relationship data for multi-hop reasoning
-        if graph_context_triples:
-            for triple_str in graph_context_triples[:20]:
-                results.append(
-                    RetrievalResult(
-                        memory=Memory(
-                            content=triple_str,
-                            category="graph_relation",
-                            tags=[],
-                        ),
-                        score=0.6,
-                        match_source="graph",
-                    )
-                )
+        # Materialize into RetrievalResult with preliminary vector_sim.
+        candidates: List[Dict] = []
+        for vr in vector_hits_raw:
+            mid = vr["memory_id"]
+            memory = self.store.get(mid)
+            if not memory or memory.status != "active":
+                continue
+            if namespace and memory.namespace != namespace:
+                continue
+            distance = float(vr.get("distance", 1.0))
+            vector_sim = max(0.0, 1.0 - distance)
+            candidates.append(
+                {"memory": memory, "distance": distance, "vector_sim": vector_sim}
+            )
 
-        # Score, fuse, and assemble
-        if self.fusion_mode == "graph_blend" and self.graph and len(results) >= 3:
-            results = self._graph_blend(results)
-        else:
-            results = self._reciprocal_rank_fusion(results)
-        results = temporal_boost(results, enabled=self.enable_temporal_boost)
-
-        # Extract entities from query for entity boost
-        # Include proper nouns and any multi-char meaningful words
-        query_entities = [t for t in tags if t[0].isupper()] if tags else None
-        results = entity_boost(results, query_entities)
-
-        # MMR diversity reranking
-        if self.enable_mmr:
-            results = mmr_rerank(results, lambda_param=self.mmr_lambda)
-
-        # Confidence decay/boost
-        results = confidence_decay_boost(
-            results,
-            decay_rate=self.confidence_decay_rate,
-            boost_rate=self.confidence_boost_rate,
-            gate=self.confidence_gate,
-        )
-
-        return fit_to_budget(results, token_budget)
-
-    def _reciprocal_rank_fusion(
-        self, results: List[RetrievalResult], k: int = 60
-    ) -> List[RetrievalResult]:
-        """Combine multi-source results using Reciprocal Rank Fusion.
-
-        RRF score = sum over sources of: 1 / (k + rank_in_source)
-
-        Memories found by multiple retrieval channels (vector + graph)
-        get boosted scores. Falls back to simple deduplication when only one
-        source is present.
-        """
-        if not results:
-            return results
-
-        # Group results by source
-        by_source: Dict[str, List[RetrievalResult]] = {}
-        for r in results:
-            by_source.setdefault(r.match_source, []).append(r)
-
-        # If only one source, just deduplicate
-        if len(by_source) == 1:
-            return deduplicate(results)
-
-        # Sort each source by score descending to assign ranks
-        for source in by_source:
-            by_source[source].sort(key=lambda r: r.score, reverse=True)
-
-        # Compute RRF score per memory
-        rrf_scores: Dict[str, float] = {}
-        best_result: Dict[str, RetrievalResult] = {}
-
-        for source, source_results in by_source.items():
-            for rank, r in enumerate(source_results):
-                mid = r.memory.id
-                rrf_scores[mid] = rrf_scores.get(mid, 0.0) + 1.0 / (k + rank + 1)
-                if mid not in best_result or r.score > best_result[mid].score:
-                    best_result[mid] = r
-
-        # Build final results with RRF scores
-        fused = []
-        for mid, rrf_score in rrf_scores.items():
-            r = best_result[mid]
-            fused.append(
+        # ── Step 2: Graph narrow ──
+        affinity_map = self._graph_affinity_map(question_entities)
+        trace_hits = []
+        for c in candidates:
+            mem = c["memory"]
+            ent_key = (mem.entity or "").lower()
+            hop = affinity_map.get(ent_key)
+            final_score, bonus = self._blend_score(c["vector_sim"], hop)
+            results.append(
                 RetrievalResult(
-                    memory=r.memory,
-                    score=rrf_score,
-                    match_source=r.match_source,
+                    memory=mem, score=final_score, match_source="vector",
                 )
             )
+            trace_hits.append({
+                "memory_id": mem.id,
+                "entity": mem.entity,
+                "namespace": mem.namespace,
+                "category": mem.category,
+                "distance": round(c["distance"], 4),
+                "vector_sim": round(c["vector_sim"], 4),
+                "graph_hop": hop if hop is not None else -1,
+                "graph_bonus": round(bonus, 4),
+                "final_score": round(final_score, 4),
+                "content_preview": mem.content[:160],
+            })
 
-        return fused
+        # Sort by blended score
+        results.sort(key=lambda r: r.score, reverse=True)
+        ranked_preview = [
+            {"id": r.memory.id, "score": round(r.score, 4),
+             "entity": r.memory.entity, "namespace": r.memory.namespace}
+            for r in results[:30]
+        ]
 
-    def _graph_blend(
-        self, results: List[RetrievalResult]
-    ) -> List[RetrievalResult]:
-        """Weighted blend of vector similarity and PageRank scores.
-
-        Alternative to RRF that preserves score magnitudes. Falls back to RRF
-        when result set < 3 (normalization unstable with too few points).
-        """
-        results = deduplicate(results)
-        if not results:
-            return results
-
-        # Get PageRank scores
-        pr_scores: Dict[str, float] = {}
-        if self.graph and hasattr(self.graph, "pagerank"):
-            try:
-                pr_scores = self.graph.pagerank()
-            except Exception:
-                pass
-
-        if not pr_scores:
-            return self._reciprocal_rank_fusion(results)
-
-        # Min-max normalize vector scores
-        scores = [r.score for r in results]
-        min_s, max_s = min(scores), max(scores)
-        score_range = max_s - min_s if max_s > min_s else 1.0
-
-        # Collect PR values for normalization
-        pr_values = []
-        for r in results:
-            entity_key = r.memory.entity.lower() if r.memory.entity else ""
-            pr_values.append(pr_scores.get(entity_key, 0.0))
-        min_pr, max_pr = min(pr_values), max(pr_values)
-        pr_range = max_pr - min_pr if max_pr > min_pr else 1.0
-
-        blended = []
-        for r, pr_val in zip(results, pr_values):
-            norm_score = (r.score - min_s) / score_range
-            norm_pr = (pr_val - min_pr) / pr_range
-            final = (
-                self.graph_blend_vector_weight * norm_score
-                + self.graph_blend_graph_weight * norm_pr
-            )
-            blended.append(
+        # ── Step 3: Inject synthetic triple memories ──
+        triple_strs = self._graph_context_triples(question_entities)
+        for triple_str in triple_strs[:20]:
+            results.append(
                 RetrievalResult(
-                    memory=r.memory, score=final, match_source=r.match_source,
-                )
-            )
-
-        blended.sort(key=lambda r: r.score, reverse=True)
-        return blended
-
-    def recall_debug(
-        self,
-        query: str,
-        token_budget: int = 2000,
-        namespace: Optional[str] = None,
-    ) -> Dict:
-        """Execute recall and return per-layer debug trace.
-
-        Returns dict with keys: query, layers (list of layer dicts),
-        final (list of result dicts), config.
-        """
-        layers = []
-
-        def _snap(results: List[RetrievalResult]) -> List[Dict]:
-            return [
-                {
-                    "id": r.memory.id,
-                    "content": r.memory.content[:200],
-                    "score": round(r.score, 4),
-                    "source": r.match_source,
-                    "entity": r.memory.entity,
-                    "category": r.memory.category,
-                }
-                for r in results
-            ]
-
-        all_results: List[RetrievalResult] = []
-        t_total = time.monotonic()
-
-        # Layer 1: Tag match
-        t_layer = time.monotonic()
-        tags = extract_tags(query)
-        tag_results: List[RetrievalResult] = []
-        if tags:
-            tag_memories = self.store.tag_search(tags, namespace=namespace)
-            for mem in tag_memories:
-                tag_results.append(
-                    RetrievalResult(memory=mem, score=1.0, match_source="tag")
-                )
-        all_results.extend(tag_results)
-        layers.append({
-            "name": "Tag Match",
-            "description": "FTS on extracted tags",
-            "tags": tags,
-            "count": len(tag_results),
-            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
-            "results": _snap(tag_results),
-        })
-
-        # Layer 2: Graph expansion
-        t_layer = time.monotonic()
-        graph_results: List[RetrievalResult] = []
-        expanded_queries = []
-        graph_context_triples: List[str] = []
-        if self.graph:
-            try:
-                for tag in tags:
-                    related = self.graph.get_related(tag, depth=2)
-                    expanded_queries.extend(related)
-                    if hasattr(self.graph, "get_edges"):
-                        edges = self.graph.get_edges(tag)
-                        for edge in edges:
-                            subj = edge.get("subject", "")
-                            pred = edge.get("predicate", "related_to")
-                            obj = edge.get("object", "")
-                            event_date = edge.get("event_date", "")
-                            date_str = f" ({event_date})" if event_date else ""
-                            graph_context_triples.append(
-                                f"{subj} {pred} {obj}{date_str}"
-                            )
-            except Exception:
-                pass
-
-            seen_ids = {r.memory.id for r in all_results}
-            for entity_name in expanded_queries[:8]:
-                entity_memories = self.store.list_memories(
-                    entity=entity_name, status="active",
-                    namespace=namespace, limit=5,
-                )
-                for mem in entity_memories:
-                    if mem.id not in seen_ids:
-                        r = RetrievalResult(
-                            memory=mem, score=0.5, match_source="graph",
-                        )
-                        graph_results.append(r)
-                        all_results.append(r)
-                        seen_ids.add(mem.id)
-
-            # Graph triples as synthetic memories
-            for triple_str in graph_context_triples[:20]:
-                r = RetrievalResult(
                     memory=Memory(
                         content=triple_str,
                         category="graph_relation",
@@ -378,111 +255,197 @@ class RetrievalOrchestrator:
                     score=0.6,
                     match_source="graph",
                 )
-                graph_results.append(r)
-                all_results.append(r)
+            )
 
-        layers.append({
-            "name": "Graph Expansion",
-            "description": "BFS depth=2, entity lookup, relation triples",
-            "expanded_entities": expanded_queries[:8],
-            "triples": len(graph_context_triples),
-            "count": len(graph_results),
-            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
-            "results": _snap(graph_results),
-        })
+        results = deduplicate(results)
+        results = temporal_boost(results, enabled=self.enable_temporal_boost)
+        results = entity_boost(results, question_entities or None)
 
-        # Layer 3: Vector search
-        t_layer = time.monotonic()
-        vector_results: List[RetrievalResult] = []
-        if self.vector_store:
-            try:
-                vec_results = self.vector_store.search(
-                    query, limit=20, namespace=namespace
-                )
-                seen_ids = {r.memory.id for r in all_results}
-                for vr in vec_results:
-                    mid = vr["memory_id"]
-                    if mid in seen_ids:
-                        continue
-                    memory = self.store.get(mid)
-                    if not memory or memory.status != "active":
-                        continue
-                    if namespace and memory.namespace != namespace:
-                        continue
-                    distance = vr.get("distance", 1.0)
-                    score = max(0.0, 1.0 - distance)
-                    r = RetrievalResult(
-                        memory=memory, score=score, match_source="vector",
-                    )
-                    vector_results.append(r)
-                    all_results.append(r)
-                    seen_ids.add(mid)
-            except Exception:
-                pass
-
-        layers.append({
-            "name": "Vector Search",
-            "description": "Cosine similarity via vector backend",
-            "count": len(vector_results),
-            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
-            "results": _snap(vector_results),
-        })
-
-        # Layer 4: Fusion + Rank (RRF or graph blend)
-        t_layer = time.monotonic()
-        if self.fusion_mode == "graph_blend" and self.graph and len(all_results) >= 3:
-            fused = self._graph_blend(all_results)
-        else:
-            fused = self._reciprocal_rank_fusion(all_results)
-        fused = temporal_boost(fused, enabled=self.enable_temporal_boost)
-        query_entities = [t for t in tags if t[0].isupper()] if tags else None
-        fused = entity_boost(fused, query_entities)
-
-        layers.append({
-            "name": "Fusion + Rank",
-            "description": f"RRF k=60, temporal boost, entity boost" if self.fusion_mode == "rrf" else "Graph blend + temporal + entity boost",
-            "fusion_mode": self.fusion_mode,
-            "count": len(fused),
-            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
-            "results": _snap(fused),
-        })
-
-        # Layer 5: Diversity + Fit (MMR + token budget)
-        t_layer = time.monotonic()
+        # ── Step 4: MMR diversity ──
         if self.enable_mmr:
-            fused = mmr_rerank(fused, lambda_param=self.mmr_lambda)
-        fused = confidence_decay_boost(
-            fused,
+            results = mmr_rerank(results, lambda_param=self.mmr_lambda)
+
+        # ── Step 5: Confidence decay ──
+        results = confidence_decay_boost(
+            results,
             decay_rate=self.confidence_decay_rate,
             boost_rate=self.confidence_boost_rate,
             gate=self.confidence_gate,
         )
-        final = fit_to_budget(fused, token_budget)
 
-        layers.append({
-            "name": "Diversity + Fit",
-            "description": f"MMR λ={self.mmr_lambda}, confidence decay, token budget={token_budget}",
-            "mmr_enabled": self.enable_mmr,
-            "budget": token_budget,
-            "count": len(final),
-            "latency_ms": round((time.monotonic() - t_layer) * 1000, 2),
-            "results": _snap(final),
+        # ── Step 6: Fit to budget ──
+        final = fit_to_budget(results, token_budget)
+
+        trace_write({
+            "kind": "recall",
+            "query": query,
+            "namespace": namespace,
+            "token_budget": token_budget,
+            "question_entities": question_entities,
+            "vector_top_k": VECTOR_TOP_K,
+            "vector_hits": trace_hits,
+            "graph_triples_injected": len(triple_strs[:20]),
+            "ranked_after_blend": ranked_preview,
+            "final_count": len(final),
+            "final_ids": [
+                {"id": r.memory.id, "score": round(r.score, 4),
+                 "source": r.match_source, "entity": r.memory.entity}
+                for r in final
+            ],
+            "latency_ms": round((time.monotonic() - t_total) * 1000, 2),
         })
 
-        total_ms = round((time.monotonic() - t_total) * 1000, 2)
+        return final
+
+    def recall_debug(
+        self,
+        query: str,
+        token_budget: int = 2000,
+        namespace: Optional[str] = None,
+    ) -> Dict:
+        """Per-step trace for UI / ad-hoc inspection (mirrors the JSONL trace)."""
+        t_total = time.monotonic()
+        question_entities = self._question_entities(query)
+        layers: List[Dict] = []
+
+        # Vector
+        t = time.monotonic()
+        vector_hits_raw: List[Dict] = []
+        candidates: List[Dict] = []
+        if self.vector_store:
+            try:
+                vector_hits_raw = self.vector_store.search(
+                    query, limit=VECTOR_TOP_K, namespace=namespace
+                )
+            except Exception:
+                vector_hits_raw = []
+        for vr in vector_hits_raw:
+            mid = vr["memory_id"]
+            memory = self.store.get(mid)
+            if not memory or memory.status != "active":
+                continue
+            if namespace and memory.namespace != namespace:
+                continue
+            distance = float(vr.get("distance", 1.0))
+            candidates.append({
+                "memory": memory, "distance": distance,
+                "vector_sim": max(0.0, 1.0 - distance),
+            })
+        layers.append({
+            "name": "Vector Top-K",
+            "description": f"Top {VECTOR_TOP_K} by cosine similarity",
+            "count": len(candidates),
+            "latency_ms": round((time.monotonic() - t) * 1000, 2),
+            "results": [
+                {
+                    "id": c["memory"].id,
+                    "score": round(c["vector_sim"], 4),
+                    "distance": round(c["distance"], 4),
+                    "entity": c["memory"].entity,
+                    "source": "vector",
+                    "content": c["memory"].content[:200],
+                    "category": c["memory"].category,
+                }
+                for c in candidates
+            ],
+        })
+
+        # Graph narrow
+        t = time.monotonic()
+        affinity_map = self._graph_affinity_map(question_entities)
+        results: List[RetrievalResult] = []
+        narrowed: List[Dict] = []
+        for c in candidates:
+            mem = c["memory"]
+            hop = affinity_map.get((mem.entity or "").lower())
+            final_score, bonus = self._blend_score(c["vector_sim"], hop)
+            results.append(
+                RetrievalResult(memory=mem, score=final_score, match_source="vector")
+            )
+            narrowed.append({
+                "id": mem.id,
+                "graph_hop": hop if hop is not None else -1,
+                "graph_bonus": round(bonus, 4),
+                "score": round(final_score, 4),
+                "entity": mem.entity,
+                "source": "vector",
+                "content": mem.content[:200],
+                "category": mem.category,
+            })
+        results.sort(key=lambda r: r.score, reverse=True)
+        narrowed.sort(key=lambda r: r["score"], reverse=True)
+        layers.append({
+            "name": "Graph Narrow",
+            "description": (
+                f"Blend {VECTOR_WEIGHT}·vector + {GRAPH_WEIGHT}·graph; "
+                f"hops 0→+0.3, 1→+0.2, 2→+0.1, unreachable→{GRAPH_UNREACHABLE_PENALTY}"
+            ),
+            "question_entities": question_entities,
+            "affinity_map_size": len(affinity_map),
+            "count": len(narrowed),
+            "latency_ms": round((time.monotonic() - t) * 1000, 2),
+            "results": narrowed,
+        })
+
+        # Triples + boosts + MMR + budget
+        t = time.monotonic()
+        triple_strs = self._graph_context_triples(question_entities)
+        for triple_str in triple_strs[:20]:
+            results.append(
+                RetrievalResult(
+                    memory=Memory(
+                        content=triple_str, category="graph_relation", tags=[],
+                    ),
+                    score=0.6, match_source="graph",
+                )
+            )
+        results = deduplicate(results)
+        results = temporal_boost(results, enabled=self.enable_temporal_boost)
+        results = entity_boost(results, question_entities or None)
+        if self.enable_mmr:
+            results = mmr_rerank(results, lambda_param=self.mmr_lambda)
+        results = confidence_decay_boost(
+            results,
+            decay_rate=self.confidence_decay_rate,
+            boost_rate=self.confidence_boost_rate,
+            gate=self.confidence_gate,
+        )
+        final = fit_to_budget(results, token_budget)
+        layers.append({
+            "name": "Triples + Diversity + Fit",
+            "description": (
+                f"Inject {len(triple_strs[:20])} triples, temporal+entity boost, "
+                f"MMR λ={self.mmr_lambda}, budget={token_budget}"
+            ),
+            "count": len(final),
+            "latency_ms": round((time.monotonic() - t) * 1000, 2),
+            "results": [
+                {
+                    "id": r.memory.id,
+                    "score": round(r.score, 4),
+                    "source": r.match_source,
+                    "entity": r.memory.entity,
+                    "content": r.memory.content[:200],
+                    "category": r.memory.category,
+                }
+                for r in final
+            ],
+        })
 
         return {
             "query": query,
             "namespace": namespace,
             "token_budget": token_budget,
-            "total_latency_ms": total_ms,
+            "total_latency_ms": round((time.monotonic() - t_total) * 1000, 2),
             "layers": layers,
             "final_count": len(final),
             "config": {
-                "fusion_mode": self.fusion_mode,
+                "pipeline": "semantic_first",
+                "vector_top_k": VECTOR_TOP_K,
+                "vector_weight": VECTOR_WEIGHT,
+                "graph_weight": GRAPH_WEIGHT,
                 "mmr_lambda": self.mmr_lambda,
                 "confidence_gate": self.confidence_gate,
-                "confidence_decay_rate": self.confidence_decay_rate,
             },
         }
 
@@ -492,11 +455,9 @@ class RetrievalOrchestrator:
         token_budget: int = 2000,
         namespace: Optional[str] = None,
     ) -> str:
-        """Recall and format as a context string for prompt injection."""
         results = self.recall(query, token_budget, namespace=namespace)
         if not results:
             return ""
-
         lines = ["Relevant memories:"]
         for r in results:
             prefix = f"[{r.match_source}:{r.score:.2f}]"
