@@ -51,6 +51,29 @@ For each fact, provide:
 - tags: Relevant keywords for search (e.g., ["marital_status", "relationship", "single"])
 - event_date: The date this fact refers to if mentioned or inferrable (ISO format YYYY-MM-DD), or null
 - confidence: 0.0-1.0 how explicitly stated (1.0 = directly said, 0.7 = strongly implied)
+- source_quote: Short verbatim quote (<=150 chars) from the conversation that supports this fact, or null
+- kind: "list_item" when this fact is one element of an enumerated list from the source (shared source_quote across siblings); otherwise "atomic"
+
+### List decomposition (CRITICAL)
+If the source sentence enumerates N items for the SAME predicate
+("I loved A, B, and C"; "She visited X, Y, Z"; "books I read: A, B, C"),
+emit N SEPARATE facts — one per item — NOT a single compound fact.
+The siblings share the same source_quote, event_date, entity, and tags,
+and each has kind="list_item".
+
+WRONG (one compound fact):
+  {{"content": "Melanie read Charlotte's Web and Nothing is Impossible",
+    "entity": "Melanie", "tags": ["books"], "kind": "atomic"}}
+
+CORRECT (two atomic facts, same source_quote, kind=list_item):
+  {{"content": "Melanie read Charlotte's Web",
+    "entity": "Melanie", "tags": ["books", "reading"],
+    "source_quote": "I loved Charlotte's Web and Nothing is Impossible",
+    "kind": "list_item"}}
+  {{"content": "Melanie read Nothing is Impossible",
+    "entity": "Melanie", "tags": ["books", "reading"],
+    "source_quote": "I loved Charlotte's Web and Nothing is Impossible",
+    "kind": "list_item"}}
 
 ## Relations (entity-relationship triples)
 For each relation:
@@ -64,6 +87,21 @@ For each relation:
 Examples:
   {{"subject": "Caroline", "predicate": "works_at", "object": "Google", "event_date": "2024-01-15", "source_quote": "I started at Google last January", "attributes": null}}
   {{"subject": "Caroline", "predicate": "friend_of", "object": "Melanie", "event_date": null, "source_quote": "my friend Melanie and I", "attributes": null}}
+
+### List decomposition for relations (CRITICAL)
+When the source enumerates multiple objects for the same (subject, predicate),
+emit ONE triple per object. Siblings share source_quote.
+
+WRONG (collapsed object list):
+  {{"subject": "Melanie", "predicate": "read",
+    "object": "Charlotte's Web and Nothing is Impossible",
+    "source_quote": "I loved Charlotte's Web and Nothing is Impossible"}}
+
+CORRECT (one triple per book):
+  {{"subject": "Melanie", "predicate": "read", "object": "Charlotte's Web",
+    "source_quote": "I loved Charlotte's Web and Nothing is Impossible"}}
+  {{"subject": "Melanie", "predicate": "read", "object": "Nothing is Impossible",
+    "source_quote": "I loved Charlotte's Web and Nothing is Impossible"}}
 
 ## Entities (synthesized profile per person/thing)
 For each distinct person, organization, or place mentioned, produce ONE profile aggregating everything known about them in this session:
@@ -89,10 +127,11 @@ Rules:
 - Each fact must be self-contained and readable without the conversation
 - Include the person's name in every fact (never "she", "he", "they")
 - Separate compound facts into individual atomic statements
+- NEVER compound list items into one fact or triple — emit one fact AND one triple per list element (see "List decomposition" above)
 - For temporal references like "next week" or "last month", resolve to dates relative to the session date
 - Extract ALL relationships between people, places, organizations, and things mentioned
 - Entity profiles and concepts must be SYNTHESIZED from the conversation, not copied verbatim
-- A concept groups multiple related facts under one theme (e.g. "books Caroline is reading" rather than one concept per book)
+- A concept groups multiple related facts under one theme (e.g. "books Caroline is reading" rather than one concept per book) — concepts are a summary layer, they do NOT replace per-item facts and triples
 - Do NOT include greetings, conversational filler, or meta-commentary
 
 Conversation:
@@ -316,15 +355,23 @@ def _facts_to_memories(
     """Convert extracted fact dicts to Memory objects."""
     memories = []
     for fact in facts:
-        if isinstance(fact, dict) and "content" in fact:
-            memories.append(
-                Memory(
-                    content=fact["content"],
-                    tags=fact.get("tags", []),
-                    category=fact.get("category", "general"),
-                    entity=fact.get("entity"),
-                    event_date=fact.get("event_date") or default_event_date,
-                    confidence=fact.get("confidence", 1.0),
-                )
+        if not (isinstance(fact, dict) and "content" in fact):
+            continue
+        metadata: Dict[str, Any] = {}
+        if fact.get("source_quote"):
+            metadata["source_quote"] = fact["source_quote"]
+        kind = fact.get("kind")
+        if kind in {"list_item", "atomic"}:
+            metadata["kind"] = kind
+        memories.append(
+            Memory(
+                content=fact["content"],
+                tags=fact.get("tags", []),
+                category=fact.get("category", "general"),
+                entity=fact.get("entity"),
+                event_date=fact.get("event_date") or default_event_date,
+                confidence=fact.get("confidence", 1.0),
+                metadata=metadata,
             )
+        )
     return memories

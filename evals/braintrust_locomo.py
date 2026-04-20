@@ -255,21 +255,31 @@ def _dual_path_ingest(
         )
 
         # B.1 — atomic facts → namespace=entities
+        # Preserve extractor-produced metadata (source_quote, kind=list_item)
+        # so list-item rows are identifiable downstream and searchable by their
+        # verbatim quote.
         for f_idx, m in enumerate(memories):
             t0 = time.perf_counter()
+            fact_kind = m.metadata.get("kind") or "fact"
+            fact_tags = list(m.tags) + ["entity", "fact"]
+            if fact_kind == "list_item":
+                fact_tags.append("list_item")
+            fact_metadata: dict[str, Any] = {
+                "path": "B",
+                "namespace": "entities",
+                "kind": fact_kind,
+                "session": session_id,
+            }
+            if m.metadata.get("source_quote"):
+                fact_metadata["source_quote"] = m.metadata["source_quote"]
             result = mem.add(
                 content=m.content,
-                tags=list(m.tags) + ["entity", "fact"],
+                tags=fact_tags,
                 category="entity",
                 entity=m.entity,
                 event_date=m.event_date or date_time,
                 confidence=m.confidence,
-                metadata={
-                    "path": "B",
-                    "namespace": "entities",
-                    "kind": "fact",
-                    "session": session_id,
-                },
+                metadata=fact_metadata,
             )
             ms = (time.perf_counter() - t0) * 1000
             stats["facts"] += 1
