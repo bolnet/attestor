@@ -20,6 +20,7 @@ from attestor.longmemeval import (
     LMESample,
     LMETurn,
     TEMPORAL_CATEGORY,
+    VERIFY_PROMPT,
     _coerce_sample,
     _format_recall_context,
     _format_turn_content,
@@ -27,6 +28,7 @@ from attestor.longmemeval import (
     _parse_judge_response,
     _safe_judge_dict,
     _short_date,
+    _strip_reasoning,
     ingest_history,
     load_longmemeval,
     namespace_for,
@@ -510,6 +512,51 @@ def test_run_async_records_pipeline_error_as_wrong(
     # The other two samples scored normally.
     good = [s for s in report.samples if s.question_id != bad_id]
     assert all(j["correct"] for s in good for j in s.judgments.values())
+
+
+@pytest.mark.unit
+def test_strip_reasoning_extracts_final_answer() -> None:
+    raw = "<reasoning>step 1, step 2</reasoning>\n7 days"
+    reasoning, final = _strip_reasoning(raw)
+    assert reasoning == "step 1, step 2"
+    assert final == "7 days"
+
+
+@pytest.mark.unit
+def test_strip_reasoning_no_tags_treats_as_final() -> None:
+    assert _strip_reasoning("just an answer") == ("", "just an answer")
+    assert _strip_reasoning("") == ("", "")
+
+
+@pytest.mark.unit
+def test_strip_reasoning_handles_multiline_final_answer() -> None:
+    raw = "<reasoning>work</reasoning>\n\n  `2 months`\n\nextra prose"
+    reasoning, final = _strip_reasoning(raw)
+    assert reasoning == "work"
+    # Backticks and leading/trailing whitespace trimmed; first non-empty line wins.
+    assert final == "2 months"
+
+
+@pytest.mark.unit
+def test_strip_reasoning_multiline_reasoning() -> None:
+    raw = "<reasoning>line1\nline2\nline3</reasoning>\nfinal"
+    reasoning, final = _strip_reasoning(raw)
+    assert "line1" in reasoning and "line3" in reasoning
+    assert final == "final"
+
+
+@pytest.mark.unit
+def test_answer_prompt_includes_arithmetic_guidance() -> None:
+    # Guard against a future edit that silently removes the CoT / date-math section.
+    assert "DATE ARITHMETIC" in ANSWER_PROMPT
+    assert "<reasoning>" in ANSWER_PROMPT
+    assert "abstain ONLY when no relevant fact exists" in ANSWER_PROMPT
+
+
+@pytest.mark.unit
+def test_verify_prompt_includes_all_placeholders() -> None:
+    for ph in ["{question}", "{question_date}", "{context}", "{first_answer}"]:
+        assert ph in VERIFY_PROMPT, f"missing placeholder {ph} in VERIFY_PROMPT"
 
 
 @pytest.mark.unit

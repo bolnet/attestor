@@ -305,6 +305,14 @@ def main(argv=None):
         help="Max concurrent samples (default: 4). Each sample gets its own AgentMemory instance.",
     )
     p_lme.add_argument(
+        "--verify", action="store_true",
+        help="Run a second-pass verification that re-checks date arithmetic + abstentions.",
+    )
+    p_lme.add_argument(
+        "--verify-model", default=None,
+        help="OpenRouter model id for the verifier (defaults to --answer-model).",
+    )
+    p_lme.add_argument(
         "--output", "-o", default=None, help="Save full report JSON to file",
     )
     p_lme.add_argument("--env-file", default=None, help="Path to .env file for API keys")
@@ -960,13 +968,23 @@ def _cmd_longmemeval(args):
     judge_models = args.judge_model or list(DEFAULT_JUDGES)
 
     from attestor._paths import resolve_store_path
+    import threading
 
     backend_config = _parse_backend_config(args)
     store_path = resolve_store_path(getattr(args, "path", None))
 
+    # Pre-warm so the first factory call doesn't race with others.
+    # AgentMemory.__init__ reads + writes ~/.attestor/config.json every time,
+    # which is a write-truncate race under concurrent construction. The
+    # lock makes construction atomic without serializing the (long) ingest
+    # / answer / judge work that follows.
+    _factory_lock = threading.Lock()
+    AgentMemory(store_path, config=backend_config).close()
+
     def mem_factory() -> AgentMemory:
         """Fresh AgentMemory per sample — per-task Postgres/Neo4j connections."""
-        return AgentMemory(store_path, config=backend_config)
+        with _factory_lock:
+            return AgentMemory(store_path, config=backend_config)
 
     print(
         f"Running LongMemEval: answer={args.answer_model} "
@@ -983,6 +1001,8 @@ def _cmd_longmemeval(args):
         use_extraction=args.use_extraction,
         max_facts=args.max_facts,
         parallel=args.parallel,
+        verify=args.verify,
+        verify_model=args.verify_model,
         verbose=args.verbose,
         output_path=args.output,
     )

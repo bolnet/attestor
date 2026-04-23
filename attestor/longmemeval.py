@@ -449,11 +449,56 @@ ANSWER_PROMPT = (
     "  - When a question asks \"when did X happen\", answer with the EVENT date,\n"
     "    not the session date unless they coincide.\n"
     "  - Prefer concrete absolute dates; never paraphrase the relative phrase.\n\n"
-    "If the facts do not support an answer, respond with exactly: "
-    "I don't know.\n\n"
+    "DATE ARITHMETIC — this is where mistakes happen most:\n"
+    "  1. Identify every date relevant to the question (event dates, the\n"
+    "     question date, any reference dates in the question itself).\n"
+    "  2. If the question asks \"how many days/weeks/months/years between\n"
+    "     X and Y\", compute |date_Y − date_X| in the requested unit. Do NOT\n"
+    "     substitute \"from today\" or \"from the question date\" — measure\n"
+    "     between the two events named in the question.\n"
+    "  3. If the question asks \"how many days/months ago\", the anchor is\n"
+    "     the question_date (given above), not today.\n"
+    "  4. If the question has a temporal modifier like \"when I did X\",\n"
+    "     \"when I made the cake\", \"when I moved\" — that modifier IS the\n"
+    "     anchor date for the main question, not the question_date.\n"
+    "  5. Months: full calendar months between two dates. 2022-10-22 to\n"
+    "     2023-03-22 = 5 months. Partial months round down.\n"
+    "  6. Days: calendar day count. Double-check by going month-by-month.\n\n"
+    "Before writing your final answer, think step-by-step INSIDE\n"
+    "<reasoning>...</reasoning> tags:\n"
+    "  - Quote each relevant fact line (keep the [YYYY-MM-DD] prefix).\n"
+    "  - State the two dates you are comparing.\n"
+    "  - Show the arithmetic.\n"
+    "Then output the final answer AFTER </reasoning> on its own. Keep\n"
+    "the final answer concise and concrete — a date, a number, a short\n"
+    "phrase. Do NOT abstain (\"I don't know\") if the facts above contain\n"
+    "the answer; abstain ONLY when no relevant fact exists.\n\n"
     "Question (asked on {question_date}):\n{question}\n\n"
     "Facts:\n{context}\n\n"
-    "Answer concisely. Do not repeat the question."
+    "Output format:\n"
+    "<reasoning>...your step-by-step work...</reasoning>\n"
+    "<final answer only — one line, no prefix>"
+)
+
+VERIFY_PROMPT = (
+    "Double-check the AI's answer below against the facts. You are a "
+    "second-pass verifier. Your job is to catch date-arithmetic mistakes, "
+    "misread temporal anchors, and questions where the AI abstained "
+    "despite sufficient evidence.\n\n"
+    "Question (asked on {question_date}):\n{question}\n\n"
+    "Facts:\n{context}\n\n"
+    "AI's first answer:\n{first_answer}\n\n"
+    "Rules:\n"
+    "  1. If the first answer is correct, repeat it verbatim (same number, "
+    "same date, same phrase). Do NOT rephrase or elaborate.\n"
+    "  2. If the first answer has an arithmetic error, recompute and "
+    "output the corrected final answer.\n"
+    "  3. If the first answer abstained (\"I don't know\") but the facts "
+    "contain a specific answer, replace the abstention with the correct "
+    "answer.\n"
+    "  4. If the facts truly do not support an answer, keep \"I don't know\".\n\n"
+    "Output ONLY the final answer on one line. No reasoning, no prefix, "
+    "no explanation."
 )
 
 JUDGE_PROMPT = (
@@ -525,6 +570,34 @@ class AnswerResult:
     retrieved_count: int
     used_fact_count: int
     latency_ms: float
+    reasoning: str = ""  # the <reasoning> block if the answerer produced one
+    verified: bool = False  # True when a verification pass ran
+    raw_first_answer: str = ""  # set when verification overrode the first answer
+
+
+_REASONING_RE = re.compile(r"<reasoning>(.*?)</reasoning>", re.DOTALL | re.IGNORECASE)
+
+
+def _strip_reasoning(raw: str) -> Tuple[str, str]:
+    """Split an answerer response into (reasoning, final_answer).
+
+    Supports the <reasoning>...</reasoning> then final-answer contract.
+    If no tags are present, treats the whole string as the final answer.
+    """
+    if not raw:
+        return "", ""
+    m = _REASONING_RE.search(raw)
+    if not m:
+        return "", raw.strip()
+    reasoning = m.group(1).strip()
+    after = raw[m.end():].strip()
+    # Some models wrap the final answer in ticks / extra prose — take the
+    # first non-empty line after the reasoning block.
+    for line in after.splitlines():
+        line = line.strip().strip("`").strip()
+        if line:
+            return reasoning, line
+    return reasoning, after
 
 
 def answer_question(
@@ -535,7 +608,9 @@ def answer_question(
     model: str = DEFAULT_MODEL,
     api_key: Optional[str] = None,
     max_facts: int = 40,
-    max_tokens: int = 150,
+    max_tokens: int = 600,
+    verify: bool = False,
+    verify_model: Optional[str] = None,
 ) -> AnswerResult:
     """Recall + synthesize an answer for a LongMemEval sample.
 
@@ -546,17 +621,23 @@ def answer_question(
         model: OpenRouter model id for synthesis.
         api_key: Optional override for ``OPENROUTER_API_KEY``.
         max_facts: Cap on facts injected into the prompt (guards prompt size).
-        max_tokens: Answerer ``max_tokens``.
+        max_tokens: Answerer ``max_tokens``. Bumped to 600 to accommodate the
+            chain-of-thought <reasoning> block.
+        verify: When True, run a second-pass verification that re-checks
+            the first answer against the same facts. Catches arithmetic
+            errors and over-abstention.
+        verify_model: OpenRouter model id for the verifier. Defaults to
+            ``model`` (same model self-verifying).
 
     Returns:
-        ``AnswerResult`` with answer text + retrieval counts + latency.
+        ``AnswerResult`` with final answer + retrieval counts + latency +
+        optional reasoning trace + verification flag.
     """
     import time
 
     ns = namespace_for(sample)
     t0 = time.monotonic()
     results = mem.recall(sample.question, budget=budget, namespace=ns) or []
-    # Highest-score first (recall already scores; tolerate arbitrary order).
     results = sorted(results, key=lambda r: getattr(r, "score", 0.0), reverse=True)
 
     if not results:
@@ -568,18 +649,49 @@ def answer_question(
         )
 
     context = _format_recall_context(results, max_facts=max_facts)
+    question_date = sample.question_date or "(unknown)"
     prompt = ANSWER_PROMPT.format(
         question=sample.question,
-        question_date=sample.question_date or "(unknown)",
+        question_date=question_date,
         context=context,
     )
     client = _get_client(api_key)
-    answer = _chat(client, model, prompt, max_tokens=max_tokens).strip()
+    raw = _chat(client, model, prompt, max_tokens=max_tokens).strip()
+    reasoning, first_answer = _strip_reasoning(raw)
+
+    final_answer = first_answer
+    verified = False
+    raw_first = ""
+    if verify:
+        verify_prompt = VERIFY_PROMPT.format(
+            question=sample.question,
+            question_date=question_date,
+            context=context,
+            first_answer=first_answer,
+        )
+        verified_text = _chat(
+            client, verify_model or model, verify_prompt, max_tokens=150
+        ).strip()
+        # Only accept the verifier's output if it is a non-empty single line
+        # that differs from the first answer. Preserve the verified=True flag
+        # either way so telemetry records that the pass ran.
+        verified = True
+        cleaned = verified_text.splitlines()[0].strip() if verified_text else ""
+        if cleaned:
+            if cleaned != first_answer:
+                raw_first = first_answer
+                final_answer = cleaned
+            else:
+                final_answer = cleaned
+
     return AnswerResult(
-        answer=answer,
+        answer=final_answer,
         retrieved_count=len(results),
         used_fact_count=min(len(results), max_facts),
         latency_ms=round((time.monotonic() - t0) * 1000, 2),
+        reasoning=reasoning,
+        verified=verified,
+        raw_first_answer=raw_first,
     )
 
 
@@ -785,6 +897,8 @@ async def _process_sample(
     budget: int,
     use_extraction: bool,
     max_facts: int,
+    verify: bool = False,
+    verify_model: Optional[str] = None,
 ) -> SampleReport:
     """Ingest → answer → judge one sample on its own AgentMemory instance.
 
@@ -819,6 +933,8 @@ async def _process_sample(
             model=answer_model,
             api_key=api_key,
             max_facts=max_facts,
+            verify=verify,
+            verify_model=verify_model,
         )
 
         judge_coros = [
@@ -871,6 +987,8 @@ async def run_async(
     use_extraction: bool = False,
     max_facts: int = 40,
     parallel: int = DEFAULT_PARALLEL,
+    verify: bool = False,
+    verify_model: Optional[str] = None,
     verbose: bool = False,
     output_path: Optional[Path | str] = None,
     progress_callback: Optional[Callable[[int, int, SampleReport], None]] = None,
@@ -919,6 +1037,8 @@ async def run_async(
                     budget=budget,
                     use_extraction=use_extraction,
                     max_facts=max_facts,
+                    verify=verify,
+                    verify_model=verify_model,
                 )
             except Exception as e:  # noqa: BLE001 — one bad sample must not sink the run
                 logger.exception(
@@ -1027,6 +1147,8 @@ def run(
     use_extraction: bool = False,
     max_facts: int = 40,
     parallel: int = DEFAULT_PARALLEL,
+    verify: bool = False,
+    verify_model: Optional[str] = None,
     verbose: bool = False,
     output_path: Optional[Path | str] = None,
     progress_callback: Optional[Callable[[int, int, SampleReport], None]] = None,
@@ -1058,6 +1180,8 @@ def run(
             use_extraction=use_extraction,
             max_facts=max_facts,
             parallel=parallel,
+            verify=verify,
+            verify_model=verify_model,
             verbose=verbose,
             output_path=output_path,
             progress_callback=progress_callback,
