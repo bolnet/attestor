@@ -666,3 +666,194 @@ def judge_answer(
         raw=raw,
         judge_model=model,
     )
+
+
+# ---------------------------------------------------------------------------
+# Runner + reporting
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SampleReport:
+    """Per-sample outcome of a LongMemEval run."""
+
+    question_id: str
+    category: str
+    question: str
+    gold: str
+    answer: str
+    judgments: dict  # judge_model -> JudgeResult (dict for JSON-serializability)
+    answer_latency_ms: float
+    ingest_turns: int
+    ingest_memories: int
+    retrieved_count: int
+
+
+@dataclass(frozen=True)
+class LMERunReport:
+    """Aggregated results of a run. JSON-serializable via ``asdict``."""
+
+    total: int
+    answer_model: str
+    judge_models: Tuple[str, ...]
+    by_category: dict  # category -> {judge_model -> {correct, total, accuracy}}
+    by_judge: dict     # judge_model -> {correct, total, accuracy}
+    started_at: str
+    completed_at: str
+    samples: Tuple[SampleReport, ...]
+
+
+def _blank_counter() -> dict:
+    return {"correct": 0, "total": 0}
+
+
+def _judgement_to_dict(j: JudgeResult) -> dict:
+    return {
+        "label": j.label,
+        "correct": j.correct,
+        "reasoning": j.reasoning,
+        "judge_model": j.judge_model,
+    }
+
+
+def _accuracy(bucket: dict) -> dict:
+    """Add a percentage accuracy field to a {correct,total} bucket."""
+    total = bucket.get("total", 0)
+    correct = bucket.get("correct", 0)
+    pct = round(100.0 * correct / total, 2) if total else 0.0
+    return {**bucket, "accuracy": pct}
+
+
+def _summarize(
+    sample_reports: List[SampleReport], judge_models: List[str]
+) -> Tuple[dict, dict]:
+    """Return (by_category, by_judge) nested dicts with accuracy baked in."""
+    by_category: dict = {}
+    by_judge: dict = {jm: _blank_counter() for jm in judge_models}
+
+    for sr in sample_reports:
+        cat = sr.category
+        by_category.setdefault(cat, {jm: _blank_counter() for jm in judge_models})
+        for jm in judge_models:
+            j = sr.judgments.get(jm)
+            if not j:
+                continue
+            correct = bool(j["correct"])
+            by_category[cat][jm]["total"] += 1
+            by_judge[jm]["total"] += 1
+            if correct:
+                by_category[cat][jm]["correct"] += 1
+                by_judge[jm]["correct"] += 1
+
+    by_category_pct = {
+        cat: {jm: _accuracy(bucket) for jm, bucket in per_judge.items()}
+        for cat, per_judge in by_category.items()
+    }
+    by_judge_pct = {jm: _accuracy(b) for jm, b in by_judge.items()}
+    return by_category_pct, by_judge_pct
+
+
+def run(
+    mem: Any,
+    samples: List[LMESample],
+    *,
+    answer_model: str = DEFAULT_MODEL,
+    judge_models: Optional[List[str]] = None,
+    api_key: Optional[str] = None,
+    budget: int = 4000,
+    use_extraction: bool = False,
+    max_facts: int = 40,
+    verbose: bool = False,
+    output_path: Optional[Path | str] = None,
+) -> LMERunReport:
+    """Execute a LongMemEval run end-to-end: ingest → answer → judge.
+
+    Args:
+        mem: Populated ``AgentMemory`` (will be written to; namespaces isolate).
+        samples: List of ``LMESample``.
+        answer_model: OpenRouter model id for the answerer.
+        judge_models: One or more OpenRouter model ids for the judge(s).
+            Defaults to ``[DEFAULT_MODEL]``. Pass two for dual-judge scoring.
+        api_key: Optional OPENROUTER_API_KEY override.
+        budget: Recall token budget per question.
+        use_extraction: Run Attestor's LLM extractor on each session during
+            ingest (slower, more accurate on many-turn conversations).
+        max_facts: Cap on facts injected into each answerer prompt.
+        verbose: Print per-sample progress to stdout.
+        output_path: Optional path to write the JSON report.
+
+    Returns:
+        ``LMERunReport`` — also written to ``output_path`` if provided.
+    """
+    from dataclasses import asdict
+
+    judge_models = list(judge_models or [DEFAULT_MODEL])
+    started = datetime.utcnow().isoformat(timespec="seconds")
+    sample_reports: List[SampleReport] = []
+
+    for i, sample in enumerate(samples, start=1):
+        if verbose:
+            print(
+                f"[{i}/{len(samples)}] {sample.question_id} "
+                f"[{sample.question_type}]"
+            )
+        stats = ingest_history(
+            mem, sample, use_extraction=use_extraction, api_key=api_key,
+            verbose=False,
+        )
+        ans = answer_question(
+            mem, sample, budget=budget, model=answer_model, api_key=api_key,
+            max_facts=max_facts,
+        )
+        judgments: dict = {}
+        for jm in judge_models:
+            j = judge_answer(
+                sample.question,
+                sample.answer,
+                ans.answer,
+                sample.question_type,
+                model=jm,
+                api_key=api_key,
+            )
+            judgments[jm] = _judgement_to_dict(j)
+
+        sample_reports.append(
+            SampleReport(
+                question_id=sample.question_id,
+                category=sample.question_type,
+                question=sample.question,
+                gold=sample.answer,
+                answer=ans.answer,
+                judgments=judgments,
+                answer_latency_ms=ans.latency_ms,
+                ingest_turns=stats.turns_seen,
+                ingest_memories=stats.memories_added,
+                retrieved_count=ans.retrieved_count,
+            )
+        )
+        if verbose:
+            verdicts = ", ".join(
+                f"{jm.split('/')[-1]}={judgments[jm]['label']}" for jm in judge_models
+            )
+            print(f"    → {verdicts}  ans={ans.answer[:80]!r}")
+
+    completed = datetime.utcnow().isoformat(timespec="seconds")
+    by_category, by_judge = _summarize(sample_reports, judge_models)
+    report = LMERunReport(
+        total=len(sample_reports),
+        answer_model=answer_model,
+        judge_models=tuple(judge_models),
+        by_category=by_category,
+        by_judge=by_judge,
+        started_at=started,
+        completed_at=completed,
+        samples=tuple(sample_reports),
+    )
+
+    if output_path:
+        out = Path(output_path).expanduser().resolve()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(asdict(report), indent=2))
+        logger.info("LongMemEval report written: %s", out)
+
+    return report
