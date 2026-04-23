@@ -12,6 +12,8 @@ from attestor.longmemeval import (
     ANSWER_PROMPT,
     CATEGORY_NAMES,
     DATASET_VARIANTS,
+    DEFAULT_JUDGES,
+    DEFAULT_MODEL,
     IngestStats,
     JUDGE_PROMPT,
     JudgeResult,
@@ -23,11 +25,14 @@ from attestor.longmemeval import (
     _format_turn_content,
     _iso_date,
     _parse_judge_response,
+    _safe_judge_dict,
     _short_date,
     ingest_history,
     load_longmemeval,
     namespace_for,
     parse_lme_date,
+    run,
+    run_async,
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "lme_mini.json"
@@ -308,6 +313,203 @@ def test_judge_result_shape() -> None:
     assert r.correct is True
     with pytest.raises((AttributeError, TypeError)):
         r.label = "WRONG"  # type: ignore[misc]  # frozen
+
+
+@pytest.mark.unit
+def test_safe_judge_dict_handles_exception() -> None:
+    d = _safe_judge_dict("openai/gpt-4.1-mini", RuntimeError("rate limited"))
+    assert d["label"] == "WRONG"
+    assert d["correct"] is False
+    assert "rate limited" in d["reasoning"]
+    assert d["judge_model"] == "openai/gpt-4.1-mini"
+
+
+@pytest.mark.unit
+def test_safe_judge_dict_handles_judge_result() -> None:
+    r = JudgeResult(
+        label="CORRECT", correct=True, reasoning="ok", raw="x", judge_model="m"
+    )
+    d = _safe_judge_dict("m", r)
+    assert d["label"] == "CORRECT"
+    assert d["correct"] is True
+
+
+@pytest.mark.unit
+def test_default_judges_has_two_providers() -> None:
+    # Dual-judge default avoids answerer-judge collusion.
+    assert len(DEFAULT_JUDGES) == 2
+    # Distinct providers.
+    providers = {j.split("/")[0] for j in DEFAULT_JUDGES}
+    assert len(providers) == 2
+
+
+@pytest.mark.unit
+def test_run_async_parallel_preserves_input_order(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Samples completed out-of-order must still report in input order.
+
+    Patches ingest/answer/judge to avoid network and simulate completion skew.
+    """
+    import asyncio
+    import attestor.longmemeval as lme
+
+    samples = load_longmemeval(FIXTURE)
+    # Give each sample a different synthetic "compute cost" to force out-of-order completion.
+    delays = {s.question_id: (i % 3) * 0.01 for i, s in enumerate(samples)}
+
+    def fake_mem_factory() -> object:
+        class _M:
+            def close(self) -> None: pass
+        return _M()
+
+    async def _sleepy_ingest(mem, sample, **kwargs):
+        await asyncio.sleep(delays[sample.question_id])
+        return IngestStats(turns_seen=1, memories_added=1, sessions=1, skipped_empty=0)
+
+    def _fake_ingest(mem, sample, **kwargs):
+        # Sync version called via to_thread — emulate compute with the sleep.
+        import time
+        time.sleep(delays[sample.question_id])
+        return IngestStats(turns_seen=1, memories_added=1, sessions=1, skipped_empty=0)
+
+    def _fake_answer(mem, sample, **kwargs):
+        from attestor.longmemeval import AnswerResult
+        return AnswerResult(
+            answer=f"answer-for-{sample.question_id}",
+            retrieved_count=1,
+            used_fact_count=1,
+            latency_ms=1.0,
+        )
+
+    def _fake_judge(question, expected, generated, category, **kwargs):
+        model = kwargs.get("model", "m")
+        # Deterministic: every answer is CORRECT — isolates ordering from scoring.
+        return JudgeResult(
+            label="CORRECT", correct=True, reasoning="fake",
+            raw="{}", judge_model=model,
+        )
+
+    monkeypatch.setattr(lme, "ingest_history", _fake_ingest)
+    monkeypatch.setattr(lme, "answer_question", _fake_answer)
+    monkeypatch.setattr(lme, "judge_answer", _fake_judge)
+
+    report = asyncio.run(
+        run_async(
+            samples,
+            mem_factory=fake_mem_factory,
+            judge_models=["openai/gpt-4.1-mini", "anthropic/claude-haiku-4.5"],
+            parallel=3,
+            api_key="dummy",  # unused — _chat is never called
+        )
+    )
+    # Output order matches input order despite concurrent completion.
+    assert tuple(r.question_id for r in report.samples) == tuple(
+        s.question_id for s in samples
+    )
+    assert report.total == len(samples)
+    # Both judges scored every sample.
+    for sr in report.samples:
+        assert set(sr.judgments) == {"openai/gpt-4.1-mini", "anthropic/claude-haiku-4.5"}
+
+
+@pytest.mark.unit
+def test_run_async_inter_judge_agreement(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two judges disagreeing → agreement pct reflects it; aggregation correct."""
+    import asyncio
+    import attestor.longmemeval as lme
+
+    samples = load_longmemeval(FIXTURE)[:4]
+
+    def fake_mem_factory() -> object:
+        class _M:
+            def close(self) -> None: pass
+        return _M()
+
+    def _fake_ingest(mem, sample, **kwargs):
+        return IngestStats(turns_seen=1, memories_added=1, sessions=1, skipped_empty=0)
+
+    def _fake_answer(mem, sample, **kwargs):
+        from attestor.longmemeval import AnswerResult
+        return AnswerResult(answer="ans", retrieved_count=1, used_fact_count=1, latency_ms=0)
+
+    # Judge A says CORRECT on samples 0,1; WRONG on 2,3.
+    # Judge B says CORRECT on samples 0,3; WRONG on 1,2.
+    # They agree on samples 0 (both CORRECT) and 2 (both WRONG) → 2/4 = 50%.
+    a_verdicts = {samples[0].question_id: True, samples[1].question_id: True,
+                  samples[2].question_id: False, samples[3].question_id: False}
+    b_verdicts = {samples[0].question_id: True, samples[1].question_id: False,
+                  samples[2].question_id: False, samples[3].question_id: True}
+
+    def _fake_judge(question, expected, generated, category, **kwargs):
+        model = kwargs.get("model", "m")
+        # Recover the sample's question_id from the gold answer: the fixture's
+        # samples have distinct gold strings so we use `expected` as a key.
+        qid_by_gold = {s.answer: s.question_id for s in samples}
+        qid = qid_by_gold.get(expected)
+        correct = (a_verdicts if model == "A" else b_verdicts).get(qid, False)
+        return JudgeResult(
+            label="CORRECT" if correct else "WRONG",
+            correct=correct, reasoning="fake", raw="{}", judge_model=model,
+        )
+
+    monkeypatch.setattr(lme, "ingest_history", _fake_ingest)
+    monkeypatch.setattr(lme, "answer_question", _fake_answer)
+    monkeypatch.setattr(lme, "judge_answer", _fake_judge)
+
+    report = asyncio.run(
+        run_async(samples, mem_factory=fake_mem_factory, judge_models=["A", "B"], parallel=2)
+    )
+    agreement = report.by_judge["_inter_judge_agreement"]
+    key = "A__vs__B"
+    assert agreement[key]["both_correct"] == 1
+    assert agreement[key]["both_wrong"] == 1
+    assert agreement[key]["agreement_pct"] == 50.0
+    # Independent judge buckets.
+    assert report.by_judge["A"]["correct"] == 2
+    assert report.by_judge["B"]["correct"] == 2
+
+
+@pytest.mark.unit
+def test_run_async_records_pipeline_error_as_wrong(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sample whose ingest blows up must not sink the whole run."""
+    import asyncio
+    import attestor.longmemeval as lme
+
+    samples = load_longmemeval(FIXTURE)[:3]
+    bad_id = samples[1].question_id
+
+    def fake_mem_factory() -> object:
+        class _M:
+            def close(self) -> None: pass
+        return _M()
+
+    def _ingest(mem, sample, **kwargs):
+        if sample.question_id == bad_id:
+            raise RuntimeError("kaboom")
+        return IngestStats(turns_seen=1, memories_added=1, sessions=1, skipped_empty=0)
+
+    def _answer(mem, sample, **kwargs):
+        from attestor.longmemeval import AnswerResult
+        return AnswerResult(answer="ans", retrieved_count=1, used_fact_count=1, latency_ms=0)
+
+    def _judge(question, expected, generated, category, **kwargs):
+        return JudgeResult(label="CORRECT", correct=True, reasoning="", raw="{}", judge_model=kwargs.get("model", "m"))
+
+    monkeypatch.setattr(lme, "ingest_history", _ingest)
+    monkeypatch.setattr(lme, "answer_question", _answer)
+    monkeypatch.setattr(lme, "judge_answer", _judge)
+
+    report = asyncio.run(
+        run_async(samples, mem_factory=fake_mem_factory, judge_models=["m"], parallel=2)
+    )
+    assert report.total == 3
+    bad = next(s for s in report.samples if s.question_id == bad_id)
+    assert not any(j["correct"] for j in bad.judgments.values())
+    assert "pipeline_error" in bad.answer
+    # The other two samples scored normally.
+    good = [s for s in report.samples if s.question_id != bad_id]
+    assert all(j["correct"] for s in good for j in s.judgments.values())
 
 
 @pytest.mark.unit

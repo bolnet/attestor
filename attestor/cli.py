@@ -301,6 +301,10 @@ def main(argv=None):
     )
     p_lme.add_argument("--verbose", "-v", action="store_true", help="Print progress")
     p_lme.add_argument(
+        "--parallel", type=int, default=4,
+        help="Max concurrent samples (default: 4). Each sample gets its own AgentMemory instance.",
+    )
+    p_lme.add_argument(
         "--output", "-o", default=None, help="Save full report JSON to file",
     )
     p_lme.add_argument("--env-file", default=None, help="Path to .env file for API keys")
@@ -951,38 +955,55 @@ def _cmd_longmemeval(args):
         samples = samples[: args.max_samples]
         print(f"capped to {len(samples)} samples")
 
-    judge_models = args.judge_model or [DEFAULT_MODEL]
+    from attestor.longmemeval import DEFAULT_JUDGES  # local import to avoid cycle
+
+    judge_models = args.judge_model or list(DEFAULT_JUDGES)
 
     from attestor._paths import resolve_store_path
 
     backend_config = _parse_backend_config(args)
     store_path = resolve_store_path(getattr(args, "path", None))
-    mem = AgentMemory(store_path, config=backend_config)
-    try:
-        print(
-            f"Running LongMemEval: answer={args.answer_model} "
-            f"judges={judge_models} samples={len(samples)} budget={args.budget}"
-        )
-        report = run(
-            mem,
-            samples,
-            answer_model=args.answer_model,
-            judge_models=judge_models,
-            api_key=api_key,
-            budget=args.budget,
-            use_extraction=args.use_extraction,
-            max_facts=args.max_facts,
-            verbose=args.verbose,
-            output_path=args.output,
-        )
-    finally:
-        mem.close()
+
+    def mem_factory() -> AgentMemory:
+        """Fresh AgentMemory per sample — per-task Postgres/Neo4j connections."""
+        return AgentMemory(store_path, config=backend_config)
+
+    print(
+        f"Running LongMemEval: answer={args.answer_model} "
+        f"judges={judge_models} samples={len(samples)} budget={args.budget} "
+        f"parallel={args.parallel}"
+    )
+    report = run(
+        samples,
+        mem_factory=mem_factory,
+        answer_model=args.answer_model,
+        judge_models=judge_models,
+        api_key=api_key,
+        budget=args.budget,
+        use_extraction=args.use_extraction,
+        max_facts=args.max_facts,
+        parallel=args.parallel,
+        verbose=args.verbose,
+        output_path=args.output,
+    )
 
     # Pretty print summary
     print("\n=== LongMemEval summary ===")
     print(f"total samples: {report.total}")
     for jm, bucket in report.by_judge.items():
+        if jm.startswith("_"):
+            continue  # skip meta entries like _inter_judge_agreement
         print(f"  judge={jm}: {bucket['correct']}/{bucket['total']} ({bucket['accuracy']}%)")
+
+    agreement = report.by_judge.get("_inter_judge_agreement")
+    if agreement:
+        print("\n  inter-judge agreement:")
+        for pair, stats in agreement.items():
+            print(
+                f"    {pair}: agreement={stats['agreement_pct']}% "
+                f"(both_correct={stats['both_correct']}, both_wrong={stats['both_wrong']})"
+            )
+
     print("\n  by category (per judge):")
     for cat, per_judge in report.by_category.items():
         print(f"    {cat}:")

@@ -31,6 +31,8 @@ ingest / answer / judge / run.
 
 from __future__ import annotations
 
+import asyncio
+import itertools
 import json
 import logging
 import os
@@ -39,12 +41,15 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "openai/gpt-4.1-mini"
+# Default dual-judge. Second judge anchors out answerer-judge collusion.
+DEFAULT_JUDGES = ("openai/gpt-4.1-mini", "anthropic/claude-haiku-4.5")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_PARALLEL = 4
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -753,61 +758,72 @@ def _summarize(
     return by_category_pct, by_judge_pct
 
 
-def run(
-    mem: Any,
-    samples: List[LMESample],
-    *,
-    answer_model: str = DEFAULT_MODEL,
-    judge_models: Optional[List[str]] = None,
-    api_key: Optional[str] = None,
-    budget: int = 4000,
-    use_extraction: bool = False,
-    max_facts: int = 40,
-    verbose: bool = False,
-    output_path: Optional[Path | str] = None,
-) -> LMERunReport:
-    """Execute a LongMemEval run end-to-end: ingest → answer → judge.
+def _safe_judge_dict(
+    jm: str, result: "JudgeResult | BaseException"
+) -> dict:
+    """Normalize one judge outcome — JudgeResult or an exception — into a dict.
 
-    Args:
-        mem: Populated ``AgentMemory`` (will be written to; namespaces isolate).
-        samples: List of ``LMESample``.
-        answer_model: OpenRouter model id for the answerer.
-        judge_models: One or more OpenRouter model ids for the judge(s).
-            Defaults to ``[DEFAULT_MODEL]``. Pass two for dual-judge scoring.
-        api_key: Optional OPENROUTER_API_KEY override.
-        budget: Recall token budget per question.
-        use_extraction: Run Attestor's LLM extractor on each session during
-            ingest (slower, more accurate on many-turn conversations).
-        max_facts: Cap on facts injected into each answerer prompt.
-        verbose: Print per-sample progress to stdout.
-        output_path: Optional path to write the JSON report.
-
-    Returns:
-        ``LMERunReport`` — also written to ``output_path`` if provided.
+    Errors do NOT inflate accuracy: they are recorded as WRONG with a reason.
     """
-    from dataclasses import asdict
+    if isinstance(result, BaseException):
+        return {
+            "label": "WRONG",
+            "correct": False,
+            "reasoning": f"judge_error: {type(result).__name__}: {result}",
+            "judge_model": jm,
+        }
+    return _judgement_to_dict(result)
 
-    judge_models = list(judge_models or [DEFAULT_MODEL])
-    started = datetime.utcnow().isoformat(timespec="seconds")
-    sample_reports: List[SampleReport] = []
 
-    for i, sample in enumerate(samples, start=1):
-        if verbose:
-            print(
-                f"[{i}/{len(samples)}] {sample.question_id} "
-                f"[{sample.question_type}]"
-            )
-        stats = ingest_history(
-            mem, sample, use_extraction=use_extraction, api_key=api_key,
+async def _process_sample(
+    sample: LMESample,
+    *,
+    mem_factory: Callable[[], Any],
+    answer_model: str,
+    judge_models: List[str],
+    api_key: Optional[str],
+    budget: int,
+    use_extraction: bool,
+    max_facts: int,
+) -> SampleReport:
+    """Ingest → answer → judge one sample on its own AgentMemory instance.
+
+    Isolation: each call creates its own ``AgentMemory`` via ``mem_factory``
+    and closes it at the end. Per-sample namespace (``lme_<qid>``) keeps
+    haystacks disjoint at the document layer; per-instance connections
+    keep the Postgres driver's thread-unsafe connection objects disjoint
+    at the transport layer. Both together give us correctness under
+    per-sample concurrency.
+
+    Judge calls inside a sample run in parallel via ``asyncio.gather`` —
+    independent network round-trips, no shared state.
+
+    A failing judge is recorded as WRONG but does NOT fail the sample.
+    A failing ingest/answer re-raises so the top-level gather can count it.
+    """
+    mem = await asyncio.to_thread(mem_factory)
+    try:
+        stats: IngestStats = await asyncio.to_thread(
+            ingest_history,
+            mem,
+            sample,
+            use_extraction=use_extraction,
+            api_key=api_key,
             verbose=False,
         )
-        ans = answer_question(
-            mem, sample, budget=budget, model=answer_model, api_key=api_key,
+        ans: AnswerResult = await asyncio.to_thread(
+            answer_question,
+            mem,
+            sample,
+            budget=budget,
+            model=answer_model,
+            api_key=api_key,
             max_facts=max_facts,
         )
-        judgments: dict = {}
-        for jm in judge_models:
-            j = judge_answer(
+
+        judge_coros = [
+            asyncio.to_thread(
+                judge_answer,
                 sample.question,
                 sample.answer,
                 ans.answer,
@@ -815,36 +831,176 @@ def run(
                 model=jm,
                 api_key=api_key,
             )
-            judgments[jm] = _judgement_to_dict(j)
+            for jm in judge_models
+        ]
+        judge_results = await asyncio.gather(*judge_coros, return_exceptions=True)
+        judgments = {
+            jm: _safe_judge_dict(jm, res)
+            for jm, res in zip(judge_models, judge_results)
+        }
 
-        sample_reports.append(
-            SampleReport(
-                question_id=sample.question_id,
-                category=sample.question_type,
-                question=sample.question,
-                gold=sample.answer,
-                answer=ans.answer,
-                judgments=judgments,
-                answer_latency_ms=ans.latency_ms,
-                ingest_turns=stats.turns_seen,
-                ingest_memories=stats.memories_added,
-                retrieved_count=ans.retrieved_count,
-            )
+        return SampleReport(
+            question_id=sample.question_id,
+            category=sample.question_type,
+            question=sample.question,
+            gold=sample.answer,
+            answer=ans.answer,
+            judgments=judgments,
+            answer_latency_ms=ans.latency_ms,
+            ingest_turns=stats.turns_seen,
+            ingest_memories=stats.memories_added,
+            retrieved_count=ans.retrieved_count,
         )
-        if verbose:
-            verdicts = ", ".join(
-                f"{jm.split('/')[-1]}={judgments[jm]['label']}" for jm in judge_models
-            )
-            print(f"    → {verdicts}  ans={ans.answer[:80]!r}")
+    finally:
+        close = getattr(mem, "close", None)
+        if callable(close):
+            try:
+                await asyncio.to_thread(close)
+            except Exception as e:  # noqa: BLE001 — never mask the real error
+                logger.warning("mem.close() failed: %s", e)
 
+
+async def run_async(
+    samples: List[LMESample],
+    *,
+    mem_factory: Callable[[], Any],
+    answer_model: str = DEFAULT_MODEL,
+    judge_models: Optional[List[str]] = None,
+    api_key: Optional[str] = None,
+    budget: int = 4000,
+    use_extraction: bool = False,
+    max_facts: int = 40,
+    parallel: int = DEFAULT_PARALLEL,
+    verbose: bool = False,
+    output_path: Optional[Path | str] = None,
+    progress_callback: Optional[Callable[[int, int, SampleReport], None]] = None,
+) -> LMERunReport:
+    """Parallel LongMemEval orchestrator — ingest → answer → judge per sample.
+
+    Args:
+        samples: ``LMESample`` list to score.
+        mem_factory: Zero-arg callable that returns a fresh ``AgentMemory``.
+            Called once PER SAMPLE so each task has isolated backend state.
+        answer_model: OpenRouter model id for the answerer.
+        judge_models: List of OpenRouter model ids. Multiple judges are
+            called in parallel per sample and scored independently.
+        api_key: Optional OPENROUTER_API_KEY override.
+        budget: Recall token budget per question.
+        use_extraction: Run the LLM extractor during ingest.
+        max_facts: Cap on facts injected into the answerer prompt.
+        parallel: Max concurrent samples. Default 4. Increase at your
+            own rate-limit risk.
+        verbose: Print per-sample verdicts to stdout as they arrive.
+        output_path: Optional path to write the final JSON report.
+        progress_callback: Optional ``(completed, total, sample_report)``
+            hook fired as each sample finishes — useful for custom UIs.
+
+    Returns:
+        ``LMERunReport`` ordered the same way as ``samples`` (stable output
+        despite concurrent execution).
+    """
+    from dataclasses import asdict
+
+    judge_models = list(judge_models or list(DEFAULT_JUDGES))
+    started = datetime.utcnow().isoformat(timespec="seconds")
+
+    semaphore = asyncio.Semaphore(max(1, parallel))
+    ordered_reports: List[Optional[SampleReport]] = [None] * len(samples)
+
+    async def _guarded(idx: int, sample: LMESample) -> None:
+        async with semaphore:
+            try:
+                report = await _process_sample(
+                    sample,
+                    mem_factory=mem_factory,
+                    answer_model=answer_model,
+                    judge_models=judge_models,
+                    api_key=api_key,
+                    budget=budget,
+                    use_extraction=use_extraction,
+                    max_facts=max_facts,
+                )
+            except Exception as e:  # noqa: BLE001 — one bad sample must not sink the run
+                logger.exception(
+                    "sample %s failed; recording as all-WRONG",
+                    sample.question_id,
+                )
+                report = SampleReport(
+                    question_id=sample.question_id,
+                    category=sample.question_type,
+                    question=sample.question,
+                    gold=sample.answer,
+                    answer=f"pipeline_error: {type(e).__name__}: {e}",
+                    judgments={
+                        jm: {
+                            "label": "WRONG",
+                            "correct": False,
+                            "reasoning": f"pipeline_error: {e}",
+                            "judge_model": jm,
+                        }
+                        for jm in judge_models
+                    },
+                    answer_latency_ms=0.0,
+                    ingest_turns=0,
+                    ingest_memories=0,
+                    retrieved_count=0,
+                )
+            ordered_reports[idx] = report
+            if verbose:
+                verdicts = ", ".join(
+                    f"{jm.split('/')[-1]}={report.judgments[jm]['label']}"
+                    for jm in judge_models
+                )
+                done = sum(1 for r in ordered_reports if r is not None)
+                print(
+                    f"[{done}/{len(samples)}] {sample.question_id} "
+                    f"[{sample.question_type}] → {verdicts}",
+                    flush=True,
+                )
+            if progress_callback is not None:
+                done = sum(1 for r in ordered_reports if r is not None)
+                progress_callback(done, len(samples), report)
+
+    await asyncio.gather(
+        *(_guarded(i, s) for i, s in enumerate(samples)), return_exceptions=False
+    )
+
+    sample_reports: List[SampleReport] = [r for r in ordered_reports if r is not None]
     completed = datetime.utcnow().isoformat(timespec="seconds")
     by_category, by_judge = _summarize(sample_reports, judge_models)
+
+    # Inter-judge agreement — only meaningful with ≥2 judges.
+    agreement: dict = {}
+    if len(judge_models) >= 2:
+        for a, b in itertools.combinations(judge_models, 2):
+            both_correct = sum(
+                1 for r in sample_reports
+                if r.judgments.get(a, {}).get("correct")
+                and r.judgments.get(b, {}).get("correct")
+            )
+            both_wrong = sum(
+                1 for r in sample_reports
+                if not r.judgments.get(a, {}).get("correct", True)
+                and not r.judgments.get(b, {}).get("correct", True)
+            )
+            agree = both_correct + both_wrong
+            total = len(sample_reports)
+            agreement[f"{a}__vs__{b}"] = {
+                "both_correct": both_correct,
+                "both_wrong": both_wrong,
+                "agreement_pct": round(100.0 * agree / total, 2) if total else 0.0,
+            }
+
+    by_judge_enriched = dict(by_judge)
+    if agreement:
+        by_judge_enriched["_inter_judge_agreement"] = agreement
+
     report = LMERunReport(
         total=len(sample_reports),
         answer_model=answer_model,
         judge_models=tuple(judge_models),
         by_category=by_category,
-        by_judge=by_judge,
+        by_judge=by_judge_enriched,
         started_at=started,
         completed_at=completed,
         samples=tuple(sample_reports),
@@ -857,3 +1013,53 @@ def run(
         logger.info("LongMemEval report written: %s", out)
 
     return report
+
+
+def run(
+    samples: List[LMESample],
+    *,
+    mem_factory: Optional[Callable[[], Any]] = None,
+    mem: Any = None,
+    answer_model: str = DEFAULT_MODEL,
+    judge_models: Optional[List[str]] = None,
+    api_key: Optional[str] = None,
+    budget: int = 4000,
+    use_extraction: bool = False,
+    max_facts: int = 40,
+    parallel: int = DEFAULT_PARALLEL,
+    verbose: bool = False,
+    output_path: Optional[Path | str] = None,
+    progress_callback: Optional[Callable[[int, int, SampleReport], None]] = None,
+) -> LMERunReport:
+    """Synchronous entry point — thin wrapper over ``run_async``.
+
+    Accepts either ``mem_factory`` (recommended — true per-sample isolation)
+    or ``mem`` (single shared instance; parallel is forced to 1 for safety).
+    """
+    if mem_factory is None and mem is None:
+        raise ValueError("run() requires mem_factory or mem")
+
+    if mem_factory is None:
+        # Legacy single-instance path: force serial to keep psycopg2 happy.
+        shared_mem = mem
+        def _single() -> Any:
+            return shared_mem
+        mem_factory = _single
+        parallel = 1
+
+    return asyncio.run(
+        run_async(
+            samples,
+            mem_factory=mem_factory,
+            answer_model=answer_model,
+            judge_models=judge_models,
+            api_key=api_key,
+            budget=budget,
+            use_extraction=use_extraction,
+            max_facts=max_facts,
+            parallel=parallel,
+            verbose=verbose,
+            output_path=output_path,
+            progress_callback=progress_callback,
+        )
+    )
