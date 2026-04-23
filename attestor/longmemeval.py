@@ -247,3 +247,179 @@ def load_or_download(
         cache_dir = Path(xdg) / "attestor" / "longmemeval"
     path = download_longmemeval(cache_dir, variant=variant)
     return load_longmemeval(path)
+
+
+# ---------------------------------------------------------------------------
+# Namespace + content helpers
+# ---------------------------------------------------------------------------
+
+
+def namespace_for(sample: LMESample) -> str:
+    """Per-sample namespace so haystacks from different samples do not collide."""
+    return f"lme_{sample.question_id}"
+
+
+def _iso_date(raw: str) -> str:
+    """Return an ISO-8601 event_date (``YYYY-MM-DDTHH:MM``) or the raw string if unparsable."""
+    dt = parse_lme_date(raw)
+    if dt is None:
+        return raw
+    return dt.strftime("%Y-%m-%dT%H:%M")
+
+
+def _short_date(raw: str) -> str:
+    """Return a compact date tag (``YYYY-MM-DD``) for inline content prefixes."""
+    dt = parse_lme_date(raw)
+    if dt is None:
+        return raw
+    return dt.strftime("%Y-%m-%d")
+
+
+def _format_turn_content(role: str, text: str, date_tag: str) -> str:
+    """Belt-and-suspenders content: inline date tag so even backends that drop
+    ``event_date`` still carry the date through vector + FTS paths.
+    """
+    display_role = "User" if role == "user" else "Assistant" if role == "assistant" else role or "Unknown"
+    return f"[{date_tag}] {display_role}: {text}".strip()
+
+
+# ---------------------------------------------------------------------------
+# Ingest
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class IngestStats:
+    """Counts returned from ingest_history — useful for assertions and logs."""
+
+    turns_seen: int
+    memories_added: int
+    sessions: int
+    skipped_empty: int
+
+
+def ingest_history(
+    mem: Any,
+    sample: LMESample,
+    *,
+    use_extraction: bool = False,
+    extraction_model: str = "openai/gpt-4.1-mini",
+    api_key: Optional[str] = None,
+    verbose: bool = False,
+) -> IngestStats:
+    """Ingest a LongMemEval haystack into an Attestor ``AgentMemory``.
+
+    Two strategies:
+
+    1. ``use_extraction=False`` (raw): store each turn as a memory, prefixed
+       with ``[YYYY-MM-DD] Role:`` and tagged with the ISO ``event_date``.
+       This is the belt-and-suspenders option — any backend that strips
+       ``event_date`` still has the date inline.
+    2. ``use_extraction=True``: run Attestor's LLM extractor per session to
+       distill atomic facts + relation triples, then store those.
+
+    Args:
+        mem: Instantiated ``attestor.core.AgentMemory``.
+        sample: Frozen ``LMESample``.
+        use_extraction: Extract atomic facts instead of ingesting raw turns.
+        extraction_model: OpenRouter model id (only used when extracting).
+        api_key: Optional override for the extractor's API key.
+        verbose: Print per-session progress to stdout.
+
+    Returns:
+        ``IngestStats`` with turn / memory / session counts.
+    """
+    ns = namespace_for(sample)
+    turns_seen = 0
+    memories_added = 0
+    skipped_empty = 0
+
+    sessions = list(
+        zip(sample.haystack_session_ids, sample.haystack_dates, sample.haystack_sessions)
+    )
+
+    if use_extraction:
+        # Lazy import to keep the hot path (raw) free of extractor deps.
+        from attestor.extraction.extractor import extract_from_session  # type: ignore
+
+        for session_id, session_date, turns in sessions:
+            # Map LongMemEval roles onto the speaker_a / speaker_b contract the
+            # extractor expects.
+            adapted_turns = [
+                {
+                    "speaker": "A" if t.role == "user" else "B",
+                    "text": t.content,
+                    "dia_id": f"{session_id}_t{idx}",
+                }
+                for idx, t in enumerate(turns)
+                if t.content.strip()
+            ]
+            turns_seen += len(turns)
+            skipped_empty += len(turns) - len(adapted_turns)
+            if not adapted_turns:
+                continue
+
+            if verbose:
+                print(f"    extracting {session_id} ({len(adapted_turns)} turns)")
+
+            memories, _triples = extract_from_session(
+                turns=adapted_turns,
+                speaker_a="User",
+                speaker_b="Assistant",
+                session_date=_iso_date(session_date),
+                model=extraction_model,
+                api_key=api_key,
+            )
+            for m in memories:
+                mem.add(
+                    content=m.content,
+                    tags=list(m.tags) + ["lme", session_id],
+                    category=m.category,
+                    entity=m.entity,
+                    namespace=ns,
+                    event_date=m.event_date or _iso_date(session_date),
+                    confidence=m.confidence,
+                    metadata={"session_id": session_id, "source": "lme_extracted"},
+                )
+                memories_added += 1
+        return IngestStats(
+            turns_seen=turns_seen,
+            memories_added=memories_added,
+            sessions=len(sessions),
+            skipped_empty=skipped_empty,
+        )
+
+    # Raw path — option C: inline date tag in content AND event_date kwarg.
+    for session_id, session_date, turns in sessions:
+        iso = _iso_date(session_date)
+        short = _short_date(session_date)
+        if verbose:
+            print(f"    raw ingest {session_id} ({len(turns)} turns) date={short}")
+        for idx, turn in enumerate(turns):
+            turns_seen += 1
+            text = turn.content.strip()
+            if not text:
+                skipped_empty += 1
+                continue
+            mem.add(
+                content=_format_turn_content(turn.role, text, short),
+                tags=[turn.role or "unknown", session_id, "lme"],
+                category="conversation",
+                entity=None,
+                namespace=ns,
+                event_date=iso,
+                metadata={
+                    "session_id": session_id,
+                    "role": turn.role,
+                    "turn_idx": idx,
+                    "source": "lme_raw",
+                },
+            )
+            memories_added += 1
+
+    return IngestStats(
+        turns_seen=turns_seen,
+        memories_added=memories_added,
+        sessions=len(sessions),
+        skipped_empty=skipped_empty,
+    )

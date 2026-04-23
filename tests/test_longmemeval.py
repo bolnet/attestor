@@ -11,11 +11,17 @@ import pytest
 from attestor.longmemeval import (
     CATEGORY_NAMES,
     DATASET_VARIANTS,
+    IngestStats,
     LMESample,
     LMETurn,
     TEMPORAL_CATEGORY,
     _coerce_sample,
+    _format_turn_content,
+    _iso_date,
+    _short_date,
+    ingest_history,
     load_longmemeval,
+    namespace_for,
     parse_lme_date,
 )
 
@@ -117,6 +123,82 @@ def test_dataset_variants_known() -> None:
     assert set(DATASET_VARIANTS) == {"oracle", "s", "m"}
     for fn in DATASET_VARIANTS.values():
         assert fn.endswith(".json")
+
+
+@pytest.mark.unit
+def test_iso_and_short_date_roundtrip() -> None:
+    raw = "2023/05/30 (Tue) 23:40"
+    assert _iso_date(raw) == "2023-05-30T23:40"
+    assert _short_date(raw) == "2023-05-30"
+    # Unparsable input is returned verbatim — never raises.
+    assert _iso_date("garbage") == "garbage"
+    assert _short_date("") == ""
+
+
+@pytest.mark.unit
+def test_format_turn_content_belt_and_suspenders() -> None:
+    out = _format_turn_content("user", "hello", "2023-05-30")
+    assert out == "[2023-05-30] User: hello"
+    assert _format_turn_content("assistant", "hi", "2023-05-30") == "[2023-05-30] Assistant: hi"
+    # Unknown role passes through.
+    assert "mystery" in _format_turn_content("mystery", "?", "2023-01-01")
+
+
+@pytest.mark.unit
+def test_namespace_isolates_samples() -> None:
+    samples = load_longmemeval(FIXTURE)
+    ns = {namespace_for(s) for s in samples}
+    assert len(ns) == len(samples), "collision in per-sample namespaces"
+    for s, n in zip(samples, ns):
+        pass  # namespaces unique across fixture
+
+
+@pytest.mark.integration
+def test_ingest_history_raw_end_to_end(mem) -> None:
+    sample = load_longmemeval(FIXTURE)[0]
+    stats = ingest_history(mem, sample, use_extraction=False)
+
+    assert isinstance(stats, IngestStats)
+    assert stats.turns_seen > 0
+    assert stats.memories_added > 0
+    assert stats.sessions == len(sample.haystack_sessions)
+    # Every non-empty turn becomes exactly one memory.
+    assert stats.turns_seen == stats.memories_added + stats.skipped_empty
+
+
+@pytest.mark.integration
+def test_ingest_history_namespaces_and_event_date(mem) -> None:
+    sample = load_longmemeval(FIXTURE)[0]
+    ingest_history(mem, sample, use_extraction=False)
+
+    ns = namespace_for(sample)
+    # Hit the document store directly so this test is decoupled from retrieval.
+    all_mems = mem._store.list_all(namespace=ns)
+    assert all_mems, "no memories persisted under the sample namespace"
+    # Every stored memory must carry a non-empty event_date (belt) and the
+    # inline [YYYY-MM-DD] tag (suspenders).
+    for m in all_mems:
+        assert m.event_date, f"memory missing event_date: {m.content[:80]!r}"
+        assert m.content.startswith("["), f"missing inline date tag: {m.content[:40]!r}"
+    # Sanity: sample-0's haystack dates are in 2023, so every event_date should
+    # begin with 2023.
+    years = {m.event_date[:4] for m in all_mems}
+    assert years == {"2023"}, f"unexpected years in event_date: {years}"
+
+
+@pytest.mark.integration
+def test_ingest_history_isolates_namespaces(mem) -> None:
+    samples = load_longmemeval(FIXTURE)[:2]
+    for s in samples:
+        ingest_history(mem, s, use_extraction=False)
+
+    ns_a = namespace_for(samples[0])
+    ns_b = namespace_for(samples[1])
+    a = mem._store.list_all(namespace=ns_a)
+    b = mem._store.list_all(namespace=ns_b)
+    assert a and b, "both samples should have ingested memories"
+    # No memory ids leak across namespaces.
+    assert {m.id for m in a}.isdisjoint({m.id for m in b})
 
 
 @pytest.mark.unit
