@@ -289,6 +289,15 @@ def main(argv=None):
         "--use-extraction", action="store_true",
         help="Extract atomic facts with LLM during ingest (slower, more accurate)",
     )
+    p_lme.add_argument(
+        "--use-distillation", action="store_true",
+        help="Per-turn LLM distillation before storage — canonicalize each turn "
+             "into 0..N third-person facts with absolute dates before embed/graph.",
+    )
+    p_lme.add_argument(
+        "--distill-model", default="openai/gpt-5.1",
+        help="OpenRouter model id for the distiller (default: openai/gpt-5.1).",
+    )
     p_lme.add_argument("--max-samples", type=int, default=None, help="Cap on samples")
     p_lme.add_argument(
         "--categories", nargs="+", default=None,
@@ -999,6 +1008,8 @@ def _cmd_longmemeval(args):
         api_key=api_key,
         budget=args.budget,
         use_extraction=args.use_extraction,
+        use_distillation=args.use_distillation,
+        distill_model=args.distill_model,
         max_facts=args.max_facts,
         parallel=args.parallel,
         verify=args.verify,

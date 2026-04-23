@@ -21,10 +21,12 @@ from attestor.longmemeval import (
     LMETurn,
     TEMPORAL_CATEGORY,
     VERIFY_PROMPT,
+    DISTILL_PROMPT,
     _coerce_sample,
     _format_recall_context,
     _format_turn_content,
     _iso_date,
+    _parse_distilled,
     _parse_judge_response,
     _safe_judge_dict,
     _short_date,
@@ -557,6 +559,62 @@ def test_answer_prompt_includes_arithmetic_guidance() -> None:
 def test_verify_prompt_includes_all_placeholders() -> None:
     for ph in ["{question}", "{question_date}", "{context}", "{first_answer}"]:
         assert ph in VERIFY_PROMPT, f"missing placeholder {ph} in VERIFY_PROMPT"
+
+
+@pytest.mark.unit
+def test_parse_distilled_bullet_lines() -> None:
+    raw = (
+        "- The user works as a software engineer at Acme Corp as of 2023-05-30.\n"
+        "- The user prefers Python over JavaScript.\n"
+    )
+    facts = _parse_distilled(raw)
+    assert len(facts) == 2
+    assert "Acme Corp" in facts[0]
+    assert "Python" in facts[1]
+
+
+@pytest.mark.unit
+def test_parse_distilled_accepts_alt_bullet_chars() -> None:
+    raw = "* fact one\n• fact two\n- fact three"
+    facts = _parse_distilled(raw)
+    assert facts == ["fact one", "fact two", "fact three"]
+
+
+@pytest.mark.unit
+def test_parse_distilled_skip_returns_empty() -> None:
+    assert _parse_distilled("SKIP") == []
+    assert _parse_distilled("  skip  ") == []
+    assert _parse_distilled("") == []
+
+
+@pytest.mark.unit
+def test_parse_distilled_ignores_non_bullet_lines() -> None:
+    # Preamble prose that sometimes slips in must not be treated as a fact.
+    raw = (
+        "Here are the facts I found:\n"
+        "- The user visited Paris on 2023-06-10.\n"
+        "That's all I could extract."
+    )
+    facts = _parse_distilled(raw)
+    assert facts == ["The user visited Paris on 2023-06-10."]
+
+
+@pytest.mark.unit
+def test_parse_distilled_strips_markdown_fences() -> None:
+    raw = "```\n- fact one\n- fact two\n```"
+    assert _parse_distilled(raw) == ["fact one", "fact two"]
+
+
+@pytest.mark.unit
+def test_distill_prompt_includes_all_placeholders_and_rules() -> None:
+    assert "{role}" in DISTILL_PROMPT
+    assert "{content}" in DISTILL_PROMPT
+    assert "{session_date}" in DISTILL_PROMPT
+    # Non-negotiable rules that must stay in the prompt.
+    assert "PRESERVE" in DISTILL_PROMPT or "preserve" in DISTILL_PROMPT
+    assert "third person" in DISTILL_PROMPT
+    assert "SKIP" in DISTILL_PROMPT
+    assert "NEVER FABRICATE" in DISTILL_PROMPT
 
 
 @pytest.mark.unit

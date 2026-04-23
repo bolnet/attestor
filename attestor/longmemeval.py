@@ -305,6 +305,126 @@ class IngestStats:
     memories_added: int
     sessions: int
     skipped_empty: int
+    distilled_facts: int = 0  # count of LLM-distilled facts when use_distillation=True
+    skipped_by_distiller: int = 0  # turns the distiller marked SKIP
+
+
+# ---------------------------------------------------------------------------
+# Per-turn distillation (new, opt-in)
+# ---------------------------------------------------------------------------
+
+DISTILL_PROMPT = (
+    "You are a precise memory distillation agent for a long-term memory "
+    "system. Your only job: take a single conversation turn and extract "
+    "the durable facts that future questions might reference.\n\n"
+    "RULES — read carefully, break none of them:\n"
+    "  1. PRESERVE literally: all proper nouns, dates, numbers, quantities, "
+    "named entities, specific places, model names, prices, durations. "
+    "Copy them verbatim from the turn.\n"
+    "  2. REWRITE in third person from an outside observer's POV:\n"
+    "       \"The user ...\", \"The user's ...\", \"The assistant told the user ...\".\n"
+    "     Never use \"I\", \"you\", \"we\", \"my\", \"your\".\n"
+    "  3. RESOLVE every pronoun to its antecedent (replace \"he\", \"she\", "
+    "\"it\", \"they\", \"this\", \"that\" with the named entity).\n"
+    "  4. RESOLVE every relative time reference to an absolute date, using "
+    "the session date as the anchor:\n"
+    "       - \"yesterday\" → the day before {session_date}\n"
+    "       - \"last week\" / \"a week ago\" → {session_date} minus 7 days\n"
+    "       - \"last year\" → year(session_date) − 1\n"
+    "       - \"two months ago\" → {session_date} minus 2 calendar months\n"
+    "     Write resolved dates as YYYY-MM-DD.\n"
+    "  5. ONE FACT PER LINE. Prefix each with \"- \". If the turn contains "
+    "multiple distinct facts, output one line per fact. Each line must be a "
+    "complete, standalone sentence that does not require other lines to "
+    "make sense.\n"
+    "  6. OUTPUT FORMAT: distilled lines only, no prose, no preamble, no "
+    "code blocks, no headings.\n"
+    "  7. SKIP entirely (respond with exactly SKIP and nothing else) when "
+    "the turn contains none of:\n"
+    "       (a) a fact about the user (job, relationships, tastes, events, "
+    "plans, health, finances, locations)\n"
+    "       (b) a specific assistant recommendation the user said they'd "
+    "act on\n"
+    "       (c) a dated event\n"
+    "     Pleasantries (\"thanks\", \"yeah\", \"ok\"), generic puzzle "
+    "answers, off-topic trivia, and transient Q&A with no user-specific "
+    "content must all be SKIP.\n"
+    "  8. NEVER FABRICATE. Only restate information literally present in "
+    "the turn. If uncertain, SKIP.\n"
+    "  9. If the assistant repeats the user's fact back, only emit the "
+    "fact ONCE (from the user-turn side); SKIP the assistant's echo.\n"
+    " 10. Do not emit meta-commentary (\"The user seems interested in…\"). "
+    "Only concrete, verifiable statements.\n\n"
+    "Turn context:\n"
+    "  role = {role}\n"
+    "  session_date = {session_date}\n\n"
+    "Turn content:\n"
+    "{content}\n\n"
+    "Output: one fact per line starting with \"- \", or SKIP."
+)
+
+
+_DISTILL_SENTINEL_SKIP = "SKIP"
+_DISTILL_LINE_RE = re.compile(r"^\s*[-*•]\s*(.+?)\s*$")
+
+
+def _parse_distilled(raw: str) -> List[str]:
+    """Parse the distiller's output into a list of facts.
+
+    Tolerant to markdown fences, bullet variation (- * •), and blank lines.
+    Returns [] if the distiller said SKIP or produced nothing usable.
+    """
+    if not raw:
+        return []
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", text)
+        text = re.sub(r"\n?```\s*$", "", text).strip()
+    if text.upper() == _DISTILL_SENTINEL_SKIP:
+        return []
+
+    facts: list[str] = []
+    for line in text.splitlines():
+        m = _DISTILL_LINE_RE.match(line)
+        if m:
+            fact = m.group(1).strip()
+            if fact and fact.upper() != _DISTILL_SENTINEL_SKIP:
+                facts.append(fact)
+    return facts
+
+
+def distill_turn(
+    *,
+    role: str,
+    content: str,
+    session_date: str,
+    model: str = "openai/gpt-5.1",
+    api_key: Optional[str] = None,
+    max_tokens: int = 400,
+) -> List[str]:
+    """Run one turn through the distillation LLM; return extracted facts.
+
+    An empty list means the turn produced no durable memory worth keeping
+    (pleasantries, generic puzzle answers, etc.). The caller should NOT
+    store anything for those turns.
+    """
+    text = (content or "").strip()
+    if not text:
+        return []
+    prompt = DISTILL_PROMPT.format(
+        role=role or "unknown",
+        session_date=session_date or "(unknown)",
+        content=text,
+    )
+    try:
+        client = _get_client(api_key)
+        raw = _chat(client, model, prompt, max_tokens=max_tokens)
+    except Exception as e:  # noqa: BLE001 — distillation is best-effort
+        logger.warning("distill_turn failed (%s); falling back to raw turn", e)
+        # Fall back to the raw turn as a single fact — we'd rather store
+        # too much than lose information.
+        return [f"[{session_date}] {role}: {text}"]
+    return _parse_distilled(raw)
 
 
 def ingest_history(
@@ -313,6 +433,8 @@ def ingest_history(
     *,
     use_extraction: bool = False,
     extraction_model: str = "openai/gpt-4.1-mini",
+    use_distillation: bool = False,
+    distill_model: str = "openai/gpt-5.1",
     api_key: Optional[str] = None,
     verbose: bool = False,
 ) -> IngestStats:
@@ -342,10 +464,69 @@ def ingest_history(
     turns_seen = 0
     memories_added = 0
     skipped_empty = 0
+    distilled_facts = 0
+    skipped_by_distiller = 0
 
     sessions = list(
         zip(sample.haystack_session_ids, sample.haystack_dates, sample.haystack_sessions)
     )
+
+    if use_distillation:
+        # Per-turn LLM distillation — each turn → 0..N canonical facts.
+        for session_id, session_date, turns in sessions:
+            iso = _iso_date(session_date)
+            short = _short_date(session_date)
+            for turn_idx, turn in enumerate(turns):
+                turns_seen += 1
+                text = (turn.content or "").strip()
+                if not text:
+                    skipped_empty += 1
+                    continue
+                if verbose:
+                    print(f"    distill {session_id}#{turn_idx} role={turn.role}")
+                facts = distill_turn(
+                    role=turn.role,
+                    content=text,
+                    session_date=short,
+                    model=distill_model,
+                    api_key=api_key,
+                )
+                if not facts:
+                    skipped_by_distiller += 1
+                    continue
+                for fact_idx, fact in enumerate(facts):
+                    distilled_facts += 1
+                    # Still prefix with date for belt-and-suspenders — the
+                    # distiller SHOULD have resolved dates, but if it drifted,
+                    # the inline prefix is a safety net.
+                    content_with_date = fact
+                    if short and short not in fact:
+                        content_with_date = f"[{short}] {fact}"
+                    mem.add(
+                        content=content_with_date,
+                        tags=[turn.role or "unknown", session_id, "lme", "distilled"],
+                        category="fact",
+                        entity=None,
+                        namespace=ns,
+                        event_date=iso,
+                        metadata={
+                            "session_id": session_id,
+                            "role": turn.role,
+                            "turn_idx": turn_idx,
+                            "fact_idx": fact_idx,
+                            "source": "lme_distilled",
+                            "distill_model": distill_model,
+                        },
+                    )
+                    memories_added += 1
+        return IngestStats(
+            turns_seen=turns_seen,
+            memories_added=memories_added,
+            sessions=len(sessions),
+            skipped_empty=skipped_empty,
+            distilled_facts=distilled_facts,
+            skipped_by_distiller=skipped_by_distiller,
+        )
 
     if use_extraction:
         # Lazy import to keep the hot path (raw) free of extractor deps.
@@ -897,6 +1078,8 @@ async def _process_sample(
     budget: int,
     use_extraction: bool,
     max_facts: int,
+    use_distillation: bool = False,
+    distill_model: str = "openai/gpt-5.1",
     verify: bool = False,
     verify_model: Optional[str] = None,
 ) -> SampleReport:
@@ -922,6 +1105,8 @@ async def _process_sample(
             mem,
             sample,
             use_extraction=use_extraction,
+            use_distillation=use_distillation,
+            distill_model=distill_model,
             api_key=api_key,
             verbose=False,
         )
@@ -985,6 +1170,8 @@ async def run_async(
     api_key: Optional[str] = None,
     budget: int = 4000,
     use_extraction: bool = False,
+    use_distillation: bool = False,
+    distill_model: str = "openai/gpt-5.1",
     max_facts: int = 40,
     parallel: int = DEFAULT_PARALLEL,
     verify: bool = False,
@@ -1036,6 +1223,8 @@ async def run_async(
                     api_key=api_key,
                     budget=budget,
                     use_extraction=use_extraction,
+                    use_distillation=use_distillation,
+                    distill_model=distill_model,
                     max_facts=max_facts,
                     verify=verify,
                     verify_model=verify_model,
@@ -1145,6 +1334,8 @@ def run(
     api_key: Optional[str] = None,
     budget: int = 4000,
     use_extraction: bool = False,
+    use_distillation: bool = False,
+    distill_model: str = "openai/gpt-5.1",
     max_facts: int = 40,
     parallel: int = DEFAULT_PARALLEL,
     verify: bool = False,
@@ -1178,6 +1369,8 @@ def run(
             api_key=api_key,
             budget=budget,
             use_extraction=use_extraction,
+            use_distillation=use_distillation,
+            distill_model=distill_model,
             max_facts=max_facts,
             parallel=parallel,
             verify=verify,
