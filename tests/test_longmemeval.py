@@ -22,6 +22,8 @@ from attestor.longmemeval import (
     TEMPORAL_CATEGORY,
     VERIFY_PROMPT,
     DISTILL_PROMPT,
+    LMERunReport,
+    RunProvenance,
     _coerce_sample,
     _format_recall_context,
     _format_turn_content,
@@ -29,6 +31,8 @@ from attestor.longmemeval import (
     _parse_distilled,
     _parse_judge_response,
     _safe_judge_dict,
+    _sha256_file,
+    _sha256_str,
     _short_date,
     _strip_reasoning,
     ingest_history,
@@ -615,6 +619,133 @@ def test_distill_prompt_includes_all_placeholders_and_rules() -> None:
     assert "third person" in DISTILL_PROMPT
     assert "SKIP" in DISTILL_PROMPT
     assert "NEVER FABRICATE" in DISTILL_PROMPT
+
+
+@pytest.mark.unit
+def test_sha256_str_deterministic() -> None:
+    assert _sha256_str("hello") == _sha256_str("hello")
+    assert _sha256_str("hello") != _sha256_str("hellO")
+    assert len(_sha256_str("x")) == 64
+
+
+@pytest.mark.unit
+def test_sha256_file_matches_str_hash(tmp_path: Path) -> None:
+    p = tmp_path / "data.bin"
+    p.write_bytes(b"attestor audit")
+    assert _sha256_file(p) == _sha256_str("attestor audit")
+
+
+@pytest.mark.unit
+def test_run_async_emits_provenance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A run must embed git SHA, dataset hash, argv, timestamps — the six
+    verification artifacts. Also: the output JSON must have a sidecar
+    .sha256 next to it matching the JSON's content hash.
+    """
+    import asyncio
+    from dataclasses import asdict
+    import attestor.longmemeval as lme
+
+    samples = load_longmemeval(FIXTURE)[:2]
+    ds_path = FIXTURE  # real file → real SHA
+
+    def fake_mem_factory() -> object:
+        class _M:
+            def close(self) -> None: pass
+        return _M()
+
+    def _ingest(mem, sample, **kwargs):
+        return IngestStats(turns_seen=1, memories_added=1, sessions=1, skipped_empty=0)
+
+    def _answer(mem, sample, **kwargs):
+        from attestor.longmemeval import AnswerResult
+        return AnswerResult(answer="ok", retrieved_count=1, used_fact_count=1, latency_ms=0)
+
+    def _judge(question, expected, generated, category, **kwargs):
+        return JudgeResult(label="CORRECT", correct=True, reasoning="", raw="{}", judge_model=kwargs.get("model", "m"))
+
+    monkeypatch.setattr(lme, "ingest_history", _ingest)
+    monkeypatch.setattr(lme, "answer_question", _answer)
+    monkeypatch.setattr(lme, "judge_answer", _judge)
+
+    out = tmp_path / "report.json"
+    report = asyncio.run(
+        run_async(
+            samples,
+            mem_factory=fake_mem_factory,
+            judge_models=["m"],
+            parallel=2,
+            output_path=out,
+            dataset_path=ds_path,
+        )
+    )
+
+    # Provenance block present with the six required fields.
+    assert report.provenance is not None
+    p = report.provenance
+    assert isinstance(p, RunProvenance)
+    assert p.git_sha  # may be "unknown" outside a git repo, never empty
+    assert p.attestor_version
+    assert p.python_version
+    assert p.platform
+    assert isinstance(p.argv, tuple) and len(p.argv) >= 1
+    assert p.dataset_path == str(Path(ds_path).resolve())
+    assert len(p.dataset_sha256) == 64  # real SHA256 since fixture exists
+    assert p.dataset_sample_count == 2
+    # Timestamps must be ISO-8601 UTC (end with +00:00 in from datetime.now(UTC))
+    assert "T" in p.started_at_utc
+    assert "T" in p.completed_at_utc
+
+    # run_config echoes the knobs that shape the number.
+    assert report.run_config["answer_model"]
+    assert "use_distillation" in report.run_config
+    assert "parallel" in report.run_config
+    assert report.schema_version == "1.0"
+
+    # Sidecar .sha256 file exists and matches the JSON's content.
+    sidecar = out.with_suffix(out.suffix + ".sha256")
+    assert sidecar.exists()
+    line = sidecar.read_text().strip()
+    parts = line.split("  ")
+    assert len(parts) == 2
+    sha, name = parts
+    assert name == out.name
+    # Recompute and compare — proves the sidecar is valid.
+    assert sha == _sha256_str(out.read_text())
+
+
+@pytest.mark.unit
+def test_run_async_handles_missing_dataset_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run without dataset_path still produces provenance (empty SHA, empty path)."""
+    import asyncio
+    import attestor.longmemeval as lme
+
+    samples = load_longmemeval(FIXTURE)[:1]
+
+    def fake_mem_factory() -> object:
+        class _M:
+            def close(self) -> None: pass
+        return _M()
+
+    def _ingest(mem, sample, **kwargs):
+        return IngestStats(turns_seen=1, memories_added=1, sessions=1, skipped_empty=0)
+
+    def _answer(mem, sample, **kwargs):
+        from attestor.longmemeval import AnswerResult
+        return AnswerResult(answer="ok", retrieved_count=1, used_fact_count=1, latency_ms=0)
+
+    def _judge(question, expected, generated, category, **kwargs):
+        return JudgeResult(label="CORRECT", correct=True, reasoning="", raw="{}", judge_model=kwargs.get("model", "m"))
+
+    monkeypatch.setattr(lme, "ingest_history", _ingest)
+    monkeypatch.setattr(lme, "answer_question", _answer)
+    monkeypatch.setattr(lme, "judge_answer", _judge)
+
+    report = asyncio.run(
+        run_async(samples, mem_factory=fake_mem_factory, judge_models=["m"], parallel=1)
+    )
+    assert report.provenance is not None
+    assert report.provenance.dataset_path == ""
+    assert report.provenance.dataset_sha256 == ""
 
 
 @pytest.mark.unit

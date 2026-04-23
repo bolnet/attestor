@@ -8,6 +8,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 from attestor.core import AgentMemory
 
@@ -949,15 +950,18 @@ def _cmd_longmemeval(args):
     )
 
     # Data source: fixture > --data > auto-download
+    dataset_path: Optional[Path] = None
     if args.fixture:
         fixture_path = Path(__file__).parent.parent / "tests" / "fixtures" / "lme_mini.json"
         if not fixture_path.exists():
             print(f"ERROR: bundled fixture missing at {fixture_path}", file=sys.stderr)
             sys.exit(2)
         samples = load_longmemeval(fixture_path)
+        dataset_path = fixture_path
         print(f"[fixture] loaded {len(samples)} samples from {fixture_path}")
     elif args.data:
         samples = load_longmemeval(args.data)
+        dataset_path = Path(args.data)
         print(f"loaded {len(samples)} samples from {args.data}")
     else:
         samples = load_or_download(variant=args.variant)
@@ -1016,6 +1020,7 @@ def _cmd_longmemeval(args):
         verify_model=args.verify_model,
         verbose=args.verbose,
         output_path=args.output,
+        dataset_path=dataset_path,
     )
 
     # Pretty print summary

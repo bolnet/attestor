@@ -32,14 +32,17 @@ ingest / answer / judge / run.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import itertools
 import json
 import logging
 import os
 import re
+import subprocess
+import sys
 import urllib.request
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
@@ -988,6 +991,32 @@ class SampleReport:
 
 
 @dataclass(frozen=True)
+class RunProvenance:
+    """Audit metadata written into every LMERunReport.
+
+    Captures the six pieces needed for third-party verification:
+      - git SHA of the attestor code that produced the run
+      - exact argv executed
+      - SHA256 of the dataset file
+      - Attestor package version
+      - UTC timestamps (also in LMERunReport, repeated for self-containment)
+      - Host fingerprint (platform + python version — no PII)
+    """
+
+    git_sha: str
+    git_dirty: bool
+    attestor_version: str
+    python_version: str
+    platform: str
+    argv: Tuple[str, ...]
+    dataset_path: str
+    dataset_sha256: str
+    dataset_sample_count: int
+    started_at_utc: str
+    completed_at_utc: str
+
+
+@dataclass(frozen=True)
 class LMERunReport:
     """Aggregated results of a run. JSON-serializable via ``asdict``."""
 
@@ -999,6 +1028,9 @@ class LMERunReport:
     started_at: str
     completed_at: str
     samples: Tuple[SampleReport, ...]
+    provenance: Optional[RunProvenance] = None
+    run_config: dict = field(default_factory=dict)
+    schema_version: str = "1.0"
 
 
 def _blank_counter() -> dict:
@@ -1049,6 +1081,46 @@ def _summarize(
     }
     by_judge_pct = {jm: _accuracy(b) for jm, b in by_judge.items()}
     return by_category_pct, by_judge_pct
+
+
+def _git_sha() -> Tuple[str, bool]:
+    """Return (sha, dirty). ``sha='unknown'`` when attestor is not in a git tree."""
+    try:
+        sha = subprocess.check_output(
+            ["git", "-C", str(Path(__file__).resolve().parent), "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+        status = subprocess.check_output(
+            ["git", "-C", str(Path(__file__).resolve().parent), "status", "--porcelain"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        return sha, bool(status.strip())
+    except Exception:
+        return "unknown", False
+
+
+def _attestor_version() -> str:
+    try:
+        import importlib.metadata
+
+        return importlib.metadata.version("attestor")
+    except Exception:
+        return "unknown"
+
+
+def _sha256_file(path: Path | str) -> str:
+    """SHA256 of a file, streamed — safe for multi-hundred-MB datasets."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _sha256_str(s: str) -> str:
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
 def _safe_judge_dict(
@@ -1178,6 +1250,7 @@ async def run_async(
     verify_model: Optional[str] = None,
     verbose: bool = False,
     output_path: Optional[Path | str] = None,
+    dataset_path: Optional[Path | str] = None,
     progress_callback: Optional[Callable[[int, int, SampleReport], None]] = None,
 ) -> LMERunReport:
     """Parallel LongMemEval orchestrator — ingest → answer → judge per sample.
@@ -1207,7 +1280,7 @@ async def run_async(
     from dataclasses import asdict
 
     judge_models = list(judge_models or list(DEFAULT_JUDGES))
-    started = datetime.utcnow().isoformat(timespec="seconds")
+    started = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     semaphore = asyncio.Semaphore(max(1, parallel))
     ordered_reports: List[Optional[SampleReport]] = [None] * len(samples)
@@ -1275,7 +1348,7 @@ async def run_async(
     )
 
     sample_reports: List[SampleReport] = [r for r in ordered_reports if r is not None]
-    completed = datetime.utcnow().isoformat(timespec="seconds")
+    completed = datetime.now(timezone.utc).isoformat(timespec="seconds")
     by_category, by_judge = _summarize(sample_reports, judge_models)
 
     # Inter-judge agreement — only meaningful with ≥2 judges.
@@ -1304,6 +1377,38 @@ async def run_async(
     if agreement:
         by_judge_enriched["_inter_judge_agreement"] = agreement
 
+    # Provenance — captured once per run for third-party verification.
+    git_sha, git_dirty = _git_sha()
+    ds_path_str = str(Path(dataset_path).expanduser().resolve()) if dataset_path else ""
+    ds_sha = _sha256_file(ds_path_str) if ds_path_str and Path(ds_path_str).exists() else ""
+    provenance = RunProvenance(
+        git_sha=git_sha,
+        git_dirty=git_dirty,
+        attestor_version=_attestor_version(),
+        python_version=sys.version.split()[0],
+        platform=sys.platform,
+        argv=tuple(sys.argv),
+        dataset_path=ds_path_str,
+        dataset_sha256=ds_sha,
+        dataset_sample_count=len(samples),
+        started_at_utc=started,
+        completed_at_utc=completed,
+    )
+
+    # Echo the runtime config so the output is self-describing.
+    run_config = {
+        "answer_model": answer_model,
+        "judge_models": list(judge_models),
+        "budget": budget,
+        "use_extraction": use_extraction,
+        "use_distillation": use_distillation,
+        "distill_model": distill_model if use_distillation else None,
+        "max_facts": max_facts,
+        "parallel": parallel,
+        "verify": verify,
+        "verify_model": verify_model if verify else None,
+    }
+
     report = LMERunReport(
         total=len(sample_reports),
         answer_model=answer_model,
@@ -1313,13 +1418,18 @@ async def run_async(
         started_at=started,
         completed_at=completed,
         samples=tuple(sample_reports),
+        provenance=provenance,
+        run_config=run_config,
     )
 
     if output_path:
         out = Path(output_path).expanduser().resolve()
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(asdict(report), indent=2))
-        logger.info("LongMemEval report written: %s", out)
+        payload = json.dumps(asdict(report), indent=2, sort_keys=False)
+        out.write_text(payload)
+        sidecar = out.with_suffix(out.suffix + ".sha256")
+        sidecar.write_text(f"{_sha256_str(payload)}  {out.name}\n")
+        logger.info("LongMemEval report written: %s (sha256 %s)", out, sidecar.name)
 
     return report
 
@@ -1342,6 +1452,7 @@ def run(
     verify_model: Optional[str] = None,
     verbose: bool = False,
     output_path: Optional[Path | str] = None,
+    dataset_path: Optional[Path | str] = None,
     progress_callback: Optional[Callable[[int, int, SampleReport], None]] = None,
 ) -> LMERunReport:
     """Synchronous entry point — thin wrapper over ``run_async``.
@@ -1377,6 +1488,7 @@ def run(
             verify_model=verify_model,
             verbose=verbose,
             output_path=output_path,
+            dataset_path=dataset_path,
             progress_callback=progress_callback,
         )
     )
