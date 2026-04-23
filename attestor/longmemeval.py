@@ -34,13 +34,17 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MODEL = "openai/gpt-4.1-mini"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -422,4 +426,243 @@ def ingest_history(
         memories_added=memories_added,
         sessions=len(sessions),
         skipped_empty=skipped_empty,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Answer + judge
+# ---------------------------------------------------------------------------
+
+ANSWER_PROMPT = (
+    "You are answering a question based on an assistant's memory of a past "
+    "chat history. Use ONLY the facts listed below. Each fact is prefixed "
+    "with [YYYY-MM-DD] indicating the session date when the turn was recorded.\n\n"
+    "Ground temporal language against those session dates:\n"
+    "  - Relative phrases (\"last week\", \"yesterday\", \"two months ago\") must be\n"
+    "    resolved to absolute dates using the session date of the turn that\n"
+    "    contains them.\n"
+    "  - When a question asks \"when did X happen\", answer with the EVENT date,\n"
+    "    not the session date unless they coincide.\n"
+    "  - Prefer concrete absolute dates; never paraphrase the relative phrase.\n\n"
+    "If the facts do not support an answer, respond with exactly: "
+    "I don't know.\n\n"
+    "Question (asked on {question_date}):\n{question}\n\n"
+    "Facts:\n{context}\n\n"
+    "Answer concisely. Do not repeat the question."
+)
+
+JUDGE_PROMPT = (
+    "You are judging whether an AI's answer is CORRECT or WRONG given the "
+    "gold answer. Be generous — if the AI's answer semantically matches or "
+    "contains the gold answer, mark CORRECT. For dates, accept equivalent "
+    "formats.\n\n"
+    "Category-specific rubric (question category: {category}):\n"
+    "  - temporal-reasoning: the answer must include the correct date or "
+    "period; if the AI paraphrases a relative phrase (\"last year\") instead "
+    "of resolving it, mark WRONG.\n"
+    "  - knowledge-update: the answer must reflect the LATEST state, not an "
+    "older superseded value; WRONG if stale.\n"
+    "  - abstention: if the gold answer is an abstention (e.g. \"I don't "
+    "know\", \"not mentioned\"), accept any reasonable abstention; hallucinated "
+    "facts are WRONG.\n"
+    "  - Other categories: match gold answer on substance, not wording.\n\n"
+    "Question: {question}\n"
+    "Gold answer: {expected}\n"
+    "AI answer: {generated}\n\n"
+    "Return JSON with keys \"reasoning\" (one sentence) and \"label\" "
+    "(CORRECT or WRONG)."
+)
+
+
+def _get_client(api_key: Optional[str] = None) -> Any:
+    """Instantiate an OpenAI client pointed at OpenRouter for benchmark runs."""
+    try:
+        from openai import OpenAI
+    except ImportError as e:  # pragma: no cover — import-time error path
+        raise RuntimeError(
+            "openai package required for benchmarks. Install with "
+            "`poetry add --group dev openai`."
+        ) from e
+
+    key = api_key or os.environ.get("OPENROUTER_API_KEY")
+    if not key:
+        raise RuntimeError(
+            "OPENROUTER_API_KEY not set — required for LongMemEval answer/judge."
+        )
+    return OpenAI(base_url=OPENROUTER_BASE_URL, api_key=key)
+
+
+def _chat(client: Any, model: str, prompt: str, *, max_tokens: int = 300) -> str:
+    """One-shot chat completion; returns content text."""
+    response = client.chat.completions.create(
+        model=model,
+        max_tokens=max_tokens,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.choices[0].message.content or ""
+
+
+def _format_recall_context(results: List[Any], max_facts: int = 40) -> str:
+    """Join top retrieval hits into a plain newline-delimited context block."""
+    lines: list[str] = []
+    for r in results[:max_facts]:
+        mem_obj = getattr(r, "memory", None) or r
+        content = getattr(mem_obj, "content", str(mem_obj))
+        lines.append(f"- {content}")
+    return "\n".join(lines)
+
+
+@dataclass(frozen=True)
+class AnswerResult:
+    """Output of ``answer_question`` — answer text plus retrieval diagnostics."""
+
+    answer: str
+    retrieved_count: int
+    used_fact_count: int
+    latency_ms: float
+
+
+def answer_question(
+    mem: Any,
+    sample: LMESample,
+    *,
+    budget: int = 4000,
+    model: str = DEFAULT_MODEL,
+    api_key: Optional[str] = None,
+    max_facts: int = 40,
+    max_tokens: int = 150,
+) -> AnswerResult:
+    """Recall + synthesize an answer for a LongMemEval sample.
+
+    Args:
+        mem: ``AgentMemory`` instance, already populated via ``ingest_history``.
+        sample: ``LMESample`` being answered.
+        budget: Retrieval token budget for ``mem.recall``.
+        model: OpenRouter model id for synthesis.
+        api_key: Optional override for ``OPENROUTER_API_KEY``.
+        max_facts: Cap on facts injected into the prompt (guards prompt size).
+        max_tokens: Answerer ``max_tokens``.
+
+    Returns:
+        ``AnswerResult`` with answer text + retrieval counts + latency.
+    """
+    import time
+
+    ns = namespace_for(sample)
+    t0 = time.monotonic()
+    results = mem.recall(sample.question, budget=budget, namespace=ns) or []
+    # Highest-score first (recall already scores; tolerate arbitrary order).
+    results = sorted(results, key=lambda r: getattr(r, "score", 0.0), reverse=True)
+
+    if not results:
+        return AnswerResult(
+            answer="I don't know.",
+            retrieved_count=0,
+            used_fact_count=0,
+            latency_ms=round((time.monotonic() - t0) * 1000, 2),
+        )
+
+    context = _format_recall_context(results, max_facts=max_facts)
+    prompt = ANSWER_PROMPT.format(
+        question=sample.question,
+        question_date=sample.question_date or "(unknown)",
+        context=context,
+    )
+    client = _get_client(api_key)
+    answer = _chat(client, model, prompt, max_tokens=max_tokens).strip()
+    return AnswerResult(
+        answer=answer,
+        retrieved_count=len(results),
+        used_fact_count=min(len(results), max_facts),
+        latency_ms=round((time.monotonic() - t0) * 1000, 2),
+    )
+
+
+# Robust label extraction — works on clean JSON, malformed JSON, or plain text.
+_LABEL_FALLBACK_RE = re.compile(r"\b(CORRECT|WRONG)\b", re.IGNORECASE)
+
+
+def _parse_judge_response(raw: str) -> Tuple[str, str]:
+    """Parse a judge response into ``(label, reasoning)``.
+
+    Strategy:
+      1. Try strict JSON parse.
+      2. Extract JSON blob between the first ``{`` and last ``}`` and retry.
+      3. Fall back to regex over the raw text; prefer the LAST label mention
+         so trailing verdicts override in-reasoning quotations.
+
+    Defaults to ``("WRONG", raw)`` if nothing matches — bias is conservative
+    so bad judge output never inflates accuracy.
+    """
+    if not raw or not raw.strip():
+        return "WRONG", ""
+    text = raw.strip()
+
+    # Strip markdown code fences.
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", text)
+        text = re.sub(r"\n?```\s*$", "", text)
+
+    candidates = [text]
+    lb, rb = text.find("{"), text.rfind("}")
+    if 0 <= lb < rb:
+        candidates.append(text[lb : rb + 1])
+
+    for blob in candidates:
+        try:
+            obj = json.loads(blob)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(obj, dict):
+            label = str(obj.get("label", "")).strip().upper()
+            reasoning = str(obj.get("reasoning", "")).strip()
+            if label in {"CORRECT", "WRONG"}:
+                return label, reasoning
+
+    matches = _LABEL_FALLBACK_RE.findall(text)
+    if matches:
+        return matches[-1].upper(), text
+    return "WRONG", text
+
+
+@dataclass(frozen=True)
+class JudgeResult:
+    """Output of ``judge_answer`` — normalized label + reasoning + raw."""
+
+    label: str  # "CORRECT" | "WRONG"
+    correct: bool
+    reasoning: str
+    raw: str
+    judge_model: str
+
+
+def judge_answer(
+    question: str,
+    expected: str,
+    generated: str,
+    category: str,
+    *,
+    model: str = DEFAULT_MODEL,
+    api_key: Optional[str] = None,
+    max_tokens: int = 300,
+) -> JudgeResult:
+    """Use an LLM to score an AI answer against the gold answer.
+
+    Robust against JSON drift — always returns a well-formed ``JudgeResult``.
+    """
+    prompt = JUDGE_PROMPT.format(
+        category=category,
+        question=question,
+        expected=expected,
+        generated=generated,
+    )
+    client = _get_client(api_key)
+    raw = _chat(client, model, prompt, max_tokens=max_tokens)
+    label, reasoning = _parse_judge_response(raw)
+    return JudgeResult(
+        label=label,
+        correct=label == "CORRECT",
+        reasoning=reasoning,
+        raw=raw,
+        judge_model=model,
     )

@@ -9,15 +9,20 @@ from pathlib import Path
 import pytest
 
 from attestor.longmemeval import (
+    ANSWER_PROMPT,
     CATEGORY_NAMES,
     DATASET_VARIANTS,
     IngestStats,
+    JUDGE_PROMPT,
+    JudgeResult,
     LMESample,
     LMETurn,
     TEMPORAL_CATEGORY,
     _coerce_sample,
+    _format_recall_context,
     _format_turn_content,
     _iso_date,
+    _parse_judge_response,
     _short_date,
     ingest_history,
     load_longmemeval,
@@ -199,6 +204,110 @@ def test_ingest_history_isolates_namespaces(mem) -> None:
     assert a and b, "both samples should have ingested memories"
     # No memory ids leak across namespaces.
     assert {m.id for m in a}.isdisjoint({m.id for m in b})
+
+
+@pytest.mark.unit
+def test_parse_judge_response_clean_json() -> None:
+    label, reasoning = _parse_judge_response(
+        '{"reasoning": "matches", "label": "CORRECT"}'
+    )
+    assert label == "CORRECT"
+    assert reasoning == "matches"
+
+
+@pytest.mark.unit
+def test_parse_judge_response_wrong() -> None:
+    label, reasoning = _parse_judge_response(
+        '{"reasoning": "date mismatch", "label": "WRONG"}'
+    )
+    assert label == "WRONG"
+    assert reasoning == "date mismatch"
+
+
+@pytest.mark.unit
+def test_parse_judge_response_markdown_fence() -> None:
+    raw = "```json\n{\"reasoning\": \"ok\", \"label\": \"CORRECT\"}\n```"
+    assert _parse_judge_response(raw) == ("CORRECT", "ok")
+
+
+@pytest.mark.unit
+def test_parse_judge_response_trailing_prose() -> None:
+    raw = 'Here is my verdict.\n{"reasoning": "ok", "label": "CORRECT"}\nThanks.'
+    assert _parse_judge_response(raw)[0] == "CORRECT"
+
+
+@pytest.mark.unit
+def test_parse_judge_response_broken_json_regex_fallback() -> None:
+    raw = "reasoning: date is right. verdict: CORRECT"
+    assert _parse_judge_response(raw)[0] == "CORRECT"
+
+
+@pytest.mark.unit
+def test_parse_judge_response_prefers_last_label() -> None:
+    # In-reasoning mention of WRONG should NOT override the final CORRECT.
+    raw = "The AI could have said WRONG things but its answer is CORRECT"
+    assert _parse_judge_response(raw)[0] == "CORRECT"
+
+
+@pytest.mark.unit
+def test_parse_judge_response_defaults_to_wrong() -> None:
+    # Bad judge output must never inflate accuracy.
+    assert _parse_judge_response("")[0] == "WRONG"
+    assert _parse_judge_response("   ")[0] == "WRONG"
+    assert _parse_judge_response("shrug")[0] == "WRONG"
+
+
+@pytest.mark.unit
+def test_parse_judge_response_invalid_label_falls_through_to_regex() -> None:
+    # Invalid label in JSON -> regex should still find "WRONG" in text
+    raw = '{"label": "MAYBE", "reasoning": "WRONG answer"}'
+    # Should find WRONG via regex fallback
+    assert _parse_judge_response(raw)[0] == "WRONG"
+
+
+@pytest.mark.unit
+def test_format_recall_context_handles_duck_typed_results() -> None:
+    class FakeMem:
+        def __init__(self, content: str) -> None:
+            self.content = content
+
+    class FakeResult:
+        def __init__(self, content: str) -> None:
+            self.memory = FakeMem(content)
+            self.score = 0.5
+
+    ctx = _format_recall_context(
+        [FakeResult("[2023-05-30] User: hi"), FakeResult("[2023-05-31] Assistant: hello")]
+    )
+    assert "User: hi" in ctx
+    assert "Assistant: hello" in ctx
+    # Max-facts cap is respected.
+    ctx2 = _format_recall_context(
+        [FakeResult(f"fact {i}") for i in range(100)], max_facts=3
+    )
+    assert ctx2.count("\n") == 2  # 3 lines = 2 newlines
+
+
+@pytest.mark.unit
+def test_answer_and_judge_prompts_include_required_placeholders() -> None:
+    # Sanity: if someone removes a placeholder, .format() will raise KeyError.
+    assert "{context}" in ANSWER_PROMPT
+    assert "{question}" in ANSWER_PROMPT
+    assert "{question_date}" in ANSWER_PROMPT
+    assert "{question}" in JUDGE_PROMPT
+    assert "{expected}" in JUDGE_PROMPT
+    assert "{generated}" in JUDGE_PROMPT
+    assert "{category}" in JUDGE_PROMPT
+
+
+@pytest.mark.unit
+def test_judge_result_shape() -> None:
+    r = JudgeResult(
+        label="CORRECT", correct=True, reasoning="ok", raw="x", judge_model="m"
+    )
+    assert r.correct is True
+    with pytest.raises((AttributeError, TypeError)):
+        r.label = "WRONG"  # type: ignore[misc]  # frozen
 
 
 @pytest.mark.unit
