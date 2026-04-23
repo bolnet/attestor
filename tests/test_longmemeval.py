@@ -622,6 +622,22 @@ def test_distill_prompt_includes_all_placeholders_and_rules() -> None:
 
 
 @pytest.mark.unit
+def test_distill_prompt_preserves_assistant_facts() -> None:
+    """Post-bugfix: the distiller MUST retain assistant-provided facts even
+    when the user didn't explicitly commit to acting on them. Surfaced by
+    single-session-assistant falling to 20-30% before the fix."""
+    # The prompt must explicitly tell the model to keep assistant utterances.
+    assert "The assistant told the user" in DISTILL_PROMPT
+    # Explicit anti-regression on the "skip assistant echoes" rule.
+    assert "The assistant recommended" in DISTILL_PROMPT
+    # Guide against over-skipping.
+    assert "When" in DISTILL_PROMPT and "doubt" in DISTILL_PROMPT and "KEEP" in DISTILL_PROMPT
+    # Worked examples are in the prompt — model-as-few-shot.
+    assert "Plesiosaur" in DISTILL_PROMPT
+    assert "dark chocolate" in DISTILL_PROMPT
+
+
+@pytest.mark.unit
 def test_sha256_str_deterministic() -> None:
     assert _sha256_str("hello") == _sha256_str("hello")
     assert _sha256_str("hello") != _sha256_str("hellO")

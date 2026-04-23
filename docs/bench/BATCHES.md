@@ -39,19 +39,41 @@ to check integrity and re-run.
 | 2 | temporal-reasoning | 10 | raw | gpt-4.1-mini | off | gpt-4.1-mini | claude-haiku-4.5 | 6/10 (60%) | 7/10 (70%) | 90% | `859f62b` | `1dbbd7db…` | `longmemeval-attestor-10samp-temporal.json` |
 | 3 | temporal-reasoning | 10 | raw + CoT + verify | gpt-5.1 | on | gpt-4.1-mini | claude-haiku-4.5 | 8/10 (80%) | 7/10 (70%) | 90% | `f3c50aa` | `3923b0ab…` | `longmemeval-attestor-10samp-temporal-cot-verify-gpt51.json` |
 | 4 | temporal-reasoning | 10 | **distill** + CoT + verify | gpt-5.1 | on | gpt-4.1-mini | claude-haiku-4.5 | 8/10 (80%) | 9/10 (90%) | 90% | `d03c79a` | `b11b17f1…` | `longmemeval-attestor-10samp-temporal-distill-gpt51.json` |
+| 6 | knowledge-update | 10 | distill + CoT + verify | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | 9/10 (90%) | 8/10 (80%) | 90% | `d03c79a`† | `3ccc6ac6…` | `longmemeval-attestor-10samp-knowledge-update.json` |
+| 5 | temporal-reasoning | **30** | distill + CoT + verify | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | **25/30 (83.3%)** | **26/30 (86.7%)** | **96.7%** | `d03c79a`† | `4fc0e6b5…` | `longmemeval-attestor-30samp-temporal-gpt51-sonnet46.json` |
+| 7 | multi-session | 10 | distill + CoT + verify | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | 6/10 (60%) | 6/10 (60%) | 100% | `d03c79a`† | `af6431c1…` | `longmemeval-attestor-10samp-multi-session.json` |
+| 8 | single-session-preference | 10 | distill + CoT + verify | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | **4/10 (40%)** | **5/10 (50%)** | 90% | `d03c79a`† | `c9613461…` | `longmemeval-attestor-10samp-single-session-preference.json` |
+| 9 | single-session-assistant | 10 | distill + CoT + verify | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | **2/10 (20%)** | **3/10 (30%)** | 90% | `d03c79a`† | `25cdecea…` | `longmemeval-attestor-10samp-single-session-assistant.json` |
 
-Note: batches 1–4 were produced **before** the provenance metadata
-landed in the runner. They are reproducible via the recipe + git SHA
-above but the output JSON does not yet include the embedded
-`provenance` block — we back-filled SHA256 sidecars only. Batches 5+
-carry full provenance inside the JSON.
+### Diagnosis of batches 8 and 9
+
+The distiller's DISTILL_PROMPT rule #7 **drops assistant-provided facts**
+unless the user explicitly committed to acting on them. Rule #9 further
+drops assistant turns that "echo" user facts. For single-session-assistant
+questions (which ask back the assistant's stated facts, e.g. "what color
+was the Plesiosaur the assistant described") this is catastrophic. For
+single-session-preference questions (which often surface in assistant
+responses rather than user statements) it is significantly degrading.
+
+This is a prompt-tuning bug in the distiller, **not** a memory-layer
+bug — retrieval is fine on categories where the fact survives ingest.
+Fix is in-flight: relax rule #7 to preserve all factual content,
+remove rule #9, explicitly instruct the distiller to retain "the
+assistant told the user that X" memories.
+
+† Batch 6 was launched from the pre-provenance code (git `d03c79a`); its
+output has a sidecar SHA but no embedded `provenance` block. Reproducible
+via the command in `REPRODUCE.md` under the same git SHA.
+
+Note: batches 1–4 and batch 6 were produced **before** the provenance
+metadata landed in the runner (commit for that is after `d03c79a`).
+They are reproducible via the recipe + git SHA above but the output JSON
+does not yet include the embedded `provenance` block — we back-filled
+SHA256 sidecars only. Batch 5 onward carry full provenance inside the JSON.
 
 ## Running
 
-| # | Category | n | Recipe | Answer | Verify | Judge A | Judge B | Output | Log | Started |
-|---|---|---|---|---|---|---|---|---|---|---|
-| 5 | temporal-reasoning | 30 | distill + CoT + verify | gpt-5.1 | on | **gpt-5.1** | **claude-sonnet-4.6** | `longmemeval-attestor-30samp-temporal-gpt51-sonnet46.json` | `lme_temporal_30_sonnet.log` | 2026-04-23 17:42 |
-| 6 | knowledge-update | 10 | distill + CoT + verify | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | `longmemeval-attestor-10samp-knowledge-update.json` | `lme_knowledge_10.log` | 2026-04-23 ~18:00 |
+_none — batches 5 and 6 both finished._
 
 ## Queued
 
