@@ -892,9 +892,55 @@ class AnswerResult:
     reasoning: str = ""  # the <reasoning> block if the answerer produced one
     verified: bool = False  # True when a verification pass ran
     raw_first_answer: str = ""  # set when verification overrode the first answer
+    # Dimension-B telemetry — filled by answer_question for later scoring.
+    retrieved_session_ids: Tuple[str, ...] = ()
+    predicted_mode: str = ""  # "fact" | "recommendation" | "" (unknown)
+    context: str = ""          # the formatted recall context the answerer saw
 
 
 _REASONING_RE = re.compile(r"<reasoning>(.*?)</reasoning>", re.DOTALL | re.IGNORECASE)
+
+# Mode-tag extraction from the reasoning block. Recognizes both
+# "Mode: FACT" / "Mode: RECOMMENDATION" and the less-structured
+# "FACT mode" / "RECOMMENDATION mode" patterns the prompt invites.
+_MODE_RE = re.compile(
+    r"\b(?:mode\s*[:=]?\s*)?(fact|recommendation)(?:\s+mode)?\b",
+    re.IGNORECASE,
+)
+
+
+def _parse_predicted_mode(reasoning: str) -> str:
+    """Extract the model's chosen mode from its reasoning block.
+
+    Returns "fact", "recommendation", or "" (unknown). Prefers the FIRST
+    clear mode token since the answerer declares mode up front per the
+    prompt.
+    """
+    if not reasoning:
+        return ""
+    m = _MODE_RE.search(reasoning)
+    if not m:
+        return ""
+    return m.group(1).lower()
+
+
+def _extract_retrieved_session_ids(results: list) -> Tuple[str, ...]:
+    """Pull session_ids from retrieval results, tolerating ducktyped shapes.
+
+    Memories written by our ingest carry ``metadata["session_id"]``. Older
+    test fixtures may lack the metadata dict. Missing values are dropped,
+    not substituted.
+    """
+    out: list[str] = []
+    for r in results:
+        mem_obj = getattr(r, "memory", None) or r
+        meta = getattr(mem_obj, "metadata", None) or {}
+        sid = None
+        if isinstance(meta, dict):
+            sid = meta.get("session_id")
+        if sid:
+            out.append(str(sid))
+    return tuple(out)
 
 
 def _strip_reasoning(raw: str) -> Tuple[str, str]:
@@ -959,12 +1005,15 @@ def answer_question(
     results = mem.recall(sample.question, budget=budget, namespace=ns) or []
     results = sorted(results, key=lambda r: getattr(r, "score", 0.0), reverse=True)
 
+    retrieved_session_ids = _extract_retrieved_session_ids(results[:max_facts])
+
     if not results:
         return AnswerResult(
             answer="I don't know.",
             retrieved_count=0,
             used_fact_count=0,
             latency_ms=round((time.monotonic() - t0) * 1000, 2),
+            retrieved_session_ids=retrieved_session_ids,
         )
 
     context = _format_recall_context(results, max_facts=max_facts)
@@ -1016,6 +1065,9 @@ def answer_question(
         reasoning=reasoning,
         verified=verified,
         raw_first_answer=raw_first,
+        retrieved_session_ids=retrieved_session_ids,
+        predicted_mode=_parse_predicted_mode(reasoning),
+        context=context,
     )
 
 
@@ -1077,6 +1129,72 @@ class JudgeResult:
     judge_model: str
 
 
+PERSONALIZATION_JUDGE_PROMPT = (
+    "You are scoring the PERSONALIZATION QUALITY of an AI's answer to a "
+    "recommendation question. The user asked for advice / tips / "
+    "suggestions, and the AI gave a tailored answer. Your job is to "
+    "decide whether the answer is sufficiently personalized to THIS "
+    "user's stored memory.\n\n"
+    "Inputs:\n"
+    "  Question: {question}\n"
+    "  Stored user facts available to the AI:\n{context}\n"
+    "  AI answer: {generated}\n"
+    "  Reference 'preferred response' specification: {expected}\n\n"
+    "Score CRITERIA — both must be true for label CORRECT:\n"
+    "  (a) The AI cites or references at least one stored user fact "
+    "      (preference, habit, past experience, constraint, named entity)\n"
+    "      that is relevant to the question.\n"
+    "  (b) The AI's recommendations are concrete (named items, specific "
+    "      methods) and align with the reference specification's intent. "
+    "      Generic boilerplate ('focus on a few key habits') without "
+    "      user-specific tailoring is WRONG.\n\n"
+    "Edge cases:\n"
+    "  - If the AI abstains ('I don't know') for a recommendation "
+    "    question, that is WRONG.\n"
+    "  - If the stored facts don't support strong tailoring AND the AI "
+    "    politely admits limited context while still giving a useful "
+    "    starting list, that is CORRECT.\n"
+    "  - Citing a stored fact that contradicts the question's intent is "
+    "    WRONG.\n\n"
+    "Return JSON with keys \"reasoning\" (one sentence) and \"label\" "
+    "(CORRECT or WRONG)."
+)
+
+
+def judge_personalization(
+    question: str,
+    expected: str,
+    generated: str,
+    context: str,
+    *,
+    model: str = DEFAULT_MODEL,
+    api_key: Optional[str] = None,
+    max_tokens: int = 300,
+) -> JudgeResult:
+    """LLM judge for personalization quality on RECOMMENDATION-mode samples.
+
+    Same shape as ``judge_answer`` so reporting paths can treat them
+    uniformly. Robust JSON parsing — bad output defaults to WRONG so
+    bad judge output never inflates the personalization score.
+    """
+    prompt = PERSONALIZATION_JUDGE_PROMPT.format(
+        question=question,
+        expected=expected,
+        generated=generated,
+        context=context,
+    )
+    client = _get_client(api_key)
+    raw = _chat(client, model, prompt, max_tokens=max_tokens)
+    label, reasoning = _parse_judge_response(raw)
+    return JudgeResult(
+        label=label,
+        correct=label == "CORRECT",
+        reasoning=reasoning,
+        raw=raw,
+        judge_model=f"{model}__personalization",
+    )
+
+
 def judge_answer(
     question: str,
     expected: str,
@@ -1128,6 +1246,13 @@ class SampleReport:
     ingest_turns: int
     ingest_memories: int
     retrieved_count: int
+    # Dimension-B telemetry — per-sample multi-dimensional scoring.
+    gold_session_ids: Tuple[str, ...] = ()       # from sample.answer_session_ids
+    retrieved_session_ids: Tuple[str, ...] = ()  # from AnswerResult
+    retrieval_hit: bool = False                  # any overlap between gold & retrieved
+    retrieval_overlap: int = 0                   # count of overlapping sessions
+    predicted_mode: str = ""                     # "fact" | "recommendation" | ""
+    personalization: Optional[dict] = None       # JudgeResult dict, only on RECOMMENDATION samples
 
 
 @dataclass(frozen=True)
@@ -1170,7 +1295,15 @@ class LMERunReport:
     samples: Tuple[SampleReport, ...]
     provenance: Optional[RunProvenance] = None
     run_config: dict = field(default_factory=dict)
-    schema_version: str = "1.0"
+    schema_version: str = "1.1"
+    by_dimension: dict = field(default_factory=dict)
+    # by_dimension shape (when non-empty):
+    #   {
+    #     "retrieval":          {"hits": int, "total": int, "precision": pct},
+    #     "mode_distribution":  {"counts": {...}, "fact_pct": pct, "recommendation_pct": pct},
+    #     "personalization":    {"correct": int, "total": int, "accuracy": pct},
+    #     "by_predicted_mode":  {"fact": {correct,total,accuracy}, "recommendation": {...}, "unknown": {...}},
+    #   }
 
 
 def _blank_counter() -> dict:
@@ -1221,6 +1354,74 @@ def _summarize(
     }
     by_judge_pct = {jm: _accuracy(b) for jm, b in by_judge.items()}
     return by_category_pct, by_judge_pct
+
+
+def _summarize_dimensions(sample_reports: List[SampleReport]) -> dict:
+    """Aggregate the dimension-B per-sample telemetry into report buckets.
+
+    Buckets:
+      - retrieval: hits / total / precision  (how often gold session was in top-K)
+      - mode_distribution: counts of fact / recommendation / unknown
+      - personalization: correct / total / accuracy  (only on rec-mode samples)
+    """
+    total = len(sample_reports)
+    if total == 0:
+        return {}
+
+    # Retrieval precision (gold session in top-K retrieved)
+    retr_hits = sum(1 for s in sample_reports if s.retrieval_hit)
+    retr_total = sum(1 for s in sample_reports if s.gold_session_ids)
+    retrieval = {
+        "hits": retr_hits,
+        "total": retr_total,
+        "precision": round(100.0 * retr_hits / retr_total, 2) if retr_total else 0.0,
+    }
+
+    # Mode distribution
+    mode_counts = {"fact": 0, "recommendation": 0, "unknown": 0}
+    for s in sample_reports:
+        m = s.predicted_mode or "unknown"
+        if m not in mode_counts:
+            mode_counts[m] = 0
+        mode_counts[m] += 1
+    mode_distribution = {
+        "counts": mode_counts,
+        "fact_pct": round(100.0 * mode_counts.get("fact", 0) / total, 2),
+        "recommendation_pct": round(100.0 * mode_counts.get("recommendation", 0) / total, 2),
+    }
+
+    # Personalization (only meaningful on recommendation-mode samples)
+    pers_samples = [s for s in sample_reports if s.personalization is not None]
+    pers_correct = sum(1 for s in pers_samples if s.personalization.get("correct"))
+    pers_total = len(pers_samples)
+    personalization = {
+        "correct": pers_correct,
+        "total": pers_total,
+        "accuracy": round(100.0 * pers_correct / pers_total, 2) if pers_total else 0.0,
+    }
+
+    # Per-mode answer accuracy slice — useful for understanding whether mode
+    # selection alone moves the overall number.
+    per_mode = {"fact": _blank_counter(), "recommendation": _blank_counter(), "unknown": _blank_counter()}
+    for s in sample_reports:
+        m = s.predicted_mode or "unknown"
+        if m not in per_mode:
+            per_mode[m] = _blank_counter()
+        # Use the FIRST judge as the canonical correctness signal here.
+        first_judge = next(iter(s.judgments.values()), None) if s.judgments else None
+        if first_judge is None:
+            continue
+        per_mode[m]["total"] += 1
+        if first_judge.get("correct"):
+            per_mode[m]["correct"] += 1
+    per_mode_pct = {m: _accuracy(b) for m, b in per_mode.items()}
+
+    return {
+        "retrieval": retrieval,
+        "mode_distribution": mode_distribution,
+        "personalization": personalization,
+        "by_predicted_mode": per_mode_pct,
+    }
 
 
 def _git_sha() -> Tuple[str, bool]:
@@ -1352,6 +1553,45 @@ async def _process_sample(
             for jm, res in zip(judge_models, judge_results)
         }
 
+        # Dimension B — multi-dimensional scoring computed inline so the
+        # per-sample report is self-describing and post-hoc analysis doesn't
+        # need to re-run anything.
+        gold_sessions = tuple(sample.answer_session_ids)
+        retrieved_sessions = ans.retrieved_session_ids
+        gold_set = set(gold_sessions)
+        overlap = sum(1 for s in retrieved_sessions if s in gold_set)
+        retrieval_hit = overlap > 0
+        predicted_mode = ans.predicted_mode
+
+        # Personalization judge — only on samples the answerer claims are
+        # RECOMMENDATION mode. One judge call per sample (not per
+        # judge_model) — cheap; uses the first configured judge model.
+        personalization_dict: Optional[dict] = None
+        if predicted_mode == "recommendation" and judge_models:
+            judge_for_pers = judge_models[0]
+            try:
+                pj = await asyncio.to_thread(
+                    judge_personalization,
+                    sample.question,
+                    sample.answer,
+                    ans.answer,
+                    ans.context,  # reuse the formatted context the answerer saw
+                    model=judge_for_pers,
+                    api_key=api_key,
+                )
+                personalization_dict = _judgement_to_dict(pj)
+            except Exception as e:  # noqa: BLE001 — never sink the sample
+                logger.warning(
+                    "personalization judge failed for %s: %s",
+                    sample.question_id, e,
+                )
+                personalization_dict = {
+                    "label": "WRONG",
+                    "correct": False,
+                    "reasoning": f"personalization_judge_error: {type(e).__name__}: {e}",
+                    "judge_model": f"{judge_for_pers}__personalization",
+                }
+
         return SampleReport(
             question_id=sample.question_id,
             category=sample.question_type,
@@ -1363,6 +1603,12 @@ async def _process_sample(
             ingest_turns=stats.turns_seen,
             ingest_memories=stats.memories_added,
             retrieved_count=ans.retrieved_count,
+            gold_session_ids=gold_sessions,
+            retrieved_session_ids=retrieved_sessions,
+            retrieval_hit=retrieval_hit,
+            retrieval_overlap=overlap,
+            predicted_mode=predicted_mode,
+            personalization=personalization_dict,
         )
     finally:
         close = getattr(mem, "close", None)
@@ -1549,6 +1795,8 @@ async def run_async(
         "verify_model": verify_model if verify else None,
     }
 
+    by_dimension = _summarize_dimensions(sample_reports)
+
     report = LMERunReport(
         total=len(sample_reports),
         answer_model=answer_model,
@@ -1560,6 +1808,7 @@ async def run_async(
         samples=tuple(sample_reports),
         provenance=provenance,
         run_config=run_config,
+        by_dimension=by_dimension,
     )
 
     if output_path:

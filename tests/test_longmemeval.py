@@ -24,7 +24,12 @@ from attestor.longmemeval import (
     DISTILL_PROMPT,
     LMERunReport,
     PERSONALIZATION_PROMPT,
+    PERSONALIZATION_JUDGE_PROMPT,
     RunProvenance,
+    SampleReport,
+    _extract_retrieved_session_ids,
+    _parse_predicted_mode,
+    _summarize_dimensions,
     is_recommendation_question,
     _coerce_sample,
     _format_recall_context,
@@ -720,7 +725,7 @@ def test_run_async_emits_provenance(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     assert report.run_config["answer_model"]
     assert "use_distillation" in report.run_config
     assert "parallel" in report.run_config
-    assert report.schema_version == "1.0"
+    assert report.schema_version == "1.1"
 
     # Sidecar .sha256 file exists and matches the JSON's content.
     sidecar = out.with_suffix(out.suffix + ".sha256")
@@ -797,6 +802,100 @@ def test_answer_prompt_has_worked_examples_for_both_modes() -> None:
     assert "Lisbon" in ANSWER_PROMPT and "boutique" in ANSWER_PROMPT
     # Recommendation example: kitchen tips.
     assert "magnetic knife strip" in ANSWER_PROMPT
+
+
+@pytest.mark.unit
+def test_parse_predicted_mode_recognizes_both_modes() -> None:
+    # Forms the unified ANSWER_PROMPT teaches the model to use.
+    assert _parse_predicted_mode("Mode: FACT.\nDates ...") == "fact"
+    assert _parse_predicted_mode("Mode: RECOMMENDATION.\nUser preferences...") == "recommendation"
+    assert _parse_predicted_mode("This is a FACT mode question; ...") == "fact"
+    assert _parse_predicted_mode("Treat this as RECOMMENDATION mode") == "recommendation"
+    # No mode tokens → unknown (empty string).
+    assert _parse_predicted_mode("Just some text without the keywords") == ""
+    assert _parse_predicted_mode("") == ""
+
+
+@pytest.mark.unit
+def test_extract_retrieved_session_ids_pulls_from_metadata() -> None:
+    # Duck-typed result objects mirroring what mem.recall returns.
+    class _M:
+        def __init__(self, sid: str | None) -> None:
+            self.metadata = {"session_id": sid} if sid else {}
+    class _R:
+        def __init__(self, sid: str | None) -> None:
+            self.memory = _M(sid)
+
+    sids = _extract_retrieved_session_ids([
+        _R("answer_280352e9"),
+        _R("sharegpt_yywfIrx_0"),
+        _R(None),                 # missing metadata → dropped, not substituted
+        _R("answer_280352e9"),    # duplicates kept (precision math is set-based)
+    ])
+    assert sids == ("answer_280352e9", "sharegpt_yywfIrx_0", "answer_280352e9")
+
+
+@pytest.mark.unit
+def test_summarize_dimensions_basic_aggregation() -> None:
+    # Three reports: one fact-mode CORRECT with retrieval hit; one rec-mode CORRECT
+    # with personalization CORRECT; one fact-mode WRONG with no retrieval hit.
+    samples = [
+        SampleReport(
+            question_id="q1", category="temporal-reasoning",
+            question="?", gold="g1", answer="a1",
+            judgments={"j": {"label": "CORRECT", "correct": True, "reasoning": "", "judge_model": "j"}},
+            answer_latency_ms=0, ingest_turns=1, ingest_memories=1, retrieved_count=1,
+            gold_session_ids=("answer_a",),
+            retrieved_session_ids=("answer_a", "noise"),
+            retrieval_hit=True, retrieval_overlap=1,
+            predicted_mode="fact",
+        ),
+        SampleReport(
+            question_id="q2", category="single-session-preference",
+            question="?", gold="g2", answer="a2",
+            judgments={"j": {"label": "CORRECT", "correct": True, "reasoning": "", "judge_model": "j"}},
+            answer_latency_ms=0, ingest_turns=1, ingest_memories=1, retrieved_count=1,
+            gold_session_ids=("answer_b",),
+            retrieved_session_ids=("answer_b",),
+            retrieval_hit=True, retrieval_overlap=1,
+            predicted_mode="recommendation",
+            personalization={"label": "CORRECT", "correct": True, "reasoning": "ok", "judge_model": "j__personalization"},
+        ),
+        SampleReport(
+            question_id="q3", category="temporal-reasoning",
+            question="?", gold="g3", answer="a3",
+            judgments={"j": {"label": "WRONG", "correct": False, "reasoning": "", "judge_model": "j"}},
+            answer_latency_ms=0, ingest_turns=1, ingest_memories=1, retrieved_count=1,
+            gold_session_ids=("answer_c",),
+            retrieved_session_ids=("noise",),
+            retrieval_hit=False, retrieval_overlap=0,
+            predicted_mode="fact",
+        ),
+    ]
+    dim = _summarize_dimensions(samples)
+    # Retrieval: 2 hits out of 3 with gold_session_ids → 66.67%
+    assert dim["retrieval"] == {"hits": 2, "total": 3, "precision": 66.67}
+    # Mode distribution: 2 fact, 1 recommendation, 0 unknown
+    assert dim["mode_distribution"]["counts"] == {"fact": 2, "recommendation": 1, "unknown": 0}
+    # Personalization: 1 correct out of 1 sample (only the rec-mode one)
+    assert dim["personalization"] == {"correct": 1, "total": 1, "accuracy": 100.0}
+    # Per-predicted-mode answer accuracy
+    assert dim["by_predicted_mode"]["fact"] == {"correct": 1, "total": 2, "accuracy": 50.0}
+    assert dim["by_predicted_mode"]["recommendation"] == {"correct": 1, "total": 1, "accuracy": 100.0}
+
+
+@pytest.mark.unit
+def test_summarize_dimensions_empty_safe() -> None:
+    assert _summarize_dimensions([]) == {}
+
+
+@pytest.mark.unit
+def test_personalization_judge_prompt_has_required_placeholders() -> None:
+    for ph in ["{question}", "{expected}", "{generated}", "{context}"]:
+        assert ph in PERSONALIZATION_JUDGE_PROMPT, f"missing {ph}"
+    # Anti-regression on key criteria text.
+    assert "stored user fact" in PERSONALIZATION_JUDGE_PROMPT
+    assert "Generic boilerplate" in PERSONALIZATION_JUDGE_PROMPT
 
 
 @pytest.mark.unit

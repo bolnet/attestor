@@ -1040,6 +1040,35 @@ def _cmd_longmemeval(args):
                 f"(both_correct={stats['both_correct']}, both_wrong={stats['both_wrong']})"
             )
 
+    dim = getattr(report, "by_dimension", {}) or {}
+    if dim:
+        print("\n  Dimension B (multi-dimensional scoring):")
+        retr = dim.get("retrieval", {})
+        if retr.get("total"):
+            print(
+                f"    retrieval precision: {retr['hits']}/{retr['total']} ({retr['precision']}%)"
+            )
+        mode = dim.get("mode_distribution", {})
+        if mode:
+            counts = mode.get("counts", {})
+            print(
+                f"    mode distribution: fact={counts.get('fact', 0)} "
+                f"recommendation={counts.get('recommendation', 0)} "
+                f"unknown={counts.get('unknown', 0)}"
+            )
+        pers = dim.get("personalization", {})
+        if pers.get("total"):
+            print(
+                f"    personalization (recommendation samples only): "
+                f"{pers['correct']}/{pers['total']} ({pers['accuracy']}%)"
+            )
+        per_mode = dim.get("by_predicted_mode", {})
+        if per_mode:
+            print(f"    answer accuracy by predicted mode (judge A only):")
+            for m, b in per_mode.items():
+                if b.get("total", 0) > 0:
+                    print(f"      {m}: {b['correct']}/{b['total']} ({b['accuracy']}%)")
+
     print("\n  by category (per judge):")
     for cat, per_judge in report.by_category.items():
         print(f"    {cat}:")
