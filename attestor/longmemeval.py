@@ -633,7 +633,7 @@ def distill_turn(
     session_date: str,
     model: str = "openai/gpt-5.1",
     api_key: Optional[str] = None,
-    max_tokens: int = 900,
+    max_tokens: int = 10000,
 ) -> List[DistilledFact]:
     """Run one turn through the distillation LLM; return structured facts.
 
