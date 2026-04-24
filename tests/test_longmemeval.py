@@ -936,6 +936,28 @@ def test_answer_prompt_teaches_disambiguation_on_tagged_facts() -> None:
 
 
 @pytest.mark.unit
+def test_distill_prompt_substitution_is_json_safe() -> None:
+    # Regression guard: DISTILL_PROMPT contains literal JSON worked examples
+    # like {"content": ...}. Using .format() on it would raise KeyError.
+    # distill_turn now uses .replace() for the three known placeholders;
+    # simulate that here and confirm no exception.
+    from attestor.longmemeval import DISTILL_PROMPT as _DP
+    prompt = (
+        _DP.replace("{role}", "user")
+        .replace("{session_date}", "2024-01-15")
+        .replace("{content}", "I prefer dark chocolate.")
+    )
+    assert "I prefer dark chocolate." in prompt
+    assert "{role}" not in prompt
+    assert "{session_date}" not in prompt
+    assert "{content}" not in prompt
+    # And the str.format path would still raise — pin the reason we use replace.
+    import pytest as _pytest
+    with _pytest.raises(KeyError):
+        _DP.format(role="user", session_date="2024-01-15", content="x")
+
+
+@pytest.mark.unit
 def test_distill_prompt_emits_json_schema() -> None:
     # Regression guard: the distiller must teach the model to emit
     # structured JSON with every required field.

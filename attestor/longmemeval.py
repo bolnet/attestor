@@ -649,10 +649,14 @@ def distill_turn(
     if not text:
         return []
     fallback_speaker = _normalize_speaker(role)
-    prompt = DISTILL_PROMPT.format(
-        role=role or "unknown",
-        session_date=session_date or "(unknown)",
-        content=text,
+    # NOTE: str.replace (not str.format) — the prompt contains JSON worked
+    # examples whose literal '{...}' would otherwise be misread as format
+    # fields. Only three known placeholders are substituted.
+    prompt = (
+        DISTILL_PROMPT
+        .replace("{role}", role or "unknown")
+        .replace("{session_date}", session_date or "(unknown)")
+        .replace("{content}", text)
     )
     try:
         client = _get_client(api_key)
