@@ -914,8 +914,8 @@ def test_answer_prompt_has_both_modes() -> None:
 def test_answer_prompt_has_worked_examples_for_both_modes() -> None:
     # Fact example (temporal): museum / concert between-days arithmetic.
     assert "Rijksmuseum" in ANSWER_PROMPT
-    # Fact example (recall + disambiguation): Orlando Sugar Factory rec.
-    assert "Sugar Factory" in ANSWER_PROMPT
+    # Fact example (recall): Plesiosaur color.
+    assert "Plesiosaur" in ANSWER_PROMPT
     # Recommendation example: Lisbon hotels.
     assert "Lisbon" in ANSWER_PROMPT and "boutique" in ANSWER_PROMPT
     # Recommendation example: kitchen tips.
@@ -923,16 +923,13 @@ def test_answer_prompt_has_worked_examples_for_both_modes() -> None:
 
 
 @pytest.mark.unit
-def test_answer_prompt_teaches_disambiguation_on_tagged_facts() -> None:
-    # The disambiguation section must exist and name the structured tags.
-    assert "FACT TAGS" in ANSWER_PROMPT
-    assert "speaker=" in ANSWER_PROMPT
-    assert "type=" in ANSWER_PROMPT
-    assert "emphasis=" in ANSWER_PROMPT
-    # Core disambiguation rule: explicit beats mentioned.
-    assert "explicit" in ANSWER_PROMPT and "mentioned" in ANSWER_PROMPT
-    # Personalization signal named.
-    assert "type=preference" in ANSWER_PROMPT
+def test_answer_prompt_ablate_A_has_no_tagged_disambiguation_section() -> None:
+    # Ablation-A explicitly omits the FACT TAGS disambiguation rules so
+    # the answerer sees v2-format prose facts only. Regression guard.
+    assert "FACT TAGS" not in ANSWER_PROMPT
+    # And no structured tag prefixes appear in the worked examples.
+    assert "[speaker=" not in ANSWER_PROMPT
+    assert "type=recommendation" not in ANSWER_PROMPT
 
 
 @pytest.mark.unit

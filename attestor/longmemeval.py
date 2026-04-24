@@ -633,7 +633,7 @@ def distill_turn(
     session_date: str,
     model: str = "openai/gpt-5.1",
     api_key: Optional[str] = None,
-    max_tokens: int = 10000,
+    max_tokens: int = 3000,
 ) -> List[DistilledFact]:
     """Run one turn through the distillation LLM; return structured facts.
 
@@ -749,21 +749,15 @@ def ingest_history(
                     content_with_date = fact.content
                     if short and short not in fact.content:
                         content_with_date = f"[{short}] {fact.content}"
-                    tags = [
-                        turn.role or "unknown",
-                        session_id,
-                        "lme",
-                        "distilled",
-                        f"speaker:{fact.speaker}",
-                        f"type:{fact.claim_type}",
-                        f"emphasis:{fact.emphasis}",
-                    ]
-                    tags.extend(f"topic:{t}" for t in fact.topics)
+                    # v3-ablate-A: category/entity/tags identical to v2.
+                    # Structured fields live ONLY in metadata.jsonb (inert
+                    # to the retrieval pipeline). This isolates whether
+                    # structured extraction by itself regresses anything.
                     mem.add(
                         content=content_with_date,
-                        tags=tags,
-                        category=fact.claim_type,
-                        entity=fact.entities[0] if fact.entities else None,
+                        tags=[turn.role or "unknown", session_id, "lme", "distilled"],
+                        category="fact",
+                        entity=None,
                         namespace=ns,
                         event_date=iso,
                         metadata={
@@ -773,6 +767,8 @@ def ingest_history(
                             "fact_idx": fact_idx,
                             "source": "lme_distilled",
                             "distill_model": distill_model,
+                            # Structured fields — stored but not surfaced
+                            # in retrieval or answer context for ablation-A.
                             "speaker": fact.speaker,
                             "claim_type": fact.claim_type,
                             "emphasis": fact.emphasis,
@@ -921,21 +917,6 @@ ANSWER_PROMPT = (
     "     the anchor; do not substitute the question_date.\n"
     "  5. Months: full calendar months. 2022-10-22 → 2023-03-22 = 5.\n"
     "  6. Days: calendar count; verify month-by-month.\n\n"
-    "FACT TAGS — each fact is prefixed with structured tags in square "
-    "brackets, e.g. [speaker=assistant type=recommendation emphasis="
-    "explicit]. Use them to disambiguate:\n"
-    "  - \"what did you recommend / suggest\" → prefer facts with "
-    "speaker=assistant AND type=recommendation, and within those prefer "
-    "emphasis=explicit over emphasis=mentioned. If two assistant recs "
-    "compete, the one tagged emphasis=explicit wins.\n"
-    "  - \"what did I say / what's my preference / what do I like\" → "
-    "prefer facts with speaker=user AND type=preference.\n"
-    "  - \"when / how many days / what date\" → prefer facts with "
-    "type=event (they carry the anchor date).\n"
-    "  - In RECOMMENDATION mode, the strongest personalization signal is "
-    "facts with speaker=user AND type=preference — cite them explicitly.\n"
-    "  - Facts tagged type=mentioned are low-salience; do not treat them "
-    "as the answer when a higher-salience competing fact is present.\n\n"
     "Before your final answer, think step-by-step inside "
     "<reasoning>...</reasoning>. Include the mode decision (FACT vs "
     "RECOMMENDATION), the relevant facts you'll cite, and any "
@@ -955,37 +936,28 @@ ANSWER_PROMPT = (
     "  </reasoning>\n"
     "  12 days.\n\n"
     "Example B — FACT, recall (single-session-assistant):\n"
-    "  Question: What unique dessert shop in Orlando did you recommend?\n"
+    "  Question: What color was the Plesiosaur the assistant described?\n"
     "  Facts:\n"
-    "    - [speaker=assistant type=recommendation emphasis=explicit] "
-    "[2023-04-10] The assistant identified the Sugar Factory at Icon Park\n"
-    "      as the Orlando spot famous for giant goblet milkshakes.\n"
-    "    - [speaker=assistant type=mentioned emphasis=mentioned] "
-    "[2023-04-10] The assistant mentioned Toothsome Chocolate Emporium as\n"
-    "      another Orlando milkshake option.\n"
+    "    - [2023-04-10] The assistant told the user the Plesiosaur in\n"
+    "      the image has a blue scaly body and four flippers.\n"
     "  <reasoning>\n"
-    "  Mode: FACT (\"what did you recommend\" — disambiguate among\n"
-    "  candidates). Two Orlando dessert spots appear: Sugar Factory is\n"
-    "  type=recommendation emphasis=explicit; Toothsome is type=mentioned\n"
-    "  emphasis=mentioned. Rule: prefer explicit recommendation over\n"
-    "  mentioned. Answer is Sugar Factory at Icon Park.\n"
+    "  Mode: FACT (what color — one correct value).\n"
+    "  Fact [2023-04-10] states the Plesiosaur had a blue scaly body.\n"
     "  </reasoning>\n"
-    "  The Sugar Factory at Icon Park.\n\n"
+    "  Blue.\n\n"
     "Example C — RECOMMENDATION, hotel:\n"
     "  Question (asked on 2024-03-10): Can you suggest a hotel for my\n"
     "  trip to Lisbon?\n"
     "  Facts:\n"
-    "    - [speaker=user type=event emphasis=explicit] [2022-04-12] The\n"
-    "      user stayed at Casa das Janelas com Vista in Lisbon and\n"
-    "      enjoyed it.\n"
-    "    - [speaker=user type=preference emphasis=explicit] [2023-09-03]\n"
-    "      The user prefers boutique hotels over chains and loves\n"
-    "      rooftop views of the water.\n"
+    "    - [2022-04-12] The user stayed at Casa das Janelas com Vista\n"
+    "      in Lisbon and enjoyed it.\n"
+    "    - [2023-09-03] The user said they prefer boutique hotels over\n"
+    "      chains and love rooftop views of the water.\n"
     "  <reasoning>\n"
-    "  Mode: RECOMMENDATION. Personalization signal: type=preference\n"
-    "  memory (boutique + rooftop water views) — cite explicitly. Past\n"
-    "  win: Casa das Janelas com Vista (type=event). Combine with\n"
-    "  domain knowledge to propose concrete options.\n"
+    "  Mode: RECOMMENDATION. User preferences: boutique + rooftop water\n"
+    "  views. Past win: Casa das Janelas com Vista. Combine with\n"
+    "  domain knowledge to propose concrete boutique options with water\n"
+    "  views.\n"
     "  </reasoning>\n"
     "  Based on your preference for boutique hotels with rooftop water\n"
     "  views (per 2023-09-03):\n"
@@ -1116,36 +1088,18 @@ def _chat(client: Any, model: str, prompt: str, *, max_tokens: int = 300) -> str
 
 
 def _format_recall_context(results: List[Any], max_facts: int = 40) -> str:
-    """Join top retrieval hits into a newline-delimited context block.
+    """Join top retrieval hits into a plain newline-delimited context block.
 
-    When the memory carries structured distillation metadata
-    (``speaker`` / ``claim_type`` / ``emphasis``), surface those as an
-    inline tag prefix so the answerer can disambiguate among multiple
-    candidates. Legacy memories without metadata fall back to the plain
-    ``- content`` shape.
+    v3-ablate-A note: structured tags (speaker / claim_type / emphasis)
+    live in ``metadata.jsonb`` but are NOT surfaced in the answerer's
+    context. This matches the v2 format exactly so ablation-A isolates
+    the distillation change alone.
     """
     lines: list[str] = []
     for r in results[:max_facts]:
         mem_obj = getattr(r, "memory", None) or r
         content = getattr(mem_obj, "content", str(mem_obj))
-        meta = getattr(mem_obj, "metadata", None) or {}
-        speaker = meta.get("speaker")
-        claim_type = meta.get("claim_type")
-        emphasis = meta.get("emphasis")
-        if speaker or claim_type or emphasis:
-            tag = " ".join(
-                filter(
-                    None,
-                    [
-                        f"speaker={speaker}" if speaker else None,
-                        f"type={claim_type}" if claim_type else None,
-                        f"emphasis={emphasis}" if emphasis else None,
-                    ],
-                )
-            )
-            lines.append(f"- [{tag}] {content}")
-        else:
-            lines.append(f"- {content}")
+        lines.append(f"- {content}")
     return "\n".join(lines)
 
 
