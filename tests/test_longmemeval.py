@@ -23,7 +23,9 @@ from attestor.longmemeval import (
     VERIFY_PROMPT,
     DISTILL_PROMPT,
     LMERunReport,
+    PERSONALIZATION_PROMPT,
     RunProvenance,
+    is_recommendation_question,
     _coerce_sample,
     _format_recall_context,
     _format_turn_content,
@@ -556,7 +558,10 @@ def test_answer_prompt_includes_arithmetic_guidance() -> None:
     # Guard against a future edit that silently removes the CoT / date-math section.
     assert "DATE ARITHMETIC" in ANSWER_PROMPT
     assert "<reasoning>" in ANSWER_PROMPT
-    assert "abstain ONLY when no relevant fact exists" in ANSWER_PROMPT
+    # Abstention guidance appears in the FACT-mode branch as "respond exactly: I don't know"
+    # and in the RECOMMENDATION-mode branch as a prohibition; both must stay.
+    assert "respond exactly: I don't know" in ANSWER_PROMPT
+    assert "MUST NOT respond \"I don't know\"" in ANSWER_PROMPT
 
 
 @pytest.mark.unit
@@ -762,6 +767,46 @@ def test_run_async_handles_missing_dataset_path(monkeypatch: pytest.MonkeyPatch)
     assert report.provenance is not None
     assert report.provenance.dataset_path == ""
     assert report.provenance.dataset_sha256 == ""
+
+
+@pytest.mark.unit
+def test_answer_prompt_has_both_modes() -> None:
+    # Anti-regression: the unified ANSWER_PROMPT must teach both modes.
+    assert "FACT mode" in ANSWER_PROMPT
+    assert "RECOMMENDATION mode" in ANSWER_PROMPT
+    assert "DECIDE THE QUESTION MODE FIRST" in ANSWER_PROMPT
+    # Must keep date-arithmetic rubric for fact temporal questions.
+    assert "DATE ARITHMETIC" in ANSWER_PROMPT
+    # Must keep CoT contract.
+    assert "<reasoning>" in ANSWER_PROMPT
+    # Must instruct not to abstain on recommendation questions.
+    assert "MUST NOT respond \"I don't know\"" in ANSWER_PROMPT
+    # Placeholders.
+    assert "{context}" in ANSWER_PROMPT
+    assert "{question}" in ANSWER_PROMPT
+    assert "{question_date}" in ANSWER_PROMPT
+
+
+@pytest.mark.unit
+def test_answer_prompt_has_worked_examples_for_both_modes() -> None:
+    # Fact example (temporal): museum / concert between-days arithmetic.
+    assert "Rijksmuseum" in ANSWER_PROMPT
+    # Fact example (recall): Plesiosaur color.
+    assert "Plesiosaur" in ANSWER_PROMPT
+    # Recommendation example: Lisbon hotels.
+    assert "Lisbon" in ANSWER_PROMPT and "boutique" in ANSWER_PROMPT
+    # Recommendation example: kitchen tips.
+    assert "magnetic knife strip" in ANSWER_PROMPT
+
+
+@pytest.mark.unit
+def test_legacy_is_recommendation_question_is_deprecated_noop() -> None:
+    # The separate classifier was folded into the unified ANSWER_PROMPT;
+    # the legacy helper stays as an import-compat shim and always returns
+    # False so no one accidentally starts branching on it again.
+    assert is_recommendation_question("Any tips for X?") is False
+    assert is_recommendation_question("When did I go to Paris?") is False
+    assert is_recommendation_question("") is False
 
 
 @pytest.mark.unit

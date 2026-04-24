@@ -662,46 +662,142 @@ def ingest_history(
 # ---------------------------------------------------------------------------
 
 ANSWER_PROMPT = (
-    "You are answering a question based on an assistant's memory of a past "
-    "chat history. Use ONLY the facts listed below. Each fact is prefixed "
-    "with [YYYY-MM-DD] indicating the session date when the turn was recorded.\n\n"
-    "Ground temporal language against those session dates:\n"
-    "  - Relative phrases (\"last week\", \"yesterday\", \"two months ago\") must be\n"
-    "    resolved to absolute dates using the session date of the turn that\n"
-    "    contains them.\n"
-    "  - When a question asks \"when did X happen\", answer with the EVENT date,\n"
-    "    not the session date unless they coincide.\n"
-    "  - Prefer concrete absolute dates; never paraphrase the relative phrase.\n\n"
-    "DATE ARITHMETIC — this is where mistakes happen most:\n"
-    "  1. Identify every date relevant to the question (event dates, the\n"
-    "     question date, any reference dates in the question itself).\n"
-    "  2. If the question asks \"how many days/weeks/months/years between\n"
-    "     X and Y\", compute |date_Y − date_X| in the requested unit. Do NOT\n"
-    "     substitute \"from today\" or \"from the question date\" — measure\n"
-    "     between the two events named in the question.\n"
-    "  3. If the question asks \"how many days/months ago\", the anchor is\n"
-    "     the question_date (given above), not today.\n"
-    "  4. If the question has a temporal modifier like \"when I did X\",\n"
-    "     \"when I made the cake\", \"when I moved\" — that modifier IS the\n"
-    "     anchor date for the main question, not the question_date.\n"
-    "  5. Months: full calendar months between two dates. 2022-10-22 to\n"
-    "     2023-03-22 = 5 months. Partial months round down.\n"
-    "  6. Days: calendar day count. Double-check by going month-by-month.\n\n"
-    "Before writing your final answer, think step-by-step INSIDE\n"
-    "<reasoning>...</reasoning> tags:\n"
-    "  - Quote each relevant fact line (keep the [YYYY-MM-DD] prefix).\n"
-    "  - State the two dates you are comparing.\n"
-    "  - Show the arithmetic.\n"
-    "Then output the final answer AFTER </reasoning> on its own. Keep\n"
-    "the final answer concise and concrete — a date, a number, a short\n"
-    "phrase. Do NOT abstain (\"I don't know\") if the facts above contain\n"
-    "the answer; abstain ONLY when no relevant fact exists.\n\n"
+    "You are answering a question based on an assistant's memory of a "
+    "past chat history. The facts below are the user's memory — each is "
+    "prefixed with [YYYY-MM-DD] for the session date when the turn was "
+    "recorded.\n\n"
+    "DECIDE THE QUESTION MODE FIRST (this governs everything else):\n"
+    "  FACT mode — the question has a single correct answer the user "
+    "or assistant previously stated. Hallmarks: when / where / who / "
+    "what color / what (specific) / how many / how long / which "
+    "(specific) / did I / have I / remind me what. Answer with the "
+    "concrete value from the facts. If the facts don't support the "
+    "answer, respond exactly: I don't know.\n\n"
+    "  RECOMMENDATION mode — the question asks for tips, advice, "
+    "ideas, suggestions, or a tailored proposal. Hallmarks: recommend / "
+    "suggest / propose / advise / help me pick / any tips / any advice / "
+    "any ideas / what should I / what would you / I'm looking for / I "
+    "need help with. For these you MUST NOT respond \"I don't know\" — "
+    "use the user's stored preferences, habits, constraints, and past "
+    "experiences to produce a concrete, user-specific proposal. You may "
+    "blend stored facts with sensible domain knowledge, but the "
+    "response must be obviously tailored to THIS user (cite relevant "
+    "stored facts in parentheses). Generic boilerplate is WRONG.\n\n"
+    "EDGE CASES:\n"
+    "  - \"Can you remind me what color …\" → FACT (recall)\n"
+    "  - \"What's my favorite …\" → FACT (recall of a stated preference)\n"
+    "  - \"Can you recommend a hotel for …\" → RECOMMENDATION\n"
+    "  - \"Any tips for keeping my kitchen clean?\" → RECOMMENDATION\n\n"
+    "DATE ARITHMETIC — applies to FACT mode questions about durations, "
+    "gaps, or event dates:\n"
+    "  1. Identify every date relevant to the question (event dates, "
+    "the question date, reference dates in the question itself).\n"
+    "  2. \"how many days/weeks/months/years between X and Y\" → "
+    "     compute |date_Y − date_X| in the requested unit. Measure\n"
+    "     BETWEEN the two events named in the question, not \"from now\".\n"
+    "  3. \"how many days/months ago\" → anchor is the question_date, "
+    "     not today.\n"
+    "  4. \"when I did X\", \"when I made the cake\" — that clause IS\n"
+    "     the anchor; do not substitute the question_date.\n"
+    "  5. Months: full calendar months. 2022-10-22 → 2023-03-22 = 5.\n"
+    "  6. Days: calendar count; verify month-by-month.\n\n"
+    "Before your final answer, think step-by-step inside "
+    "<reasoning>...</reasoning>. Include the mode decision (FACT vs "
+    "RECOMMENDATION), the relevant facts you'll cite, and any "
+    "arithmetic. Then output the final answer AFTER </reasoning> on "
+    "its own — concise and concrete.\n\n"
+    "WORKED EXAMPLES (showing both modes):\n\n"
+    "Example A — FACT, temporal:\n"
+    "  Question (asked on 2023-07-20): How many days between my visit\n"
+    "  to the museum and the concert?\n"
+    "  Facts:\n"
+    "    - [2023-06-05] The user visited the Rijksmuseum in Amsterdam.\n"
+    "    - [2023-06-17] The user attended a jazz concert at Bimhuis.\n"
+    "  <reasoning>\n"
+    "  Mode: FACT (how many days between X and Y).\n"
+    "  Dates: 2023-06-05 (museum) and 2023-06-17 (concert).\n"
+    "  Diff: 2023-06-17 − 2023-06-05 = 12 days.\n"
+    "  </reasoning>\n"
+    "  12 days.\n\n"
+    "Example B — FACT, recall (single-session-assistant):\n"
+    "  Question: What color was the Plesiosaur the assistant described?\n"
+    "  Facts:\n"
+    "    - [2023-04-10] The assistant told the user the Plesiosaur in\n"
+    "      the image has a blue scaly body and four flippers.\n"
+    "  <reasoning>\n"
+    "  Mode: FACT (what color — one correct value).\n"
+    "  Fact [2023-04-10] states the Plesiosaur had a blue scaly body.\n"
+    "  </reasoning>\n"
+    "  Blue.\n\n"
+    "Example C — RECOMMENDATION, hotel:\n"
+    "  Question (asked on 2024-03-10): Can you suggest a hotel for my\n"
+    "  trip to Lisbon?\n"
+    "  Facts:\n"
+    "    - [2022-04-12] The user stayed at Casa das Janelas com Vista\n"
+    "      in Lisbon and enjoyed it.\n"
+    "    - [2023-09-03] The user said they prefer boutique hotels over\n"
+    "      chains and love rooftop views of the water.\n"
+    "  <reasoning>\n"
+    "  Mode: RECOMMENDATION. User preferences: boutique + rooftop water\n"
+    "  views. Past win: Casa das Janelas com Vista. Combine with\n"
+    "  domain knowledge to propose concrete boutique options with water\n"
+    "  views.\n"
+    "  </reasoning>\n"
+    "  Based on your preference for boutique hotels with rooftop water\n"
+    "  views (per 2023-09-03):\n"
+    "  - Memmo Alfama — boutique, rooftop plunge pool over the Tagus.\n"
+    "  - Santiago de Alfama — boutique, Alfama rooftop, 32 rooms.\n"
+    "  - Casa das Janelas com Vista — you already enjoyed this in\n"
+    "    2022-04-12 and it still fits your stated preferences.\n\n"
+    "Example D — RECOMMENDATION, kitchen tips:\n"
+    "  Question: Any tips for keeping my kitchen organized?\n"
+    "  Facts:\n"
+    "    - [2024-01-14] The user bought a magnetic knife strip.\n"
+    "    - [2024-02-02] The user said they dislike countertop clutter.\n"
+    "    - [2023-11-10] The user has granite countertops.\n"
+    "  <reasoning>\n"
+    "  Mode: RECOMMENDATION. Build on existing tools (magnetic knife\n"
+    "  strip), respect granite (no vinegar/lemon), target declutter.\n"
+    "  </reasoning>\n"
+    "  Build on what you already have:\n"
+    "  - Move cutting boards vertical beside the magnetic knife strip\n"
+    "    you installed (per 2024-01-14) to keep counters clear.\n"
+    "  - Use pH-neutral cleaner on granite; avoid vinegar or lemon.\n"
+    "  - Add a two-tier pull-out under the sink to corral bottles —\n"
+    "    directly addresses your dislike of countertop clutter\n"
+    "    (per 2024-02-02).\n\n"
+    "Now answer the real question.\n\n"
     "Question (asked on {question_date}):\n{question}\n\n"
     "Facts:\n{context}\n\n"
-    "Output format:\n"
-    "<reasoning>...your step-by-step work...</reasoning>\n"
-    "<final answer only — one line, no prefix>"
+    "Output:\n"
+    "<reasoning>...your mode decision + cited facts + arithmetic...</reasoning>\n"
+    "<final answer only>"
 )
+
+
+# ------------------------------------------------------------------
+# The following three symbols are retained as deprecated no-op
+# placeholders so external callers / tests import cleanly. The
+# unified ANSWER_PROMPT now handles both modes; no separate
+# PERSONALIZATION_PROMPT or classifier is needed.
+# ------------------------------------------------------------------
+
+PERSONALIZATION_PROMPT = ANSWER_PROMPT  # unified into ANSWER_PROMPT
+
+
+def is_recommendation_question(question: str, **_: Any) -> bool:
+    """Deprecated: the unified ANSWER_PROMPT decides mode internally.
+
+    Kept only so existing imports don't break. Always returns False now;
+    the LLM handles mode selection inside a single prompt.
+    """
+    return False
+
+
+def classify_question(question: str, **_: Any) -> int:
+    """Deprecated: no separate classifier — see unified ANSWER_PROMPT."""
+    return 0
+
 
 VERIFY_PROMPT = (
     "Double-check the AI's answer below against the facts. You are a "
@@ -873,6 +969,11 @@ def answer_question(
 
     context = _format_recall_context(results, max_facts=max_facts)
     question_date = sample.question_date or "(unknown)"
+
+    # Unified prompt: the model picks FACT vs RECOMMENDATION mode inside the
+    # prompt (no separate classifier). Fact mode is strict; recommendation
+    # mode weaves stored user preferences into a tailored proposal. See
+    # ANSWER_PROMPT for the mode-decision rubric + worked examples.
     prompt = ANSWER_PROMPT.format(
         question=sample.question,
         question_date=question_date,
