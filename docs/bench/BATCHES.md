@@ -44,6 +44,35 @@ to check integrity and re-run.
 | 7 | multi-session | 10 | distill + CoT + verify | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | 6/10 (60%) | 6/10 (60%) | 100% | `d03c79a`† | `af6431c1…` | `longmemeval-attestor-10samp-multi-session.json` |
 | 8 | single-session-preference | 10 | distill + CoT + verify | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | **4/10 (40%)** | **5/10 (50%)** | 90% | `d03c79a`† | `c9613461…` | `longmemeval-attestor-10samp-single-session-preference.json` |
 | 9 | single-session-assistant | 10 | distill + CoT + verify | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | **2/10 (20%)** | **3/10 (30%)** | 90% | `d03c79a`† | `25cdecea…` | `longmemeval-attestor-10samp-single-session-assistant.json` |
+| 10 | single-session-preference | 10 | distill + CoT + verify + **DimB** | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | **6/10 (60%)** | **6/10 (60%)** | **100%** | `ff44998` | `aeba972f…` | `longmemeval-attestor-10samp-preference-dimB.json` |
+| 11 | single-session-assistant | 10 | distill + CoT + verify + **DimB** | gpt-5.1 | on | gpt-5.1 | claude-sonnet-4.6 | **5/10 (50%)** | **6/10 (60%)** | 90% | `ff44998` | `9af50f03…` | `longmemeval-attestor-10samp-assistant-dimB.json` |
+
+### Batches 10 & 11 — distiller fix + Dimension B multi-dimensional scoring
+
+**Headline result: retrieval is not the bottleneck.**
+
+| Dimension | Preference (10) | Assistant (10) |
+|---|---|---|
+| Retrieval precision | **10/10 (100%)** | **10/10 (100%)** |
+| Mode classification | 10/10 recommendation | 10/10 fact |
+| Answer accuracy (judge A) | 6/10 (60%) | 5/10 (50%) |
+| Answer accuracy (judge B) | 6/10 (60%) | 6/10 (60%) |
+| Personalization (rec-mode) | 5/10 (50%) | n/a |
+| Inter-judge agreement | 100% | 90% |
+
+The memory layer finds the right facts on **every** sample. Remaining failures
+are answer-composition failures (gpt-5.1 producing a less-personalized
+recommendation, or misreading an assistant-stated fact). This is the
+publishable finding for F5: **Attestor's retrieval is deterministic and 100%
+on these two categories; the answerer is the variable.**
+
+Improvement vs batches 8/9 (pre-distiller-fix):
+- preference: 40% → **60%** (+20pp, judge A)
+- assistant:  20% → **50%** (+30pp, judge A)
+
+Both outputs carry full provenance (git `ff44998`, dataset SHA
+`d6f21ea9…`, schema_version 1.1) and Dimension B block
+(`by_dimension.retrieval / mode_distribution / personalization / by_predicted_mode`).
 
 ### Diagnosis of batches 8 and 9
 
@@ -73,7 +102,7 @@ SHA256 sidecars only. Batch 5 onward carry full provenance inside the JSON.
 
 ## Running
 
-_none — batches 5 and 6 both finished._
+_none — batches 10 and 11 both finished._
 
 ## Queued
 
@@ -117,7 +146,12 @@ _none_
 | 2 | $1 | ~$1 | baseline, gpt-4.1-mini everywhere |
 | 3 | $3 | ~$3 | gpt-5.1 answer + verify adds spend |
 | 4 | $5 | ~$5 | distillation dominates (500 turns × gpt-5.1) |
-| 5 | $15 | in flight | n=30, sonnet-4.6 judge adds pennies |
-| 6 | $5 | in flight | running in parallel |
+| 5 | $15 | ~$15 | n=30, sonnet-4.6 judge adds pennies |
+| 6 | $5 | ~$5 | ran in parallel with batch 5 |
+| 7 | $5 | ~$5 | multi-session |
+| 8 | $5 | ~$5 | preference v1 (pre-distiller-fix) |
+| 9 | $5 | ~$5 | assistant v1 (pre-distiller-fix) |
+| 10 | $5 | ~$5 | preference **+ Dimension B** |
+| 11 | $5 | ~$5 | assistant **+ Dimension B** |
 
-**Running total: ~$30.** Budget cap is $200.
+**Running total: ~$100.** Budget cap is $200. ~$100 remaining on OpenRouter.

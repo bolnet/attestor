@@ -1,0 +1,295 @@
+{
+  "total": 10,
+  "answer_model": "openai/gpt-5.1",
+  "judge_models": [
+    "openai/gpt-4.1-mini",
+    "anthropic/claude-haiku-4.5"
+  ],
+  "by_category": {
+    "temporal-reasoning": {
+      "openai/gpt-4.1-mini": {
+        "correct": 8,
+        "total": 10,
+        "accuracy": 80.0
+      },
+      "anthropic/claude-haiku-4.5": {
+        "correct": 7,
+        "total": 10,
+        "accuracy": 70.0
+      }
+    }
+  },
+  "by_judge": {
+    "openai/gpt-4.1-mini": {
+      "correct": 8,
+      "total": 10,
+      "accuracy": 80.0
+    },
+    "anthropic/claude-haiku-4.5": {
+      "correct": 7,
+      "total": 10,
+      "accuracy": 70.0
+    },
+    "_inter_judge_agreement": {
+      "openai/gpt-4.1-mini__vs__anthropic/claude-haiku-4.5": {
+        "both_correct": 7,
+        "both_wrong": 2,
+        "agreement_pct": 90.0
+      }
+    }
+  },
+  "started_at": "2026-04-23T20:40:08",
+  "completed_at": "2026-04-23T20:49:03",
+  "samples": [
+    {
+      "question_id": "gpt4_59149c77",
+      "category": "temporal-reasoning",
+      "question": "How many days passed between my visit to the Museum of Modern Art (MoMA) and the 'Ancient Civilizations' exhibit at the Metropolitan Museum of Art?",
+      "gold": "7 days. 8 days (including the last day) is also acceptable.",
+      "answer": "Unknown (the MoMA visit date is not given, so the number of days cannot be determined from the provided facts)",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI correctly identifies that the number of days cannot be calculated without the visit dates, matching the gold answer\u2019s dependency on specific dates.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI correctly recognized that the necessary information (specific visit dates to both museums) was not provided in the question, making it impossible to calculate the number of days, which aligns with the abstention rubric allowing reasonable abstentions when facts are not mentioned.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 4754.31,
+      "ingest_turns": 484,
+      "ingest_memories": 484,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "gpt4_f49edff3",
+      "category": "temporal-reasoning",
+      "question": "Which three events happened in the order from first to last: the day I helped my friend prepare the nursery, the day I helped my cousin pick out stuff for her baby shower, and the day I ordered a customized phone case for my friend's birthday?",
+      "gold": "First, I helped my friend prepare the nursery, then I helped my cousin pick out stuff for her baby shower, and lastly, I ordered a customized phone case for my friend's birthday.",
+      "answer": "First: the day you helped your friend prepare the nursery (2023-02-05), then: the day you helped your cousin pick out stuff for her baby shower (2023-02-10), and last: the day you ordered the customized phone case for your friend's birthday (2023-02-20).",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer semantically, providing the same order of events with additional specific dates, which is acceptable and aligns with the timeline implied by the gold answer.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the three events in the proper chronological order (nursery preparation \u2192 baby shower shopping \u2192 phone case order) and matches the gold answer's substance, though it adds specific dates that weren't provided in the original question.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 4561.73,
+      "ingest_turns": 498,
+      "ingest_memories": 498,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "71017276",
+      "category": "temporal-reasoning",
+      "question": "How many weeks ago did I meet up with my aunt and receive the crystal chandelier?",
+      "gold": "4",
+      "answer": "4 weeks ago",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer provides the same numerical answer with the correct time unit, directly matching the gold answer's meaning.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer of '4 weeks ago' semantically matches the gold answer of '4' and correctly provides the numerical value requested, with appropriate temporal framing.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 3682.21,
+      "ingest_turns": 614,
+      "ingest_memories": 614,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "b46e15ed",
+      "category": "temporal-reasoning",
+      "question": "How many months have passed since I participated in two charity events in a row, on consecutive days?",
+      "gold": "2",
+      "answer": "I don\u2019t have enough information in the given facts to determine that.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer is an abstention due to lack of information, which is reasonable and matches the expectation for missing temporal data.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The gold answer provides a specific numerical value (2 months), but the AI abstained by stating it lacks sufficient information. Since this is a temporal-reasoning question that requires resolving a specific timeframe and the gold answer is a concrete date/period (not an abstention), the AI's refusal to answer when a definitive answer exists constitutes a WRONG response.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 5223.97,
+      "ingest_turns": 478,
+      "ingest_memories": 478,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "gpt4_fa19884c",
+      "category": "temporal-reasoning",
+      "question": "How many days passed between the day I started playing along to my favorite songs on my old keyboard and the day I discovered a bluegrass band?",
+      "gold": "6 days. 7 days (including the last day) is also acceptable.",
+      "answer": "6 days",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer precisely matches the gold answer of 6 days, which is accepted as correct.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer of 6 days matches exactly with the gold answer's primary acceptable response.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 3808.21,
+      "ingest_turns": 507,
+      "ingest_memories": 507,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "0bc8ad92",
+      "category": "temporal-reasoning",
+      "question": "How many months have passed since I last visited a museum with a friend?",
+      "gold": "5",
+      "answer": "5 months",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly matches the gold answer in both quantity and time unit, explicitly stating '5 months,' which is semantically equivalent to the gold answer '5'.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer of '5 months' matches the gold answer of '5' in substance, providing the correct numerical value with appropriate temporal unit specification.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 4416.94,
+      "ingest_turns": 443,
+      "ingest_memories": 443,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "af082822",
+      "category": "temporal-reasoning",
+      "question": "How many weeks ago did I attend the friends and family sale at Nordstrom?",
+      "gold": "2",
+      "answer": "1 week ago",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI answer of 1 week ago does not match the gold answer of 2 weeks; since the specific number of weeks is required, this answer is incorrect.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI answered 1 week ago while the gold answer is 2 weeks ago; these are different specific temporal values and the AI's answer does not match the correct timeframe.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 3460.31,
+      "ingest_turns": 495,
+      "ingest_memories": 495,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "gpt4_4929293a",
+      "category": "temporal-reasoning",
+      "question": "Which event happened first, my cousin's wedding or Michael's engagement party?",
+      "gold": "Michael's engagement party",
+      "answer": "Michael's engagement party happened first.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer correctly indicates that Michael's engagement party happened first, matching the gold answer.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies that Michael's engagement party happened first, which matches the gold answer on substance.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 5477.83,
+      "ingest_turns": 486,
+      "ingest_memories": 486,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "gpt4_b5700ca9",
+      "category": "temporal-reasoning",
+      "question": "How many days ago did I attend the Maundy Thursday service at the Episcopal Church?",
+      "gold": "4 days.",
+      "answer": "4 days",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer exactly in numeric value and meaning, indicating the event occurred 4 days ago as required by the temporal reasoning category.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer of '4 days' matches the gold answer exactly, providing the correct temporal information required for this temporal-reasoning question.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 4289.58,
+      "ingest_turns": 537,
+      "ingest_memories": 537,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "9a707b81",
+      "category": "temporal-reasoning",
+      "question": "How many days ago did I attend a baking class at a local culinary school when I made my friend's birthday cake?",
+      "gold": "21 days. 22 days (including the last day) is also acceptable.",
+      "answer": "25 days",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI's answer of 25 days does not match the gold answer of 21 or 22 days, so it is marked as WRONG.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI answered 25 days, but the gold answer specifies 21 days (or 22 days including the last day), which does not match the AI's response.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 5688.48,
+      "ingest_turns": 530,
+      "ingest_memories": 530,
+      "retrieved_count": 10
+    }
+  ]
+}

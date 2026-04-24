@@ -1,0 +1,1295 @@
+{
+  "total": 50,
+  "answer_model": "openai/gpt-4.1-mini",
+  "judge_models": [
+    "openai/gpt-4.1-mini",
+    "anthropic/claude-haiku-4.5"
+  ],
+  "by_category": {
+    "single-session-user": {
+      "openai/gpt-4.1-mini": {
+        "correct": 47,
+        "total": 50,
+        "accuracy": 94.0
+      },
+      "anthropic/claude-haiku-4.5": {
+        "correct": 44,
+        "total": 50,
+        "accuracy": 88.0
+      }
+    }
+  },
+  "by_judge": {
+    "openai/gpt-4.1-mini": {
+      "correct": 47,
+      "total": 50,
+      "accuracy": 94.0
+    },
+    "anthropic/claude-haiku-4.5": {
+      "correct": 44,
+      "total": 50,
+      "accuracy": 88.0
+    },
+    "_inter_judge_agreement": {
+      "openai/gpt-4.1-mini__vs__anthropic/claude-haiku-4.5": {
+        "both_correct": 44,
+        "both_wrong": 3,
+        "agreement_pct": 94.0
+      }
+    }
+  },
+  "started_at": "2026-04-23T18:14:21",
+  "completed_at": "2026-04-23T18:44:24",
+  "samples": [
+    {
+      "question_id": "e47becba",
+      "category": "single-session-user",
+      "question": "What degree did I graduate with?",
+      "gold": "Business Administration",
+      "answer": "You graduated with a degree in Business Administration.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer in substance by clearly stating the degree as Business Administration.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the degree as Business Administration, matching the gold answer in substance despite using a rephrased format.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1620.51,
+      "ingest_turns": 550,
+      "ingest_memories": 550,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "118b2229",
+      "category": "single-session-user",
+      "question": "How long is my daily commute to work?",
+      "gold": "45 minutes each way",
+      "answer": "Your daily commute to work takes 45 minutes each way.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer restates the gold answer with the same meaning and correctly includes the commute duration for each way.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer exactly in substance, providing the correct duration of 45 minutes each way for the daily commute.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2368.38,
+      "ingest_turns": 485,
+      "ingest_memories": 485,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "51a45a95",
+      "category": "single-session-user",
+      "question": "Where did I redeem a $5 coupon on coffee creamer?",
+      "gold": "Target",
+      "answer": "You redeemed the $5 coupon on coffee creamer at Target.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer matches the gold answer in substance by identifying Target as the place where the coupon was redeemed.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies Target as the location where the user redeemed the $5 coupon on coffee creamer, matching the gold answer in substance despite using different wording.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1474.91,
+      "ingest_turns": 529,
+      "ingest_memories": 529,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "58bf7951",
+      "category": "single-session-user",
+      "question": "What play did I attend at the local community theater?",
+      "gold": "The Glass Menagerie",
+      "answer": "You attended a production of The Glass Menagerie at the local community theater.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly matches the gold answer by identifying the play attended as The Glass Menagerie.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the play as The Glass Menagerie, matching the gold answer on substance despite using different wording.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1803.62,
+      "ingest_turns": 616,
+      "ingest_memories": 616,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "1e043500",
+      "category": "single-session-user",
+      "question": "What is the name of the playlist I created on Spotify?",
+      "gold": "Summer Vibes",
+      "answer": "The playlist you created on Spotify is called \"Summer Vibes.\"",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the playlist name as 'Summer Vibes,' matching the gold answer in substance.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the playlist name as 'Summer Vibes,' which matches the gold answer exactly in substance, despite minor wording differences.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1800.0,
+      "ingest_turns": 510,
+      "ingest_memories": 510,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "c5e8278d",
+      "category": "single-session-user",
+      "question": "What was my last name before I changed it?",
+      "gold": "Johnson",
+      "answer": "Your last name before you changed it was Johnson.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by correctly stating the last name before the change as Johnson.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer on substance, correctly stating that the user's previous last name was Johnson.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1491.4,
+      "ingest_turns": 469,
+      "ingest_memories": 469,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "6ade9755",
+      "category": "single-session-user",
+      "question": "Where do I take yoga classes?",
+      "gold": "Serenity Yoga",
+      "answer": "You practice yoga at home using apps like Down Dog, and you also go to a studio called Serenity Yoga, which you mentioned but no specific location details were given.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer includes the specific studio name 'Serenity Yoga' given in the gold answer, matching the key information about where yoga classes are taken.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies Serenity Yoga as a place where the user takes yoga classes, which matches the gold answer; the additional mention of home practice via apps is supplementary information that doesn't contradict the core answer.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 4443.38,
+      "ingest_turns": 513,
+      "ingest_memories": 513,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "6f9b354f",
+      "category": "single-session-user",
+      "question": "What color did I repaint my bedroom walls?",
+      "gold": "a lighter shade of gray",
+      "answer": "You repainted your bedroom walls a lighter shade of gray.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by stating the walls were repainted a lighter shade of gray.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer directly matches the gold answer on substance, stating that the bedroom walls were repainted a lighter shade of gray.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1715.08,
+      "ingest_turns": 500,
+      "ingest_memories": 500,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "58ef2f1c",
+      "category": "single-session-user",
+      "question": "When did I volunteer at the local animal shelter's fundraising dinner?",
+      "gold": "February 14th",
+      "answer": "You volunteered at the local animal shelter's \"Love is in the Air\" fundraising dinner on Valentine's Day, February 14, 2023.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer provides the exact date of volunteering as February 14, matching the gold answer of February 14th and adds relevant context without altering the meaning, so it is semantically correct.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the date as February 14th (Valentine's Day), which matches the gold answer; the additional context about the event name and year are consistent details that don't contradict the core date information.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1682.65,
+      "ingest_turns": 518,
+      "ingest_memories": 518,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "f8c5f88b",
+      "category": "single-session-user",
+      "question": "Where did I buy my new tennis racket from?",
+      "gold": "the sports store downtown",
+      "answer": "You bought your new tennis racket from a sports store downtown.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by correctly identifying the location as a sports store downtown.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer on substance, correctly identifying the location as 'a sports store downtown,' which semantically corresponds to 'the sports store downtown.'",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1756.77,
+      "ingest_turns": 487,
+      "ingest_memories": 487,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "5d3d2817",
+      "category": "single-session-user",
+      "question": "What was my previous occupation?",
+      "gold": "Marketing specialist at a small startup",
+      "answer": "Your previous occupation was managing a team of interns at a startup, where you were responsible for manually assigning tasks and tracking their progress.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer describes a role at a startup involving management tasks, which aligns semantically with a marketing specialist at a small startup, so it is generous to accept this as correct.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI's answer describes a role managing interns at a startup, but the gold answer specifically identifies the occupation as 'Marketing specialist at a small startup'\u2014these are semantically different positions with different core responsibilities, so the AI's answer does not match the gold answer on substance.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2334.97,
+      "ingest_turns": 510,
+      "ingest_memories": 510,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "7527f7e2",
+      "category": "single-session-user",
+      "question": "How much did I spend on a designer handbag?",
+      "gold": "$800",
+      "answer": "You spent $800 on a designer handbag.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer in substance, specifying the amount spent as $800, which aligns with the gold answer.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly states the amount of $800 spent on a designer handbag, matching the gold answer exactly in substance.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1394.22,
+      "ingest_turns": 490,
+      "ingest_memories": 490,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "c960da58",
+      "category": "single-session-user",
+      "question": "How many playlists do I have on Spotify?",
+      "gold": "20",
+      "answer": "You have 20 playlists on Spotify.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer in substance by correctly stating the number of playlists as 20, just with slightly different wording.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer directly states the correct number of playlists (20), matching the gold answer on substance.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2285.03,
+      "ingest_turns": 504,
+      "ingest_memories": 504,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "3b6f954b",
+      "category": "single-session-user",
+      "question": "Where did I attend for my study abroad program?",
+      "gold": "University of Melbourne in Australia",
+      "answer": "Challenges in implementing civic education programs include limited funding and resources, varying curriculum standards, lack of trained teachers, student disengagement, and political or cultural resistance to certain topics.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI's answer does not address the question about the study abroad location and instead provides unrelated information.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI's answer discusses civic education program challenges and is completely unrelated to the user's question about their study abroad location; it does not mention University of Melbourne or any study destination.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1664.69,
+      "ingest_turns": 470,
+      "ingest_memories": 470,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "726462e0",
+      "category": "single-session-user",
+      "question": "What was the discount I got on my first purchase from the new clothing brand?",
+      "gold": "10%",
+      "answer": "You received a 10% discount on your first purchase from the new clothing brand.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by stating the discount was 10%.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the 10% discount amount, matching the gold answer on substance despite using different wording.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1550.61,
+      "ingest_turns": 501,
+      "ingest_memories": 501,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "94f70d80",
+      "category": "single-session-user",
+      "question": "How long did it take me to assemble the IKEA bookshelf?",
+      "gold": "4 hours",
+      "answer": "It took you 4 hours to assemble the IKEA bookshelf.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer clearly states the time taken as 4 hours, matching the gold answer exactly in substance.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly states that it took 4 hours to assemble the IKEA bookshelf, which matches the gold answer exactly.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1455.05,
+      "ingest_turns": 510,
+      "ingest_memories": 510,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "66f24dbb",
+      "category": "single-session-user",
+      "question": "What did I buy for my sister's birthday gift?",
+      "gold": "a yellow dress",
+      "answer": "You bought your sister a yellow dress and a pair of earrings to match for her birthday gift.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer includes the yellow dress from the gold answer and adds additional details, so it semantically matches and is therefore correct.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI's answer includes the core fact from the gold answer (yellow dress) but adds extra information (earrings) that was not in the gold answer; however, since the question is about a single-session user's personal data and the AI cannot actually know this information, this appears to be a hallucination rather than a semantic match to the gold answer.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1592.86,
+      "ingest_turns": 507,
+      "ingest_memories": 507,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "ad7109d1",
+      "category": "single-session-user",
+      "question": "What speed is my new internet plan?",
+      "gold": "500 Mbps",
+      "answer": "Your new internet plan speed is 500 Mbps.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer contains the exact speed of 500 Mbps as in the gold answer, thus it is correct.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly states the internet plan speed as 500 Mbps, which matches the gold answer exactly.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1448.25,
+      "ingest_turns": 466,
+      "ingest_memories": 466,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "af8d2e46",
+      "category": "single-session-user",
+      "question": "How many shirts did I pack for my 5-day trip to Costa Rica?",
+      "gold": "7",
+      "answer": "You packed 7 shirts for your 5-day trip to Costa Rica.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer restates the gold answer exactly and confirms the number of shirts packed as 7, matching the gold answer in substance.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer contains the correct number (7 shirts) and accurately reflects the gold answer, despite being phrased as a statement rather than a direct number.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1633.29,
+      "ingest_turns": 495,
+      "ingest_memories": 495,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "dccbc061",
+      "category": "single-session-user",
+      "question": "What was my previous stance on spirituality?",
+      "gold": "A staunch atheist",
+      "answer": "While trusting friends or family can provide comfort, relying solely on their beliefs without critical evaluation can lead to misinformation or biased views. It's important to balance trust with your own informed judgment to make wise decisions.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI answer does not address the user's previous stance on spirituality and is unrelated to the gold answer, which specifies 'A staunch atheist.'",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI failed to answer the question about the user's previous stance on spirituality and instead provided generic advice about trusting others; this is a complete non-answer that does not match the gold answer of 'A staunch atheist'.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1825.28,
+      "ingest_turns": 505,
+      "ingest_memories": 505,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "c8c3f81d",
+      "category": "single-session-user",
+      "question": "What brand are my favorite running shoes?",
+      "gold": "Nike",
+      "answer": "Your favorite running shoe brand is Nike.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer directly states the favorite running shoe brand as Nike, matching the gold answer in substance.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies Nike as the favorite running shoe brand, matching the gold answer on substance despite using different wording.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1650.08,
+      "ingest_turns": 487,
+      "ingest_memories": 487,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "8ebdbe50",
+      "category": "single-session-user",
+      "question": "What certification did I complete last month?",
+      "gold": "Data Science",
+      "answer": "You completed a Data Science certification last month.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by specifying the certification completed last month as Data Science.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the certification as Data Science and accurately places it in the temporal frame of 'last month', matching the gold answer on substance.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1402.12,
+      "ingest_turns": 487,
+      "ingest_memories": 487,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "6b168ec8",
+      "category": "single-session-user",
+      "question": "How many bikes do I own?",
+      "gold": "three",
+      "answer": "You own three bikes: a road bike, a mountain bike, and a commuter bike.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer clearly states that the user owns three bikes, matching the gold answer exactly in substance.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the number of bikes (three) and matches the gold answer on substance, providing additional relevant details about the types of bikes.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1514.72,
+      "ingest_turns": 482,
+      "ingest_memories": 482,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "75499fd8",
+      "category": "single-session-user",
+      "question": "What breed is my dog?",
+      "gold": "Golden Retriever",
+      "answer": "I don't know.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI reasonably abstained from guessing the dog's breed without information, which matches acceptable behavior since the gold answer does not provide any enabling context.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The gold answer specifies a breed (Golden Retriever), but the AI abstained by saying 'I don't know'; since this is a single-session-user question with no prior context provided to the AI, abstention is reasonable and acceptable.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 3909.97,
+      "ingest_turns": 491,
+      "ingest_memories": 491,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "21436231",
+      "category": "single-session-user",
+      "question": "How many largemouth bass did I catch on my fishing trip to Lake Michigan?",
+      "gold": "12",
+      "answer": "You caught 12 largemouth bass on your last fishing trip to Lake Michigan.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer exactly in content while adding a contextual phrase that does not change the meaning.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer on the substance (12 largemouth bass caught at Lake Michigan), with appropriate contextual framing that is consistent with the question.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1583.57,
+      "ingest_turns": 512,
+      "ingest_memories": 512,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "95bcc1c8",
+      "category": "single-session-user",
+      "question": "How many amateur comedians did I watch perform at the open mic night?",
+      "gold": "10",
+      "answer": "You watched 10 amateur comedians perform at the open mic night.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by stating the same number of amateur comedians watched, just phrased differently.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly states that 10 amateur comedians performed at the open mic night, which matches the gold answer of 10.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 3521.38,
+      "ingest_turns": 487,
+      "ingest_memories": 487,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "0862e8bf",
+      "category": "single-session-user",
+      "question": "What is the name of my cat?",
+      "gold": "Luna",
+      "answer": "Your cat's name is Luna.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer in substance, correctly identifying the cat's name as Luna.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the cat's name as Luna, which matches the gold answer; the paraphrasing into a complete sentence is an acceptable variation.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2171.74,
+      "ingest_turns": 490,
+      "ingest_memories": 490,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "853b0a1d",
+      "category": "single-session-user",
+      "question": "How old was I when my grandma gave me the silver necklace?",
+      "gold": "18",
+      "answer": "You were 18 years old when your grandma gave you the silver necklace.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer explicitly states the same age of 18 as the gold answer, matching the required information perfectly.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the age as 18, which matches the gold answer exactly, and appropriately expands on it with relevant context.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2829.66,
+      "ingest_turns": 512,
+      "ingest_memories": 512,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "a06e4cfe",
+      "category": "single-session-user",
+      "question": "What is my preferred gin-to-vermouth ratio for a classic gin martini?",
+      "gold": "3:1",
+      "answer": "Your preferred gin-to-vermouth ratio for a classic gin martini is 3:1.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer exactly matches the gold answer in substance and specifies the correct gin-to-vermouth ratio of 3:1.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer directly matches the gold answer of 3:1 for the gin-to-vermouth ratio.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1386.79,
+      "ingest_turns": 534,
+      "ingest_memories": 534,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "37d43f65",
+      "category": "single-session-user",
+      "question": "How much RAM did I upgrade my laptop to?",
+      "gold": "16GB",
+      "answer": "You upgraded your laptop's RAM to 16GB.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer accurately matches the gold answer by stating the upgraded RAM is 16GB, showing semantic equivalence.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly states that the laptop was upgraded to 16GB of RAM, which matches the gold answer exactly.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1491.28,
+      "ingest_turns": 533,
+      "ingest_memories": 533,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "b86304ba",
+      "category": "single-session-user",
+      "question": "How much is the painting of a sunset worth in terms of the amount I paid for it?",
+      "gold": "The painting is worth triple what I paid for it.",
+      "answer": "The painting of a sunset is worth triple the amount you paid for it.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by stating the painting is worth triple the amount paid, conveying the same meaning.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer conveys the same semantic meaning as the gold answer\u2014that the painting's worth is triple the purchase price\u2014just with slightly different wording.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2144.83,
+      "ingest_turns": 456,
+      "ingest_memories": 456,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "d52b4f67",
+      "category": "single-session-user",
+      "question": "Where did I attend my cousin's wedding?",
+      "gold": "The Grand Ballroom",
+      "answer": "You attended your cousin's wedding at the Grand Ballroom.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer semantically matches the gold answer by stating the wedding took place at the Grand Ballroom, thus it is correct.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer contains the correct location (The Grand Ballroom) and matches the gold answer on substance, despite being phrased as a complete sentence rather than just the location name.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1261.0,
+      "ingest_turns": 479,
+      "ingest_memories": 479,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "25e5aa4f",
+      "category": "single-session-user",
+      "question": "Where did I complete my Bachelor's degree in Computer Science?",
+      "gold": "University of California, Los Angeles (UCLA)",
+      "answer": "You completed your Bachelor's degree in Computer Science at UCLA.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer clearly states the completion of the Bachelor's degree in Computer Science at UCLA, which semantically matches the gold answer University of California, Los Angeles (UCLA).",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies UCLA as the institution where the user completed their Bachelor's degree in Computer Science, which semantically matches the gold answer despite using the abbreviated form.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1756.02,
+      "ingest_turns": 506,
+      "ingest_memories": 506,
+      "retrieved_count": 9
+    },
+    {
+      "question_id": "caf9ead2",
+      "category": "single-session-user",
+      "question": "How long did it take to move to the new apartment?",
+      "gold": "5 hours",
+      "answer": "It took around 5 hours to move to the new apartment.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer semantically matches the gold answer by specifying the duration as around 5 hours, which aligns with the gold answer of 5 hours.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer directly matches the gold answer of 5 hours, with only minor paraphrasing that preserves the semantic content.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1428.25,
+      "ingest_turns": 466,
+      "ingest_memories": 466,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "8550ddae",
+      "category": "single-session-user",
+      "question": "What type of cocktail recipe did I try last weekend?",
+      "gold": "lavender gin fizz",
+      "answer": "You tried a Smokey Mango Mule cocktail recipe last weekend.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI's answer names a different cocktail recipe from the gold answer, thus not matching the substance of what was tried last weekend.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI provided a specific cocktail name (Smokey Mango Mule) that contradicts the gold answer (lavender gin fizz), and there is no semantic overlap between these two distinct cocktail recipes.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 3118.71,
+      "ingest_turns": 453,
+      "ingest_memories": 453,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "60d45044",
+      "category": "single-session-user",
+      "question": "What type of rice is my favorite?",
+      "gold": "Japanese short-grain rice",
+      "answer": "Your favorite type of rice is Japanese short-grain rice.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly states the specific type of rice that matches the gold answer.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies Japanese short-grain rice as the favorite type of rice, matching the gold answer in substance despite different wording.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2390.62,
+      "ingest_turns": 541,
+      "ingest_memories": 541,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "3f1e9474",
+      "category": "single-session-user",
+      "question": "Who did I have a conversation with about destiny?",
+      "gold": "Sarah",
+      "answer": "You had a conversation about destiny with your friend Sarah, where she shared that everything happens for a reason and that our experiences shape us into who we are meant to be.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer explicitly states the name Sarah as the person with whom the conversation about destiny took place, matching the gold answer.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI correctly identifies Sarah as the person the user had a conversation with about destiny, which matches the gold answer on substance despite adding contextual details about the conversation content.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2324.7,
+      "ingest_turns": 515,
+      "ingest_memories": 515,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "86b68151",
+      "category": "single-session-user",
+      "question": "Where did I buy my new bookshelf from?",
+      "gold": "IKEA",
+      "answer": "You bought your new bookshelf from IKEA.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer clearly states the same source, IKEA, matching the gold answer in substance.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies IKEA as the source where the user bought their new bookshelf, matching the gold answer on substance.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1584.09,
+      "ingest_turns": 485,
+      "ingest_memories": 485,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "577d4d32",
+      "category": "single-session-user",
+      "question": "What time do I stop checking work emails and messages?",
+      "gold": "7 pm",
+      "answer": "You stop checking work emails and messages by 7 pm.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by stating the stop time as 7 pm, just phrased differently.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies 7 pm as the time to stop checking work emails and messages, which matches the gold answer on substance despite different wording.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1627.44,
+      "ingest_turns": 487,
+      "ingest_memories": 487,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "ec81a493",
+      "category": "single-session-user",
+      "question": "How many copies of my favorite artist's debut album were released worldwide?",
+      "gold": "500",
+      "answer": "There were only 500 copies of your favorite artist's debut album released worldwide.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer semantically matches the gold answer by specifying that 500 copies were released worldwide.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly states that 500 copies were released worldwide, which matches the gold answer exactly in substance, despite the difference in phrasing and framing.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2745.65,
+      "ingest_turns": 495,
+      "ingest_memories": 495,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "15745da0",
+      "category": "single-session-user",
+      "question": "How long have I been collecting vintage cameras?",
+      "gold": "three months",
+      "answer": "You have been collecting vintage cameras for three months as of 2023-05-21.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer explicitly states the correct duration of three months, matching the gold answer in substance despite adding a specific date, which is acceptable.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the duration as three months, which matches the gold answer; the additional date specification does not contradict the core factual claim.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2686.93,
+      "ingest_turns": 474,
+      "ingest_memories": 474,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "e01b8e2f",
+      "category": "single-session-user",
+      "question": "Where did I go on a week-long trip with my family?",
+      "gold": "Hawaii",
+      "answer": "You went to Hawaii on a week-long trip with your family last month (around April 2023).",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies Hawaii as the destination of the week-long family trip, matching the gold answer in substance despite adding a date.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies Hawaii as the destination, which matches the gold answer on substance; the temporal details (last month, April 2023) cannot be verified against the gold answer but do not contradict the core fact.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1678.31,
+      "ingest_turns": 523,
+      "ingest_memories": 523,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "bc8a6e93",
+      "category": "single-session-user",
+      "question": "What did I bake for my niece's birthday party?",
+      "gold": "a lemon blueberry cake",
+      "answer": "You baked a lemon blueberry cake for your niece's birthday party.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by specifying the same item baked for the niece's birthday party.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer contains the exact same substantive information as the gold answer (lemon blueberry cake), just phrased as a complete sentence rather than a noun phrase.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 2344.31,
+      "ingest_turns": 537,
+      "ingest_memories": 537,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "ccb36322",
+      "category": "single-session-user",
+      "question": "What is the name of the music streaming service have I been using lately?",
+      "gold": "Spotify",
+      "answer": "Spotify",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer exactly matches the gold answer, correctly identifying the music streaming service as Spotify.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer exactly.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1668.31,
+      "ingest_turns": 471,
+      "ingest_memories": 471,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "001be529",
+      "category": "single-session-user",
+      "question": "How long did I wait for the decision on my asylum application?",
+      "gold": "over a year",
+      "answer": "You waited over a year for the decision on your asylum application.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by stating the waiting time was over a year.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer directly matches the gold answer, stating that the user waited 'over a year' for the asylum application decision, which is the correct temporal information required.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1810.63,
+      "ingest_turns": 514,
+      "ingest_memories": 514,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "b320f3f8",
+      "category": "single-session-user",
+      "question": "What type of action figure did I buy from a thrift store?",
+      "gold": "a blue Snaggletooth",
+      "answer": "You bought a rare blue Snaggletooth action figure from a thrift store.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer semantically matches the gold answer by stating the purchase was a blue Snaggletooth action figure, adding only the detail that it is rare.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer on substance\u2014it correctly identifies the action figure as a blue Snaggletooth from a thrift store, with only added descriptive elaboration ('rare') that doesn't contradict the core fact.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1699.84,
+      "ingest_turns": 463,
+      "ingest_memories": 463,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "19b5f2b3",
+      "category": "single-session-user",
+      "question": "How long was I in Japan for?",
+      "gold": "two weeks",
+      "answer": "You were in Japan for two weeks.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer accurately matches the gold answer in substance by stating the duration was two weeks, just worded differently.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer directly matches the gold answer in substance, stating the duration as two weeks.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1406.99,
+      "ingest_turns": 482,
+      "ingest_memories": 482,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "4fd1909e",
+      "category": "single-session-user",
+      "question": "Where did I attend the Imagine Dragons concert?",
+      "gold": "Xfinity Center",
+      "answer": "You attended the Imagine Dragons concert at the Xfinity Center on June 15th.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the concert location as Xfinity Center and provides an additional date without contradicting the gold answer, thus matching the substance.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer correctly identifies the Xfinity Center as the venue where the user attended the Imagine Dragons concert, matching the gold answer on the substance of the question despite adding additional details about the date.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1588.07,
+      "ingest_turns": 554,
+      "ingest_memories": 554,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "545bd2b5",
+      "category": "single-session-user",
+      "question": "How much screen time have I been averaging on Instagram per day?",
+      "gold": "2 hours",
+      "answer": "You have been averaging around 2 hours of screen time on Instagram per day for the past two weeks as of 2023-05-27.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer by specifying an average of 2 hours of Instagram screen time per day, adding a relevant timeframe and date which does not contradict the gold answer.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI's answer matches the gold answer on the key substantive claim (2 hours per day) and includes appropriate temporal context, though it adds specific details not in the gold answer; however, since the question is from a single-session user who hasn't provided their own data, the AI appears to have hallucinated specific facts rather than abstaining.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1940.96,
+      "ingest_turns": 461,
+      "ingest_memories": 461,
+      "retrieved_count": 10
+    },
+    {
+      "question_id": "8a137a7f",
+      "category": "single-session-user",
+      "question": "What type of bulb did I replace in my bedside lamp?",
+      "gold": "Philips LED bulb",
+      "answer": "You replaced a Philips LED bulb in your bedside lamp.",
+      "judgments": {
+        "openai/gpt-4.1-mini": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer semantically matches the gold answer by clearly stating the type of bulb replaced, including the brand and bulb type.",
+          "judge_model": "openai/gpt-4.1-mini"
+        },
+        "anthropic/claude-haiku-4.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer contains the exact same information as the gold answer (Philips LED bulb), just rephrased in a complete sentence format rather than a noun phrase.",
+          "judge_model": "anthropic/claude-haiku-4.5"
+        }
+      },
+      "answer_latency_ms": 1886.69,
+      "ingest_turns": 512,
+      "ingest_memories": 512,
+      "retrieved_count": 10
+    }
+  ]
+}
