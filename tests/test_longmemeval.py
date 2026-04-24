@@ -577,21 +577,27 @@ def test_verify_prompt_includes_all_placeholders() -> None:
 
 @pytest.mark.unit
 def test_parse_distilled_bullet_lines() -> None:
+    # Legacy prose fallback path — bullet lines still parse into structured
+    # records with sensible defaults (speaker inferred from fallback,
+    # claim_type='fact', emphasis='mentioned').
     raw = (
         "- The user works as a software engineer at Acme Corp as of 2023-05-30.\n"
         "- The user prefers Python over JavaScript.\n"
     )
-    facts = _parse_distilled(raw)
+    facts = _parse_distilled(raw, fallback_speaker="user")
     assert len(facts) == 2
-    assert "Acme Corp" in facts[0]
-    assert "Python" in facts[1]
+    assert "Acme Corp" in facts[0].content
+    assert "Python" in facts[1].content
+    assert all(f.speaker == "user" for f in facts)
+    assert all(f.claim_type == "fact" for f in facts)
+    assert all(f.emphasis == "mentioned" for f in facts)
 
 
 @pytest.mark.unit
 def test_parse_distilled_accepts_alt_bullet_chars() -> None:
     raw = "* fact one\n• fact two\n- fact three"
     facts = _parse_distilled(raw)
-    assert facts == ["fact one", "fact two", "fact three"]
+    assert [f.content for f in facts] == ["fact one", "fact two", "fact three"]
 
 
 @pytest.mark.unit
@@ -603,20 +609,132 @@ def test_parse_distilled_skip_returns_empty() -> None:
 
 @pytest.mark.unit
 def test_parse_distilled_ignores_non_bullet_lines() -> None:
-    # Preamble prose that sometimes slips in must not be treated as a fact.
+    # Preamble prose that sometimes slips in must not be treated as a fact
+    # when the model emitted bullets instead of JSON.
     raw = (
         "Here are the facts I found:\n"
         "- The user visited Paris on 2023-06-10.\n"
         "That's all I could extract."
     )
     facts = _parse_distilled(raw)
-    assert facts == ["The user visited Paris on 2023-06-10."]
+    assert len(facts) == 1
+    assert facts[0].content == "The user visited Paris on 2023-06-10."
 
 
 @pytest.mark.unit
 def test_parse_distilled_strips_markdown_fences() -> None:
     raw = "```\n- fact one\n- fact two\n```"
-    assert _parse_distilled(raw) == ["fact one", "fact two"]
+    facts = _parse_distilled(raw)
+    assert [f.content for f in facts] == ["fact one", "fact two"]
+
+
+@pytest.mark.unit
+def test_parse_distilled_structured_json_array() -> None:
+    # Preferred path: structured JSON record per fact. Populates all
+    # downstream fields (speaker, claim_type, emphasis, entities, topics).
+    raw = (
+        "[\n"
+        '  {"content": "The user prefers dark chocolate.", '
+        '"speaker": "user", "claim_type": "preference", '
+        '"emphasis": "explicit", "entities": ["dark chocolate"], '
+        '"topics": ["food"]},\n'
+        '  {"content": "The assistant recommended Roscioli.", '
+        '"speaker": "assistant", "claim_type": "recommendation", '
+        '"emphasis": "explicit", "entities": ["Roscioli"], '
+        '"topics": ["restaurant", "italian"]}\n'
+        "]"
+    )
+    facts = _parse_distilled(raw)
+    assert len(facts) == 2
+    f0, f1 = facts
+    assert f0.claim_type == "preference"
+    assert f0.speaker == "user"
+    assert f0.emphasis == "explicit"
+    assert f0.entities == ("dark chocolate",)
+    assert f0.topics == ("food",)
+    assert f1.claim_type == "recommendation"
+    assert f1.speaker == "assistant"
+    assert f1.entities == ("Roscioli",)
+
+
+@pytest.mark.unit
+def test_parse_distilled_structured_normalizes_bad_enums() -> None:
+    # LLMs occasionally hallucinate values outside the allowed vocab; the
+    # parser must coerce silently rather than drop the record.
+    raw = (
+        "[\n"
+        '  {"content": "x", "speaker": "SYSTEM", '
+        '"claim_type": "weird_kind", "emphasis": "unknown"}\n'
+        "]"
+    )
+    facts = _parse_distilled(raw, fallback_speaker="user")
+    assert len(facts) == 1
+    f = facts[0]
+    assert f.speaker == "user"        # fallback used
+    assert f.claim_type == "fact"      # coerced from unknown
+    assert f.emphasis == "mentioned"   # coerced from unknown
+
+
+@pytest.mark.unit
+def test_parse_distilled_structured_drops_empty_content() -> None:
+    raw = (
+        "[\n"
+        '  {"content": "", "speaker": "user"},\n'
+        '  {"content": "real fact", "speaker": "user"}\n'
+        "]"
+    )
+    facts = _parse_distilled(raw)
+    assert len(facts) == 1
+    assert facts[0].content == "real fact"
+
+
+@pytest.mark.unit
+def test_parse_distilled_structured_fenced_array() -> None:
+    raw = (
+        "```json\n"
+        "[\n"
+        '  {"content": "The user visited Paris.", "speaker": "user", '
+        '"claim_type": "event", "emphasis": "explicit"}\n'
+        "]\n"
+        "```"
+    )
+    facts = _parse_distilled(raw)
+    assert len(facts) == 1
+    assert facts[0].claim_type == "event"
+    assert facts[0].content == "The user visited Paris."
+
+
+@pytest.mark.unit
+def test_parse_distilled_structured_tolerates_preamble() -> None:
+    raw = (
+        "Sure! Here is the output:\n"
+        "[\n"
+        '  {"content": "fact", "speaker": "assistant", '
+        '"claim_type": "fact", "emphasis": "explicit"}\n'
+        "]\n"
+        "Let me know if anything else is needed."
+    )
+    facts = _parse_distilled(raw)
+    assert len(facts) == 1
+    assert facts[0].content == "fact"
+    assert facts[0].speaker == "assistant"
+
+
+@pytest.mark.unit
+def test_parse_distilled_structured_entities_string_shape() -> None:
+    # Models sometimes emit entities as a comma-delimited string instead of
+    # a JSON array; normalize to tuple.
+    raw = (
+        "[\n"
+        '  {"content": "fact", "speaker": "user", '
+        '"claim_type": "fact", "emphasis": "explicit", '
+        '"entities": "Rome, Italy", "topics": "travel;italy"}\n'
+        "]"
+    )
+    facts = _parse_distilled(raw)
+    assert len(facts) == 1
+    assert facts[0].entities == ("Rome", "Italy")
+    assert facts[0].topics == ("travel", "italy")
 
 
 @pytest.mark.unit
@@ -796,12 +914,46 @@ def test_answer_prompt_has_both_modes() -> None:
 def test_answer_prompt_has_worked_examples_for_both_modes() -> None:
     # Fact example (temporal): museum / concert between-days arithmetic.
     assert "Rijksmuseum" in ANSWER_PROMPT
-    # Fact example (recall): Plesiosaur color.
-    assert "Plesiosaur" in ANSWER_PROMPT
+    # Fact example (recall + disambiguation): Orlando Sugar Factory rec.
+    assert "Sugar Factory" in ANSWER_PROMPT
     # Recommendation example: Lisbon hotels.
     assert "Lisbon" in ANSWER_PROMPT and "boutique" in ANSWER_PROMPT
     # Recommendation example: kitchen tips.
     assert "magnetic knife strip" in ANSWER_PROMPT
+
+
+@pytest.mark.unit
+def test_answer_prompt_teaches_disambiguation_on_tagged_facts() -> None:
+    # The disambiguation section must exist and name the structured tags.
+    assert "FACT TAGS" in ANSWER_PROMPT
+    assert "speaker=" in ANSWER_PROMPT
+    assert "type=" in ANSWER_PROMPT
+    assert "emphasis=" in ANSWER_PROMPT
+    # Core disambiguation rule: explicit beats mentioned.
+    assert "explicit" in ANSWER_PROMPT and "mentioned" in ANSWER_PROMPT
+    # Personalization signal named.
+    assert "type=preference" in ANSWER_PROMPT
+
+
+@pytest.mark.unit
+def test_distill_prompt_emits_json_schema() -> None:
+    # Regression guard: the distiller must teach the model to emit
+    # structured JSON with every required field.
+    required_fields = [
+        "\"content\"",
+        "\"speaker\"",
+        "\"claim_type\"",
+        "\"emphasis\"",
+        "\"entities\"",
+        "\"topics\"",
+    ]
+    for f in required_fields:
+        assert f in DISTILL_PROMPT, f"DISTILL_PROMPT missing field: {f}"
+    # Vocabulary keywords the parser recognizes.
+    for claim in ("preference", "recommendation", "event", "mentioned"):
+        assert claim in DISTILL_PROMPT
+    # SKIP sentinel still taught.
+    assert "SKIP" in DISTILL_PROMPT
 
 
 @pytest.mark.unit

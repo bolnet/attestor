@@ -313,125 +313,316 @@ class IngestStats:
 
 
 # ---------------------------------------------------------------------------
-# Per-turn distillation (new, opt-in)
+# Per-turn distillation (structured, universal schema)
 # ---------------------------------------------------------------------------
+#
+# Memories are distilled into a structured record, not prose. Each record
+# carries enough signal for the retrieval layer to boost-and-filter and for
+# the answerer to disambiguate among multiple candidates without a second
+# LLM call at query time. Fields are universal (they work for any memory-
+# layer benchmark and any real agent use case), not LongMemEval-specific.
+
+# Allowed vocabularies — the parser normalizes to these. Anything the LLM
+# emits outside these sets is coerced to the sensible fallback.
+_CLAIM_TYPES = (
+    "fact",            # neutral factual statement (default)
+    "preference",      # user's like/dislike/constraint/priority
+    "recommendation",  # assistant explicit suggestion with a named target
+    "event",           # dated or schedulable occurrence
+    "opinion",         # speaker's subjective view
+    "mentioned",       # low-salience reference, retrievable but not boosted
+)
+
+_SPEAKERS = ("user", "assistant", "unknown")
+_EMPHASIS_LEVELS = ("explicit", "mentioned", "implied")
+
+
+@dataclass(frozen=True)
+class DistilledFact:
+    """A single fact extracted from a turn, with retrieval-relevant metadata.
+
+    Universal schema (not benchmark-specific):
+      - ``content``: the distilled prose sentence itself.
+      - ``speaker``: who authored the underlying claim ("user" / "assistant").
+      - ``claim_type``: what KIND of statement this is — drives retrieval boost.
+      - ``emphasis``: salience within the turn — "explicit" beats "mentioned"
+        when the answerer must pick one candidate among several.
+      - ``entities``: named entities the fact is about (proper nouns).
+      - ``topics``: free-form topical tags (domain keywords).
+    """
+
+    content: str
+    speaker: str = "unknown"
+    claim_type: str = "fact"
+    emphasis: str = "mentioned"
+    entities: Tuple[str, ...] = ()
+    topics: Tuple[str, ...] = ()
+
 
 DISTILL_PROMPT = (
     "You are a precise memory distillation agent for a long-term memory "
-    "system. Your only job: take a single conversation turn and extract "
-    "the durable facts that future questions might reference.\n\n"
-    "KEEP IN MIND — future questions may ask about:\n"
-    "  - What the USER said, did, likes, plans, or remembers (user-facts).\n"
-    "  - What the USER TOLD THE ASSISTANT to preserve (preferences, \n"
-    "    constraints, goals).\n"
-    "  - What the ASSISTANT TOLD THE USER — named entities it mentioned,\n"
-    "    recommendations it made, attributes it described, steps it gave,\n"
-    "    colors / sizes / numbers / dates it attributed to things in an\n"
-    "    image or table. These count EVEN IF the user never explicitly\n"
-    "    said they would act on them. If the assistant says \"I recommend\n"
-    "    Miss Bee Providore for Nasi Goreng\", that is a keep-worthy fact.\n\n"
-    "RULES — read carefully, break none of them:\n"
+    "system. Extract durable facts from ONE conversation turn and return "
+    "them as a JSON array of structured records.\n\n"
+    "Each record must have these fields (all required, though lists may "
+    "be empty):\n"
+    '  "content":   third-person sentence (see rules below)\n'
+    '  "speaker":   "user" or "assistant" (who made the underlying claim)\n'
+    '  "claim_type": one of: fact, preference, recommendation, event, '
+    "opinion, mentioned\n"
+    '  "emphasis":  "explicit" (speaker named it specifically / endorsed '
+    'it), "mentioned" (referenced in passing), or "implied"\n'
+    '  "entities":  array of named entities the fact is about\n'
+    '  "topics":    array of short topical tags (lowercase nouns)\n\n'
+    "CLAIM_TYPE guide (pick the most specific match):\n"
+    "  preference     — user expresses a like / dislike / constraint / "
+    "priority (e.g. 'The user prefers dark chocolate').\n"
+    "  recommendation — assistant explicitly suggests / recommends / "
+    "endorses a NAMED target (e.g. 'The assistant recommended Roscioli').\n"
+    "  event          — dated or schedulable occurrence (e.g. 'The user "
+    "visited MoMA on 2023-06-15').\n"
+    "  opinion        — speaker's subjective view without a concrete "
+    "commitment.\n"
+    "  mentioned      — a target was named but NOT explicitly recommended "
+    "or endorsed (e.g. 'La Pergola was also discussed'). Use this when a\n"
+    "  restaurant/book/place is referenced but the speaker did not make a\n"
+    "  clear endorsement.\n"
+    "  fact           — neutral factual statement that isn't any of the "
+    "above (default fallback).\n\n"
+    "EMPHASIS guide:\n"
+    "  explicit  — speaker named it directly AND made it a focal point\n"
+    "              (recommended X; user said they LOVE X; event pinpointed).\n"
+    "  mentioned — named but not the focal point of the turn.\n"
+    "  implied   — derivable from the turn but not literally stated.\n\n"
+    "CONTENT RULES — the 'content' string itself:\n"
     "  1. PRESERVE literally: all proper nouns, dates, numbers, quantities, "
-    "named entities, specific places, model names, prices, durations, "
-    "colors, sizes, materials. Copy them verbatim from the turn.\n"
-    "  2. REWRITE in third person from an outside observer's POV. Use the\n"
-    "     appropriate framing for the speaker:\n"
-    "       - User turn: \"The user ...\", \"The user's ...\", \n"
-    "         \"The user prefers ...\", \"The user said ...\".\n"
-    "       - Assistant turn: \"The assistant told the user that ...\",\n"
-    "         \"The assistant recommended ...\",\n"
-    "         \"The assistant described <X> as ...\",\n"
-    "         \"The assistant gave the user a rotation where ...\".\n"
-    "     Never use \"I\", \"you\", \"we\", \"my\", \"your\".\n"
-    "  3. RESOLVE every pronoun to its antecedent (replace \"he\", \"she\", "
-    "\"it\", \"they\", \"this\", \"that\" with the named entity).\n"
-    "  4. RESOLVE every relative time reference to an absolute date, using "
-    "the session date as the anchor:\n"
-    "       - \"yesterday\" → the day before {session_date}\n"
-    "       - \"last week\" / \"a week ago\" → {session_date} minus 7 days\n"
-    "       - \"last year\" → year(session_date) − 1\n"
-    "       - \"two months ago\" → {session_date} minus 2 calendar months\n"
-    "     Write resolved dates as YYYY-MM-DD.\n"
-    "  5. ONE FACT PER LINE. Prefix each with \"- \". If the turn contains "
-    "multiple distinct facts, output one line per fact. Each line must be a "
-    "complete, standalone sentence that does not require other lines to "
-    "make sense.\n"
-    "  6. OUTPUT FORMAT: distilled lines only, no prose, no preamble, no "
-    "code blocks, no headings.\n"
-    "  7. SKIP entirely (respond with exactly SKIP and nothing else) ONLY "
-    "when the turn contains none of:\n"
-    "       (a) a fact about the user (job, relationships, tastes, events, "
-    "plans, health, finances, locations, preferences)\n"
-    "       (b) a specific assistant statement with concrete content — a\n"
-    "           recommendation, named entity, attribute, instruction,\n"
-    "           dated event, number, or descriptive detail\n"
-    "       (c) a dated event\n"
-    "     True SKIP candidates are ONLY pure pleasantries (\"thanks\",\n"
-    "     \"yeah\", \"ok\"), generic puzzle answers with no user context,\n"
-    "     and off-topic trivia with no named entities or numbers. When\n"
-    "     in doubt between SKIP and KEEP, KEEP.\n"
-    "  8. NEVER FABRICATE. Only restate information literally present in "
-    "the turn. If uncertain about a detail, omit that detail but keep the\n"
-    "     other facts in the line — don't SKIP the whole turn.\n"
-    "  9. If the assistant restates a fact the user just said, KEEP the\n"
-    "     assistant's restatement if it adds structure (table row, bullet,\n"
-    "     confirmation) or if it attaches new detail. Only skip pure\n"
-    "     verbatim echoes with no added structure.\n"
-    " 10. Do not emit meta-commentary (\"The user seems interested in…\"). "
-    "Only concrete, verifiable statements.\n\n"
-    "Worked examples:\n"
-    "  TURN: assistant: \"The Plesiosaur in the image has a blue scaly body\n"
-    "    and four flippers.\"\n"
-    "  OUTPUT:\n"
-    "    - The assistant told the user that the Plesiosaur in the image\n"
-    "      has a blue scaly body.\n"
-    "    - The assistant told the user that the Plesiosaur in the image\n"
-    "      has four flippers.\n\n"
-    "  TURN: assistant: \"Admon is on the Day Shift (8am–4pm) on Sundays.\"\n"
-    "  OUTPUT:\n"
-    "    - The assistant told the user that Admon is on the Day Shift\n"
-    "      (8am–4pm) on Sundays.\n\n"
-    "  TURN: user: \"I prefer dark chocolate over milk chocolate.\"\n"
-    "  OUTPUT:\n"
-    "    - The user prefers dark chocolate over milk chocolate.\n\n"
-    "  TURN: assistant: \"Great, happy to help!\"\n"
-    "  OUTPUT:\n"
-    "    SKIP\n\n"
+    "places, model names, prices, durations, colors, sizes, materials. "
+    "Copy them verbatim from the turn.\n"
+    "  2. REWRITE in third person from an outside observer's POV:\n"
+    "       - User turn: 'The user ...', 'The user prefers ...'\n"
+    "       - Assistant turn: 'The assistant told the user that ...', "
+    "'The assistant recommended ...'\n"
+    "     Never use 'I', 'you', 'we', 'my', 'your'.\n"
+    "  3. RESOLVE every pronoun to its antecedent.\n"
+    "  4. RESOLVE every relative time reference to an absolute date using "
+    "the session_date as the anchor; write YYYY-MM-DD.\n"
+    "  5. ONE FACT PER RECORD. If a turn has multiple distinct facts, "
+    "emit multiple records.\n"
+    "  6. NEVER FABRICATE. Only restate information literally in the turn.\n"
+    "  7. Keep assistant-stated facts (recommendations, named entities, "
+    "attributes, instructions, dated events). Skip ONLY pure pleasantries "
+    "('thanks', 'ok'), generic puzzle answers with no user context, and "
+    "off-topic trivia. When in doubt, KEEP.\n\n"
+    "OUTPUT FORMAT:\n"
+    "  - If the turn has ≥1 keep-worthy fact: emit a JSON array "
+    "(starts with '[' and ends with ']'). No prose before or after. No "
+    "code fences.\n"
+    "  - If the turn is pure filler: emit exactly SKIP (nothing else).\n\n"
+    "Worked examples:\n\n"
+    "TURN: assistant: \"I'd recommend Roscioli for romantic Italian in "
+    "Rome — it's a classic.\"\n"
+    "OUTPUT:\n"
+    "[\n"
+    '  {"content": "The assistant recommended Roscioli for romantic Italian '
+    'dinner in Rome.", "speaker": "assistant", "claim_type": '
+    '"recommendation", "emphasis": "explicit", "entities": ["Roscioli", '
+    '"Rome"], "topics": ["restaurant", "italian", "romantic", "dinner"]}\n'
+    "]\n\n"
+    "TURN: assistant: \"The Plesiosaur in the image has a blue scaly body "
+    "and four flippers.\"\n"
+    "OUTPUT:\n"
+    "[\n"
+    '  {"content": "The assistant told the user that the Plesiosaur in '
+    'the image has a blue scaly body.", "speaker": "assistant", '
+    '"claim_type": "fact", "emphasis": "explicit", "entities": '
+    '["Plesiosaur"], "topics": ["animal", "color", "image"]},\n'
+    '  {"content": "The assistant told the user that the Plesiosaur in '
+    'the image has four flippers.", "speaker": "assistant", '
+    '"claim_type": "fact", "emphasis": "explicit", "entities": '
+    '["Plesiosaur"], "topics": ["animal", "anatomy", "image"]}\n'
+    "]\n\n"
+    "TURN: user: \"I prefer dark chocolate over milk chocolate and I "
+    "can't stand cilantro.\"\n"
+    "OUTPUT:\n"
+    "[\n"
+    '  {"content": "The user prefers dark chocolate over milk chocolate.", '
+    '"speaker": "user", "claim_type": "preference", "emphasis": '
+    '"explicit", "entities": ["dark chocolate", "milk chocolate"], '
+    '"topics": ["food", "chocolate"]},\n'
+    '  {"content": "The user cannot stand cilantro.", "speaker": "user", '
+    '"claim_type": "preference", "emphasis": "explicit", "entities": '
+    '["cilantro"], "topics": ["food", "dislike"]}\n'
+    "]\n\n"
+    "TURN: user: \"I visited the Rijksmuseum in Amsterdam on June 5, "
+    "2023.\"\n"
+    "OUTPUT:\n"
+    "[\n"
+    '  {"content": "The user visited the Rijksmuseum in Amsterdam on '
+    '2023-06-05.", "speaker": "user", "claim_type": "event", "emphasis": '
+    '"explicit", "entities": ["Rijksmuseum", "Amsterdam"], "topics": '
+    '["museum", "travel"]}\n'
+    "]\n\n"
+    "TURN: assistant: \"Some options in Orlando for milkshakes include "
+    "Toothsome Chocolate Emporium, but the Sugar Factory at Icon Park is "
+    "the one famous for giant goblet shakes.\"\n"
+    "OUTPUT:\n"
+    "[\n"
+    '  {"content": "The assistant identified the Sugar Factory at Icon '
+    'Park as the Orlando spot famous for giant goblet milkshakes.", '
+    '"speaker": "assistant", "claim_type": "recommendation", "emphasis": '
+    '"explicit", "entities": ["Sugar Factory", "Icon Park", "Orlando"], '
+    '"topics": ["dessert", "milkshake", "orlando"]},\n'
+    '  {"content": "The assistant mentioned Toothsome Chocolate Emporium '
+    'as another Orlando milkshake option.", "speaker": "assistant", '
+    '"claim_type": "mentioned", "emphasis": "mentioned", "entities": '
+    '["Toothsome Chocolate Emporium", "Orlando"], "topics": ["dessert", '
+    '"orlando"]}\n'
+    "]\n\n"
+    "TURN: assistant: \"Great, happy to help!\"\n"
+    "OUTPUT:\n"
+    "SKIP\n\n"
     "Turn context:\n"
     "  role = {role}\n"
     "  session_date = {session_date}\n\n"
     "Turn content:\n"
     "{content}\n\n"
-    "Output: one fact per line starting with \"- \", or SKIP."
+    "Output: a JSON array of structured records, or SKIP."
 )
 
 
 _DISTILL_SENTINEL_SKIP = "SKIP"
-_DISTILL_LINE_RE = re.compile(r"^\s*[-*•]\s*(.+?)\s*$")
+_DISTILL_LEGACY_LINE_RE = re.compile(r"^\s*[-*•]\s*(.+?)\s*$")
 
 
-def _parse_distilled(raw: str) -> List[str]:
-    """Parse the distiller's output into a list of facts.
+def _normalize_claim_type(value: Any) -> str:
+    v = str(value or "").strip().lower()
+    return v if v in _CLAIM_TYPES else "fact"
 
-    Tolerant to markdown fences, bullet variation (- * •), and blank lines.
-    Returns [] if the distiller said SKIP or produced nothing usable.
+
+def _normalize_speaker(value: Any, *, default: str = "unknown") -> str:
+    v = str(value or "").strip().lower()
+    if v in _SPEAKERS:
+        return v
+    if v in ("u",):
+        return "user"
+    if v in ("a", "ai", "bot"):
+        return "assistant"
+    return default if default in _SPEAKERS else "unknown"
+
+
+def _normalize_emphasis(value: Any) -> str:
+    v = str(value or "").strip().lower()
+    return v if v in _EMPHASIS_LEVELS else "mentioned"
+
+
+def _normalize_str_list(value: Any) -> Tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        parts = [p.strip() for p in re.split(r"[;,]", value) if p.strip()]
+        return tuple(parts)
+    if isinstance(value, (list, tuple)):
+        parts = [str(x).strip() for x in value if str(x).strip()]
+        return tuple(parts)
+    return ()
+
+
+def _fact_from_record(record: Any, *, fallback_speaker: str = "unknown") -> Optional[DistilledFact]:
+    if not isinstance(record, dict):
+        return None
+    content = str(record.get("content") or "").strip()
+    if not content:
+        return None
+    return DistilledFact(
+        content=content,
+        speaker=_normalize_speaker(record.get("speaker"), default=fallback_speaker),
+        claim_type=_normalize_claim_type(record.get("claim_type")),
+        emphasis=_normalize_emphasis(record.get("emphasis")),
+        entities=_normalize_str_list(record.get("entities")),
+        topics=_normalize_str_list(record.get("topics")),
+    )
+
+
+def _extract_json_array(text: str) -> Optional[list]:
+    """Try hard to pull a JSON array out of the LLM output.
+
+    Handles: bare arrays, arrays wrapped in code fences, or arrays embedded
+    inside preamble prose. Returns None if nothing parses.
+    """
+    if not text:
+        return None
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", stripped)
+        stripped = re.sub(r"\n?```\s*$", "", stripped).strip()
+    # Greedy grab between first [ and last ] (tolerates preamble/epilogue).
+    start = stripped.find("[")
+    end = stripped.rfind("]")
+    if start == -1 or end == -1 or end <= start:
+        return None
+    candidate = stripped[start : end + 1]
+    try:
+        parsed = json.loads(candidate)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, list) else None
+
+
+def _parse_distilled(
+    raw: str, *, fallback_speaker: str = "unknown"
+) -> List[DistilledFact]:
+    """Parse the distiller's output into structured ``DistilledFact`` records.
+
+    Preferred format: JSON array of records with the schema documented in
+    ``DISTILL_PROMPT``. Falls back to legacy bullet-line prose so older
+    outputs (or degraded LLM responses) still yield usable memories with
+    sensible defaults (speaker inferred from the turn's role, claim_type
+    ``fact``, emphasis ``mentioned``).
+
+    Returns ``[]`` when the distiller said SKIP or produced nothing.
     """
     if not raw:
         return []
     text = raw.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", text)
-        text = re.sub(r"\n?```\s*$", "", text).strip()
     if text.upper() == _DISTILL_SENTINEL_SKIP:
         return []
 
-    facts: list[str] = []
+    # Strip a surrounding code fence before any other detection.
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", text)
+        text = re.sub(r"\n?```\s*$", "", text).strip()
+        if text.upper() == _DISTILL_SENTINEL_SKIP:
+            return []
+
+    # Preferred path: structured JSON array.
+    records = _extract_json_array(text)
+    if records is not None:
+        facts: list[DistilledFact] = []
+        for r in records:
+            f = _fact_from_record(r, fallback_speaker=fallback_speaker)
+            if f is not None:
+                facts.append(f)
+        return facts
+
+    # Legacy fallback: bullet-line prose. Each line becomes a minimal fact
+    # with speaker inferred from the caller and everything else defaulted.
+    facts = []
     for line in text.splitlines():
-        m = _DISTILL_LINE_RE.match(line)
-        if m:
-            fact = m.group(1).strip()
-            if fact and fact.upper() != _DISTILL_SENTINEL_SKIP:
-                facts.append(fact)
+        m = _DISTILL_LEGACY_LINE_RE.match(line)
+        if not m:
+            continue
+        content = m.group(1).strip()
+        if not content or content.upper() == _DISTILL_SENTINEL_SKIP:
+            continue
+        facts.append(
+            DistilledFact(
+                content=content,
+                speaker=fallback_speaker
+                if fallback_speaker in _SPEAKERS
+                else "unknown",
+                claim_type="fact",
+                emphasis="mentioned",
+            )
+        )
     return facts
 
 
@@ -442,17 +633,22 @@ def distill_turn(
     session_date: str,
     model: str = "openai/gpt-5.1",
     api_key: Optional[str] = None,
-    max_tokens: int = 400,
-) -> List[str]:
-    """Run one turn through the distillation LLM; return extracted facts.
+    max_tokens: int = 900,
+) -> List[DistilledFact]:
+    """Run one turn through the distillation LLM; return structured facts.
 
     An empty list means the turn produced no durable memory worth keeping
     (pleasantries, generic puzzle answers, etc.). The caller should NOT
     store anything for those turns.
+
+    Returns structured ``DistilledFact`` records. On LLM failure (timeout,
+    402, etc.) falls back to a single minimal record carrying the raw turn
+    so downstream retrieval still has something to latch onto.
     """
     text = (content or "").strip()
     if not text:
         return []
+    fallback_speaker = _normalize_speaker(role)
     prompt = DISTILL_PROMPT.format(
         role=role or "unknown",
         session_date=session_date or "(unknown)",
@@ -463,10 +659,15 @@ def distill_turn(
         raw = _chat(client, model, prompt, max_tokens=max_tokens)
     except Exception as e:  # noqa: BLE001 — distillation is best-effort
         logger.warning("distill_turn failed (%s); falling back to raw turn", e)
-        # Fall back to the raw turn as a single fact — we'd rather store
-        # too much than lose information.
-        return [f"[{session_date}] {role}: {text}"]
-    return _parse_distilled(raw)
+        return [
+            DistilledFact(
+                content=f"[{session_date}] {role}: {text}",
+                speaker=fallback_speaker,
+                claim_type="fact",
+                emphasis="mentioned",
+            )
+        ]
+    return _parse_distilled(raw, fallback_speaker=fallback_speaker)
 
 
 def ingest_history(
@@ -541,14 +742,24 @@ def ingest_history(
                     # Still prefix with date for belt-and-suspenders — the
                     # distiller SHOULD have resolved dates, but if it drifted,
                     # the inline prefix is a safety net.
-                    content_with_date = fact
-                    if short and short not in fact:
-                        content_with_date = f"[{short}] {fact}"
+                    content_with_date = fact.content
+                    if short and short not in fact.content:
+                        content_with_date = f"[{short}] {fact.content}"
+                    tags = [
+                        turn.role or "unknown",
+                        session_id,
+                        "lme",
+                        "distilled",
+                        f"speaker:{fact.speaker}",
+                        f"type:{fact.claim_type}",
+                        f"emphasis:{fact.emphasis}",
+                    ]
+                    tags.extend(f"topic:{t}" for t in fact.topics)
                     mem.add(
                         content=content_with_date,
-                        tags=[turn.role or "unknown", session_id, "lme", "distilled"],
-                        category="fact",
-                        entity=None,
+                        tags=tags,
+                        category=fact.claim_type,
+                        entity=fact.entities[0] if fact.entities else None,
                         namespace=ns,
                         event_date=iso,
                         metadata={
@@ -558,6 +769,11 @@ def ingest_history(
                             "fact_idx": fact_idx,
                             "source": "lme_distilled",
                             "distill_model": distill_model,
+                            "speaker": fact.speaker,
+                            "claim_type": fact.claim_type,
+                            "emphasis": fact.emphasis,
+                            "entities": list(fact.entities),
+                            "topics": list(fact.topics),
                         },
                     )
                     memories_added += 1
@@ -701,6 +917,21 @@ ANSWER_PROMPT = (
     "     the anchor; do not substitute the question_date.\n"
     "  5. Months: full calendar months. 2022-10-22 → 2023-03-22 = 5.\n"
     "  6. Days: calendar count; verify month-by-month.\n\n"
+    "FACT TAGS — each fact is prefixed with structured tags in square "
+    "brackets, e.g. [speaker=assistant type=recommendation emphasis="
+    "explicit]. Use them to disambiguate:\n"
+    "  - \"what did you recommend / suggest\" → prefer facts with "
+    "speaker=assistant AND type=recommendation, and within those prefer "
+    "emphasis=explicit over emphasis=mentioned. If two assistant recs "
+    "compete, the one tagged emphasis=explicit wins.\n"
+    "  - \"what did I say / what's my preference / what do I like\" → "
+    "prefer facts with speaker=user AND type=preference.\n"
+    "  - \"when / how many days / what date\" → prefer facts with "
+    "type=event (they carry the anchor date).\n"
+    "  - In RECOMMENDATION mode, the strongest personalization signal is "
+    "facts with speaker=user AND type=preference — cite them explicitly.\n"
+    "  - Facts tagged type=mentioned are low-salience; do not treat them "
+    "as the answer when a higher-salience competing fact is present.\n\n"
     "Before your final answer, think step-by-step inside "
     "<reasoning>...</reasoning>. Include the mode decision (FACT vs "
     "RECOMMENDATION), the relevant facts you'll cite, and any "
@@ -720,28 +951,37 @@ ANSWER_PROMPT = (
     "  </reasoning>\n"
     "  12 days.\n\n"
     "Example B — FACT, recall (single-session-assistant):\n"
-    "  Question: What color was the Plesiosaur the assistant described?\n"
+    "  Question: What unique dessert shop in Orlando did you recommend?\n"
     "  Facts:\n"
-    "    - [2023-04-10] The assistant told the user the Plesiosaur in\n"
-    "      the image has a blue scaly body and four flippers.\n"
+    "    - [speaker=assistant type=recommendation emphasis=explicit] "
+    "[2023-04-10] The assistant identified the Sugar Factory at Icon Park\n"
+    "      as the Orlando spot famous for giant goblet milkshakes.\n"
+    "    - [speaker=assistant type=mentioned emphasis=mentioned] "
+    "[2023-04-10] The assistant mentioned Toothsome Chocolate Emporium as\n"
+    "      another Orlando milkshake option.\n"
     "  <reasoning>\n"
-    "  Mode: FACT (what color — one correct value).\n"
-    "  Fact [2023-04-10] states the Plesiosaur had a blue scaly body.\n"
+    "  Mode: FACT (\"what did you recommend\" — disambiguate among\n"
+    "  candidates). Two Orlando dessert spots appear: Sugar Factory is\n"
+    "  type=recommendation emphasis=explicit; Toothsome is type=mentioned\n"
+    "  emphasis=mentioned. Rule: prefer explicit recommendation over\n"
+    "  mentioned. Answer is Sugar Factory at Icon Park.\n"
     "  </reasoning>\n"
-    "  Blue.\n\n"
+    "  The Sugar Factory at Icon Park.\n\n"
     "Example C — RECOMMENDATION, hotel:\n"
     "  Question (asked on 2024-03-10): Can you suggest a hotel for my\n"
     "  trip to Lisbon?\n"
     "  Facts:\n"
-    "    - [2022-04-12] The user stayed at Casa das Janelas com Vista\n"
-    "      in Lisbon and enjoyed it.\n"
-    "    - [2023-09-03] The user said they prefer boutique hotels over\n"
-    "      chains and love rooftop views of the water.\n"
+    "    - [speaker=user type=event emphasis=explicit] [2022-04-12] The\n"
+    "      user stayed at Casa das Janelas com Vista in Lisbon and\n"
+    "      enjoyed it.\n"
+    "    - [speaker=user type=preference emphasis=explicit] [2023-09-03]\n"
+    "      The user prefers boutique hotels over chains and loves\n"
+    "      rooftop views of the water.\n"
     "  <reasoning>\n"
-    "  Mode: RECOMMENDATION. User preferences: boutique + rooftop water\n"
-    "  views. Past win: Casa das Janelas com Vista. Combine with\n"
-    "  domain knowledge to propose concrete boutique options with water\n"
-    "  views.\n"
+    "  Mode: RECOMMENDATION. Personalization signal: type=preference\n"
+    "  memory (boutique + rooftop water views) — cite explicitly. Past\n"
+    "  win: Casa das Janelas com Vista (type=event). Combine with\n"
+    "  domain knowledge to propose concrete options.\n"
     "  </reasoning>\n"
     "  Based on your preference for boutique hotels with rooftop water\n"
     "  views (per 2023-09-03):\n"
@@ -872,12 +1112,36 @@ def _chat(client: Any, model: str, prompt: str, *, max_tokens: int = 300) -> str
 
 
 def _format_recall_context(results: List[Any], max_facts: int = 40) -> str:
-    """Join top retrieval hits into a plain newline-delimited context block."""
+    """Join top retrieval hits into a newline-delimited context block.
+
+    When the memory carries structured distillation metadata
+    (``speaker`` / ``claim_type`` / ``emphasis``), surface those as an
+    inline tag prefix so the answerer can disambiguate among multiple
+    candidates. Legacy memories without metadata fall back to the plain
+    ``- content`` shape.
+    """
     lines: list[str] = []
     for r in results[:max_facts]:
         mem_obj = getattr(r, "memory", None) or r
         content = getattr(mem_obj, "content", str(mem_obj))
-        lines.append(f"- {content}")
+        meta = getattr(mem_obj, "metadata", None) or {}
+        speaker = meta.get("speaker")
+        claim_type = meta.get("claim_type")
+        emphasis = meta.get("emphasis")
+        if speaker or claim_type or emphasis:
+            tag = " ".join(
+                filter(
+                    None,
+                    [
+                        f"speaker={speaker}" if speaker else None,
+                        f"type={claim_type}" if claim_type else None,
+                        f"emphasis={emphasis}" if emphasis else None,
+                    ],
+                )
+            )
+            lines.append(f"- [{tag}] {content}")
+        else:
+            lines.append(f"- {content}")
     return "\n".join(lines)
 
 
@@ -973,7 +1237,7 @@ def answer_question(
     model: str = DEFAULT_MODEL,
     api_key: Optional[str] = None,
     max_facts: int = 40,
-    max_tokens: int = 600,
+    max_tokens: int = 1200,
     verify: bool = False,
     verify_model: Optional[str] = None,
 ) -> AnswerResult:
