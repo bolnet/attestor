@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
@@ -86,7 +88,28 @@ def load_config(path: Path) -> MemoryConfig:
 
 
 def save_config(path: Path, config: MemoryConfig) -> None:
-    """Save config to a JSON file."""
+    """Save config atomically to a JSON file.
+
+    AgentMemory.__init__ calls this on every construction. Two processes
+    constructing AgentMemory concurrently would otherwise truncate-then-
+    write the same file, leaving a half-written JSON visible to any
+    third reader. We write to a sibling temp file and ``os.replace`` it
+    in — that rename is atomic on POSIX, so readers always see either
+    the old complete file or the new complete file, never a torn write.
+    """
     config_file = path / "config.json"
-    with open(config_file, "w") as f:
-        json.dump(config.to_dict(), f, indent=2)
+    config_file.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=".config.", suffix=".json.tmp", dir=str(config_file.parent)
+    )
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(config.to_dict(), f, indent=2)
+        os.replace(tmp_path, config_file)
+    except Exception:
+        # Best-effort cleanup of the temp file if rename never happened.
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
