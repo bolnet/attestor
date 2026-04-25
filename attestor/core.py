@@ -182,10 +182,29 @@ class AgentMemory:
         event_date: Optional[str] = None,
         confidence: float = 1.0,
         metadata: Optional[Dict[str, Any]] = None,
+        # ── v4 tenancy params (Phase 1 chunk 3) ──
+        # When user_id is provided AND the backend is in v4 mode, the memory
+        # is written through the v4 path (RLS-scoped, bi-temporal). When
+        # user_id is None, the legacy v3 path runs unchanged.
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        scope: str = "user",
+        agent_id: Optional[str] = None,
+        source_episode_id: Optional[str] = None,
     ) -> Memory:
-        """Store a new memory, handling contradictions automatically."""
+        """Store a new memory, handling contradictions automatically.
+
+        v4 callers should pass ``user_id`` (and optionally project_id,
+        session_id, scope). v3 callers can omit them — behavior unchanged."""
         t_total = time.monotonic()
         store_timings: Dict[str, float] = {}
+
+        # If running v4 with a user_id, set the RLS variable on the doc store
+        # connection so RLS policies will admit our writes/reads.
+        v4_active = bool(user_id) and getattr(self._store, "_v4", False)
+        if v4_active and hasattr(self._store, "_set_rls_user"):
+            self._store._set_rls_user(user_id)
 
         # Dedup: check for exact content match (scoped by namespace)
         chash = self._content_hash(content)
@@ -205,6 +224,13 @@ class AgentMemory:
             confidence=confidence,
             content_hash=chash,
             metadata=metadata or {},
+            # v4 fields (None / defaults when caller didn't pass them)
+            user_id=user_id,
+            project_id=project_id,
+            session_id=session_id,
+            scope=scope,
+            agent_id=agent_id,
+            source_episode_id=source_episode_id,
         )
 
         # Check for contradictions before insert
@@ -319,8 +345,19 @@ class AgentMemory:
         query: str,
         budget: Optional[int] = None,
         namespace: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> List[RetrievalResult]:
-        """Retrieve relevant memories for a query using 3-layer cascade."""
+        """Retrieve relevant memories for a query using 3-layer cascade.
+
+        v4: when ``user_id`` is provided AND the backend is in v4 mode, the
+        RLS variable is set on the connection so policies filter to this
+        user. v3 callers omit user_id — behavior unchanged."""
+        # v4: scope this call to the user via RLS
+        if user_id and getattr(self._store, "_v4", False) and hasattr(
+            self._store, "_set_rls_user"
+        ):
+            self._store._set_rls_user(user_id)
+
         t0 = time.monotonic()
         token_budget = budget or self.config.default_token_budget
         results = self._retrieval.recall(query, token_budget, namespace=namespace)
