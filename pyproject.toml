@@ -78,4 +78,6 @@ build-backend = "poetry.core.masonry.api"
 testpaths = ["tests"]
 markers = [
     "docker: tests requiring Docker (deselect with '-m not docker')",
+    "unit: fast, dependency-free unit tests",
+    "integration: tests that touch real services or the filesystem beyond fixtures",
 ]

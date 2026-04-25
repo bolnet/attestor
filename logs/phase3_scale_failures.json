@@ -1,0 +1,254 @@
+[
+  {
+    "sample_id": "conv-30",
+    "question": "What did Gina find for her clothing store on 1 February, 2023?",
+    "expected": "The perfect spot for her store",
+    "previous_output": "Wholesaler agreement",
+    "previous_score": 0,
+    "category": "open_domain",
+    "judge_reasoning": "The predicted answer 'wholesaler agreement' is unrelated to finding the perfect spot/location for the store."
+  },
+  {
+    "sample_id": "conv-30",
+    "question": "How long did it take for Jon to open his studio?",
+    "expected": "six months",
+    "previous_output": "About 5 months (Jan 19 \u2013 June 20, 2023)",
+    "previous_score": 0,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer says about 5 months, which contradicts the reference of six months."
+  },
+  {
+    "sample_id": "conv-30",
+    "question": "How did Gina promote her clothes store?",
+    "expected": "worked with an artist to make unique fashion pieces, made limited-edition sweatshirts, got some new offers and promotions for online store, developed a video presentation showing how to style her pieces",
+    "previous_output": "Ad campaign, promotions, influencer collaborations",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer mentions generic promotional methods but misses the specific activities in the reference (artist collaboration, limited-edition sweatshirts, video presentation); only 'promotions' loosely overlaps."
+  },
+  {
+    "sample_id": "conv-30",
+    "question": "Why did Gina decide to start her own clothing store?",
+    "expected": "She always loved fashion trends and finding unique pieces and she lost her job so decided it was time to start her own business.",
+    "previous_output": "To take control of her destiny after losing her job",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer mentions losing her job but omits her love of fashion trends and finding unique pieces, making it incomplete."
+  },
+  {
+    "sample_id": "conv-30",
+    "question": "When did Gina team up with a local artist for some cool designs?",
+    "expected": "February, 2023",
+    "previous_output": "Before February 8, 2023",
+    "previous_score": 0.5,
+    "category": "multi_hop",
+    "judge_reasoning": "The predicted answer says 'before February 8, 2023' which is vague and not the same as 'February 2023'; it could include dates before February."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "What types of pottery have Melanie and her kids made?",
+    "expected": "bowls, cup",
+    "previous_output": "Pots, bowls, plates",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer includes bowls (matching reference) but omits cup and adds pots and plates not in reference, making it partially correct."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "Who supports Caroline when she has a negative experience?",
+    "expected": "Her mentors, family, and friends",
+    "previous_output": "Friends and family",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer includes friends and family but omits mentors, making it incomplete."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "How many times has Melanie gone to the beach in 2023?",
+    "expected": "2",
+    "previous_output": "Once or twice",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer is vague, offering 'once or twice' which includes the correct answer of 2 but is not definitive."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "What did Melanie paint recently?",
+    "expected": "sunset",
+    "previous_output": "nature painting, horse painting, sunset-inspired painting, abstract painting",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The prediction includes 'sunset-inspired painting' which matches the reference, but also lists multiple other paintings making it vague/incomplete in pinpointing the answer."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "When did Melanie go camping in July?",
+    "expected": "two weekends before 17 July 2023",
+    "previous_output": "July 15, 2023",
+    "previous_score": 0,
+    "category": "multi_hop",
+    "judge_reasoning": "Two weekends before July 17, 2023 would be around July 1-2, not July 15, so the predicted date is incorrect."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "What events has Caroline participated in to help children?",
+    "expected": "Mentoring program, school speech",
+    "previous_output": "Volunteering at LGBTQ+ youth center, organizing September 2023 talent show, adoption council meeting (July 7, 2023), LGBTQ youth mentorship program, applying to adoption agencies",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer mentions a mentorship program (matching reference) but omits the school speech and adds several unverified events."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "When did Caroline go to a pride parade during the summer?",
+    "expected": "The week before 3 July 2023",
+    "previous_output": "August 11, 2023",
+    "previous_score": 0,
+    "category": "multi_hop",
+    "judge_reasoning": "The predicted date (August 11, 2023) contradicts the reference date (week before July 3, 2023)."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "What LGBTQ+ events has Caroline participated in?",
+    "expected": "Pride parade, school speech, support group",
+    "previous_output": "Pride parades (June 2023, August 11 2023), LGBTQ conference (July 10 2023), LGBTQ support group (May 7 2023), LGBTQ+ counseling workshop (June 23 2023), transgender poetry reading (Oct 6 2023), Pride fest 2022, adv",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer includes Pride parades and support group matching the reference, but misses school speech and adds many extra events not in reference; partially aligned."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "When did Melanie go to the pottery workshop?",
+    "expected": "The Friday before 15 July 2023",
+    "previous_output": "July 7, 2023",
+    "previous_score": 0,
+    "category": "multi_hop",
+    "judge_reasoning": "July 7, 2023 does not match the Friday before July 15, 2023 (which is July 14)."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "When did Caroline go to the adoption meeting?",
+    "expected": "The friday before 15 July 2023",
+    "previous_output": "July 7, 2023",
+    "previous_score": 0,
+    "category": "multi_hop",
+    "judge_reasoning": "The predicted date July 7 does not match the Friday before July 15, 2023, which would be July 14."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "What books has Melanie read?",
+    "expected": "\"Nothing is Impossible\", \"Charlotte's Web\"",
+    "previous_output": "Charlotte's Web, book Caroline recommended, inspiring book about pursuing dreams",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "Predicted mentions Charlotte's Web and vaguely references an inspiring book (likely Nothing is Impossible) but doesn't name it explicitly."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "What do Melanie's kids like?",
+    "expected": "dinosaurs, nature",
+    "previous_output": "Learning about animals, nature, summer break",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer includes nature which matches, but misses dinosaurs and adds unrelated items like summer break and animals instead."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "What career path has Caroline decided to persue?",
+    "expected": "counseling or mental health for Transgender people",
+    "previous_output": "Counseling and mental health",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer captures the general field but omits the specific focus on transgender people."
+  },
+  {
+    "sample_id": "conv-26",
+    "question": "When did Melanie run a charity race?",
+    "expected": "The sunday before 25 May 2023",
+    "previous_output": "May 20, 2023",
+    "previous_score": 0,
+    "category": "multi_hop",
+    "judge_reasoning": "The Sunday before May 25, 2023 was May 21, but the prediction says May 20, which is incorrect."
+  },
+  {
+    "sample_id": "conv-41",
+    "question": "What food item did Maria drop off at the homeless shelter?",
+    "expected": "Cakes",
+    "previous_output": "Baked goods",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "Baked goods is a broader category that includes cakes but is vague and not specific to the reference answer."
+  },
+  {
+    "sample_id": "conv-41",
+    "question": "When did John have his first firefighter call-out?",
+    "expected": "The sunday before 3` July 2023",
+    "previous_output": "July 30, 2023",
+    "previous_score": 0,
+    "category": "multi_hop",
+    "judge_reasoning": "The predicted date July 30, 2023 does not match the reference of the Sunday before July 3, 2023 (which would be July 2, 2023)."
+  },
+  {
+    "sample_id": "conv-41",
+    "question": "Would John be open to moving to another country?",
+    "expected": "No, he has goals specifically in the U.S. like joining the military and running for office.",
+    "previous_output": "Likely no; strong community and family ties locally",
+    "previous_score": 0.5,
+    "category": "temporal",
+    "judge_reasoning": "The predicted answer reaches the same conclusion (no) but cites different reasons (community/family ties) rather than the reference's specific reasons (military and running for office in the U.S.)."
+  },
+  {
+    "sample_id": "conv-41",
+    "question": "What events for veterans has John participated in?",
+    "expected": "Petition, march, party, visiting veterans hospital, 5K charity run",
+    "previous_output": "Marching event, veterans party (May 19, 2023), hospital visit, 5K charity run, military memorial visit, virtual support group",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer covers most reference items (march, party, hospital visit, 5K run) but misses the petition and adds extra items not in the reference."
+  },
+  {
+    "sample_id": "conv-41",
+    "question": "What outdoor activities has John done with his colleagues?",
+    "expected": "Hiking, mountaineering",
+    "previous_output": "Hiking, mountaineering, yoga",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The prediction includes both correct activities but adds 'yoga' which is not in the reference and isn't typically an outdoor activity, making it partially correct with extra unsupported info."
+  },
+  {
+    "sample_id": "conv-41",
+    "question": "What desserts has Maria made?",
+    "expected": "Banana split sundae, Peach cobbler",
+    "previous_output": "Peach cobbler, cakes, baked goods",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "Predicted answer includes one correct item (peach cobbler) but misses banana split sundae and adds unsupported items."
+  },
+  {
+    "sample_id": "conv-41",
+    "question": "What damages have happened to John's car?",
+    "expected": "Broken windshield, Car broke down",
+    "previous_output": "Broke down",
+    "previous_score": 0.5,
+    "category": "single_hop",
+    "judge_reasoning": "The predicted answer only mentions the car breaking down but omits the broken windshield, making it incomplete."
+  },
+  {
+    "sample_id": "conv-41",
+    "question": "What might John's degree be in?",
+    "expected": "Political science, Public administration, Public affairs",
+    "previous_output": "Policy, education, or public administration",
+    "previous_score": 0.5,
+    "category": "temporal",
+    "judge_reasoning": "The prediction includes public administration which matches the reference, but also adds policy and education which are not in the reference, making it partially correct."
+  },
+  {
+    "sample_id": "conv-41",
+    "question": "What might John's financial status be?",
+    "expected": "Middle-class or wealthy",
+    "previous_output": "Strained; recently lost job and had car repair costs",
+    "previous_score": 0,
+    "category": "temporal",
+    "judge_reasoning": "The predicted answer contradicts the reference, which states middle-class or wealthy, while the prediction says financially strained."
+  }
+]

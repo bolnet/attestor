@@ -76,10 +76,20 @@ Think step by step, then output a single JSON object on the last line:
 {{"reasoning": "<one sentence>", "score": <0.0|0.5|1.0>}}"""
 
 
+def _load_only_keys(path: str | None) -> set[tuple[str, str]] | None:
+    """Load a set of (sample_id, question) pairs to include, or None for all."""
+    if not path:
+        return None
+    with open(path) as f:
+        rows = json.load(f)
+    return {(r["sample_id"], r["question"]) for r in rows}
+
+
 def _flatten_qa(
     data_path: str,
     max_conversations: int | None,
     max_questions: int | None,
+    only_keys: set[tuple[str, str]] | None = None,
 ) -> list[dict[str, Any]]:
     """Flatten LOCOMO QA pairs into per-question rows."""
     convs = load_locomo(data_path)
@@ -91,6 +101,11 @@ def _flatten_qa(
         qa_pairs = conv["qa"]
         if max_questions:
             qa_pairs = qa_pairs[:max_questions]
+        if only_keys is not None:
+            qa_pairs = [
+                qa for qa in qa_pairs
+                if (conv["sample_id"], qa["question"]) in only_keys
+            ]
         for qa in qa_pairs:
             rows.append(
                 {
@@ -240,21 +255,31 @@ def _dual_path_ingest(
         )
 
         # B.1 — atomic facts → namespace=entities
+        # Preserve extractor-produced metadata (source_quote, kind=list_item)
+        # so list-item rows are identifiable downstream and searchable by their
+        # verbatim quote.
         for f_idx, m in enumerate(memories):
             t0 = time.perf_counter()
+            fact_kind = m.metadata.get("kind") or "fact"
+            fact_tags = list(m.tags) + ["entity", "fact"]
+            if fact_kind == "list_item":
+                fact_tags.append("list_item")
+            fact_metadata: dict[str, Any] = {
+                "path": "B",
+                "namespace": "entities",
+                "kind": fact_kind,
+                "session": session_id,
+            }
+            if m.metadata.get("source_quote"):
+                fact_metadata["source_quote"] = m.metadata["source_quote"]
             result = mem.add(
                 content=m.content,
-                tags=list(m.tags) + ["entity", "fact"],
+                tags=fact_tags,
                 category="entity",
                 entity=m.entity,
                 event_date=m.event_date or date_time,
                 confidence=m.confidence,
-                metadata={
-                    "path": "B",
-                    "namespace": "entities",
-                    "kind": "fact",
-                    "session": session_id,
-                },
+                metadata=fact_metadata,
             )
             ms = (time.perf_counter() - t0) * 1000
             stats["facts"] += 1
@@ -407,6 +432,7 @@ def _precompute_predictions(
     use_planner: bool = False,
     reuse_ingest: bool = False,
     debug: bool = False,
+    only_keys: set[tuple[str, str]] | None = None,
 ) -> dict[tuple[str, str], str]:
     """Dual-path ingest into Postgres, answer each question.
 
@@ -463,6 +489,17 @@ def _precompute_predictions(
             qa_pairs = conv["qa"]
             if max_questions:
                 qa_pairs = qa_pairs[:max_questions]
+            if only_keys is not None:
+                qa_pairs = [
+                    qa for qa in qa_pairs
+                    if (conv["sample_id"], qa["question"]) in only_keys
+                ]
+                if not qa_pairs:
+                    print(
+                        f"  [{conv['sample_id']}] no failures for this conv; skipping"
+                    )
+                    mem.close()
+                    continue
             for qa in qa_pairs:
                 pred = answer_question(
                     mem,
@@ -553,6 +590,7 @@ def run(
     use_planner: bool = False,
     reuse_ingest: bool = False,
     debug: bool = False,
+    only_file: str | None = None,
 ) -> None:
     if not os.environ.get("BRAINTRUST_API_KEY"):
         raise SystemExit(
@@ -577,6 +615,9 @@ def run(
     # `resolve_pronouns` is not wired into the dual-path ingest yet; retained
     # on the CLI surface for parity with the legacy single-path evaluator.
     del resolve_pronouns
+    only_keys = _load_only_keys(only_file)
+    if only_keys is not None:
+        print(f"Filtering to {len(only_keys)} specific questions from {only_file}")
     predictions = _precompute_predictions(
         convs,
         max_questions,
@@ -587,10 +628,13 @@ def run(
         use_planner=use_planner,
         reuse_ingest=reuse_ingest,
         debug=debug,
+        only_keys=only_keys,
     )
     print(f"Got {len(predictions)} predictions.")
 
-    rows = _flatten_qa(data_path, max_conversations, max_questions)
+    rows = _flatten_qa(
+        data_path, max_conversations, max_questions, only_keys=only_keys,
+    )
     anthropic = Anthropic()
 
     def factuality_scorer(input, output, expected, metadata):
@@ -656,6 +700,11 @@ if __name__ == "__main__":
         help="Skip dual-path ingest and use the existing Postgres+Neo4j data as-is.",
     )
     parser.add_argument("--debug", action="store_true", help="Print Q/expected/predicted locally.")
+    parser.add_argument(
+        "--only-file",
+        default=None,
+        help="JSON file with [{sample_id, question}, ...]; only those Qs are run.",
+    )
     args = parser.parse_args()
 
     if args.upload_dataset:
@@ -673,4 +722,5 @@ if __name__ == "__main__":
             use_planner=args.use_planner,
             reuse_ingest=args.reuse_ingest,
             debug=args.debug,
+            only_file=args.only_file,
         )

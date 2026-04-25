@@ -1,0 +1,228 @@
+{
+  "per_q": [
+    {
+      "sample_id": "conv-30",
+      "question": "What did Gina find for her clothing store on 1 February, 2023?",
+      "prev": 0,
+      "now": 0,
+      "output": "A wholesaler",
+      "expected": "The perfect spot for her store"
+    },
+    {
+      "sample_id": "conv-30",
+      "question": "How long did it take for Jon to open his studio?",
+      "prev": 0,
+      "now": 0,
+      "output": "About 5 months (Jan\u2013June 2023)",
+      "expected": "six months"
+    },
+    {
+      "sample_id": "conv-30",
+      "question": "How did Gina promote her clothes store?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Ad campaign, offers/promotions, influencer collaborations, new website",
+      "expected": "worked with an artist to make unique fashion pieces, made limited-edition sweatshirts, got some new offers and promotions for online store, developed a video presentation showing how to style her pieces"
+    },
+    {
+      "sample_id": "conv-30",
+      "question": "Why did Gina decide to start her own clothing store?",
+      "prev": 0.5,
+      "now": 1,
+      "output": "Lost job at DoorDash; fulfill long-held dream",
+      "expected": "She always loved fashion trends and finding unique pieces and she lost her job so decided it was time to start her own business."
+    },
+    {
+      "sample_id": "conv-30",
+      "question": "When did Gina team up with a local artist for some cool designs?",
+      "prev": 0.5,
+      "now": 1,
+      "output": "February 8, 2023",
+      "expected": "February, 2023"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "What types of pottery have Melanie and her kids made?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Pots, bowls, plates",
+      "expected": "bowls, cup"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "Who supports Caroline when she has a negative experience?",
+      "prev": 0.5,
+      "now": 1,
+      "output": "Friends, family, and mentors",
+      "expected": "Her mentors, family, and friends"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "How many times has Melanie gone to the beach in 2023?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Once or twice",
+      "expected": "2"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "What did Melanie paint recently?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Horse painting, sunset-inspired painting, abstract painting",
+      "expected": "sunset"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "When did Melanie go camping in July?",
+      "prev": 0,
+      "now": 0.5,
+      "output": "Early July 2023",
+      "expected": "two weekends before 17 July 2023"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "What events has Caroline participated in to help children?",
+      "prev": 0.5,
+      "now": 0,
+      "output": "Adoption council meeting, adoption advice group, applied to adoption agencies, volunteering at LGBTQ+ youth center",
+      "expected": "Mentoring program, school speech"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "When did Caroline go to a pride parade during the summer?",
+      "prev": 0,
+      "now": 0.5,
+      "output": "June 2023",
+      "expected": "The week before 3 July 2023"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "What LGBTQ+ events has Caroline participated in?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Pride parade (Aug 2023), LGBTQ conference (July 10, 2023), LGBTQ support group (May 7, 2023), LGBTQ center visit, Pride event (June 2023), advocacy event, LGBTQ+ youth center volunteering, art show (Sept 2023)",
+      "expected": "Pride parade, school speech, support group"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "When did Melanie go to the pottery workshop?",
+      "prev": 0,
+      "now": 0,
+      "output": "July 7, 2023",
+      "expected": "The Friday before 15 July 2023"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "When did Caroline go to the adoption meeting?",
+      "prev": 0,
+      "now": 0,
+      "output": "July 7, 2023",
+      "expected": "The friday before 15 July 2023"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "What books has Melanie read?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Charlotte's Web, a book Caroline recommended, an inspiring book about pursuing dreams",
+      "expected": "\"Nothing is Impossible\", \"Charlotte's Web\""
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "What do Melanie's kids like?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "learning about animals, nature",
+      "expected": "dinosaurs, nature"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "What career path has Caroline decided to persue?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Counseling/mental health",
+      "expected": "counseling or mental health for Transgender people"
+    },
+    {
+      "sample_id": "conv-26",
+      "question": "When did Melanie run a charity race?",
+      "prev": 0,
+      "now": 0,
+      "output": "May 20, 2023",
+      "expected": "The sunday before 25 May 2023"
+    },
+    {
+      "sample_id": "conv-41",
+      "question": "What food item did Maria drop off at the homeless shelter?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Baked goods",
+      "expected": "Cakes"
+    },
+    {
+      "sample_id": "conv-41",
+      "question": "When did John have his first firefighter call-out?",
+      "prev": 0,
+      "now": 0,
+      "output": "July 30, 2023",
+      "expected": "The sunday before 3` July 2023"
+    },
+    {
+      "sample_id": "conv-41",
+      "question": "Would John be open to moving to another country?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Likely no; strongly family-oriented and community-rooted in West County",
+      "expected": "No, he has goals specifically in the U.S. like joining the military and running for office."
+    },
+    {
+      "sample_id": "conv-41",
+      "question": "What events for veterans has John participated in?",
+      "prev": 0.5,
+      "now": 1,
+      "output": "Marching event, veterans hospital visits, petition, veterans party, 5K charity run",
+      "expected": "Petition, march, party, visiting veterans hospital, 5K charity run"
+    },
+    {
+      "sample_id": "conv-41",
+      "question": "What outdoor activities has John done with his colleagues?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Hiking",
+      "expected": "Hiking, mountaineering"
+    },
+    {
+      "sample_id": "conv-41",
+      "question": "What desserts has Maria made?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Peach cobbler, cakes",
+      "expected": "Banana split sundae, Peach cobbler"
+    },
+    {
+      "sample_id": "conv-41",
+      "question": "What damages have happened to John's car?",
+      "prev": 0.5,
+      "now": 0.5,
+      "output": "Broke down",
+      "expected": "Broken windshield, Car broke down"
+    },
+    {
+      "sample_id": "conv-41",
+      "question": "What might John's degree be in?",
+      "prev": 0.5,
+      "now": 0,
+      "output": "Mechanical engineering",
+      "expected": "Political science, Public administration, Public affairs"
+    },
+    {
+      "sample_id": "conv-41",
+      "question": "What might John's financial status be?",
+      "prev": 0,
+      "now": 0,
+      "output": "Strained; recently lost job and had car repair costs",
+      "expected": "Middle-class or wealthy"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 from attestor.core import AgentMemory
 
@@ -260,6 +261,73 @@ def main(argv=None):
     p_mab.add_argument("--env-file", default=None, help="Path to .env file for API keys")
     _add_backend_args(p_mab)
 
+    # longmemeval (LongMemEval benchmark — ICLR 2025, temporal-reasoning focus)
+    p_lme = subparsers.add_parser(
+        "longmemeval",
+        help="Run LongMemEval benchmark (Wu et al., ICLR 2025)",
+    )
+    p_lme.add_argument(
+        "--data", default=None,
+        help="Path to longmemeval_s_cleaned.json (auto-downloads if not set)",
+    )
+    p_lme.add_argument(
+        "--fixture", action="store_true",
+        help="Use the bundled 6-sample mini fixture (for smoke runs)",
+    )
+    p_lme.add_argument(
+        "--variant", default="s", choices=["s", "m", "oracle"],
+        help="HuggingFace dataset variant when auto-downloading (default: s)",
+    )
+    p_lme.add_argument(
+        "--answer-model", default="openai/gpt-4.1-mini",
+        help="LLM for answer synthesis",
+    )
+    p_lme.add_argument(
+        "--judge-model", action="append", default=None,
+        help="LLM for judging answers. Pass multiple times for dual-judge scoring.",
+    )
+    p_lme.add_argument(
+        "--use-extraction", action="store_true",
+        help="Extract atomic facts with LLM during ingest (slower, more accurate)",
+    )
+    p_lme.add_argument(
+        "--use-distillation", action="store_true",
+        help="Per-turn LLM distillation before storage — canonicalize each turn "
+             "into 0..N third-person facts with absolute dates before embed/graph.",
+    )
+    p_lme.add_argument(
+        "--distill-model", default="openai/gpt-5.1",
+        help="OpenRouter model id for the distiller (default: openai/gpt-5.1).",
+    )
+    p_lme.add_argument("--max-samples", type=int, default=None, help="Cap on samples")
+    p_lme.add_argument(
+        "--categories", nargs="+", default=None,
+        help="Restrict to these question_type categories (e.g. temporal-reasoning)",
+    )
+    p_lme.add_argument("--budget", type=int, default=4000, help="Recall token budget")
+    p_lme.add_argument(
+        "--max-facts", type=int, default=40,
+        help="Cap on facts injected into answerer prompt",
+    )
+    p_lme.add_argument("--verbose", "-v", action="store_true", help="Print progress")
+    p_lme.add_argument(
+        "--parallel", type=int, default=4,
+        help="Max concurrent samples (default: 4). Each sample gets its own AgentMemory instance.",
+    )
+    p_lme.add_argument(
+        "--verify", action="store_true",
+        help="Run a second-pass verification that re-checks date arithmetic + abstentions.",
+    )
+    p_lme.add_argument(
+        "--verify-model", default=None,
+        help="OpenRouter model id for the verifier (defaults to --answer-model).",
+    )
+    p_lme.add_argument(
+        "--output", "-o", default=None, help="Save full report JSON to file",
+    )
+    p_lme.add_argument("--env-file", default=None, help="Path to .env file for API keys")
+    _add_backend_args(p_lme)
+
     # api (REST API server)
     p_api = subparsers.add_parser(
         "api",
@@ -332,6 +400,7 @@ def main(argv=None):
         "doctor": _cmd_doctor,
         "locomo": _cmd_locomo,
         "mab": _cmd_mab,
+        "longmemeval": _cmd_longmemeval,
         "mcp": _cmd_mcp_serve,
         "hook": _cmd_hook,
     }
@@ -861,6 +930,153 @@ def _cmd_mab(args):
         output_path = Path(args.output)
         output_path.write_text(json.dumps(results, indent=2))
         print(f"\nResults saved to {args.output}")
+
+
+def _cmd_longmemeval(args):
+    """Run the LongMemEval benchmark against Attestor."""
+    # Load env file if provided
+    if args.env_file:
+        _load_env_file(args.env_file)
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        print("ERROR: OPENROUTER_API_KEY not set (pass via --env-file or export).", file=sys.stderr)
+        sys.exit(2)
+
+    from attestor.longmemeval import (
+        DEFAULT_MODEL,
+        load_longmemeval,
+        load_or_download,
+        run,
+    )
+
+    # Data source: fixture > --data > auto-download
+    dataset_path: Optional[Path] = None
+    if args.fixture:
+        fixture_path = Path(__file__).parent.parent / "tests" / "fixtures" / "lme_mini.json"
+        if not fixture_path.exists():
+            print(f"ERROR: bundled fixture missing at {fixture_path}", file=sys.stderr)
+            sys.exit(2)
+        samples = load_longmemeval(fixture_path)
+        dataset_path = fixture_path
+        print(f"[fixture] loaded {len(samples)} samples from {fixture_path}")
+    elif args.data:
+        samples = load_longmemeval(args.data)
+        dataset_path = Path(args.data)
+        print(f"loaded {len(samples)} samples from {args.data}")
+    else:
+        samples = load_or_download(variant=args.variant)
+        print(f"loaded {len(samples)} samples (variant={args.variant})")
+
+    if args.categories:
+        allowed = set(args.categories)
+        samples = [s for s in samples if s.question_type in allowed]
+        print(f"filtered to {len(samples)} samples matching {sorted(allowed)}")
+
+    if args.max_samples is not None:
+        samples = samples[: args.max_samples]
+        print(f"capped to {len(samples)} samples")
+
+    from attestor.longmemeval import DEFAULT_JUDGES  # local import to avoid cycle
+
+    judge_models = args.judge_model or list(DEFAULT_JUDGES)
+
+    from attestor._paths import resolve_store_path
+    import threading
+
+    backend_config = _parse_backend_config(args)
+    store_path = resolve_store_path(getattr(args, "path", None))
+
+    # Pre-warm so the first factory call doesn't race with others.
+    # AgentMemory.__init__ reads + writes ~/.attestor/config.json every time,
+    # which is a write-truncate race under concurrent construction. The
+    # lock makes construction atomic without serializing the (long) ingest
+    # / answer / judge work that follows.
+    _factory_lock = threading.Lock()
+    AgentMemory(store_path, config=backend_config).close()
+
+    def mem_factory() -> AgentMemory:
+        """Fresh AgentMemory per sample — per-task Postgres/Neo4j connections."""
+        with _factory_lock:
+            return AgentMemory(store_path, config=backend_config)
+
+    print(
+        f"Running LongMemEval: answer={args.answer_model} "
+        f"judges={judge_models} samples={len(samples)} budget={args.budget} "
+        f"parallel={args.parallel}"
+    )
+    report = run(
+        samples,
+        mem_factory=mem_factory,
+        answer_model=args.answer_model,
+        judge_models=judge_models,
+        api_key=api_key,
+        budget=args.budget,
+        use_extraction=args.use_extraction,
+        use_distillation=args.use_distillation,
+        distill_model=args.distill_model,
+        max_facts=args.max_facts,
+        parallel=args.parallel,
+        verify=args.verify,
+        verify_model=args.verify_model,
+        verbose=args.verbose,
+        output_path=args.output,
+        dataset_path=dataset_path,
+    )
+
+    # Pretty print summary
+    print("\n=== LongMemEval summary ===")
+    print(f"total samples: {report.total}")
+    for jm, bucket in report.by_judge.items():
+        if jm.startswith("_"):
+            continue  # skip meta entries like _inter_judge_agreement
+        print(f"  judge={jm}: {bucket['correct']}/{bucket['total']} ({bucket['accuracy']}%)")
+
+    agreement = report.by_judge.get("_inter_judge_agreement")
+    if agreement:
+        print("\n  inter-judge agreement:")
+        for pair, stats in agreement.items():
+            print(
+                f"    {pair}: agreement={stats['agreement_pct']}% "
+                f"(both_correct={stats['both_correct']}, both_wrong={stats['both_wrong']})"
+            )
+
+    dim = getattr(report, "by_dimension", {}) or {}
+    if dim:
+        print("\n  Dimension B (multi-dimensional scoring):")
+        retr = dim.get("retrieval", {})
+        if retr.get("total"):
+            print(
+                f"    retrieval precision: {retr['hits']}/{retr['total']} ({retr['precision']}%)"
+            )
+        mode = dim.get("mode_distribution", {})
+        if mode:
+            counts = mode.get("counts", {})
+            print(
+                f"    mode distribution: fact={counts.get('fact', 0)} "
+                f"recommendation={counts.get('recommendation', 0)} "
+                f"unknown={counts.get('unknown', 0)}"
+            )
+        pers = dim.get("personalization", {})
+        if pers.get("total"):
+            print(
+                f"    personalization (recommendation samples only): "
+                f"{pers['correct']}/{pers['total']} ({pers['accuracy']}%)"
+            )
+        per_mode = dim.get("by_predicted_mode", {})
+        if per_mode:
+            print(f"    answer accuracy by predicted mode (judge A only):")
+            for m, b in per_mode.items():
+                if b.get("total", 0) > 0:
+                    print(f"      {m}: {b['correct']}/{b['total']} ({b['accuracy']}%)")
+
+    print("\n  by category (per judge):")
+    for cat, per_judge in report.by_category.items():
+        print(f"    {cat}:")
+        for jm, bucket in per_judge.items():
+            print(f"      {jm}: {bucket['correct']}/{bucket['total']} ({bucket['accuracy']}%)")
+
+    if args.output:
+        print(f"\nFull report written to {args.output}")
 
 
 def _cmd_mcp_serve(args):

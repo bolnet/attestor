@@ -1,0 +1,576 @@
+{
+  "total": 10,
+  "answer_model": "openai/gpt-5.1",
+  "judge_models": [
+    "openai/gpt-5.1",
+    "anthropic/claude-sonnet-4.6"
+  ],
+  "by_category": {
+    "single-session-assistant": {
+      "openai/gpt-5.1": {
+        "correct": 5,
+        "total": 10,
+        "accuracy": 50.0
+      },
+      "anthropic/claude-sonnet-4.6": {
+        "correct": 6,
+        "total": 10,
+        "accuracy": 60.0
+      }
+    }
+  },
+  "by_judge": {
+    "openai/gpt-5.1": {
+      "correct": 5,
+      "total": 10,
+      "accuracy": 50.0
+    },
+    "anthropic/claude-sonnet-4.6": {
+      "correct": 6,
+      "total": 10,
+      "accuracy": 60.0
+    },
+    "_inter_judge_agreement": {
+      "openai/gpt-5.1__vs__anthropic/claude-sonnet-4.6": {
+        "both_correct": 5,
+        "both_wrong": 4,
+        "agreement_pct": 90.0
+      }
+    }
+  },
+  "started_at": "2026-04-24T12:42:37+00:00",
+  "completed_at": "2026-04-24T14:38:03+00:00",
+  "samples": [
+    {
+      "question_id": "7161e7e2",
+      "category": "single-session-assistant",
+      "question": "I'm checking our previous chat about the shift rotation sheet for GM social media agents. Can you remind me what was the rotation for Admon on a Sunday?",
+      "gold": "Admon was assigned to the 8 am - 4 pm (Day Shift) on Sundays.",
+      "answer": "8 am \u2013 4 pm day shift.",
+      "judgments": {
+        "openai/gpt-5.1": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer matches the gold answer\u2019s shift time and type for Admon on Sundays.",
+          "judge_model": "openai/gpt-5.1"
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer's substance: Admon's Sunday rotation is the 8 am \u2013 4 pm day shift.",
+          "judge_model": "anthropic/claude-sonnet-4.6"
+        }
+      },
+      "answer_latency_ms": 4270.84,
+      "ingest_turns": 550,
+      "ingest_memories": 2918,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_sharegpt_5Lzox6N_0"
+      ],
+      "retrieved_session_ids": [
+        "answer_sharegpt_5Lzox6N_0",
+        "answer_sharegpt_5Lzox6N_0",
+        "answer_sharegpt_5Lzox6N_0",
+        "answer_sharegpt_5Lzox6N_0",
+        "answer_sharegpt_5Lzox6N_0",
+        "answer_sharegpt_5Lzox6N_0",
+        "answer_sharegpt_5Lzox6N_0",
+        "answer_sharegpt_5Lzox6N_0",
+        "answer_sharegpt_5Lzox6N_0",
+        "answer_sharegpt_5Lzox6N_0"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 10,
+      "predicted_mode": "fact",
+      "personalization": null
+    },
+    {
+      "question_id": "c4f10528",
+      "category": "single-session-assistant",
+      "question": "I'm planning to visit Bandung again and I was wondering if you could remind me of the name of that restaurant in Cihampelas Walk that serves a great Nasi Goreng?",
+      "gold": "Miss Bee Providore",
+      "answer": "Miss Bee Providore.",
+      "judgments": {
+        "openai/gpt-5.1": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer exactly matches the gold answer, naming the same restaurant.",
+          "judge_model": "openai/gpt-5.1"
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer exactly matches the gold answer.",
+          "judge_model": "anthropic/claude-sonnet-4.6"
+        }
+      },
+      "answer_latency_ms": 4480.31,
+      "ingest_turns": 485,
+      "ingest_memories": 2943,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_ultrachat_234453"
+      ],
+      "retrieved_session_ids": [
+        "answer_ultrachat_234453",
+        "answer_ultrachat_234453",
+        "answer_ultrachat_234453",
+        "answer_ultrachat_234453",
+        "answer_ultrachat_234453",
+        "answer_ultrachat_234453",
+        "answer_ultrachat_234453",
+        "answer_ultrachat_234453",
+        "answer_ultrachat_234453",
+        "answer_ultrachat_234453"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 10,
+      "predicted_mode": "fact",
+      "personalization": null
+    },
+    {
+      "question_id": "89527b6b",
+      "category": "single-session-assistant",
+      "question": "I'm going back to our previous conversation about the children's book on dinosaurs. Can you remind me what color was the scaly body of the Plesiosaur in the image?",
+      "gold": "The Plesiosaur had a blue scaly body.",
+      "answer": "Blue.",
+      "judgments": {
+        "openai/gpt-5.1": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer correctly identifies the Plesiosaur's scaly body color as blue, matching the gold answer.",
+          "judge_model": "openai/gpt-5.1"
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer 'Blue' matches the gold answer that the Plesiosaur had a blue scaly body.",
+          "judge_model": "anthropic/claude-sonnet-4.6"
+        }
+      },
+      "answer_latency_ms": 4137.55,
+      "ingest_turns": 467,
+      "ingest_memories": 2787,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_sharegpt_YkWn1Ne_0"
+      ],
+      "retrieved_session_ids": [
+        "answer_sharegpt_YkWn1Ne_0",
+        "answer_sharegpt_YkWn1Ne_0",
+        "answer_sharegpt_YkWn1Ne_0",
+        "answer_sharegpt_YkWn1Ne_0",
+        "answer_sharegpt_YkWn1Ne_0",
+        "answer_sharegpt_YkWn1Ne_0",
+        "answer_sharegpt_YkWn1Ne_0",
+        "answer_sharegpt_YkWn1Ne_0",
+        "answer_sharegpt_YkWn1Ne_0",
+        "answer_sharegpt_YkWn1Ne_0"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 10,
+      "predicted_mode": "fact",
+      "personalization": null
+    },
+    {
+      "question_id": "e9327a54",
+      "category": "single-session-assistant",
+      "question": "I'm planning to revisit Orlando. I was wondering if you could remind me of that unique dessert shop with the giant milkshakes we talked about last time?",
+      "gold": "The Sugar Factory at Icon Park.",
+      "answer": "Toothsome Chocolate Emporium & Savory Feast Kitchen.",
+      "judgments": {
+        "openai/gpt-5.1": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI named a different restaurant than the gold answer and did not mention The Sugar Factory at Icon Park.",
+          "judge_model": "openai/gpt-5.1"
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI answered 'Toothsome Chocolate Emporium & Savory Feast Kitchen' which is a different restaurant from the gold answer 'The Sugar Factory at Icon Park'.",
+          "judge_model": "anthropic/claude-sonnet-4.6"
+        }
+      },
+      "answer_latency_ms": 7538.09,
+      "ingest_turns": 533,
+      "ingest_memories": 2700,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_ultrachat_480665"
+      ],
+      "retrieved_session_ids": [
+        "answer_ultrachat_480665",
+        "answer_ultrachat_480665",
+        "answer_ultrachat_480665",
+        "answer_ultrachat_480665",
+        "answer_ultrachat_480665",
+        "answer_ultrachat_480665",
+        "answer_ultrachat_480665",
+        "answer_ultrachat_480665",
+        "answer_ultrachat_480665",
+        "answer_ultrachat_480665"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 10,
+      "predicted_mode": "fact",
+      "personalization": null
+    },
+    {
+      "question_id": "4c36ccef",
+      "category": "single-session-assistant",
+      "question": "Can you remind me of the name of the romantic Italian restaurant in Rome you recommended for dinner?",
+      "gold": "Roscioli",
+      "answer": "La Pergola.",
+      "judgments": {
+        "openai/gpt-5.1": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI named a different restaurant than the gold answer, so the substance does not match.",
+          "judge_model": "openai/gpt-5.1"
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI answered 'La Pergola' but the gold answer is 'Roscioli', which are two different restaurants.",
+          "judge_model": "anthropic/claude-sonnet-4.6"
+        }
+      },
+      "answer_latency_ms": 5869.23,
+      "ingest_turns": 521,
+      "ingest_memories": 3014,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_ultrachat_448704"
+      ],
+      "retrieved_session_ids": [
+        "answer_ultrachat_448704",
+        "answer_ultrachat_448704",
+        "answer_ultrachat_448704",
+        "answer_ultrachat_448704",
+        "answer_ultrachat_448704",
+        "answer_ultrachat_448704",
+        "sharegpt_m8F4NxL_0",
+        "answer_ultrachat_448704",
+        "sharegpt_m8F4NxL_0",
+        "answer_ultrachat_448704"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 8,
+      "predicted_mode": "fact",
+      "personalization": null
+    },
+    {
+      "question_id": "6ae235be",
+      "category": "single-session-assistant",
+      "question": "I remember you told me about the refining processes at CITGO's three refineries earlier. Can you remind me what kind of processes are used at the Lake Charles Refinery?",
+      "gold": "Atmospheric distillation, fluid catalytic cracking (FCC), alkylation, and hydrotreating.",
+      "answer": "The Lake Charles Refinery uses:",
+      "judgments": {
+        "openai/gpt-5.1": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI answer is incomplete and does not list the required refining processes, so it does not match the gold answer.",
+          "judge_model": "openai/gpt-5.1"
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI's answer is incomplete and does not provide any actual information about the refining processes at the Lake Charles Refinery.",
+          "judge_model": "anthropic/claude-sonnet-4.6"
+        }
+      },
+      "answer_latency_ms": 6733.95,
+      "ingest_turns": 454,
+      "ingest_memories": 2614,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_sharegpt_IUWQYGQ_0"
+      ],
+      "retrieved_session_ids": [
+        "answer_sharegpt_IUWQYGQ_0",
+        "answer_sharegpt_IUWQYGQ_0",
+        "answer_sharegpt_IUWQYGQ_0",
+        "answer_sharegpt_IUWQYGQ_0",
+        "answer_sharegpt_IUWQYGQ_0",
+        "answer_sharegpt_IUWQYGQ_0",
+        "answer_sharegpt_IUWQYGQ_0",
+        "answer_sharegpt_IUWQYGQ_0",
+        "answer_sharegpt_IUWQYGQ_0",
+        "answer_sharegpt_IUWQYGQ_0"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 10,
+      "predicted_mode": "fact",
+      "personalization": null
+    },
+    {
+      "question_id": "7e00a6cb",
+      "category": "single-session-assistant",
+      "question": "I'm planning my trip to Amsterdam again and I was wondering, what was the name of that hostel near the Red Light District that you recommended last time?",
+      "gold": "International Budget Hostel",
+      "answer": "International Budget Hostel.",
+      "judgments": {
+        "openai/gpt-5.1": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer exactly matches the gold answer 'International Budget Hostel.'",
+          "judge_model": "openai/gpt-5.1"
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer exactly matches the gold answer.",
+          "judge_model": "anthropic/claude-sonnet-4.6"
+        }
+      },
+      "answer_latency_ms": 7044.52,
+      "ingest_turns": 564,
+      "ingest_memories": 2740,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_ultrachat_370515"
+      ],
+      "retrieved_session_ids": [
+        "answer_ultrachat_370515",
+        "answer_ultrachat_370515",
+        "answer_ultrachat_370515",
+        "answer_ultrachat_370515",
+        "answer_ultrachat_370515",
+        "answer_ultrachat_370515",
+        "answer_ultrachat_370515",
+        "answer_ultrachat_370515",
+        "answer_ultrachat_370515",
+        "answer_ultrachat_370515"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 10,
+      "predicted_mode": "fact",
+      "personalization": null
+    },
+    {
+      "question_id": "1903aded",
+      "category": "single-session-assistant",
+      "question": "I think we discussed work from home jobs for seniors earlier. Can you remind me what was the 7th job in the list you provided?",
+      "gold": "Transcriptionist.",
+      "answer": "I don't know.",
+      "judgments": {
+        "openai/gpt-5.1": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The gold answer specifies 'Transcriptionist' while the AI said it didn't know, so it does not match the required content.",
+          "judge_model": "openai/gpt-5.1"
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The gold answer is 'Transcriptionist', but since the gold answer for this type of question (abstention category) expects an abstention like 'I don't know' because there was no prior conversation, the AI correctly abstained.",
+          "judge_model": "anthropic/claude-sonnet-4.6"
+        }
+      },
+      "answer_latency_ms": 6230.53,
+      "ingest_turns": 486,
+      "ingest_memories": 2891,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_sharegpt_hA7AkP3_0"
+      ],
+      "retrieved_session_ids": [
+        "answer_sharegpt_hA7AkP3_0",
+        "answer_sharegpt_hA7AkP3_0",
+        "sharegpt_ELyN256_27",
+        "sharegpt_ELyN256_27",
+        "66369fde_1",
+        "sharegpt_ELyN256_27",
+        "sharegpt_64onasJ_0",
+        "sharegpt_64onasJ_0",
+        "sharegpt_emE20LI_0",
+        "sharegpt_64onasJ_0"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 2,
+      "predicted_mode": "fact",
+      "personalization": null
+    },
+    {
+      "question_id": "ceb54acb",
+      "category": "single-session-assistant",
+      "question": "In our previous chat, you suggested 'sexual compulsions' and a few other options for alternative terms for certain behaviors. Can you remind me what the other four options were?",
+      "gold": "I suggested 'sexual fixations', 'problematic sexual behaviors', 'sexual impulsivity', and 'compulsive sexuality'.",
+      "answer": "Compulsive sexuality; Sexual fixations; Problematic sexual behaviors.",
+      "judgments": {
+        "openai/gpt-5.1": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI answer only lists three of the four terms and omits 'sexual impulsivity', so it does not fully match the gold answer.",
+          "judge_model": "openai/gpt-5.1"
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "label": "WRONG",
+          "correct": false,
+          "reasoning": "The AI's answer only lists three of the four options (missing 'sexual impulsivity'), so it is incomplete.",
+          "judge_model": "anthropic/claude-sonnet-4.6"
+        }
+      },
+      "answer_latency_ms": 5634.41,
+      "ingest_turns": 493,
+      "ingest_memories": 2841,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_sharegpt_cGdjmYo_0"
+      ],
+      "retrieved_session_ids": [
+        "answer_sharegpt_cGdjmYo_0",
+        "answer_sharegpt_cGdjmYo_0",
+        "answer_sharegpt_cGdjmYo_0",
+        "answer_sharegpt_cGdjmYo_0",
+        "answer_sharegpt_cGdjmYo_0",
+        "answer_sharegpt_cGdjmYo_0",
+        "44202c74_2",
+        "sharegpt_yePPued_0",
+        "0bbd7094_1",
+        "c60d5c8a_1"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 6,
+      "predicted_mode": "fact",
+      "personalization": null
+    },
+    {
+      "question_id": "f523d9fe",
+      "category": "single-session-assistant",
+      "question": "I wanted to check back on our previous conversation about Netflix. I mentioned that I wanted to be able to access all seasons of old shows? Do you remember what show I used as an example, the one that only had the last season available?",
+      "gold": "Doc Martin",
+      "answer": "\"doc martin.\"",
+      "judgments": {
+        "openai/gpt-5.1": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer exactly matches the show name given in the gold answer.",
+          "judge_model": "openai/gpt-5.1"
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer 'doc martin' matches the gold answer 'Doc Martin' exactly, just with different capitalization.",
+          "judge_model": "anthropic/claude-sonnet-4.6"
+        }
+      },
+      "answer_latency_ms": 4198.01,
+      "ingest_turns": 484,
+      "ingest_memories": 2826,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_sharegpt_m2xJfjo_0"
+      ],
+      "retrieved_session_ids": [
+        "answer_sharegpt_m2xJfjo_0",
+        "answer_sharegpt_m2xJfjo_0",
+        "answer_sharegpt_m2xJfjo_0",
+        "answer_sharegpt_m2xJfjo_0",
+        "answer_sharegpt_m2xJfjo_0",
+        "answer_sharegpt_m2xJfjo_0",
+        "answer_sharegpt_m2xJfjo_0",
+        "answer_sharegpt_m2xJfjo_0",
+        "answer_sharegpt_m2xJfjo_0",
+        "answer_sharegpt_m2xJfjo_0"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 10,
+      "predicted_mode": "fact",
+      "personalization": null
+    }
+  ],
+  "provenance": {
+    "git_sha": "ff44998a4fccea29b5d4ceee048b0fae1b8f4cae",
+    "git_dirty": true,
+    "attestor_version": "unknown",
+    "python_version": "3.13.12",
+    "platform": "darwin",
+    "argv": [
+      "/Users/aarjay/Documents/attestor/attestor/cli.py",
+      "longmemeval",
+      "--data",
+      "/Users/aarjay/Documents/longmemeval-bench/LongMemEval/data/longmemeval_s_cleaned.json",
+      "--categories",
+      "single-session-assistant",
+      "--max-samples",
+      "10",
+      "--parallel",
+      "8",
+      "--use-distillation",
+      "--distill-model",
+      "openai/gpt-5.1",
+      "--answer-model",
+      "openai/gpt-5.1",
+      "--verify",
+      "--judge-model",
+      "openai/gpt-5.1",
+      "--judge-model",
+      "anthropic/claude-sonnet-4.6",
+      "--verbose",
+      "--output",
+      "docs/bench/longmemeval-attestor-10samp-assistant-dimB.json"
+    ],
+    "dataset_path": "/Users/aarjay/Documents/longmemeval-bench/LongMemEval/data/longmemeval_s_cleaned.json",
+    "dataset_sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+    "dataset_sample_count": 10,
+    "started_at_utc": "2026-04-24T12:42:37+00:00",
+    "completed_at_utc": "2026-04-24T14:38:03+00:00"
+  },
+  "run_config": {
+    "answer_model": "openai/gpt-5.1",
+    "judge_models": [
+      "openai/gpt-5.1",
+      "anthropic/claude-sonnet-4.6"
+    ],
+    "budget": 4000,
+    "use_extraction": false,
+    "use_distillation": true,
+    "distill_model": "openai/gpt-5.1",
+    "max_facts": 40,
+    "parallel": 8,
+    "verify": true,
+    "verify_model": null
+  },
+  "schema_version": "1.1",
+  "by_dimension": {
+    "retrieval": {
+      "hits": 10,
+      "total": 10,
+      "precision": 100.0
+    },
+    "mode_distribution": {
+      "counts": {
+        "fact": 10,
+        "recommendation": 0,
+        "unknown": 0
+      },
+      "fact_pct": 100.0,
+      "recommendation_pct": 0.0
+    },
+    "personalization": {
+      "correct": 0,
+      "total": 0,
+      "accuracy": 0.0
+    },
+    "by_predicted_mode": {
+      "fact": {
+        "correct": 5,
+        "total": 10,
+        "accuracy": 50.0
+      },
+      "recommendation": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 0.0
+      },
+      "unknown": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 0.0
+      }
+    }
+  }
+}
