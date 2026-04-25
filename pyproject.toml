@@ -1,6 +1,6 @@
 [project]
 name = "attestor"
-version = "3.0.0"
+version = "4.0.0a1"
 description = "Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval."
 readme = "README.md"
 license = "MIT"

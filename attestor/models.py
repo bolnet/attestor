@@ -6,7 +6,128 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Dict, List, Optional
+
+
+# ── v4 Identity primitives ────────────────────────────────────────────────
+
+
+class MemoryScope(str, Enum):
+    """Visibility scope for a memory.
+
+    USER     — visible across all sessions and projects of this user (default)
+    PROJECT  — visible across all sessions in one project
+    SESSION  — visible only within a single conversation session
+    """
+    USER = "user"
+    PROJECT = "project"
+    SESSION = "session"
+
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+@dataclass(frozen=True)
+class User:
+    id: str
+    external_id: str
+    email: Optional[str] = None
+    display_name: Optional[str] = None
+    status: str = "active"
+    created_at: datetime = field(default_factory=_now_utc)
+    deleted_at: Optional[datetime] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_row(cls, row: Dict[str, Any]) -> User:
+        meta = row.get("metadata") or {}
+        if isinstance(meta, str):
+            meta = json.loads(meta)
+        return cls(
+            id=str(row["id"]),
+            external_id=row["external_id"],
+            email=row.get("email"),
+            display_name=row.get("display_name"),
+            status=row.get("status", "active"),
+            created_at=row["created_at"],
+            deleted_at=row.get("deleted_at"),
+            metadata=meta,
+        )
+
+
+@dataclass(frozen=True)
+class Project:
+    id: str
+    user_id: str
+    name: str
+    description: Optional[str] = None
+    status: str = "active"
+    created_at: datetime = field(default_factory=_now_utc)
+    archived_at: Optional[datetime] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def is_inbox(self) -> bool:
+        return bool(self.metadata.get("is_inbox"))
+
+    @classmethod
+    def from_row(cls, row: Dict[str, Any]) -> Project:
+        meta = row.get("metadata") or {}
+        if isinstance(meta, str):
+            meta = json.loads(meta)
+        return cls(
+            id=str(row["id"]),
+            user_id=str(row["user_id"]),
+            name=row["name"],
+            description=row.get("description"),
+            status=row.get("status", "active"),
+            created_at=row["created_at"],
+            archived_at=row.get("archived_at"),
+            metadata=meta,
+        )
+
+
+@dataclass(frozen=True)
+class Session:
+    id: str
+    user_id: str
+    project_id: Optional[str] = None
+    title: Optional[str] = None
+    status: str = "active"
+    created_at: datetime = field(default_factory=_now_utc)
+    last_active_at: datetime = field(default_factory=_now_utc)
+    ended_at: Optional[datetime] = None
+    message_count: int = 0
+    consolidation_state: str = "pending"
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_row(cls, row: Dict[str, Any]) -> Session:
+        meta = row.get("metadata") or {}
+        if isinstance(meta, str):
+            meta = json.loads(meta)
+        return cls(
+            id=str(row["id"]),
+            user_id=str(row["user_id"]),
+            project_id=str(row["project_id"]) if row.get("project_id") else None,
+            title=row.get("title"),
+            status=row.get("status", "active"),
+            created_at=row["created_at"],
+            last_active_at=row["last_active_at"],
+            ended_at=row.get("ended_at"),
+            message_count=row.get("message_count", 0),
+            consolidation_state=row.get("consolidation_state", "pending"),
+            metadata=meta,
+        )
+
+
+# ── Existing Memory / RetrievalResult (Phase 0 keeps the v3 shape) ───────
+# Phase 1 will extend Memory with v4 columns (user_id, scope, t_created, etc.)
+# and rewrite namespace usage. For Phase 0 we ship the schema + identity
+# primitives without touching the existing Memory dataclass — keeps every
+# caller working until Phase 1 lands.
 
 
 @dataclass
