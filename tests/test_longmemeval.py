@@ -750,6 +750,27 @@ def test_distill_prompt_includes_all_placeholders_and_rules() -> None:
 
 
 @pytest.mark.unit
+def test_distill_prompt_teaches_relative_date_resolution() -> None:
+    """Post-bugfix (phase2 temporal failures, 2026-04-25): the distiller MUST
+    teach weekday arithmetic and 'WEEKDAY before/after DATE' resolution.
+    Surfaced by 6 multi_hop failures off by ~7 days (e.g. 'Friday before
+    July 15' → returned July 7 instead of July 14)."""
+    # Algorithm hints in rule 4.
+    assert "weekday-relative" in DISTILL_PROMPT
+    assert "do not default to ±7 days" in DISTILL_PROMPT
+    assert "WEEKDAY before/after DATE" in DISTILL_PROMPT
+    assert "resolve relative to DATE, not to session_date" in DISTILL_PROMPT
+    assert "the week before" in DISTILL_PROMPT
+    # Worked examples — model-as-few-shot for relative dates.
+    assert "last Sunday" in DISTILL_PROMPT
+    assert "2023-05-21" in DISTILL_PROMPT  # the resolved-Sunday answer
+    assert "the Friday before" in DISTILL_PROMPT
+    assert "2023-07-14" in DISTILL_PROMPT  # the resolved-Friday answer
+    # Ambiguity fallback — never silently guess.
+    assert "KEEP the original phrase verbatim" in DISTILL_PROMPT
+
+
+@pytest.mark.unit
 def test_distill_prompt_preserves_assistant_facts() -> None:
     """Post-bugfix: the distiller MUST retain assistant-provided facts even
     when the user didn't explicitly commit to acting on them. Surfaced by
