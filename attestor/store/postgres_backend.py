@@ -109,7 +109,32 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             row = cur.fetchone()
             return row[0] if row else None
 
-    # ── Schema Init ──
+    # ── v4 RLS / schema helpers (Phase 1; not yet wired by default) ──
+
+    def _set_rls_user(self, user_id: Optional[str]) -> None:
+        """Set the connection-local RLS variable so policies on v4 tables
+        filter by this user. Pass None / empty to clear (fail-closed).
+
+        Must be called on every connection checkout once the v4 schema is
+        in use. No-op for v3 schema since v3 tables have no RLS policies."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT set_config('attestor.current_user_id', %s, false)",
+                (str(user_id) if user_id else "",),
+            )
+
+    def _load_v4_schema_sql(self) -> str:
+        """Read attestor/store/schema.sql and substitute {embedding_dim}.
+
+        The caller is responsible for executing the result. Used by
+        higher-level v4 init paths and by tests."""
+        from pathlib import Path
+        path = Path(__file__).resolve().parent / "schema.sql"
+        return path.read_text().replace(
+            "{embedding_dim}", str(self._embedding_dim)
+        )
+
+    # ── Schema Init (v3 — kept until Phase 2 switches the default) ──
 
     def _init_schema(self) -> None:
         """Create memories table and indexes."""

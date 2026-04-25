@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from attestor.models import Memory, RetrievalResult
+from attestor.models import Memory, MemoryScope, RetrievalResult
 
 
 class Visibility(str, Enum):
@@ -70,6 +70,11 @@ class AgentContext:
     session_id: str = field(default_factory=lambda: uuid.uuid4().hex[:16])
     namespace: str = "default"
     role: AgentRole = AgentRole.EXECUTOR
+
+    # -- v4 tenancy (None when running in v3-compat / SOLO-bootstrap mode) --
+    user_id: Optional[str] = None
+    project_id: Optional[str] = None
+    scope_default: MemoryScope = MemoryScope.USER
 
     # -- Memory access --
     # Either an AgentMemory instance (embedded) or an HTTP client (distributed).
@@ -136,6 +141,9 @@ class AgentContext:
             session_id=self.session_id,
             namespace=self.namespace,
             role=role,
+            user_id=self.user_id,
+            project_id=self.project_id,
+            scope_default=self.scope_default,
             memory=self.memory,
             memory_url=self.memory_url,
             token_budget=token_budget or self.token_budget,
@@ -154,6 +162,54 @@ class AgentContext:
             requires_human_review=self.requires_human_review,
             read_only=read_only,
         )
+
+    @classmethod
+    def for_chat(
+        cls,
+        user_id: str,
+        project_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        agent_id: str = "chat",
+        role: AgentRole = AgentRole.EXECUTOR,
+        scope_default: MemoryScope = MemoryScope.USER,
+        memory: Any = None,
+        memory_url: Optional[str] = None,
+        token_budget: int = 20000,
+    ) -> AgentContext:
+        """Build a v4 chat-flow context anchored to a real user.
+
+        ``namespace`` is auto-derived as ``user:{uid}[/project:{pid}][/session:{sid}]``
+        for backward compat with tag/log code that still reads it. The structured
+        ``user_id`` / ``project_id`` / ``session_id`` are the source of truth for
+        all DB queries; namespace is denormalized only.
+        """
+        return cls(
+            agent_id=agent_id,
+            session_id=session_id or uuid.uuid4().hex[:16],
+            namespace=cls._build_namespace(user_id, project_id, session_id),
+            role=role,
+            user_id=user_id,
+            project_id=project_id,
+            scope_default=scope_default,
+            memory=memory,
+            memory_url=memory_url,
+            token_budget=token_budget,
+            current_agent=agent_id,
+            agent_trail=[agent_id],
+        )
+
+    @staticmethod
+    def _build_namespace(
+        user_id: str,
+        project_id: Optional[str],
+        session_id: Optional[str],
+    ) -> str:
+        ns = f"user:{user_id}"
+        if project_id:
+            ns += f"/project:{project_id}"
+        if session_id:
+            ns += f"/session:{session_id}"
+        return ns
 
     @classmethod
     def from_env(cls, agent_id: str, **overrides: Any) -> AgentContext:
