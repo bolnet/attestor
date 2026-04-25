@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional
 
-from attestor.models import Memory, RetrievalResult
+from attestor.models import Memory, Project, RetrievalResult, Session, User
 from attestor.retrieval.orchestrator import RetrievalOrchestrator
 from attestor.store.base import DocumentStore, GraphStore, VectorStore
 from attestor.store.registry import (
@@ -139,6 +139,160 @@ class AgentMemory:
 
     def __exit__(self, *args):
         self.close()
+
+    # -- v4 identity (Phase 1 chunk 4) --
+    #
+    # The repos are constructed lazily and share the document store's
+    # psycopg2 connection. That keeps the RLS variable consistent: any
+    # SELECT / INSERT issued through a repo runs in the same session as
+    # the memory writes that follow.
+    #
+    # Provisioning (create user / ensure inbox) requires admin / RLS-
+    # bypassing context — the policies do not match yet because the user
+    # row hasn't been seen by the policy yet. Callers running in v4 mode
+    # are expected to use a Postgres role that owns the tables (RLS skipped
+    # for table owners) for the bootstrap path. Once a user exists we set
+    # the RLS variable and the rest of the surface is tenant-scoped.
+
+    def _require_v4(self) -> None:
+        if not getattr(self._store, "_v4", False):
+            raise RuntimeError(
+                "Identity APIs require v4 mode. Set ATTESTOR_V4=1 or pass "
+                "v4=True in the postgres backend config."
+            )
+
+    def _pg_conn(self) -> Any:
+        """Return the underlying psycopg2 connection on the document store.
+
+        Raises if the store doesn't expose ``_conn`` — only Postgres-backed
+        v4 deployments are supported in this chunk; ArangoDB / Cosmos / etc.
+        get identity wiring in Phase 1.5."""
+        conn = getattr(self._store, "_conn", None)
+        if conn is None:
+            raise RuntimeError(
+                "Identity APIs currently require the Postgres backend "
+                "(no _conn on store=%s)" % type(self._store).__name__
+            )
+        return conn
+
+    def _user_repo(self) -> Any:
+        from attestor.identity.users import UserRepo
+        if not hasattr(self, "_users"):
+            self._users = UserRepo(self._pg_conn())
+        return self._users
+
+    def _project_repo(self) -> Any:
+        from attestor.identity.projects import ProjectRepo
+        if not hasattr(self, "_projects"):
+            self._projects = ProjectRepo(self._pg_conn())
+        return self._projects
+
+    def _session_repo(self) -> Any:
+        from attestor.identity.sessions import SessionRepo
+        if not hasattr(self, "_sessions"):
+            self._sessions = SessionRepo(self._pg_conn())
+        return self._sessions
+
+    def ensure_user(
+        self,
+        external_id: str,
+        email: Optional[str] = None,
+        display_name: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> User:
+        """Idempotent first-login provisioning. Returns the user; safe to
+        call on every request. Inbox project is created on first call so
+        the caller never has to think about it."""
+        self._require_v4()
+        user = self._user_repo().create_or_get(
+            external_id=external_id,
+            email=email,
+            display_name=display_name,
+            metadata=metadata,
+        )
+        # Auto-provision Inbox so chat can start a session immediately.
+        self._project_repo().ensure_inbox(user.id)
+        return user
+
+    def get_user(self, user_id: str) -> Optional[User]:
+        self._require_v4()
+        return self._user_repo().get(user_id)
+
+    def find_user_by_external_id(self, external_id: str) -> Optional[User]:
+        self._require_v4()
+        return self._user_repo().find_by_external_id(external_id)
+
+    def ensure_inbox(self, user_id: str) -> Project:
+        """Idempotent. The Inbox is the default project for sessions that
+        haven't been assigned to one. Lives forever; cannot be deleted."""
+        self._require_v4()
+        return self._project_repo().ensure_inbox(user_id)
+
+    def create_project(
+        self,
+        user_id: str,
+        name: str,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Project:
+        self._require_v4()
+        return self._project_repo().create(
+            user_id=user_id, name=name,
+            description=description, metadata=metadata,
+        )
+
+    def list_projects(
+        self, user_id: str, include_inbox: bool = False, limit: int = 100,
+    ) -> List[Project]:
+        self._require_v4()
+        return self._project_repo().list_for_user(
+            user_id, include_inbox=include_inbox, limit=limit,
+        )
+
+    def start_session(
+        self,
+        user_id: str,
+        project_id: Optional[str] = None,
+        title: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Session:
+        """Open a new session. If ``project_id`` is None, drops it into the
+        user's Inbox so the caller never has to provision one upfront."""
+        self._require_v4()
+        if project_id is None:
+            project_id = self.ensure_inbox(user_id).id
+        return self._session_repo().create(
+            user_id=user_id, project_id=project_id,
+            title=title, metadata=metadata,
+        )
+
+    def get_or_create_daily_session(
+        self, user_id: str, day: str, project_id: Optional[str] = None,
+    ) -> Session:
+        """SOLO-mode helper — one session per (user, ISO-date)."""
+        self._require_v4()
+        if project_id is None:
+            project_id = self.ensure_inbox(user_id).id
+        return self._session_repo().get_or_create_daily(
+            user_id=user_id, project_id=project_id, day=day,
+        )
+
+    def end_session(self, session_id: str) -> Optional[Session]:
+        self._require_v4()
+        return self._session_repo().end(session_id)
+
+    def list_sessions(
+        self,
+        user_id: str,
+        project_id: Optional[str] = None,
+        status: str = "active",
+        limit: int = 20,
+    ) -> List[Session]:
+        self._require_v4()
+        return self._session_repo().list_for_user(
+            user_id=user_id, project_id=project_id,
+            status=status, limit=limit,
+        )
 
     def _ensure_docker(self, backend_name: str, bcfg: Dict[str, Any]) -> None:
         """Start a Docker container for backends that require one.

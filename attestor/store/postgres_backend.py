@@ -89,9 +89,16 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         self._embedder = None  # lazy-init via shared embeddings module
         self._embedding_fn = None  # backward compat for benchmark code
         self._has_age = False  # set by _init_age()
-        # Determine embedding dimension before schema init
-        self._ensure_embedding_fn()
-        self._embedding_dim = self._embedder.dimension
+        # Determine embedding dimension before schema init. Caller may pass
+        # `embedding_dim` to skip the embedder probe entirely (useful when
+        # the embedder lives in a separate service, in tests that only need
+        # the document path, or when the provider is temporarily unavailable
+        # but the schema is already in place).
+        if config.get("embedding_dim") is not None:
+            self._embedding_dim = int(config["embedding_dim"])
+        else:
+            self._ensure_embedding_fn()
+            self._embedding_dim = self._embedder.dimension
 
         # v4 mode is opt-in via ATTESTOR_V4=1 env var or config["v4"]=True.
         # When ON: load attestor/store/schema.sql (greenfield v4 schema).
@@ -101,10 +108,19 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             config.get("v4", False)
             or os.environ.get("ATTESTOR_V4") in {"1", "true", "True"}
         )
-        if self._v4:
-            self._init_schema_v4()
-        else:
-            self._init_schema()
+        # Production deployments often run with a separate migration role
+        # that owns the tables and a runtime role that does not. The runtime
+        # role can't ALTER TABLE / CREATE POLICY. Same applies in tests that
+        # boot AgentMemory as a non-superuser to verify RLS.
+        skip_schema = bool(
+            config.get("skip_schema_init", False)
+            or os.environ.get("ATTESTOR_SKIP_SCHEMA_INIT") in {"1", "true", "True"}
+        )
+        if not skip_schema:
+            if self._v4:
+                self._init_schema_v4()
+            else:
+                self._init_schema()
         self._init_age()
 
     def _execute(self, sql: str, params: Any = None) -> List[Dict[str, Any]]:
