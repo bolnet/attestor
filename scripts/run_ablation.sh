@@ -54,7 +54,7 @@ set +a
 COMMON_FLAGS=(
   --data "$DATA"
   --max-samples 10
-  --parallel 8
+  --parallel "${PARALLEL:-8}"
   --use-distillation --distill-model openai/gpt-5.1
   --answer-model openai/gpt-5.1
   --verify
