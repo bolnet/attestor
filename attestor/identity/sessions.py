@@ -130,8 +130,13 @@ class SessionRepo:
         self._conn.commit()
 
     def end(self, session_id: str) -> Optional[Session]:
-        """Transition active/idle → ended. Caller should enqueue
-        consolidation after this (Phase 7)."""
+        """Transition active/idle → ended AND enqueue the session's
+        episodes for sleep-time consolidation (Phase 7.4).
+
+        Episodes that have already been consolidated (state='done') are
+        re-enqueued — ending a session is a strong "please re-look at
+        these with the stronger model" signal.
+        """
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "UPDATE sessions SET status = 'ended', ended_at = NOW() "
@@ -141,7 +146,28 @@ class SessionRepo:
             )
             row = cur.fetchone()
         self._conn.commit()
-        return Session.from_row(dict(row)) if row else None
+        if row is None:
+            return None
+        # Enqueue every episode in this session that's done/failed back
+        # into pending. Already-pending/processing rows are untouched.
+        try:
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE episodes "
+                    "SET consolidation_state = 'pending', "
+                    "    consolidation_claimed_at = NULL, "
+                    "    consolidation_done_at = NULL, "
+                    "    consolidation_error = NULL "
+                    "WHERE session_id = %s "
+                    "  AND consolidation_state IN ('done', 'failed')",
+                    (session_id,),
+                )
+            self._conn.commit()
+        except Exception:
+            # If the episodes table is older (no consolidation_state),
+            # silently skip — the lifecycle transition itself succeeded.
+            pass
+        return Session.from_row(dict(row))
 
     def archive(self, session_id: str) -> Optional[Session]:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:

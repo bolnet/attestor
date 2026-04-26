@@ -488,6 +488,37 @@ class AgentMemory:
             recent_context=recent_context,
         )
 
+    # -- v4 sleep-time consolidation (Phase 7) --
+
+    def consolidate(
+        self,
+        *,
+        limit: int = 20,
+        model: Optional[str] = None,
+        extraction_client: Optional[Any] = None,
+        resolver_client: Optional[Any] = None,
+    ) -> List[Any]:
+        """Drain one batch from the consolidation queue in-process.
+
+        For long-running daemons use ``SleepTimeConsolidator.run_forever``
+        directly. This method is for tests and one-shot manual triggers
+        (e.g., ``attestor consolidate run``).
+
+        Returns a list of ``ConsolidationResult`` (one per processed
+        episode). Empty list when the queue is drained.
+        """
+        self._require_v4()
+        from attestor.consolidation import SleepTimeConsolidator
+        kwargs: Dict[str, Any] = {"batch_size": limit}
+        if model:
+            kwargs["model"] = model
+        if extraction_client is not None:
+            kwargs["extraction_client"] = extraction_client
+        if resolver_client is not None:
+            kwargs["resolver_client"] = resolver_client
+        cons = SleepTimeConsolidator(self, **kwargs)
+        return cons.run_once(limit=limit)
+
     @property
     def mode(self) -> AttestorMode:
         """The detected operating mode. Settable via ``config["mode"]`` or
