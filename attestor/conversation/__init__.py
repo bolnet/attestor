@@ -12,11 +12,22 @@ and retrieval. This package owns the end-to-end ingest path:
 Extraction lives in ``attestor.extraction``; this package wires it.
 """
 
+from attestor.conversation.apply import AppliedDecision, apply_decisions
 from attestor.conversation.episodes import Episode, EpisodeRepo
+from attestor.conversation.ingest import (
+    ConversationIngest,
+    IngestConfig,
+    RoundResult,
+)
 from attestor.conversation.turns import ConversationTurn
 
 __all__ = [
     "ConversationTurn",
     "Episode",
     "EpisodeRepo",
+    "AppliedDecision",
+    "apply_decisions",
+    "ConversationIngest",
+    "IngestConfig",
+    "RoundResult",
 ]

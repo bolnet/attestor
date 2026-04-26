@@ -309,6 +309,15 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             "status": memory.status,
             "metadata": json.dumps(memory.metadata),
         }
+        # source_span on the v4 schema is INT4RANGE [start, end). psycopg2
+        # serializes a Python tuple/list of two ints into a Range literal
+        # via the explicit cast in the INSERT.
+        span = memory.source_span
+        if isinstance(span, (list, tuple)) and len(span) == 2:
+            source_span_literal = f"[{int(span[0])},{int(span[1])})"
+        else:
+            source_span_literal = None
+
         # v4-only params — present when caller set them.
         params.update({
             "user_id": memory.user_id,
@@ -316,6 +325,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             "session_id": memory.session_id,
             "scope": memory.scope or "user",
             "source_episode_id": memory.source_episode_id,
+            "source_span": source_span_literal,
             "extraction_model": memory.extraction_model,
             "agent_id": memory.agent_id,
             "parent_agent_id": memory.parent_agent_id,
@@ -351,7 +361,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
                     confidence, status,
                     valid_from, valid_until,
                     superseded_by,
-                    source_episode_id, extraction_model,
+                    source_episode_id, source_span, extraction_model,
                     agent_id, parent_agent_id, visibility, signature,
                     metadata
                 )
@@ -362,7 +372,8 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
                     COALESCE(%(valid_from)s::timestamptz, NOW()),
                     %(valid_until)s::timestamptz,
                     %(superseded_by)s,
-                    %(source_episode_id)s, %(extraction_model)s,
+                    %(source_episode_id)s, %(source_span)s::int4range,
+                    %(extraction_model)s,
                     %(agent_id)s, %(parent_agent_id)s, %(visibility)s, %(signature)s,
                     %(metadata)s::jsonb
                 )
@@ -399,6 +410,28 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
 
     def update(self, memory: Memory) -> Memory:
         p = self._memory_to_params(memory)
+        if self._v4:
+            # v4 has no namespace / created_at / event_date columns.
+            # Mutates only the fields the call surface actually changes.
+            self._execute(
+                """
+                UPDATE memories SET
+                    content       = %(content)s,
+                    tags          = %(tags)s,
+                    category      = %(category)s,
+                    entity        = %(entity)s,
+                    valid_from    = COALESCE(%(valid_from)s::timestamptz, valid_from),
+                    valid_until   = %(valid_until)s::timestamptz,
+                    superseded_by = %(superseded_by)s,
+                    confidence    = %(confidence)s,
+                    status        = %(status)s,
+                    metadata      = %(metadata)s::jsonb
+                WHERE id = %(id)s
+                """,
+                p,
+            )
+            return memory
+        # v3 path
         self._execute("""
             UPDATE memories SET
                 content = %(content)s, tags = %(tags)s, category = %(category)s,
@@ -428,6 +461,11 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         before: Optional[str] = None,
         limit: int = 100,
     ) -> List[Memory]:
+        # v4 schema replaces the v3 ``created_at`` text column with the
+        # bi-temporal ``t_created`` (TIMESTAMPTZ). Use the right one per
+        # active schema; namespace is ignored on v4 (replaced by RLS).
+        time_col = "t_created" if self._v4 else "created_at"
+
         filters = []
         params: Dict[str, Any] = {"lim": limit}
 
@@ -440,19 +478,20 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         if entity:
             filters.append("entity = %(entity)s")
             params["entity"] = entity
-        if namespace:
+        if namespace and not self._v4:
             filters.append("namespace = %(namespace)s")
             params["namespace"] = namespace
         if after:
-            filters.append("created_at >= %(after)s")
+            filters.append(f"{time_col} >= %(after)s")
             params["after"] = after
         if before:
-            filters.append("created_at <= %(before)s")
+            filters.append(f"{time_col} <= %(before)s")
             params["before"] = before
 
         where = " AND ".join(filters) if filters else "TRUE"
         rows = self._execute(
-            f"SELECT * FROM memories WHERE {where} ORDER BY created_at DESC LIMIT %(lim)s",
+            f"SELECT * FROM memories WHERE {where} "
+            f"ORDER BY {time_col} DESC LIMIT %(lim)s",
             params,
         )
         return [self._row_to_memory(r) for r in rows]
