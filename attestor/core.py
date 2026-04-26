@@ -786,10 +786,75 @@ class AgentMemory:
         budget: Optional[int] = None,
         namespace: Optional[str] = None,
     ) -> str:
-        """Recall and format as a context string for prompt injection."""
+        """Recall and format as a context string for prompt injection.
+
+        Legacy v3 surface — returns plain text. New code should prefer
+        ``recall_as_pack`` which returns a structured ``ContextPack``
+        with citations + Chain-of-Note prompt (Phase 6).
+        """
         token_budget = budget or self.config.default_token_budget
         return self._retrieval.recall_as_context(
             query, token_budget, namespace=namespace
+        )
+
+    def recall_as_pack(
+        self,
+        query: str,
+        budget: Optional[int] = None,
+        user_id: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        time_window: Optional[Any] = None,
+        chain_of_note_prompt: Optional[str] = None,
+    ):
+        """Recall as a structured ``ContextPack`` for Chain-of-Note agents.
+
+        The returned pack carries:
+          - memories sorted by score (orchestrator decides ranking)
+          - per-memory: id, content, validity window, confidence,
+            source_episode_id (for citation)
+          - default Chain-of-Note prompt with ABSTAIN clause
+
+        v4 + Phase 5 callers can pass ``as_of`` / ``time_window`` for
+        bi-temporal replay; the pack reflects the snapshot accordingly.
+
+        Phase 6.2 — roadmap §D.1.
+        """
+        from attestor.models import ContextPack, ContextPackEntry
+        from attestor.prompts.chain_of_note import DEFAULT_CHAIN_OF_NOTE_PROMPT
+
+        results = self.recall(
+            query, budget=budget, user_id=user_id,
+            as_of=as_of, time_window=time_window,
+        )
+        # Skip synthetic graph_relation rows — they aren't real memories
+        # and have no citation target.
+        real = [r for r in results if r.memory.category != "graph_relation"]
+        entries = [
+            ContextPackEntry(
+                id=r.memory.id,
+                content=r.memory.content,
+                category=r.memory.category,
+                entity=r.memory.entity,
+                valid_from=r.memory.valid_from,
+                valid_until=r.memory.valid_until,
+                confidence=r.memory.confidence,
+                source_episode_id=r.memory.source_episode_id,
+                score=r.score,
+            )
+            for r in real
+        ]
+        # Rough token-count estimate: ~4 chars/token
+        chars = sum(len(e.content) for e in entries)
+        token_count = chars // 4
+
+        return ContextPack(
+            query=query,
+            memories=entries,
+            as_of=as_of.isoformat() if as_of is not None else None,
+            token_count=token_count,
+            chain_of_note_prompt=(
+                chain_of_note_prompt or DEFAULT_CHAIN_OF_NOTE_PROMPT
+            ),
         )
 
     def search(
