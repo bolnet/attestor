@@ -297,6 +297,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         params = {
             "id": memory.id,
             "content": memory.content,
+            "content_hash": memory.content_hash,
             "tags": memory.tags,
             "category": memory.category,
             "entity": memory.entity,
@@ -358,7 +359,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
                 """
                 INSERT INTO memories (
                     user_id, project_id, session_id, scope,
-                    content, tags, category, entity,
+                    content, content_hash, tags, category, entity,
                     confidence, status,
                     valid_from, valid_until,
                     superseded_by,
@@ -368,7 +369,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
                 )
                 VALUES (
                     %(user_id)s, %(project_id)s, %(session_id)s, %(scope)s,
-                    %(content)s, %(tags)s, %(category)s, %(entity)s,
+                    %(content)s, %(content_hash)s, %(tags)s, %(category)s, %(entity)s,
                     %(confidence)s, %(status)s,
                     COALESCE(%(valid_from)s::timestamptz, NOW()),
                     %(valid_until)s::timestamptz,

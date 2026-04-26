@@ -147,6 +147,21 @@ class AgentMemory:
         # Operation ring buffer for latency observability
         self._ops_log: Deque[Dict[str, Any]] = deque(maxlen=200)
 
+        # v4 provenance signing (Phase 8.1) — opt-in via config["signing"].
+        # When enabled, every memory written through self.add() gets an
+        # Ed25519 signature stored in memories.signature. Verification is
+        # callable via mem.verify_memory(memory_id).
+        self._signer = None
+        signing_cfg = (
+            config.get("signing") if config else None
+        ) or getattr(self.config, "signing", None)
+        if signing_cfg:
+            try:
+                from attestor.identity.signing import Signer
+                self._signer = Signer.from_config(signing_cfg)
+            except Exception as e:
+                logger.warning("provenance signing init failed: %s", e)
+
         # v4 operating mode (SOLO / HOSTED / SHARED). Detected from env on
         # first construction; tests can override via config["mode"]. The
         # mode controls how _resolve() fills missing identity params.
@@ -519,6 +534,31 @@ class AgentMemory:
         cons = SleepTimeConsolidator(self, **kwargs)
         return cons.run_once(limit=limit)
 
+    # -- v4 provenance signing (Phase 8.1) --
+
+    def verify_memory(self, memory_id: str) -> bool:
+        """Verify the Ed25519 signature on a stored memory.
+
+        Returns True if signed AND the signature matches; False if
+        unsigned, missing, or tampered.
+
+        Raises RuntimeError if signing isn't configured for this
+        instance — verification needs the public key in the same place.
+        """
+        if self._signer is None:
+            raise RuntimeError(
+                "verify_memory requires config['signing'] to be set "
+                "(public_key needed for verification)"
+            )
+        row = self._store.get(memory_id)
+        if row is None:
+            return False
+        return self._signer.verify(row)
+
+    @property
+    def signing_enabled(self) -> bool:
+        return self._signer is not None
+
     @property
     def mode(self) -> AttestorMode:
         """The detected operating mode. Settable via ``config["mode"]`` or
@@ -638,6 +678,20 @@ class AgentMemory:
         t0 = time.monotonic()
         self._store.insert(memory)
         store_timings["document_ms"] = round((time.monotonic() - t0) * 1000, 2)
+
+        # v4 provenance signing (Phase 8.1) — sign AFTER insert so the
+        # canonical payload includes the DB-generated id + t_created.
+        if self._signer is not None and v4_active:
+            try:
+                sig = self._signer.sign(memory)
+                memory.signature = sig
+                with self._store._conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE memories SET signature = %s WHERE id = %s",
+                        (sig, memory.id),
+                    )
+            except Exception as e:
+                logger.warning("provenance sign failed for %s: %s", memory.id, e)
 
         # Then supersede old contradicting memories
         for old in contradictions:
