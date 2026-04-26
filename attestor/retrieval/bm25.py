@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("attestor.retrieval.bm25")
@@ -53,31 +54,55 @@ class BM25Lane:
         limit: int = 20,
         min_rank: float = 0.0,
         active_only: bool = True,
+        as_of: Optional[datetime] = None,
+        time_window: Optional[Any] = None,
     ) -> List[BM25Hit]:
         """Return the top BM25-ranked memory ids for ``query``.
 
         RLS scopes the search automatically — the caller must already
         have set ``attestor.current_user_id`` on the connection.
 
+        Phase 5.2 — bi-temporal filters (roadmap §C.2/§C.3):
+          time_window → tstzrange(valid_from, valid_until) && tstzrange
+          as_of       → t_created/t_expired and valid_from/valid_until
+                        evaluated at that point in time
+
         Returns an empty list if the FTS column is missing or the query
         is empty / pure stop words.
         """
         if not query or not query.strip():
             return []
-        sql = """
-            SELECT id,
-                   ts_rank_cd(content_tsv,
-                              websearch_to_tsquery('english', %(q)s)) AS rank
-            FROM memories
-            WHERE content_tsv @@ websearch_to_tsquery('english', %(q)s)
-        """
+        params: Dict[str, Any] = {"q": query, "lim": limit}
+        where: List[str] = ["content_tsv @@ websearch_to_tsquery('english', %(q)s)"]
         if active_only:
-            sql += " AND status = 'active' "
-        sql += " ORDER BY rank DESC LIMIT %(lim)s"
+            where.append("status = 'active'")
+        if as_of is not None:
+            where.append(
+                "t_created <= %(as_of)s "
+                "AND COALESCE(t_expired, 'infinity'::timestamptz) > %(as_of)s "
+                "AND tstzrange(valid_from, "
+                "  COALESCE(valid_until, 'infinity'::timestamptz)) @> %(as_of)s::timestamptz"
+            )
+            params["as_of"] = as_of
+        if time_window is not None:
+            params["tw_start"] = getattr(time_window, "start", None)
+            params["tw_end"] = getattr(time_window, "end", None)
+            where.append(
+                "tstzrange(valid_from, "
+                "  COALESCE(valid_until, 'infinity'::timestamptz)) "
+                "&& tstzrange(%(tw_start)s::timestamptz, %(tw_end)s::timestamptz)"
+            )
+
+        sql = (
+            "SELECT id, "
+            "ts_rank_cd(content_tsv, websearch_to_tsquery('english', %(q)s)) AS rank "
+            "FROM memories WHERE " + " AND ".join(where) +
+            " ORDER BY rank DESC LIMIT %(lim)s"
+        )
 
         try:
             with self._conn.cursor() as cur:
-                cur.execute(sql, {"q": query, "lim": limit})
+                cur.execute(sql, params)
                 rows = cur.fetchall()
         except Exception as e:
             # Most likely the FTS column doesn't exist yet on a v3-only

@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
 import psycopg2
@@ -662,24 +663,64 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         query_text: str,
         limit: int = 20,
         namespace: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        time_window: Optional[Any] = None,    # TimeWindow (avoid import cycle)
     ) -> List[Dict[str, Any]]:
-        """Vector similarity search using pgvector cosine distance."""
+        """Vector similarity search using pgvector cosine distance.
+
+        v4 + Phase 5.2 — bi-temporal filters (roadmap §C.2/§C.3):
+
+          time_window  → tstzrange(valid_from, valid_until) && tstzrange(start, end)
+                         pre-filters by EVENT-time overlap (when the fact
+                         was true in the world)
+
+          as_of        → t_created <= as_of AND t_expired > as_of
+                         AND tstzrange(valid_from, valid_until) @> as_of
+                         filters by TRANSACTION-time AND event-time:
+                         "what did the system believe was true on date X"
+
+        Both filters are additive; passing both narrows further. v3
+        callers omit them — search behaves exactly as before.
+        """
         query_vec = self._embed(query_text)
-        if namespace is None:
-            rows = self._execute(
-                "SELECT id, content, embedding <=> %s::vector AS distance "
-                "FROM memories WHERE embedding IS NOT NULL "
-                "ORDER BY embedding <=> %s::vector LIMIT %s",
-                (str(query_vec), str(query_vec), limit),
-            )
-        else:
-            rows = self._execute(
-                "SELECT id, content, embedding <=> %s::vector AS distance "
-                "FROM memories "
-                "WHERE embedding IS NOT NULL AND namespace = %s "
-                "ORDER BY embedding <=> %s::vector LIMIT %s",
-                (str(query_vec), namespace, str(query_vec), limit),
-            )
+        params: List[Any] = [str(query_vec)]
+        where: List[str] = ["embedding IS NOT NULL"]
+
+        if namespace is not None and not self._v4:
+            where.append("namespace = %s")
+            params.append(namespace)
+
+        if self._v4:
+            # Bi-temporal filters only meaningful on v4 schema
+            if as_of is not None:
+                where.append(
+                    "t_created <= %s "
+                    "AND COALESCE(t_expired, 'infinity'::timestamptz) > %s "
+                    "AND tstzrange(valid_from, "
+                    "  COALESCE(valid_until, 'infinity'::timestamptz)) @> %s::timestamptz"
+                )
+                params.extend([as_of, as_of, as_of])
+            if time_window is not None:
+                tw_start = getattr(time_window, "start", None)
+                tw_end = getattr(time_window, "end", None)
+                # tstzrange(NULL, NULL) is "any time" — Postgres treats
+                # NULL bounds as -infinity / infinity inside the range
+                # constructor, which is what we want for open-ended windows.
+                where.append(
+                    "tstzrange(valid_from, "
+                    "  COALESCE(valid_until, 'infinity'::timestamptz)) "
+                    "&& tstzrange(%s::timestamptz, %s::timestamptz)"
+                )
+                params.extend([tw_start, tw_end])
+
+        sql = (
+            "SELECT id, content, embedding <=> %s::vector AS distance "
+            "FROM memories WHERE " + " AND ".join(where) +
+            " ORDER BY embedding <=> %s::vector LIMIT %s"
+        )
+        params.append(str(query_vec))
+        params.append(limit)
+        rows = self._execute(sql, params)
         return [
             {"memory_id": r["id"], "content": r["content"], "distance": r["distance"]}
             for r in rows
