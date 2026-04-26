@@ -75,12 +75,25 @@ CREATE TABLE IF NOT EXISTS episodes (
     assistant_ts        TIMESTAMPTZ NOT NULL,
     agent_id            VARCHAR(128),
     metadata            JSONB NOT NULL DEFAULT '{}'::jsonb,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Sleep-time consolidation queue (Phase 7.1):
+    --   pending     — never consolidated; queue picks these up
+    --   processing  — claimed by a worker; locked-out for queue_lock_seconds
+    --   done        — consolidator finished; refined facts written
+    --   failed      — consolidator hit a non-retryable error; consolidation_error has why
+    consolidation_state VARCHAR(32) NOT NULL DEFAULT 'pending',
+    consolidation_claimed_at TIMESTAMPTZ,
+    consolidation_done_at    TIMESTAMPTZ,
+    consolidation_error      TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_episodes_user_session_ts
     ON episodes (user_id, session_id, user_ts);
 CREATE INDEX IF NOT EXISTS idx_episodes_thread_ts
     ON episodes (thread_id, user_ts);
+-- Sleep-time queue: only the pending rows matter for the worker
+CREATE INDEX IF NOT EXISTS idx_episodes_consolidation_pending
+    ON episodes (created_at)
+    WHERE consolidation_state = 'pending';
 
 -- ── Memories — v4 native ──────────────────────────────────────────────────
 
