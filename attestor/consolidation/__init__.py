@@ -19,10 +19,24 @@ from attestor.consolidation.consolidator import (
     SleepTimeConsolidator,
 )
 from attestor.consolidation.queue import ConsolidationQueue, QueuedEpisode
+from attestor.consolidation.reflection import (
+    REFLECTION_PROMPT,
+    ChangedBelief,
+    Contradiction,
+    ReflectionEngine,
+    ReflectionResult,
+    StablePattern,
+)
 
 __all__ = [
     "ConsolidationQueue",
     "QueuedEpisode",
     "ConsolidationResult",
     "SleepTimeConsolidator",
+    "REFLECTION_PROMPT",
+    "ReflectionEngine",
+    "ReflectionResult",
+    "StablePattern",
+    "ChangedBelief",
+    "Contradiction",
 ]
