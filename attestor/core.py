@@ -162,6 +162,20 @@ class AgentMemory:
             except Exception as e:
                 logger.warning("provenance signing init failed: %s", e)
 
+        # v4 quota enforcement (Phase 8.3) — auto-enabled on v4 + Postgres
+        # since the user_quotas table is part of the v4 schema. NULL limits
+        # = unlimited, so this is a no-op until SetLimits is called.
+        self._quotas = None
+        if (
+            getattr(self._store, "_v4", False)
+            and getattr(self._store, "_conn", None) is not None
+        ):
+            try:
+                from attestor.quotas import QuotaRepo
+                self._quotas = QuotaRepo(self._store._conn)
+            except Exception as e:
+                logger.debug("QuotaRepo init skipped: %s", e)
+
         # v4 operating mode (SOLO / HOSTED / SHARED). Detected from env on
         # first construction; tests can override via config["mode"]. The
         # mode controls how _resolve() fills missing identity params.
@@ -315,6 +329,8 @@ class AgentMemory:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Project:
         self._require_v4()
+        if self._quotas is not None:
+            self._quotas.check_project_quota(user_id)
         return self._project_repo().create(
             user_id=user_id, name=name,
             description=description, metadata=metadata,
@@ -338,6 +354,8 @@ class AgentMemory:
         """Open a new session. If ``project_id`` is None, drops it into the
         user's Inbox so the caller never has to provision one upfront."""
         self._require_v4()
+        if self._quotas is not None:
+            self._quotas.check_session_quota(user_id)
         if project_id is None:
             project_id = self.ensure_inbox(user_id).id
         return self._session_repo().create(
@@ -534,6 +552,37 @@ class AgentMemory:
         cons = SleepTimeConsolidator(self, **kwargs)
         return cons.run_once(limit=limit)
 
+    # -- v4 quota management (Phase 8.3) --
+
+    def set_quota(
+        self,
+        user_id: str,
+        *,
+        max_memories: Optional[int] = None,
+        max_sessions: Optional[int] = None,
+        max_projects: Optional[int] = None,
+        max_writes_per_day: Optional[int] = None,
+    ) -> Any:
+        """Set per-user quotas. NULL/omitted limits leave that limit
+        unchanged (no implicit unlimited reset)."""
+        self._require_v4()
+        if self._quotas is None:
+            raise RuntimeError("quota repo unavailable on this backend")
+        return self._quotas.set_limits(
+            user_id,
+            max_memories=max_memories,
+            max_sessions=max_sessions,
+            max_projects=max_projects,
+            max_writes_per_day=max_writes_per_day,
+        )
+
+    def get_quota(self, user_id: str) -> Optional[Any]:
+        """Return the current UserQuota row (counters + limits)."""
+        self._require_v4()
+        if self._quotas is None:
+            return None
+        return self._quotas.get(user_id)
+
     # -- v4 provenance signing (Phase 8.1) --
 
     def verify_memory(self, memory_id: str) -> bool:
@@ -643,6 +692,9 @@ class AgentMemory:
             user_id = rc.user.id
             project_id = rc.project.id
             session_id = rc.session.id if rc.session else None
+            # Quota check BEFORE the insert so we don't half-write
+            if self._quotas is not None:
+                self._quotas.check_memory_quota(user_id)
 
         # Dedup: check for exact content match (scoped by namespace)
         chash = self._content_hash(content)
