@@ -190,6 +190,119 @@ CREATE TRIGGER trg_memories_content_tsv
 CREATE INDEX IF NOT EXISTS idx_memories_content_tsv
     ON memories USING GIN (content_tsv);
 
+-- ── User quotas (Phase 8.3) ───────────────────────────────────────────────
+-- One row per user. Limits checked by attestor.quotas before add()/
+-- start_session()/create_project(). Counters are maintained by triggers
+-- so quota checks are a single SELECT, not a COUNT scan.
+CREATE TABLE IF NOT EXISTS user_quotas (
+    user_id           UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    -- Limits (NULL = unlimited)
+    max_memories      INTEGER,
+    max_sessions      INTEGER,
+    max_projects      INTEGER,
+    max_writes_per_day INTEGER,
+    -- Counters (maintained by triggers below)
+    memory_count      INTEGER NOT NULL DEFAULT 0,
+    session_count     INTEGER NOT NULL DEFAULT 0,
+    project_count     INTEGER NOT NULL DEFAULT 0,
+    writes_today      INTEGER NOT NULL DEFAULT 0,
+    writes_today_date DATE    NOT NULL DEFAULT CURRENT_DATE,
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Auto-create a quota row when a user is created
+CREATE OR REPLACE FUNCTION attestor_user_quota_init() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO user_quotas (user_id) VALUES (NEW.id) ON CONFLICT DO NOTHING;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_user_quota_init ON users;
+CREATE TRIGGER trg_user_quota_init
+    AFTER INSERT ON users FOR EACH ROW
+    EXECUTE FUNCTION attestor_user_quota_init();
+
+-- Counter maintenance: memories
+CREATE OR REPLACE FUNCTION attestor_quota_count_memories() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE user_quotas
+        SET memory_count = memory_count + 1,
+            writes_today = CASE WHEN writes_today_date = CURRENT_DATE
+                                THEN writes_today + 1 ELSE 1 END,
+            writes_today_date = CURRENT_DATE,
+            updated_at = NOW()
+        WHERE user_id = NEW.user_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE user_quotas
+        SET memory_count = GREATEST(memory_count - 1, 0),
+            updated_at = NOW()
+        WHERE user_id = OLD.user_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_quota_count_memories ON memories;
+CREATE TRIGGER trg_quota_count_memories
+    AFTER INSERT OR DELETE ON memories
+    FOR EACH ROW EXECUTE FUNCTION attestor_quota_count_memories();
+
+-- Counter maintenance: sessions
+CREATE OR REPLACE FUNCTION attestor_quota_count_sessions() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE user_quotas SET session_count = session_count + 1, updated_at = NOW()
+        WHERE user_id = NEW.user_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE user_quotas SET session_count = GREATEST(session_count - 1, 0), updated_at = NOW()
+        WHERE user_id = OLD.user_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_quota_count_sessions ON sessions;
+CREATE TRIGGER trg_quota_count_sessions
+    AFTER INSERT OR DELETE ON sessions
+    FOR EACH ROW EXECUTE FUNCTION attestor_quota_count_sessions();
+
+-- Counter maintenance: projects
+CREATE OR REPLACE FUNCTION attestor_quota_count_projects() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE user_quotas SET project_count = project_count + 1, updated_at = NOW()
+        WHERE user_id = NEW.user_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE user_quotas SET project_count = GREATEST(project_count - 1, 0), updated_at = NOW()
+        WHERE user_id = OLD.user_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_quota_count_projects ON projects;
+CREATE TRIGGER trg_quota_count_projects
+    AFTER INSERT OR DELETE ON projects
+    FOR EACH ROW EXECUTE FUNCTION attestor_quota_count_projects();
+
+-- ── GDPR deletion audit (Phase 8.5) ──────────────────────────────────────
+-- Append-only log of every user deletion. Regulators need to see THAT a
+-- deletion happened, not the deleted data. Intentionally RLS-EXEMPT so
+-- the row outlives the user it logs (the user_id reference is recorded
+-- as TEXT, not FK — the original users row will be gone).
+CREATE TABLE IF NOT EXISTS deletion_audit (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         TEXT NOT NULL,        -- text, NOT FK (original is gone)
+    external_id     TEXT NOT NULL,        -- the JWT sub of the deleted user
+    deleted_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_by      TEXT,                 -- agent / admin id who triggered it
+    reason          TEXT,                 -- e.g. 'gdpr_request', 'admin_purge'
+    counts          JSONB NOT NULL DEFAULT '{}'::jsonb  -- per-table row counts
+);
+CREATE INDEX IF NOT EXISTS idx_deletion_audit_external_id
+    ON deletion_audit (external_id);
+CREATE INDEX IF NOT EXISTS idx_deletion_audit_deleted_at
+    ON deletion_audit (deleted_at DESC);
+-- NO RLS on deletion_audit. Confirmed by absence of ENABLE ROW LEVEL SECURITY.
+
 -- ── Row-Level Security ────────────────────────────────────────────────────
 -- Hard tenant isolation: even an app-level bug that forgets WHERE user_id=...
 -- returns zero rows from another user's data because the database itself

@@ -147,6 +147,35 @@ class AgentMemory:
         # Operation ring buffer for latency observability
         self._ops_log: Deque[Dict[str, Any]] = deque(maxlen=200)
 
+        # v4 provenance signing (Phase 8.1) — opt-in via config["signing"].
+        # When enabled, every memory written through self.add() gets an
+        # Ed25519 signature stored in memories.signature. Verification is
+        # callable via mem.verify_memory(memory_id).
+        self._signer = None
+        signing_cfg = (
+            config.get("signing") if config else None
+        ) or getattr(self.config, "signing", None)
+        if signing_cfg:
+            try:
+                from attestor.identity.signing import Signer
+                self._signer = Signer.from_config(signing_cfg)
+            except Exception as e:
+                logger.warning("provenance signing init failed: %s", e)
+
+        # v4 quota enforcement (Phase 8.3) — auto-enabled on v4 + Postgres
+        # since the user_quotas table is part of the v4 schema. NULL limits
+        # = unlimited, so this is a no-op until SetLimits is called.
+        self._quotas = None
+        if (
+            getattr(self._store, "_v4", False)
+            and getattr(self._store, "_conn", None) is not None
+        ):
+            try:
+                from attestor.quotas import QuotaRepo
+                self._quotas = QuotaRepo(self._store._conn)
+            except Exception as e:
+                logger.debug("QuotaRepo init skipped: %s", e)
+
         # v4 operating mode (SOLO / HOSTED / SHARED). Detected from env on
         # first construction; tests can override via config["mode"]. The
         # mode controls how _resolve() fills missing identity params.
@@ -300,6 +329,8 @@ class AgentMemory:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Project:
         self._require_v4()
+        if self._quotas is not None:
+            self._quotas.check_project_quota(user_id)
         return self._project_repo().create(
             user_id=user_id, name=name,
             description=description, metadata=metadata,
@@ -323,6 +354,8 @@ class AgentMemory:
         """Open a new session. If ``project_id`` is None, drops it into the
         user's Inbox so the caller never has to provision one upfront."""
         self._require_v4()
+        if self._quotas is not None:
+            self._quotas.check_session_quota(user_id)
         if project_id is None:
             project_id = self.ensure_inbox(user_id).id
         return self._session_repo().create(
@@ -519,6 +552,97 @@ class AgentMemory:
         cons = SleepTimeConsolidator(self, **kwargs)
         return cons.run_once(limit=limit)
 
+    # -- v4 GDPR delete + export (Phase 8.5) --
+
+    def export_user(self, external_id: str) -> Dict[str, Any]:
+        """Full data portability dump for a user. JSON-serializable."""
+        self._require_v4()
+        from attestor.gdpr import export_user
+        return export_user(self._store._conn, external_id).to_dict()
+
+    def purge_user(
+        self,
+        external_id: str,
+        *,
+        reason: str = "gdpr_request",
+        deleted_by: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Hard-delete a user. CASCADEs through Postgres; vector/graph
+        stores are the caller's responsibility (they don't CASCADE)."""
+        self._require_v4()
+        from attestor.gdpr import purge_user
+        result = purge_user(
+            self._store._conn, external_id,
+            reason=reason, deleted_by=deleted_by,
+        )
+        return {
+            "user_existed": result.user_existed,
+            "audit_id": result.audit_id,
+            "counts": result.counts,
+        }
+
+    def deletion_audit_log(self, *, limit: int = 100) -> List[Dict[str, Any]]:
+        """Recent GDPR deletion audit entries (read-only)."""
+        self._require_v4()
+        from attestor.gdpr import list_audit_log
+        return list_audit_log(self._store._conn, limit=limit)
+
+    # -- v4 quota management (Phase 8.3) --
+
+    def set_quota(
+        self,
+        user_id: str,
+        *,
+        max_memories: Optional[int] = None,
+        max_sessions: Optional[int] = None,
+        max_projects: Optional[int] = None,
+        max_writes_per_day: Optional[int] = None,
+    ) -> Any:
+        """Set per-user quotas. NULL/omitted limits leave that limit
+        unchanged (no implicit unlimited reset)."""
+        self._require_v4()
+        if self._quotas is None:
+            raise RuntimeError("quota repo unavailable on this backend")
+        return self._quotas.set_limits(
+            user_id,
+            max_memories=max_memories,
+            max_sessions=max_sessions,
+            max_projects=max_projects,
+            max_writes_per_day=max_writes_per_day,
+        )
+
+    def get_quota(self, user_id: str) -> Optional[Any]:
+        """Return the current UserQuota row (counters + limits)."""
+        self._require_v4()
+        if self._quotas is None:
+            return None
+        return self._quotas.get(user_id)
+
+    # -- v4 provenance signing (Phase 8.1) --
+
+    def verify_memory(self, memory_id: str) -> bool:
+        """Verify the Ed25519 signature on a stored memory.
+
+        Returns True if signed AND the signature matches; False if
+        unsigned, missing, or tampered.
+
+        Raises RuntimeError if signing isn't configured for this
+        instance — verification needs the public key in the same place.
+        """
+        if self._signer is None:
+            raise RuntimeError(
+                "verify_memory requires config['signing'] to be set "
+                "(public_key needed for verification)"
+            )
+        row = self._store.get(memory_id)
+        if row is None:
+            return False
+        return self._signer.verify(row)
+
+    @property
+    def signing_enabled(self) -> bool:
+        return self._signer is not None
+
     @property
     def mode(self) -> AttestorMode:
         """The detected operating mode. Settable via ``config["mode"]`` or
@@ -603,6 +727,9 @@ class AgentMemory:
             user_id = rc.user.id
             project_id = rc.project.id
             session_id = rc.session.id if rc.session else None
+            # Quota check BEFORE the insert so we don't half-write
+            if self._quotas is not None:
+                self._quotas.check_memory_quota(user_id)
 
         # Dedup: check for exact content match (scoped by namespace)
         chash = self._content_hash(content)
@@ -638,6 +765,20 @@ class AgentMemory:
         t0 = time.monotonic()
         self._store.insert(memory)
         store_timings["document_ms"] = round((time.monotonic() - t0) * 1000, 2)
+
+        # v4 provenance signing (Phase 8.1) — sign AFTER insert so the
+        # canonical payload includes the DB-generated id + t_created.
+        if self._signer is not None and v4_active:
+            try:
+                sig = self._signer.sign(memory)
+                memory.signature = sig
+                with self._store._conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE memories SET signature = %s WHERE id = %s",
+                        (sig, memory.id),
+                    )
+            except Exception as e:
+                logger.warning("provenance sign failed for %s: %s", memory.id, e)
 
         # Then supersede old contradicting memories
         for old in contradictions:

@@ -1,0 +1,137 @@
+# Attestor regression catalog (Phase 9.1, roadmap §G).
+#
+# Each case is one small recall scenario. Catalog grows over time as
+# bugs are fixed — reproduce-the-bug-as-a-case is the encouraged pattern.
+#
+# Categories used here:
+#   preference       — basic single-fact recall
+#   supersession     — newer fact must win (Phase 5 bi-temporal)
+#   abstention       — query about something never said → must abstain
+#   multi_session    — fact stated in one round must surface from another
+#   temporal_window  — time-bounded recall via time_window_*
+
+# ── Preference / basic recall ────────────────────────────────────────────
+
+- id: pref_simple_color
+  description: User states a preference; recall surfaces it.
+  category: preference
+  ingest:
+    - user: I love the color blue
+      assistant: Noted — blue is your favorite.
+  query: What is my favorite color?
+  must_contain: ["blue"]
+
+- id: pref_favorite_food
+  description: Multi-word fact; recall returns the right entity.
+  category: preference
+  ingest:
+    - user: My favorite food is sushi, especially salmon nigiri.
+      assistant: Got it — sushi, salmon nigiri specifically.
+  query: What's my favorite food?
+  must_contain: ["sushi"]
+
+- id: pref_dietary_restriction
+  description: Negative-fact recall (allergy).
+  category: preference
+  ingest:
+    - user: I'm allergic to peanuts.
+      assistant: Understood — no peanuts for you.
+  query: Do I have any food allergies?
+  must_contain: ["peanut"]
+
+# ── Supersession (newer fact wins) ───────────────────────────────────────
+
+- id: super_change_color_pref
+  description: User changes preference; new fact must win, old must NOT surface.
+  category: supersession
+  ingest:
+    - user: I love the color blue.
+      assistant: Noted — blue.
+    - user: Actually, I prefer red now.
+      assistant: Understood — switching to red.
+  query: What is my favorite color?
+  must_contain: ["red"]
+  must_not_contain: ["blue is my favorite"]
+  # NOTE: must_not_contain is a substring check; 'blue' alone is too
+  # aggressive because contradiction-detection rationale text may mention
+  # the prior value. We assert the OLD claim's specific phrasing isn't
+  # what surfaces.
+
+- id: super_change_job
+  description: Career change; current role must dominate.
+  category: supersession
+  ingest:
+    - user: I work at Acme as a software engineer.
+      assistant: Software engineer at Acme — got it.
+    - user: I just moved to Globex as a staff engineer.
+      assistant: Congrats on the move — Globex, staff engineer.
+  query: Where do I work?
+  must_contain: ["globex"]
+
+# ── Abstention (no relevant memory → empty pack) ─────────────────────────
+
+- id: abstain_unknown_topic
+  description: Question about something never mentioned. abstain_ok lets
+    an empty pack pass — the CoN prompt would tell the model to say so.
+  category: abstention
+  ingest:
+    - user: I love hiking.
+      assistant: Noted — hiking enthusiast.
+  query: What programming language do I prefer?
+  abstain_ok: true
+  must_not_contain: ["python", "javascript", "rust"]
+
+- id: abstain_no_ingest
+  description: Empty conversation history — recall MUST abstain.
+  category: abstention
+  ingest: []
+  query: What is my favorite hobby?
+  abstain_ok: true
+  must_not_contain: []
+
+# ── Multi-round / multi-fact ─────────────────────────────────────────────
+
+- id: multi_round_same_thread
+  description: Two unrelated facts in one thread; query targets the second.
+  category: multi_session
+  ingest:
+    - user: I have a dog named Rex.
+      assistant: Rex the dog — noted.
+    - user: My birthday is March 14.
+      assistant: March 14 — got it.
+  query: When is my birthday?
+  must_contain: ["march", "14"]
+  # Note: must_contain checks every needle independently, so both
+  # 'march' and '14' must each appear in some pack entry's content.
+
+- id: multi_round_first_fact_recoverable
+  description: Earlier fact must still recall after later unrelated turns.
+  category: multi_session
+  ingest:
+    - user: My dog's name is Rex.
+      assistant: Rex — got it.
+    - user: I had pasta for lunch.
+      assistant: Pasta — noted.
+    - user: I'm planning a trip to Japan.
+      assistant: Japan trip — exciting!
+  query: What is my dog's name?
+  must_contain: ["rex"]
+
+# ── Temporal: time-window queries (Phase 5) ──────────────────────────────
+
+- id: temporal_window_january_meeting
+  description: Time-bounded recall — only the matching window's fact
+    should be returned.
+  category: temporal_window
+  ingest:
+    - user: I had a meeting with Acme on January 15.
+      assistant: January 15 Acme meeting — noted.
+      ts: "2026-01-15T10:00:00Z"
+    - user: I had a meeting with Globex on March 20.
+      assistant: March 20 Globex meeting — noted.
+      ts: "2026-03-20T10:00:00Z"
+  query: Which client did I meet in January?
+  must_contain: ["acme"]
+  time_window_start: "2026-01-01T00:00:00Z"
+  time_window_end:   "2026-01-31T23:59:59Z"
+  abstain_ok: true   # extraction may fail on date phrasing — under-recall is OK
