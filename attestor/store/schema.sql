@@ -283,6 +283,26 @@ CREATE TRIGGER trg_quota_count_projects
     AFTER INSERT OR DELETE ON projects
     FOR EACH ROW EXECUTE FUNCTION attestor_quota_count_projects();
 
+-- ── GDPR deletion audit (Phase 8.5) ──────────────────────────────────────
+-- Append-only log of every user deletion. Regulators need to see THAT a
+-- deletion happened, not the deleted data. Intentionally RLS-EXEMPT so
+-- the row outlives the user it logs (the user_id reference is recorded
+-- as TEXT, not FK — the original users row will be gone).
+CREATE TABLE IF NOT EXISTS deletion_audit (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         TEXT NOT NULL,        -- text, NOT FK (original is gone)
+    external_id     TEXT NOT NULL,        -- the JWT sub of the deleted user
+    deleted_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_by      TEXT,                 -- agent / admin id who triggered it
+    reason          TEXT,                 -- e.g. 'gdpr_request', 'admin_purge'
+    counts          JSONB NOT NULL DEFAULT '{}'::jsonb  -- per-table row counts
+);
+CREATE INDEX IF NOT EXISTS idx_deletion_audit_external_id
+    ON deletion_audit (external_id);
+CREATE INDEX IF NOT EXISTS idx_deletion_audit_deleted_at
+    ON deletion_audit (deleted_at DESC);
+-- NO RLS on deletion_audit. Confirmed by absence of ENABLE ROW LEVEL SECURITY.
+
 -- ── Row-Level Security ────────────────────────────────────────────────────
 -- Hard tenant isolation: even an app-level bug that forgets WHERE user_id=...
 -- returns zero rows from another user's data because the database itself

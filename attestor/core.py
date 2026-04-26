@@ -552,6 +552,41 @@ class AgentMemory:
         cons = SleepTimeConsolidator(self, **kwargs)
         return cons.run_once(limit=limit)
 
+    # -- v4 GDPR delete + export (Phase 8.5) --
+
+    def export_user(self, external_id: str) -> Dict[str, Any]:
+        """Full data portability dump for a user. JSON-serializable."""
+        self._require_v4()
+        from attestor.gdpr import export_user
+        return export_user(self._store._conn, external_id).to_dict()
+
+    def purge_user(
+        self,
+        external_id: str,
+        *,
+        reason: str = "gdpr_request",
+        deleted_by: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Hard-delete a user. CASCADEs through Postgres; vector/graph
+        stores are the caller's responsibility (they don't CASCADE)."""
+        self._require_v4()
+        from attestor.gdpr import purge_user
+        result = purge_user(
+            self._store._conn, external_id,
+            reason=reason, deleted_by=deleted_by,
+        )
+        return {
+            "user_existed": result.user_existed,
+            "audit_id": result.audit_id,
+            "counts": result.counts,
+        }
+
+    def deletion_audit_log(self, *, limit: int = 100) -> List[Dict[str, Any]]:
+        """Recent GDPR deletion audit entries (read-only)."""
+        self._require_v4()
+        from attestor.gdpr import list_audit_log
+        return list_audit_log(self._store._conn, limit=limit)
+
     # -- v4 quota management (Phase 8.3) --
 
     def set_quota(
