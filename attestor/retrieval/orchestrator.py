@@ -181,8 +181,21 @@ class RetrievalOrchestrator:
         query: str,
         token_budget: int = 2000,
         namespace: Optional[str] = None,
+        as_of: Optional[Any] = None,           # datetime; Phase 5.3
+        time_window: Optional[Any] = None,     # TimeWindow; Phase 5.3
     ) -> List[RetrievalResult]:
-        """Semantic-first recall with graph narrowing."""
+        """Semantic-first recall with graph narrowing.
+
+        Phase 5.3 — bi-temporal:
+          as_of       — replay past belief: see only memories the system
+                        BELIEVED were true at that timestamp
+          time_window — pre-filter by EVENT-time overlap (when the fact
+                        was true in the world)
+
+        Both kwargs are passed through to the vector + BM25 lanes; lanes
+        that don't support them ignore them silently. Behavior unchanged
+        when both are None.
+        """
         t_total = time.monotonic()
         question_entities = self._question_entities(query)
 
@@ -191,9 +204,17 @@ class RetrievalOrchestrator:
         results: List[RetrievalResult] = []
         if self.vector_store:
             try:
-                vector_hits_raw = self.vector_store.search(
-                    query, limit=VECTOR_TOP_K, namespace=namespace
-                )
+                # Newer v4 backends accept as_of/time_window; v3 backends
+                # don't — fall back to the legacy signature on TypeError.
+                try:
+                    vector_hits_raw = self.vector_store.search(
+                        query, limit=VECTOR_TOP_K, namespace=namespace,
+                        as_of=as_of, time_window=time_window,
+                    )
+                except TypeError:
+                    vector_hits_raw = self.vector_store.search(
+                        query, limit=VECTOR_TOP_K, namespace=namespace,
+                    )
             except Exception:
                 vector_hits_raw = []
 
@@ -207,11 +228,22 @@ class RetrievalOrchestrator:
                 bm25_hits_raw = self.bm25_lane.search(
                     query, limit=self.bm25_top_k,
                     min_rank=self.bm25_min_rank,
+                    as_of=as_of, time_window=time_window,
+                    # When replaying past belief OR slicing an event-time
+                    # window, superseded rows are valid answers; drop the
+                    # current-state filter.
+                    active_only=(as_of is None and time_window is None),
                 )
             except Exception:
                 bm25_hits_raw = []
 
         # ── Step 2: Materialise vector candidates with preliminary vector_sim
+        # status='active' is current-state filtering. When as_of is set,
+        # the lane SQL has already restricted by t_created/t_expired so a
+        # row that's now 'superseded' but was active at as_of must pass.
+        # When time_window is set, the lane filtered by event-time overlap;
+        # a fact that was true during the window may now be superseded too.
+        require_active = (as_of is None and time_window is None)
         candidates: List[Dict] = []
         seen_ids: set = set()
         for vr in vector_hits_raw:
@@ -219,7 +251,9 @@ class RetrievalOrchestrator:
             if mid in seen_ids:
                 continue
             memory = self.store.get(mid)
-            if not memory or memory.status != "active":
+            if not memory:
+                continue
+            if require_active and memory.status != "active":
                 continue
             if namespace and memory.namespace != namespace:
                 continue
@@ -236,7 +270,9 @@ class RetrievalOrchestrator:
             if hit.memory_id in seen_ids:
                 continue
             memory = self.store.get(hit.memory_id)
-            if not memory or memory.status != "active":
+            if not memory:
+                continue
+            if require_active and memory.status != "active":
                 continue
             if namespace and memory.namespace != namespace:
                 continue
