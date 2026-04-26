@@ -14,6 +14,15 @@ Public surface:
   ReflectionEngine     — cross-thread synthesis (Phase 7.3)
 """
 
+from attestor.consolidation.consolidator import (
+    ConsolidationResult,
+    SleepTimeConsolidator,
+)
 from attestor.consolidation.queue import ConsolidationQueue, QueuedEpisode
 
-__all__ = ["ConsolidationQueue", "QueuedEpisode"]
+__all__ = [
+    "ConsolidationQueue",
+    "QueuedEpisode",
+    "ConsolidationResult",
+    "SleepTimeConsolidator",
+]
