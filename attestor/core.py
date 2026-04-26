@@ -7,10 +7,12 @@ import json
 import logging
 import time
 from collections import deque
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional
 
+from attestor.mode import AttestorMode, detect_mode
 from attestor.models import Memory, Project, RetrievalResult, Session, User
 from attestor.retrieval.orchestrator import RetrievalOrchestrator
 from attestor.store.base import DocumentStore, GraphStore, VectorStore
@@ -23,6 +25,22 @@ from attestor.temporal.manager import TemporalManager
 from attestor.utils.config import MemoryConfig, load_config, save_config
 
 logger = logging.getLogger("attestor")
+
+
+@dataclass(frozen=True)
+class ResolvedContext:
+    """Result of AgentMemory._resolve() — the identity tuple for a call.
+
+    Public methods take optional user_id/project_id/session_id; _resolve()
+    fills any that are missing using the mode's defaults (SOLO singleton
+    user, Inbox project, daily session) and returns the fully-resolved
+    triple plus a derived AgentContext for downstream provenance.
+
+    session can be None when autostart=False (e.g. for read-only recall
+    that doesn't need a session anchor)."""
+    user: User
+    project: Project
+    session: Optional[Session]
 
 
 class AgentMemory:
@@ -114,6 +132,38 @@ class AgentMemory:
 
         # Operation ring buffer for latency observability
         self._ops_log: Deque[Dict[str, Any]] = deque(maxlen=200)
+
+        # v4 operating mode (SOLO / HOSTED / SHARED). Detected from env on
+        # first construction; tests can override via config["mode"]. The
+        # mode controls how _resolve() fills missing identity params.
+        self._mode = (
+            AttestorMode(config.get("mode")) if config and config.get("mode")
+            else detect_mode()
+        )
+        # In SOLO mode, ensure the singleton user + Inbox exist so the
+        # zero-config "AgentMemory().add('foo')" path works without the
+        # caller doing any identity setup. Only viable for v4 + Postgres
+        # (the identity repos need _conn). For other modes / backends, the
+        # caller is expected to provide IDs explicitly.
+        self._default_user: Optional[User] = None
+        if (
+            self._mode is AttestorMode.SOLO
+            and getattr(self._store, "_v4", False)
+            and getattr(self._store, "_conn", None) is not None
+        ):
+            try:
+                from attestor.identity.defaults import ensure_solo_user
+                self._default_user = ensure_solo_user(self._user_repo())
+                # Pre-create Inbox so the first add() doesn't pay for it.
+                self._project_repo().ensure_inbox(self._default_user.id)
+                # Set RLS to the default user so subsequent reads admit rows.
+                if hasattr(self._store, "_set_rls_user"):
+                    self._store._set_rls_user(self._default_user.id)
+            except Exception as e:
+                # Non-fatal: AgentMemory still works in v3 / explicit-id
+                # mode even if the SOLO bootstrap fails (e.g. tables not
+                # provisioned yet). Log and move on.
+                logger.warning("SOLO default-user bootstrap skipped: %s", e)
 
     def close(self) -> None:
         """Close all database connections."""
@@ -294,6 +344,94 @@ class AgentMemory:
             status=status, limit=limit,
         )
 
+    # -- v4 resolution chain (Phase 2 chunk 3, defaults.md §5) --
+
+    def _resolve(
+        self,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        autostart: bool = True,
+    ) -> ResolvedContext:
+        """Single entry point for identity resolution. Public methods call
+        this first to get the (user, project, session) triple they should
+        operate against.
+
+        Resolution rules (defaults.md §5):
+          User:    explicit user_id wins. Else SOLO singleton. Else raise.
+          Project: explicit project_id wins. Else session.project_id. Else Inbox.
+          Session: explicit session_id wins. Else autostart (daily for SOLO,
+                   fresh for HOSTED). If autostart=False → None.
+
+        v3 / non-Postgres backends: this method is a no-op and is not
+        called. Public methods only invoke it when v4 is on.
+        """
+        self._require_v4()
+        from attestor.identity.defaults import (
+            ensure_solo_user,
+            resolve_project,
+            resolve_session,
+        )
+
+        # ── User ────────────────────────────────────────────────────────
+        if user_id is None:
+            if self._mode is AttestorMode.SOLO:
+                # Lazy-recover: if SOLO bootstrap was skipped at __init__,
+                # try once more here. Keeps the zero-config path working
+                # even if the schema wasn't ready at construction time.
+                if self._default_user is None:
+                    self._default_user = ensure_solo_user(self._user_repo())
+                user = self._default_user
+            else:
+                raise PermissionError(
+                    f"user_id is required in {self._mode.value} mode"
+                )
+        else:
+            # Pre-set RLS so the users-table lookup itself is admitted —
+            # the policy on `users` is `id = current_setting(...)`. Without
+            # this, even a valid user_id would resolve to "not found".
+            if hasattr(self._store, "_set_rls_user"):
+                self._store._set_rls_user(user_id)
+            user = self._user_repo().get(user_id)
+            if user is None or user.status != "active":
+                raise LookupError(f"user {user_id} not found")
+
+        # Set RLS to the resolved user (no-op when we already set it above).
+        if hasattr(self._store, "_set_rls_user"):
+            self._store._set_rls_user(user.id)
+
+        # ── Project ────────────────────────────────────────────────────
+        project = resolve_project(
+            user_id=user.id,
+            project_id=project_id,
+            session_id=session_id,
+            project_repo=self._project_repo(),
+            session_repo=self._session_repo(),
+        )
+
+        # ── Session ────────────────────────────────────────────────────
+        session = resolve_session(
+            user_id=user.id,
+            project_id=project.id,
+            session_id=session_id,
+            session_repo=self._session_repo(),
+            autostart=autostart,
+            mode_is_solo=(self._mode is AttestorMode.SOLO),
+        )
+
+        return ResolvedContext(user=user, project=project, session=session)
+
+    @property
+    def mode(self) -> AttestorMode:
+        """The detected operating mode. Settable via ``config["mode"]`` or
+        the ``ATTESTOR_MODE`` env var."""
+        return self._mode
+
+    @property
+    def default_user(self) -> Optional[User]:
+        """The SOLO singleton user, if SOLO mode is active. None otherwise."""
+        return self._default_user
+
     def _ensure_docker(self, backend_name: str, bcfg: Dict[str, Any]) -> None:
         """Start a Docker container for backends that require one.
 
@@ -354,11 +492,19 @@ class AgentMemory:
         t_total = time.monotonic()
         store_timings: Dict[str, float] = {}
 
-        # If running v4 with a user_id, set the RLS variable on the doc store
-        # connection so RLS policies will admit our writes/reads.
-        v4_active = bool(user_id) and getattr(self._store, "_v4", False)
-        if v4_active and hasattr(self._store, "_set_rls_user"):
-            self._store._set_rls_user(user_id)
+        # v4: route through the resolution chain so zero-config calls work.
+        # In v3 / non-Postgres mode this branch is skipped entirely.
+        v4_active = getattr(self._store, "_v4", False)
+        if v4_active:
+            rc = self._resolve(
+                user_id=user_id,
+                project_id=project_id,
+                session_id=session_id,
+                autostart=True,
+            )
+            user_id = rc.user.id
+            project_id = rc.project.id
+            session_id = rc.session.id if rc.session else None
 
         # Dedup: check for exact content match (scoped by namespace)
         chash = self._content_hash(content)
@@ -506,11 +652,17 @@ class AgentMemory:
         v4: when ``user_id`` is provided AND the backend is in v4 mode, the
         RLS variable is set on the connection so policies filter to this
         user. v3 callers omit user_id — behavior unchanged."""
-        # v4: scope this call to the user via RLS
-        if user_id and getattr(self._store, "_v4", False) and hasattr(
-            self._store, "_set_rls_user"
-        ):
-            self._store._set_rls_user(user_id)
+        # v4: route through _resolve() so zero-config recall works in SOLO
+        # mode. Recall doesn't autostart a session — read-only ops only need
+        # user+project scope.
+        if getattr(self._store, "_v4", False):
+            rc = self._resolve(
+                user_id=user_id,
+                project_id=None,
+                session_id=None,
+                autostart=False,
+            )
+            user_id = rc.user.id
 
         t0 = time.monotonic()
         token_budget = budget or self.config.default_token_budget

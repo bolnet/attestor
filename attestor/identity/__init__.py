@@ -11,8 +11,22 @@ tenant-scoped data. The bootstrap user-creation path is the one
 exception — it must run with admin/no-RLS context.
 """
 
+from attestor.identity.defaults import (
+    ensure_solo_user,
+    get_or_create_daily_session,
+    resolve_project,
+    resolve_session,
+)
 from attestor.identity.projects import ProjectRepo
 from attestor.identity.sessions import SessionRepo
 from attestor.identity.users import UserRepo
 
-__all__ = ["UserRepo", "ProjectRepo", "SessionRepo"]
+__all__ = [
+    "UserRepo",
+    "ProjectRepo",
+    "SessionRepo",
+    "ensure_solo_user",
+    "resolve_project",
+    "resolve_session",
+    "get_or_create_daily_session",
+]

@@ -249,7 +249,12 @@ def test_rls_enabled_on_tenant_tables(admin_conn, fresh_schema) -> None:
 @pytest.mark.live
 def test_rls_policies_present(admin_conn, fresh_schema) -> None:
     expected = {
-        "tenant_isolation_users",
+        # users: split into 4 (SELECT/UPDATE/DELETE strict, INSERT permissive
+        # so the bootstrap path can create the caller's own user row).
+        "tenant_isolation_users_select",
+        "tenant_isolation_users_update",
+        "tenant_isolation_users_delete",
+        "tenant_isolation_users_insert",
         "tenant_isolation_projects",
         "tenant_isolation_sessions",
         "tenant_isolation_episodes",

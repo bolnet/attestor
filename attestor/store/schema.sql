@@ -165,27 +165,69 @@ ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE episodes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memories ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies (idempotent re-init)
-DROP POLICY IF EXISTS tenant_isolation_users    ON users;
-DROP POLICY IF EXISTS tenant_isolation_projects ON projects;
-DROP POLICY IF EXISTS tenant_isolation_sessions ON sessions;
-DROP POLICY IF EXISTS tenant_isolation_episodes ON episodes;
-DROP POLICY IF EXISTS tenant_isolation_memories ON memories;
+-- Drop existing policies (idempotent re-init). Includes both pre-Phase 2
+-- single-policy names and the post-Phase 2 split policies on `users`.
+DROP POLICY IF EXISTS tenant_isolation_users          ON users;
+DROP POLICY IF EXISTS tenant_isolation_users_select   ON users;
+DROP POLICY IF EXISTS tenant_isolation_users_update   ON users;
+DROP POLICY IF EXISTS tenant_isolation_users_delete   ON users;
+DROP POLICY IF EXISTS tenant_isolation_users_insert   ON users;
+DROP POLICY IF EXISTS tenant_isolation_projects       ON projects;
+DROP POLICY IF EXISTS tenant_isolation_sessions       ON sessions;
+DROP POLICY IF EXISTS tenant_isolation_episodes       ON episodes;
+DROP POLICY IF EXISTS tenant_isolation_memories       ON memories;
 
 -- Each policy compares the row's user_id against the session-local variable.
 -- NULLIF + ::uuid handles the "unset" case safely (would error on empty cast).
-CREATE POLICY tenant_isolation_users ON users
-    USING (id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
+--
+-- Users table is special: SELECT/UPDATE/DELETE are tenant-scoped (you can
+-- only see/modify your own row), but INSERT is allowed unconditionally so
+-- the bootstrap path (creating your own user before the RLS var can be set)
+-- works for a non-SUPERUSER, NOBYPASSRLS runtime role. Inserting a user row
+-- doesn't expose anyone else's data; once inserted, the new row is only
+-- visible to a connection whose RLS var matches its id.
+CREATE POLICY tenant_isolation_users_select ON users
+    FOR SELECT USING (id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
+CREATE POLICY tenant_isolation_users_update ON users
+    FOR UPDATE USING (id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
+CREATE POLICY tenant_isolation_users_delete ON users
+    FOR DELETE USING (id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
+CREATE POLICY tenant_isolation_users_insert ON users
+    FOR INSERT WITH CHECK (true);
+
+-- Other tenant tables: USING covers SELECT/UPDATE/DELETE; an explicit
+-- WITH CHECK ensures INSERT/UPDATE writes can only land rows scoped to the
+-- current user (the schema FK already enforces user_id, RLS enforces it
+-- happens for the *current* user).
 CREATE POLICY tenant_isolation_projects ON projects
-    USING (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
+    USING (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid)
+    WITH CHECK (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
 CREATE POLICY tenant_isolation_sessions ON sessions
-    USING (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
+    USING (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid)
+    WITH CHECK (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
 CREATE POLICY tenant_isolation_episodes ON episodes
-    USING (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
+    USING (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid)
+    WITH CHECK (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
 CREATE POLICY tenant_isolation_memories ON memories
-    USING (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
+    USING (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid)
+    WITH CHECK (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
 
 -- Note: the connection role used by PostgresBackend must NOT be a SUPERUSER
 -- and must NOT have BYPASSRLS, otherwise these policies are bypassed.
 -- For dev/local, the default `postgres` superuser DOES bypass RLS — tests
 -- explicitly run as a non-superuser role to verify isolation.
+
+-- SECURITY DEFINER helper: look up a user_id by external_id without going
+-- through RLS. Required because the bootstrap path can't SELECT a user
+-- whose id we don't know yet (RLS gates SELECT on id-match-var). This
+-- function intentionally exposes only the id, never the user record, so
+-- it's not a vector for cross-tenant data leakage.
+CREATE OR REPLACE FUNCTION attestor_user_id_for_external(ext TEXT)
+RETURNS UUID
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT id FROM users WHERE external_id = ext AND status = 'active' LIMIT 1
+$$;
+GRANT EXECUTE ON FUNCTION attestor_user_id_for_external(TEXT) TO PUBLIC;
