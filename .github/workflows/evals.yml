@@ -1,0 +1,190 @@
+name: Evals
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "attestor/**"
+      - "evals/**"
+      - "tests/test_evals_*.py"
+      - "tests/test_regression_*.py"
+      - "docs/bench/**"
+      - ".github/workflows/evals.yml"
+      - "pyproject.toml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_heavy_benchmarks:
+        description: "Run live LongMemEval / BEAM / AbstentionBench (needs secrets)"
+        required: false
+        default: "false"
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────
+  # Always-on: unit tests for the evals/ package and the regression suite.
+  # No external services, no API keys. Runs on every PR.
+  # ────────────────────────────────────────────────────────────────────────
+  evals-unit:
+    name: Unit tests (evals + regression)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install project + eval extras
+        run: poetry install --with dev --extras eval
+
+      - name: Run evals + regression unit tests
+        run: |
+          poetry run pytest -q \
+            tests/test_evals_summary.py \
+            tests/test_evals_baseline.py \
+            tests/test_evals_longmemeval.py \
+            tests/test_evals_beam.py \
+            tests/test_evals_abstention.py \
+            tests/test_evals_gate.py \
+            tests/test_regression_cases.py \
+            tests/test_regression_scorer.py \
+            tests/test_regression_runner.py \
+            tests/test_regression_catalog.py
+
+      - name: Validate qa.yaml catalog parses
+        # Independent of the test suite: a catalog typo should fail
+        # this step explicitly so reviewers see "yaml broken", not
+        # "obscure pytest collection error".
+        run: |
+          poetry run python -c "
+          from evals.regression.cases import load_cases
+          cases = load_cases('evals/regression/qa.yaml')
+          print(f'qa.yaml loaded: {len(cases)} cases')
+          "
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Always-on: gate. Runs after unit tests pass. Loads any uploaded
+  # benchmark summaries (none in the unit-test job — uploads come from
+  # the heavy benchmark job below) and compares them to the published
+  # baseline. With no summaries, the gate passes by default.
+  # ────────────────────────────────────────────────────────────────────────
+  evals-gate:
+    name: Regression gate
+    runs-on: ubuntu-latest
+    needs: evals-unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install project + eval extras
+        run: poetry install --with dev --extras eval
+
+      - name: Download benchmark summaries (if any)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: bench-summaries
+          path: bench-output
+
+      - name: Run regression gate
+        run: |
+          mkdir -p bench-output
+          poetry run python -m evals.gate \
+            --summaries-dir bench-output \
+            --baseline docs/bench/v4-baseline.json \
+            --report-out bench-output/gate.json
+
+      - name: Upload gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-report
+          path: bench-output/gate.json
+
+  # ────────────────────────────────────────────────────────────────────────
+  # On-demand only: live LongMemEval / BEAM / AbstentionBench.
+  #
+  # Requires:
+  #   - secrets.OPENROUTER_API_KEY  (answerer)
+  #   - secrets.ANTHROPIC_API_KEY   (judges)
+  #   - postgres:16 service container
+  #   - Ollama with bge-m3 pulled
+  #
+  # Triggered manually via workflow_dispatch with run_heavy_benchmarks=true.
+  # The heavy job uploads the *_summary.json files as `bench-summaries`,
+  # which the gate job then picks up on the next run.
+  # ────────────────────────────────────────────────────────────────────────
+  evals-heavy:
+    name: Heavy benchmarks (manual)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_heavy_benchmarks == 'true' }}
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: attestor
+          POSTGRES_DB: attestor_v4_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install project + eval extras
+        run: poetry install --with dev --extras "eval postgres"
+
+      - name: Bootstrap schema
+        env:
+          PG_TEST_URL: postgresql://postgres:attestor@localhost:5432/attestor_v4_test
+        run: |
+          poetry run python -c "
+          import psycopg2, pathlib
+          schema = pathlib.Path('attestor/store/schema.sql').read_text()
+          schema = schema.replace('{embedding_dim}', '1024')
+          with psycopg2.connect('${PG_TEST_URL}') as c, c.cursor() as cur:
+              cur.execute(schema); c.commit()
+          print('schema applied')
+          "
+
+      # NOTE: live LongMemEval / BEAM / AbstentionBench runners must be
+      # invoked here once the operator wires their dataset loaders +
+      # answerer. Each runner emits *_summary.json into bench-output/.
+      # Until then this job is a no-op skeleton — uploading an empty
+      # artifact still triggers the gate cleanly.
+      - name: Placeholder for heavy benchmark invocation
+        run: |
+          mkdir -p bench-output
+          echo "Heavy benchmarks not wired yet. See evals/README.md."
+
+      - name: Upload benchmark summaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-summaries
+          path: bench-output/*_summary.json
+          if-no-files-found: warn
