@@ -79,3 +79,67 @@ scorer so local iteration and the hosted leaderboard agree. Scores are
 - MAB currently under-performs due to embedding-model weakness on
   multi-hop reasoning; see `project_layer0_wiring` / roadmap for the
   dual-path plan.
+
+---
+
+## Track G — v4 regression gate (Phase 9)
+
+A second harness lives alongside the Braintrust scripts: deterministic,
+no-LLM, runs in CI on every PR. Four runners share the
+`BenchmarkSummary` shape so the regression gate can compare them
+uniformly.
+
+| Runner | Module | Primary metric |
+|---|---|---|
+| Regression suite | `evals/regression/` | pass_rate over the YAML catalog |
+| LongMemEval | `evals/longmemeval/` | accuracy_pct (averaged across judges) |
+| BEAM (long-context) | `evals/beam/` | accuracy_pct, with per-bucket breakdown |
+| AbstentionBench | `evals/abstention/` | abstention_f1_pct |
+
+### Adding a regression case (no Python required)
+
+Append to `evals/regression/qa.yaml`:
+
+```yaml
+- id: my_bug_repro
+  description: "User states X; recall must surface Y"
+  category: preference
+  ingest:
+    - user: "I love sushi"
+      assistant: "Got it"
+  query: "What food do I love?"
+  must_contain: ["sushi"]
+```
+
+Schema is enforced at parse time — typos or unknown keys fail the gate.
+See `evals/regression/cases.py` for the full schema.
+
+### Wiring a heavy benchmark (operator-supplied)
+
+The LME / BEAM / AbstentionBench runners are dataset-agnostic. Operator
+provides:
+
+  - `loader()` → returns `List[Sample]`
+  - `ingest(sample, mem)` → absorbs context into the memory backend
+  - `answer(sample, mem)` → produces the model's response
+
+Each runner emits a `*_summary.json`. Drop them into a directory and
+the gate diffs against `docs/bench/v4-baseline.json`:
+
+```bash
+python -m evals.gate \
+  --summaries-dir bench-output/ \
+  --baseline docs/bench/v4-baseline.json \
+  --report-out bench-output/gate.json
+```
+
+Exit code 1 = regression detected (PR blocked in CI). Per-benchmark
+threshold overrides live in `thresholds:` inside the baseline file.
+
+### CI
+
+`.github/workflows/evals.yml` runs the unit-test job + the gate on
+every PR. The heavy-benchmark job is `workflow_dispatch`-only — it
+needs `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, plus a Postgres
+service container, so it's manually triggered (and Phase 9.6 will
+publish the first real baseline run).
