@@ -405,6 +405,17 @@ DISTILL_PROMPT = (
     "  3. RESOLVE every pronoun to its antecedent.\n"
     "  4. RESOLVE every relative time reference to an absolute date using "
     "the session_date as the anchor; write YYYY-MM-DD.\n"
+    "     - For weekday-relative phrases ('last Friday', 'this Sunday', "
+    "'next Monday'), step day-by-day from the anchor to the named weekday; "
+    "do not default to ±7 days.\n"
+    "     - For 'the WEEKDAY before/after DATE' (e.g. 'the Friday before "
+    "July 15, 2023'), resolve relative to DATE, not to session_date: pick "
+    "the first WEEKDAY strictly before/after DATE.\n"
+    "     - For 'the week before X' / 'the weekend before X', resolve to "
+    "the 7-day window (or Sat–Sun pair) immediately preceding X; if a "
+    "single day is needed, prefer the matching weekday or X-7.\n"
+    "     - When a relative phrase is ambiguous (no anchor in turn or "
+    "session_date), KEEP the original phrase verbatim instead of guessing.\n"
     "  5. ONE FACT PER RECORD. If a turn has multiple distinct facts, "
     "emit multiple records.\n"
     "  6. NEVER FABRICATE. Only restate information literally in the turn.\n"
@@ -476,6 +487,26 @@ DISTILL_PROMPT = (
     '"claim_type": "mentioned", "emphasis": "mentioned", "entities": '
     '["Toothsome Chocolate Emporium", "Orlando"], "topics": ["dessert", '
     '"orlando"]}\n'
+    "]\n\n"
+    "TURN: user: \"I had my charity 5K race last Sunday — beat my time.\"\n"
+    "  (session_date = 2023-05-22, a Monday; last Sunday = 2023-05-21)\n"
+    "OUTPUT:\n"
+    "[\n"
+    '  {"content": "The user ran a charity 5K race on 2023-05-21.", '
+    '"speaker": "user", "claim_type": "event", "emphasis": "explicit", '
+    '"entities": ["charity 5K race"], "topics": ["running", "charity"]}\n'
+    "]\n\n"
+    "TURN: assistant: \"Don’t forget your pottery workshop the Friday "
+    "before your trip on July 15, 2023.\"\n"
+    "  (Friday before 2023-07-15 (Sat) = 2023-07-14; resolve relative to "
+    "the named DATE, not session_date)\n"
+    "OUTPUT:\n"
+    "[\n"
+    '  {"content": "The assistant reminded the user about a pottery '
+    'workshop on 2023-07-14, the Friday before the user’s trip on '
+    '2023-07-15.", "speaker": "assistant", "claim_type": "event", '
+    '"emphasis": "explicit", "entities": ["pottery workshop"], '
+    '"topics": ["pottery", "workshop", "reminder"]}\n'
     "]\n\n"
     "TURN: assistant: \"Great, happy to help!\"\n"
     "OUTPUT:\n"

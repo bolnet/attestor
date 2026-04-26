@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from typing import Any, Dict, List, Optional, Set
 
@@ -88,10 +89,38 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         self._embedder = None  # lazy-init via shared embeddings module
         self._embedding_fn = None  # backward compat for benchmark code
         self._has_age = False  # set by _init_age()
-        # Determine embedding dimension before schema init
-        self._ensure_embedding_fn()
-        self._embedding_dim = self._embedder.dimension
-        self._init_schema()
+        # Determine embedding dimension before schema init. Caller may pass
+        # `embedding_dim` to skip the embedder probe entirely (useful when
+        # the embedder lives in a separate service, in tests that only need
+        # the document path, or when the provider is temporarily unavailable
+        # but the schema is already in place).
+        if config.get("embedding_dim") is not None:
+            self._embedding_dim = int(config["embedding_dim"])
+        else:
+            self._ensure_embedding_fn()
+            self._embedding_dim = self._embedder.dimension
+
+        # v4 mode is opt-in via ATTESTOR_V4=1 env var or config["v4"]=True.
+        # When ON: load attestor/store/schema.sql (greenfield v4 schema).
+        # When OFF: keep the v3 inline _init_schema() so existing callers
+        # continue to work unchanged.
+        self._v4 = bool(
+            config.get("v4", False)
+            or os.environ.get("ATTESTOR_V4") in {"1", "true", "True"}
+        )
+        # Production deployments often run with a separate migration role
+        # that owns the tables and a runtime role that does not. The runtime
+        # role can't ALTER TABLE / CREATE POLICY. Same applies in tests that
+        # boot AgentMemory as a non-superuser to verify RLS.
+        skip_schema = bool(
+            config.get("skip_schema_init", False)
+            or os.environ.get("ATTESTOR_SKIP_SCHEMA_INIT") in {"1", "true", "True"}
+        )
+        if not skip_schema:
+            if self._v4:
+                self._init_schema_v4()
+            else:
+                self._init_schema()
         self._init_age()
 
     def _execute(self, sql: str, params: Any = None) -> List[Dict[str, Any]]:
@@ -109,7 +138,52 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             row = cur.fetchone()
             return row[0] if row else None
 
-    # ── Schema Init ──
+    # ── v4 RLS / schema helpers (Phase 1; not yet wired by default) ──
+
+    def _set_rls_user(self, user_id: Optional[str]) -> None:
+        """Set the connection-local RLS variable so policies on v4 tables
+        filter by this user. Pass None / empty to clear (fail-closed).
+
+        Must be called on every connection checkout once the v4 schema is
+        in use. No-op for v3 schema since v3 tables have no RLS policies."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT set_config('attestor.current_user_id', %s, false)",
+                (str(user_id) if user_id else "",),
+            )
+
+    def _load_v4_schema_sql(self) -> str:
+        """Read attestor/store/schema.sql and substitute {embedding_dim}.
+
+        The caller is responsible for executing the result. Used by
+        higher-level v4 init paths and by tests."""
+        from pathlib import Path
+        path = Path(__file__).resolve().parent / "schema.sql"
+        return path.read_text().replace(
+            "{embedding_dim}", str(self._embedding_dim)
+        )
+
+    def _init_schema_v4(self) -> None:
+        """Apply schema.sql (greenfield v4). Idempotent — uses CREATE TABLE
+        IF NOT EXISTS throughout, so safe to call against an already-v4 DB.
+        RLS policies are dropped + re-created to stay current."""
+        sql = self._load_v4_schema_sql()
+        # Use a single transaction for the whole schema apply so a partial
+        # failure doesn't leave the DB half-migrated.
+        was_autocommit = self._conn.autocommit
+        try:
+            self._conn.autocommit = False
+            with self._conn.cursor() as cur:
+                cur.execute(sql)
+            self._conn.commit()
+            logger.info("v4 schema initialized from schema.sql")
+        except Exception:
+            self._conn.rollback()
+            raise
+        finally:
+            self._conn.autocommit = was_autocommit
+
+    # ── Schema Init (v3 — kept until Phase 2 switches the default) ──
 
     def _init_schema(self) -> None:
         """Create memories table and indexes."""
@@ -217,7 +291,9 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
     # ── DocumentStore ──
 
     def _memory_to_params(self, memory: Memory) -> Dict[str, Any]:
-        return {
+        # Common params (used by both v3 and v4 paths). v4 also references
+        # the additional keys below.
+        params = {
             "id": memory.id,
             "content": memory.content,
             "tags": memory.tags,
@@ -233,38 +309,84 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             "status": memory.status,
             "metadata": json.dumps(memory.metadata),
         }
+        # v4-only params — present when caller set them.
+        params.update({
+            "user_id": memory.user_id,
+            "project_id": memory.project_id,
+            "session_id": memory.session_id,
+            "scope": memory.scope or "user",
+            "source_episode_id": memory.source_episode_id,
+            "extraction_model": memory.extraction_model,
+            "agent_id": memory.agent_id,
+            "parent_agent_id": memory.parent_agent_id,
+            "visibility": memory.visibility or "team",
+            "signature": memory.signature,
+        })
+        return params
 
     def _row_to_memory(self, row: Dict[str, Any]) -> Memory:
-        metadata = row.get("metadata", {})
-        if isinstance(metadata, str):
-            metadata = json.loads(metadata)
-        return Memory(
-            id=row["id"],
-            content=row["content"],
-            tags=row.get("tags", []),
-            category=row.get("category", "general"),
-            entity=row.get("entity"),
-            namespace=row.get("namespace", "default"),
-            created_at=row["created_at"],
-            event_date=row.get("event_date"),
-            valid_from=row["valid_from"],
-            valid_until=row.get("valid_until"),
-            superseded_by=row.get("superseded_by"),
-            confidence=row.get("confidence", 1.0),
-            status=row.get("status", "active"),
-            metadata=metadata,
-        )
+        # Memory.from_row() handles both v3 and v4 row shapes.
+        return Memory.from_row(row)
 
     def insert(self, memory: Memory) -> Memory:
+        """Insert a memory. Routes to the v4 INSERT when running on the v4
+        schema (``self._v4``); otherwise uses the v3 INSERT for backward
+        compat. The Memory dataclass carries both shapes; only the relevant
+        fields are written per branch.
+
+        v4 requires user_id; raises ValueError if absent. The DB generates
+        the UUID id; this method updates ``memory.id`` in place to match."""
         p = self._memory_to_params(memory)
-        self._execute("""
+        if self._v4:
+            if not memory.user_id:
+                raise ValueError(
+                    "v4 schema requires Memory.user_id; pass user_id when "
+                    "calling AgentMemory.add() or use a v3-mode backend."
+                )
+            rows = self._execute(
+                """
+                INSERT INTO memories (
+                    user_id, project_id, session_id, scope,
+                    content, tags, category, entity,
+                    confidence, status,
+                    valid_from, valid_until,
+                    superseded_by,
+                    source_episode_id, extraction_model,
+                    agent_id, parent_agent_id, visibility, signature,
+                    metadata
+                )
+                VALUES (
+                    %(user_id)s, %(project_id)s, %(session_id)s, %(scope)s,
+                    %(content)s, %(tags)s, %(category)s, %(entity)s,
+                    %(confidence)s, %(status)s,
+                    COALESCE(%(valid_from)s::timestamptz, NOW()),
+                    %(valid_until)s::timestamptz,
+                    %(superseded_by)s,
+                    %(source_episode_id)s, %(extraction_model)s,
+                    %(agent_id)s, %(parent_agent_id)s, %(visibility)s, %(signature)s,
+                    %(metadata)s::jsonb
+                )
+                RETURNING id, t_created
+                """,
+                p,
+            )
+            if rows:
+                memory.id = str(rows[0]["id"])
+                tc = rows[0].get("t_created")
+                memory.t_created = tc.isoformat() if hasattr(tc, "isoformat") else str(tc) if tc else None
+            return memory
+        # v3 path — id provided by Memory dataclass default (12-char hex)
+        self._execute(
+            """
             INSERT INTO memories (id, content, tags, category, entity, namespace,
                 created_at, event_date, valid_from, valid_until,
                 superseded_by, confidence, status, metadata)
             VALUES (%(id)s, %(content)s, %(tags)s, %(category)s, %(entity)s, %(namespace)s,
                 %(created_at)s, %(event_date)s, %(valid_from)s, %(valid_until)s,
                 %(superseded_by)s, %(confidence)s, %(status)s, %(metadata)s::jsonb)
-        """, p)
+            """,
+            p,
+        )
         return memory
 
     def get(self, memory_id: str) -> Optional[Memory]:
