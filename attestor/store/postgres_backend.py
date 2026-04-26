@@ -585,6 +585,58 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         self._ensure_embedding_fn()
         return self._embedder.embed(text)
 
+    def _build_embedding_text(self, memory_id: str, content: str) -> str:
+        """Build the text used for embedding (Phase 4.1, roadmap §B.1).
+
+        On v4 rows that have a source_episode_id, concatenate:
+
+            extracted fact (content)
+            ---
+            user turn (verbatim)
+            ---
+            assistant turn (verbatim)
+            ---
+            Tags: tag1, tag2, ...
+
+        This is LongMemEval Finding 2 — embedding the round, not just the
+        fact, gives +4% recall@k and +5% downstream QA. On v3 rows or when
+        the source episode is missing, falls back to just the fact text.
+        """
+        if not self._v4:
+            return content
+        try:
+            with self._conn.cursor(
+                cursor_factory=psycopg2.extras.RealDictCursor,
+            ) as cur:
+                cur.execute(
+                    """
+                    SELECT m.tags, m.source_episode_id,
+                           e.user_turn_text, e.assistant_turn_text
+                    FROM memories m
+                    LEFT JOIN episodes e ON e.id = m.source_episode_id
+                    WHERE m.id = %s
+                    """,
+                    (memory_id,),
+                )
+                row = cur.fetchone()
+        except Exception as e:
+            logger.debug("_build_embedding_text lookup failed: %s", e)
+            return content
+        if not row:
+            return content
+
+        parts: List[str] = [content]
+        user_text = row.get("user_turn_text")
+        asst_text = row.get("assistant_turn_text")
+        if user_text:
+            parts.append(user_text)
+        if asst_text:
+            parts.append(asst_text)
+        tags = row.get("tags") or []
+        if tags:
+            parts.append("Tags: " + ", ".join(tags))
+        return "\n---\n".join(parts)
+
     def add(self, memory_id: str, content: str, namespace: str = "default") -> None:
         """Generate embedding and store on the memory row.
 
@@ -592,9 +644,14 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         enforced at the document row (memories.namespace) and propagated into
         vector search below; this method updates the embedding column on the
         existing row so no separate namespace write is required here.
+
+        For v4 rows linked to an episode, the embedded text is the full
+        round (fact + user turn + assistant turn + tags), not just the
+        fact alone — see ``_build_embedding_text``.
         """
         del namespace  # reserved for future per-namespace index partitioning
-        embedding = self._embed(content)
+        text = self._build_embedding_text(memory_id, content)
+        embedding = self._embed(text)
         self._execute(
             "UPDATE memories SET embedding = %s::vector WHERE id = %s",
             (str(embedding), memory_id),
