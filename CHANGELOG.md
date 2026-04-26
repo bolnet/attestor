@@ -2,6 +2,66 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] — unreleased
+
+**v4 — deterministic, auditable memory tier purpose-built for multi-agent chat systems.** Greenfield rebuild on a v4-native Postgres schema with hard tenant isolation, bi-temporal facts, and a no-LLM retrieval critical path. v3 was alpha-only with no production users; there is no automated migration path, and no v3 data to carry forward. Drop your previous DB and install fresh.
+
+### Added
+
+#### Track A — conversation ingest
+- v4 schema with `users → projects → sessions → episodes → memories` hierarchy and Row-Level Security on every tenant table (`tenant_isolation_*` policies on the `attestor.current_user_id` session var).
+- Bi-temporal columns on `memories`: `valid_from`/`valid_until` (event time) + `t_created`/`t_expired` (transaction time) + `superseded_by` chain. Nothing is deleted; supersession marks rows superseded.
+- Episodes table for verbatim conversation turns; `ConversationIngest.ingest_round()` writes the episode + runs speaker-locked extraction in two passes (the +53.6 Mem0 fix) + resolves conflicts against existing similar memories.
+- Auto-generated SOLO defaults: a singleton `local` user, an Inbox project (`metadata.is_inbox`), and daily sessions so zero-config ingest works.
+
+#### Track B — retrieval upgrades
+- Fact-augmented embedding text (`fact + raw user/assistant turns + tags`) — measurably better recall than embedding the bare fact.
+- BM25 lane via trigger-maintained `content_tsv` tsvector + GIN index (since `to_tsvector('english', ...)` isn't IMMUTABLE).
+- Reciprocal Rank Fusion (RRF, k=60) of vector + BM25 lanes in the orchestrator.
+- Local Ollama `bge-m3` (1024-D, 8K context) is the default embedder; OpenRouter / OpenAI / Bedrock / Vertex / Azure are fallbacks.
+
+#### Track C — temporal reasoning
+- `recall(as_of=...)` bi-temporal replay — answers exactly what was active at a past point in transaction time. The regulator/audit case from the README is now real.
+- `time_window` queries via `tstzrange` overlap on `(valid_from, valid_until)`.
+- Orchestrator drops the `status='active'` filter when `as_of` or `time_window` is set, so superseded rows correctly return for replay.
+
+#### Track D — Chain-of-Note reading
+- `AgentMemory.recall_as_pack(query)` returns a structured `ContextPack` (id, content, validity window, confidence, source_episode_id) — citation-friendly view for agent consumption.
+- Default Chain-of-Note prompt with a NOTES → SYNTHESIS → CITE → ABSTAIN → CONFLICT structure. The ABSTAIN clause is the load-bearing piece (every frontier model defaults to confabulation otherwise).
+
+#### Track E — sleep-time consolidation
+- `consolidation_state` on episodes (`pending|processing|done|failed`) with `FOR UPDATE SKIP LOCKED` queue + stale-lease reclaim.
+- `SleepTimeConsolidator.run_once / run_forever` worker. Reflection prompts surface stable patterns / changed beliefs / contradictions; session-end promotion classifies session memories into `KEEP_SESSION / PROMOTE_PROJECT / PROMOTE_USER / DISCARD`.
+- Provenance trail: consolidator-produced facts get `extraction_model="consolidation:<model>"`.
+
+#### Track F — auth, MCP, signing, GDPR
+- Ed25519 provenance signatures over the canonical payload `v1|<id>|<agent_id>|<t_created>|<content_hash>`. Signature stored on the row; `verify_memory()` detects raw-DB tampering.
+- 5 MCP prompts: `record_decision`, `handoff_to`, `resume_thread`, `audit_decision`, `propose_invalidation`.
+- Per-user quotas: `user_quotas` table with auto-init trigger + counter triggers maintained by `INSERT/DELETE` on memories/sessions/projects so quota checks are a single SELECT, not a COUNT scan.
+- JWT auth middleware (Starlette `BaseHTTPMiddleware`) for HOSTED mode with HS256/RS256, `sub`/`exp`/`aud`/`iss` claim verification.
+- GDPR delete + export: `purge_user()` cascades through six tables; `deletion_audit` is RLS-EXEMPT (it must outlive the user it logs, with `user_id TEXT NOT NULL` recorded as a string, not an FK). Audit row is INSERTed BEFORE the cascade so a partial-cascade failure still leaves a trail.
+
+#### Track G — eval harness + CI gate
+- Four runners share a standard `BenchmarkSummary` shape:
+  - **Regression suite** (`evals/regression/`) — deterministic, no-LLM, YAML-driven catalog runs in CI on every PR.
+  - **LongMemEval** wrapper (`evals/longmemeval/`) over the existing engine.
+  - **BEAM** long-context runner (`evals/beam/`) with per-bucket aggregation (1k / 8k / 32k / 128k / 512k / 1M).
+  - **AbstentionBench** (`evals/abstention/`) with phrase-based detector matching the CoN ABSTAIN clause output; F1 as primary metric so always-abstain and always-answer both score zero.
+- `evals.gate` CLI loads `*_summary.json` files, diffs against `docs/bench/v4-baseline.json`, exits 1 on regression. Per-benchmark threshold overrides; bootstrap-friendly (missing baseline = no possible regression = pass).
+- `evals.publish_baseline` CLI for promoting a verified run into the published baseline. Dry-run, partial promotion (`--only`), threshold preservation.
+- `.github/workflows/evals.yml` — always-on unit + gate jobs; `workflow_dispatch`-only heavy benchmarks job (needs API-key secrets + a Postgres service container).
+
+### Hardening
+
+- `attestor doctor --v4-schema` validates structural invariants against a Postgres connection: required extensions (`vector`, `btree_gist`, `uuid-ossp`), all tenant tables have RLS enabled, audit tables are RLS-EXEMPT, content_tsv + quota counter triggers exist, SECURITY DEFINER lookup helpers are present.
+- `attestor_user_id_for_external(text)` SECURITY DEFINER helper fixes the chicken-and-egg in user provisioning (RLS gates SELECT on id-match-var; bootstrap path can't SELECT a user whose id it doesn't yet know).
+- Split `users` RLS policy into 4 (SELECT/UPDATE/DELETE strict on id-match-var, INSERT WITH CHECK true) so a non-SUPERUSER, NOBYPASSRLS runtime role can self-provision its own row.
+
+### Removed (vs v3 alpha)
+
+- The v3 schema is dropped entirely. No automated migration; no v3 data exists.
+- `agent_memory` legacy import path is gone. Use `from attestor import ...` only.
+
 ## [3.0.0] — 2026-04-18
 
 **Attestor rebrand.** `memwright` is now `attestor`. The library, CLI, default store path, MCP URI scheme, and Docker env var all change. v3.x ships compatibility shims for each surface; they are removed in v3.2.

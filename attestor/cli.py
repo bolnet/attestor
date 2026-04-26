@@ -207,6 +207,20 @@ def main(argv=None):
         help="Check health of all components (document, vector, graph, retrieval)",
     )
     p_doctor.add_argument("path", nargs="?", default=None, help="Memory store path")
+    p_doctor.add_argument(
+        "--v4-schema",
+        action="store_true",
+        help=(
+            "Run the v4 schema invariants check against PG_TEST_URL "
+            "(or --pg-url): extensions, RLS policies on tenant tables, "
+            "deletion_audit RLS-EXEMPT, content_tsv + quota counter triggers"
+        ),
+    )
+    p_doctor.add_argument(
+        "--pg-url",
+        default=None,
+        help="Postgres connection URL for --v4-schema (overrides PG_TEST_URL)",
+    )
 
     # locomo (LOCOMO benchmark)
     p_locomo = subparsers.add_parser(
@@ -808,6 +822,30 @@ def _cmd_doctor(args):
     """Check health of all components."""
     print("Attestor Doctor")
     print("=" * 50)
+
+    # v4 schema check is structural — runs against a Postgres connection
+    # without needing an AgentMemory instance. Useful for pre-deploy
+    # validation before any user data exists.
+    if getattr(args, "v4_schema", False):
+        url = getattr(args, "pg_url", None) or os.environ.get("PG_TEST_URL")
+        if not url:
+            print("\nv4 schema check requires --pg-url or PG_TEST_URL")
+            return
+        try:
+            import psycopg2
+        except ImportError:
+            print("\nv4 schema check requires psycopg2 (install attestor[postgres])")
+            return
+        from attestor.doctor_v4 import format_v4_report, run_v4_doctor
+        try:
+            with psycopg2.connect(url) as conn:
+                report = run_v4_doctor(conn)
+        except Exception as e:
+            print(f"\nFailed to connect to {url!r}: {e}")
+            return
+        print()
+        print(format_v4_report(report))
+        return
 
     store_path = getattr(args, "path", None)
     if store_path:

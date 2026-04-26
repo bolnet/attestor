@@ -78,11 +78,19 @@ poetry add attestor
 <tr><th colspan="2" align="center">&sect; Spec Sheet</th></tr>
 <tr><td>Storage Roles</td><td><b>Doc &middot; Vector &middot; Graph</b></td></tr>
 <tr><td>Interfaces</td><td><b>Python &middot; REST &middot; MCP</b></td></tr>
-<tr><td>Retrieval Layers</td><td><b>5</b></td></tr>
+<tr><td>Retrieval Layers</td><td><b>5</b> &mdash; tag &middot; graph BFS &middot; vector &middot; RRF fusion &middot; MMR + budget pack</td></tr>
+<tr><td>Tenancy</td><td><b>Postgres Row&#8209;Level Security</b> &mdash; hard isolation per <code>users</code> row, even on app&#8209;level bugs</td></tr>
+<tr><td>Temporal</td><td><b>Bi&#8209;temporal</b> &mdash; <code>valid_from</code>/<code>valid_until</code> + <code>t_created</code>/<code>t_expired</code>; <code>recall(as_of=...)</code> replays the past</td></tr>
+<tr><td>Reading</td><td><b>Chain&#8209;of&#8209;Note</b> &mdash; structured ContextPack with NOTES &rarr; SYNTHESIS &rarr; CITE &rarr; <b>ABSTAIN</b> &rarr; CONFLICT</td></tr>
+<tr><td>Provenance</td><td><b>Ed25519</b> signatures over canonical payload; <code>verify_memory()</code> detects raw&#8209;DB tampering</td></tr>
+<tr><td>Compliance</td><td><b>GDPR delete + export</b>, RLS&#8209;EXEMPT <code>deletion_audit</code> outlives the user</td></tr>
+<tr><td>Quality gate</td><td><b>4&#8209;benchmark CI</b> &mdash; LongMemEval &middot; BEAM &middot; AbstentionBench &middot; deterministic regression suite</td></tr>
 <tr><td>RBAC Roles</td><td><b>6</b></td></tr>
 <tr><td>Cloud Targets</td><td><b>Amazon Web Services &middot; Microsoft Azure &middot; Google Cloud Platform</b></td></tr>
 <tr><td>License</td><td><b>MIT</b></td></tr>
 </table>
+
+<sub><b>4.0 highlights:</b> v4 is a greenfield rebuild &mdash; bi&#8209;temporal facts with as&#8209;of replay, hard tenant isolation via Postgres RLS, the Chain&#8209;of&#8209;Note ABSTAIN clause, Ed25519 provenance signing, GDPR delete/export with an RLS&#8209;exempt audit trail, JWT auth for HOSTED mode, and a regression gate that runs four benchmarks on every PR. See <a href="./CHANGELOG.md">CHANGELOG.md</a> for the full list.</sub>
 
 ---
 
