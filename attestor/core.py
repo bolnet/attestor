@@ -116,11 +116,25 @@ class AgentMemory:
 
         # Initialize managers
         self._temporal = TemporalManager(self._store)
+        # BM25 / FTS lane (Phase 4.3) — opt-in via v4 schema's content_tsv
+        # column. Only safe when the doc store exposes a psycopg2 conn.
+        bm25_lane = None
+        if (
+            getattr(self._store, "_v4", False)
+            and getattr(self._store, "_conn", None) is not None
+        ):
+            try:
+                from attestor.retrieval.bm25 import BM25Lane
+                bm25_lane = BM25Lane(self._store._conn)
+            except Exception as e:
+                logger.debug("BM25 lane init skipped: %s", e)
+
         self._retrieval = RetrievalOrchestrator(
             self._store,
             min_results=self.config.min_results,
             vector_store=self._vector_store,
             graph=self._graph,
+            bm25_lane=bm25_lane,
         )
         # Wire retrieval tuning from config
         self._retrieval.enable_mmr = self.config.enable_mmr
@@ -420,6 +434,59 @@ class AgentMemory:
         )
 
         return ResolvedContext(user=user, project=project, session=session)
+
+    # -- v4 round-level conversation ingest (Phase 3.5) --
+
+    def ingest_round(
+        self,
+        user_turn: Any,                 # ConversationTurn
+        assistant_turn: Any,            # ConversationTurn
+        *,
+        user_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        scope: str = "user",
+        agent_id: Optional[str] = None,
+        recent_context: str = "(none)",
+        config: Optional[Any] = None,        # IngestConfig
+        extraction_client: Optional[Any] = None,
+        resolver_client: Optional[Any] = None,
+    ) -> Any:                            # RoundResult
+        """End-to-end ingest of one conversational round.
+
+        Resolves identity (SOLO defaults apply), writes the verbatim
+        episode, runs speaker-locked extraction in two passes, resolves
+        conflicts against existing similar memories, and applies the
+        ADD/UPDATE/INVALIDATE/NOOP decisions through the supersession
+        path.
+
+        Returns a ``RoundResult`` with episode + decisions + applied
+        outcomes — enough for tests + audit dashboards.
+        """
+        from attestor.conversation.ingest import ConversationIngest
+
+        rc = self._resolve(
+            user_id=user_id,
+            project_id=project_id,
+            session_id=session_id,
+            autostart=True,
+        )
+        ingest = ConversationIngest(
+            self,
+            config=config,
+            extraction_client=extraction_client,
+            resolver_client=resolver_client,
+        )
+        return ingest.ingest_round(
+            user_turn=user_turn,
+            assistant_turn=assistant_turn,
+            user_id=rc.user.id,
+            project_id=rc.project.id,
+            session_id=rc.session.id if rc.session else None,
+            scope=scope,
+            agent_id=agent_id,
+            recent_context=recent_context,
+        )
 
     @property
     def mode(self) -> AttestorMode:

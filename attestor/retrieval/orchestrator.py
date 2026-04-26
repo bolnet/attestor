@@ -51,12 +51,16 @@ class RetrievalOrchestrator:
         vector_store=None,
         graph=None,
         enable_temporal_boost: bool = True,
+        bm25_lane=None,
     ):
         self.store = store
         self.min_results = min_results
         self.vector_store = vector_store
         self.graph = graph
         self.enable_temporal_boost = enable_temporal_boost
+        self.bm25_lane = bm25_lane            # Phase 4.3 — keyword/FTS lane
+        self.bm25_top_k: int = 30             # how many BM25 hits to feed to RRF
+        self.bm25_min_rank: float = 0.0       # drop hits below this rank
         self.confidence_gate: float = 0.0
         self.confidence_decay_rate: float = 0.001
         self.confidence_boost_rate: float = 0.03
@@ -193,10 +197,27 @@ class RetrievalOrchestrator:
             except Exception:
                 vector_hits_raw = []
 
-        # Materialize into RetrievalResult with preliminary vector_sim.
+        # ── Step 1b: BM25 lane (Phase 4.3) ──
+        # Runs alongside the vector lane; fused via RRF below. When the
+        # bm25_lane isn't configured (v3 deployments, custom backends),
+        # this is a no-op and recall behaves exactly as before.
+        bm25_hits_raw: List = []
+        if self.bm25_lane is not None:
+            try:
+                bm25_hits_raw = self.bm25_lane.search(
+                    query, limit=self.bm25_top_k,
+                    min_rank=self.bm25_min_rank,
+                )
+            except Exception:
+                bm25_hits_raw = []
+
+        # ── Step 2: Materialise vector candidates with preliminary vector_sim
         candidates: List[Dict] = []
+        seen_ids: set = set()
         for vr in vector_hits_raw:
             mid = vr["memory_id"]
+            if mid in seen_ids:
+                continue
             memory = self.store.get(mid)
             if not memory or memory.status != "active":
                 continue
@@ -207,6 +228,40 @@ class RetrievalOrchestrator:
             candidates.append(
                 {"memory": memory, "distance": distance, "vector_sim": vector_sim}
             )
+            seen_ids.add(mid)
+
+        # Pull BM25-only hits into the candidate set (vector_sim=0 for those).
+        # The RRF-style boost below rewards them based on their BM25 rank.
+        for hit in bm25_hits_raw:
+            if hit.memory_id in seen_ids:
+                continue
+            memory = self.store.get(hit.memory_id)
+            if not memory or memory.status != "active":
+                continue
+            if namespace and memory.namespace != namespace:
+                continue
+            candidates.append({
+                "memory": memory, "distance": 1.0, "vector_sim": 0.0,
+            })
+            seen_ids.add(hit.memory_id)
+
+        # ── Step 2b: RRF-blend vector + BM25 rank into a unified score ──
+        if bm25_hits_raw:
+            from attestor.retrieval.bm25 import reciprocal_rank_fusion
+            vector_ranked = [vr["memory_id"] for vr in vector_hits_raw]
+            bm25_ranked = [h.memory_id for h in bm25_hits_raw]
+            fused = reciprocal_rank_fusion(vector_ranked, bm25_ranked)
+            # Map id → fused position (0-based)
+            fused_rank = {mid: i for i, mid in enumerate(fused)}
+            # Convert fused position into a normalized [0, 1] bonus that we
+            # add to vector_sim. Top of fused list ≈ 1.0, tail decays slowly.
+            n = max(1, len(fused))
+            for c in candidates:
+                pos = fused_rank.get(c["memory"].id)
+                if pos is not None:
+                    c["vector_sim"] = max(
+                        c["vector_sim"], 1.0 - (pos / n),
+                    )
 
         # ── Step 2: Graph narrow ──
         affinity_map = self._graph_affinity_map(question_entities)

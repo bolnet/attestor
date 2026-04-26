@@ -309,6 +309,15 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             "status": memory.status,
             "metadata": json.dumps(memory.metadata),
         }
+        # source_span on the v4 schema is INT4RANGE [start, end). psycopg2
+        # serializes a Python tuple/list of two ints into a Range literal
+        # via the explicit cast in the INSERT.
+        span = memory.source_span
+        if isinstance(span, (list, tuple)) and len(span) == 2:
+            source_span_literal = f"[{int(span[0])},{int(span[1])})"
+        else:
+            source_span_literal = None
+
         # v4-only params — present when caller set them.
         params.update({
             "user_id": memory.user_id,
@@ -316,6 +325,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             "session_id": memory.session_id,
             "scope": memory.scope or "user",
             "source_episode_id": memory.source_episode_id,
+            "source_span": source_span_literal,
             "extraction_model": memory.extraction_model,
             "agent_id": memory.agent_id,
             "parent_agent_id": memory.parent_agent_id,
@@ -351,7 +361,7 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
                     confidence, status,
                     valid_from, valid_until,
                     superseded_by,
-                    source_episode_id, extraction_model,
+                    source_episode_id, source_span, extraction_model,
                     agent_id, parent_agent_id, visibility, signature,
                     metadata
                 )
@@ -362,7 +372,8 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
                     COALESCE(%(valid_from)s::timestamptz, NOW()),
                     %(valid_until)s::timestamptz,
                     %(superseded_by)s,
-                    %(source_episode_id)s, %(extraction_model)s,
+                    %(source_episode_id)s, %(source_span)s::int4range,
+                    %(extraction_model)s,
                     %(agent_id)s, %(parent_agent_id)s, %(visibility)s, %(signature)s,
                     %(metadata)s::jsonb
                 )
@@ -399,6 +410,28 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
 
     def update(self, memory: Memory) -> Memory:
         p = self._memory_to_params(memory)
+        if self._v4:
+            # v4 has no namespace / created_at / event_date columns.
+            # Mutates only the fields the call surface actually changes.
+            self._execute(
+                """
+                UPDATE memories SET
+                    content       = %(content)s,
+                    tags          = %(tags)s,
+                    category      = %(category)s,
+                    entity        = %(entity)s,
+                    valid_from    = COALESCE(%(valid_from)s::timestamptz, valid_from),
+                    valid_until   = %(valid_until)s::timestamptz,
+                    superseded_by = %(superseded_by)s,
+                    confidence    = %(confidence)s,
+                    status        = %(status)s,
+                    metadata      = %(metadata)s::jsonb
+                WHERE id = %(id)s
+                """,
+                p,
+            )
+            return memory
+        # v3 path
         self._execute("""
             UPDATE memories SET
                 content = %(content)s, tags = %(tags)s, category = %(category)s,
@@ -428,6 +461,11 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         before: Optional[str] = None,
         limit: int = 100,
     ) -> List[Memory]:
+        # v4 schema replaces the v3 ``created_at`` text column with the
+        # bi-temporal ``t_created`` (TIMESTAMPTZ). Use the right one per
+        # active schema; namespace is ignored on v4 (replaced by RLS).
+        time_col = "t_created" if self._v4 else "created_at"
+
         filters = []
         params: Dict[str, Any] = {"lim": limit}
 
@@ -440,19 +478,20 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         if entity:
             filters.append("entity = %(entity)s")
             params["entity"] = entity
-        if namespace:
+        if namespace and not self._v4:
             filters.append("namespace = %(namespace)s")
             params["namespace"] = namespace
         if after:
-            filters.append("created_at >= %(after)s")
+            filters.append(f"{time_col} >= %(after)s")
             params["after"] = after
         if before:
-            filters.append("created_at <= %(before)s")
+            filters.append(f"{time_col} <= %(before)s")
             params["before"] = before
 
         where = " AND ".join(filters) if filters else "TRUE"
         rows = self._execute(
-            f"SELECT * FROM memories WHERE {where} ORDER BY created_at DESC LIMIT %(lim)s",
+            f"SELECT * FROM memories WHERE {where} "
+            f"ORDER BY {time_col} DESC LIMIT %(lim)s",
             params,
         )
         return [self._row_to_memory(r) for r in rows]
@@ -546,6 +585,58 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         self._ensure_embedding_fn()
         return self._embedder.embed(text)
 
+    def _build_embedding_text(self, memory_id: str, content: str) -> str:
+        """Build the text used for embedding (Phase 4.1, roadmap §B.1).
+
+        On v4 rows that have a source_episode_id, concatenate:
+
+            extracted fact (content)
+            ---
+            user turn (verbatim)
+            ---
+            assistant turn (verbatim)
+            ---
+            Tags: tag1, tag2, ...
+
+        This is LongMemEval Finding 2 — embedding the round, not just the
+        fact, gives +4% recall@k and +5% downstream QA. On v3 rows or when
+        the source episode is missing, falls back to just the fact text.
+        """
+        if not self._v4:
+            return content
+        try:
+            with self._conn.cursor(
+                cursor_factory=psycopg2.extras.RealDictCursor,
+            ) as cur:
+                cur.execute(
+                    """
+                    SELECT m.tags, m.source_episode_id,
+                           e.user_turn_text, e.assistant_turn_text
+                    FROM memories m
+                    LEFT JOIN episodes e ON e.id = m.source_episode_id
+                    WHERE m.id = %s
+                    """,
+                    (memory_id,),
+                )
+                row = cur.fetchone()
+        except Exception as e:
+            logger.debug("_build_embedding_text lookup failed: %s", e)
+            return content
+        if not row:
+            return content
+
+        parts: List[str] = [content]
+        user_text = row.get("user_turn_text")
+        asst_text = row.get("assistant_turn_text")
+        if user_text:
+            parts.append(user_text)
+        if asst_text:
+            parts.append(asst_text)
+        tags = row.get("tags") or []
+        if tags:
+            parts.append("Tags: " + ", ".join(tags))
+        return "\n---\n".join(parts)
+
     def add(self, memory_id: str, content: str, namespace: str = "default") -> None:
         """Generate embedding and store on the memory row.
 
@@ -553,9 +644,14 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         enforced at the document row (memories.namespace) and propagated into
         vector search below; this method updates the embedding column on the
         existing row so no separate namespace write is required here.
+
+        For v4 rows linked to an episode, the embedded text is the full
+        round (fact + user turn + assistant turn + tags), not just the
+        fact alone — see ``_build_embedding_text``.
         """
         del namespace  # reserved for future per-namespace index partitioning
-        embedding = self._embed(content)
+        text = self._build_embedding_text(memory_id, content)
+        embedding = self._embed(text)
         self._execute(
             "UPDATE memories SET embedding = %s::vector WHERE id = %s",
             (str(embedding), memory_id),
