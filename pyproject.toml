@@ -43,7 +43,7 @@ gcp = ["google-cloud-firestore>=2.11.0", "google-cloud-aiplatform>=1.38.0"]
 cloud-embeddings = ["openai>=1.0.0"]
 lambda = ["mangum>=0.17.0", "starlette>=0.27.0"]
 docker = ["docker>=6.0"]
-eval = ["braintrust>=0.0.150", "anthropic>=0.30.0"]
+eval = ["braintrust>=0.0.150", "anthropic>=0.30.0", "PyYAML>=6.0"]
 all = [
     "openai>=1.0.0",
     "psycopg2-binary>=2.9.0",
