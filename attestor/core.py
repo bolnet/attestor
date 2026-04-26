@@ -713,12 +713,19 @@ class AgentMemory:
         budget: Optional[int] = None,
         namespace: Optional[str] = None,
         user_id: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        time_window: Optional[Any] = None,    # TimeWindow
     ) -> List[RetrievalResult]:
         """Retrieve relevant memories for a query using 3-layer cascade.
 
         v4: when ``user_id`` is provided AND the backend is in v4 mode, the
         RLS variable is set on the connection so policies filter to this
-        user. v3 callers omit user_id — behavior unchanged."""
+        user. v3 callers omit user_id — behavior unchanged.
+
+        v4 + Phase 5.3 — bi-temporal:
+          as_of       — point-in-time replay (returns past belief)
+          time_window — event-time overlap pre-filter
+        Both pass through to the orchestrator and on to the lanes."""
         # v4: route through _resolve() so zero-config recall works in SOLO
         # mode. Recall doesn't autostart a session — read-only ops only need
         # user+project scope.
@@ -733,7 +740,14 @@ class AgentMemory:
 
         t0 = time.monotonic()
         token_budget = budget or self.config.default_token_budget
-        results = self._retrieval.recall(query, token_budget, namespace=namespace)
+        # Pass temporal kwargs only when present so legacy v3 orchestrator
+        # signatures aren't disturbed.
+        recall_kwargs: Dict[str, Any] = {"namespace": namespace}
+        if as_of is not None:
+            recall_kwargs["as_of"] = as_of
+        if time_window is not None:
+            recall_kwargs["time_window"] = time_window
+        results = self._retrieval.recall(query, token_budget, **recall_kwargs)
         total_ms = round((time.monotonic() - t0) * 1000, 2)
 
         # Track access for confidence decay/boost
