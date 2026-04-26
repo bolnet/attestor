@@ -38,21 +38,23 @@ class TestGetEmbeddingProvider:
         clear_embedding_cache()
 
     def test_raises_without_any_key(self):
-        """No cloud creds and no OpenAI key → explicit error."""
+        """No local ollama, no cloud creds, no OpenAI key → explicit error."""
         with patch.dict("os.environ", {}, clear=True):
-            with patch("attestor.store.embeddings._try_openai", return_value=None):
-                with pytest.raises(RuntimeError, match="No embedding provider"):
-                    get_embedding_provider()
+            with patch("attestor.store.embeddings._try_ollama", return_value=None):
+                with patch("attestor.store.embeddings._try_openai", return_value=None):
+                    with pytest.raises(RuntimeError, match="No embedding provider"):
+                        get_embedding_provider()
 
     def test_openai_tried_when_key_set(self):
-        """When OPENAI_API_KEY is set, OpenAI provider should be attempted."""
+        """When OPENAI_API_KEY is set and Ollama unavailable, OpenAI is used."""
         mock_provider = MagicMock()
         mock_provider.provider_name = "openai"
         mock_provider.dimension = 1536
 
-        with patch("attestor.store.embeddings._try_openai", return_value=mock_provider):
-            provider = get_embedding_provider()
-            assert provider.provider_name == "openai"
+        with patch("attestor.store.embeddings._try_ollama", return_value=None):
+            with patch("attestor.store.embeddings._try_openai", return_value=mock_provider):
+                provider = get_embedding_provider()
+                assert provider.provider_name == "openai"
 
     def test_preferred_bedrock_tried_first(self):
         """When preferred='bedrock', should try bedrock before openai."""
@@ -65,15 +67,16 @@ class TestGetEmbeddingProvider:
             assert provider.provider_name == "bedrock"
 
     def test_preferred_unavailable_falls_through_to_openai(self):
-        """Preferred cloud provider failing falls through to OpenAI path."""
+        """Preferred cloud provider failing falls through to local→OpenAI path."""
         mock_openai = MagicMock()
         mock_openai.provider_name = "openai"
         mock_openai.dimension = 1536
 
         with patch("attestor.store.embeddings._CLOUD_PROVIDERS", {"bedrock": lambda: None}):
-            with patch("attestor.store.embeddings._try_openai", return_value=mock_openai):
-                provider = get_embedding_provider(preferred="bedrock")
-                assert provider.provider_name == "openai"
+            with patch("attestor.store.embeddings._try_ollama", return_value=None):
+                with patch("attestor.store.embeddings._try_openai", return_value=mock_openai):
+                    provider = get_embedding_provider(preferred="bedrock")
+                    assert provider.provider_name == "openai"
 
 
 class TestOpenAIEmbeddingProvider:

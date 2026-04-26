@@ -1,11 +1,13 @@
 """Shared embedding providers — single source of truth for all backends.
 
 Fallback chain (each level tried only if the previous is unavailable):
-    1. Cloud-native (Bedrock / Azure OpenAI / Vertex AI) — if credentials present
-    2. OpenAI / OpenRouter text-embedding-3-large — if API key set
+    1. Local Ollama (bge-m3 by default, 1024-D) — if Ollama is reachable
+    2. Cloud-native (Bedrock / Azure OpenAI / Vertex AI) — if credentials present
+    3. OpenAI / OpenRouter text-embedding-3-large — if API key set
 
-There is no local/zero-config fallback. Attestor requires an upstream
-embedding API — BYO credentials.
+Local-first by design: Ollama on localhost:11434 is the default so attestor
+works offline / without API credits. Override with ATTESTOR_EMBEDDING_MODEL
+or ATTESTOR_EMBEDDING_PROVIDER env vars.
 
 Usage:
     provider = get_embedding_provider()          # auto-detect best available
@@ -95,6 +97,88 @@ class OpenAIEmbeddingProvider:
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         resp = self._client.embeddings.create(**self._create_kwargs(texts))
         return [d.embedding for d in resp.data]
+
+
+class OllamaEmbeddingProvider:
+    """Local Ollama embeddings (default model: bge-m3, 1024-D, 8K context).
+
+    Talks to ``http://localhost:11434/api/embeddings`` (override with
+    ``OLLAMA_HOST``). Probe-detects dimension at construction so swapping
+    the model just works — bge-m3 → 1024-D, nomic-embed-text → 768-D,
+    mxbai-embed-large → 1024-D, etc.
+
+    Local-first means: no network, no API credit cost, no rate limits.
+    The price is RAM + an Ollama daemon; both are usually already there
+    if you're running a local agent stack.
+    """
+
+    DEFAULT_MODEL = "bge-m3"
+    DEFAULT_HOST = "http://localhost:11434"
+
+    def __init__(
+        self,
+        model: Optional[str] = None,
+        host: Optional[str] = None,
+        timeout: float = 30.0,
+    ) -> None:
+        import requests
+
+        self._requests = requests
+        self._host = (host or os.environ.get("OLLAMA_HOST") or self.DEFAULT_HOST).rstrip("/")
+        self._model = model or os.environ.get("ATTESTOR_EMBEDDING_MODEL") or self.DEFAULT_MODEL
+        self._timeout = timeout
+        # Probe dimension once at boot. Raises if Ollama unreachable or
+        # model not pulled — caller catches and falls through to next
+        # provider in the chain.
+        probe = self._raw_embed("dim")
+        self._dimension = len(probe)
+
+    @property
+    def dimension(self) -> int:
+        return self._dimension
+
+    @property
+    def provider_name(self) -> str:
+        return f"ollama:{self._model}"
+
+    def _raw_embed(self, text: str) -> List[float]:
+        # Ollama's /api/embeddings returns {"embedding": [...]}; the newer
+        # /api/embed returns {"embeddings": [[...]]} for batch. Use the
+        # singular endpoint for consistency across versions.
+        r = self._requests.post(
+            f"{self._host}/api/embeddings",
+            json={"model": self._model, "prompt": text},
+            timeout=self._timeout,
+        )
+        r.raise_for_status()
+        data = r.json()
+        emb = data.get("embedding")
+        if not isinstance(emb, list):
+            raise RuntimeError(
+                f"Ollama embedding response missing 'embedding': {data}"
+            )
+        return emb
+
+    def embed(self, text: str) -> List[float]:
+        return self._raw_embed(text)
+
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        # Ollama doesn't batch on the /api/embeddings endpoint. Use the
+        # newer /api/embed if available; fall back to per-text loop.
+        try:
+            r = self._requests.post(
+                f"{self._host}/api/embed",
+                json={"model": self._model, "input": texts},
+                timeout=self._timeout,
+            )
+            r.raise_for_status()
+            data = r.json()
+            embs = data.get("embeddings")
+            if isinstance(embs, list) and len(embs) == len(texts):
+                return embs
+        except Exception as e:
+            logger.debug("ollama batch endpoint failed (%s); per-text fallback", e)
+        return [self._raw_embed(t) for t in texts]
 
 
 class BedrockEmbeddingProvider:
@@ -244,6 +328,23 @@ class VertexAIEmbeddingProvider:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+def _try_ollama() -> Optional[EmbeddingProvider]:
+    """Probe local Ollama. Returns None if daemon unreachable or model
+    missing — caller falls through to the next provider."""
+    if os.environ.get("ATTESTOR_DISABLE_LOCAL_EMBED") in {"1", "true", "True"}:
+        return None
+    try:
+        provider = OllamaEmbeddingProvider()
+        logger.info(
+            "Using %s embeddings (%dD)",
+            provider.provider_name, provider.dimension,
+        )
+        return provider
+    except Exception as e:
+        logger.debug("Ollama embeddings unavailable: %s", e)
+        return None
+
+
 def _try_bedrock() -> Optional[EmbeddingProvider]:
     """Try to create Bedrock provider."""
     try:
@@ -349,15 +450,18 @@ def get_embedding_provider(
 ) -> EmbeddingProvider:
     """Get the best available embedding provider.
 
-    Fallback chain:
-        1. preferred cloud provider (if specified and available)
-        2. OpenAI / OpenRouter (if API key set)
+    Fallback chain (preferred wins if specified and available):
+        0. preferred ("ollama" / "bedrock" / "azure_openai" / "vertex_ai")
+        1. Local Ollama (bge-m3 default) — if daemon reachable + model pulled
+        2. Cloud-native (Bedrock / Azure OpenAI / Vertex AI) — credentials present
+        3. OpenAI / OpenRouter — API key set
 
-    There is no local fallback — an upstream embedding API is required.
+    Set ``ATTESTOR_DISABLE_LOCAL_EMBED=1`` to skip the Ollama probe (e.g.
+    on hosted deployments where Ollama isn't installed).
 
     Args:
-        preferred: Cloud provider hint — "bedrock", "azure_openai", "vertex_ai".
-                   Tried first but falls through on failure.
+        preferred: Provider hint — "ollama", "bedrock", "azure_openai",
+                   "vertex_ai". Tried first but falls through on failure.
 
     Returns:
         An EmbeddingProvider instance (cached after first call).
@@ -367,13 +471,29 @@ def get_embedding_provider(
     if _cached_provider is not None and preferred is None:
         return _cached_provider
 
-    if preferred and preferred in _CLOUD_PROVIDERS:
-        provider = _CLOUD_PROVIDERS[preferred]()
-        if provider is not None:
-            logger.info("Using %s embeddings (%dD)", provider.provider_name, provider.dimension)
-            _cached_provider = provider
-            return provider
+    # Explicit preference path (cloud or local)
+    if preferred:
+        if preferred == "ollama":
+            provider = _try_ollama()
+            if provider is not None:
+                _cached_provider = provider
+                return provider
+        elif preferred in _CLOUD_PROVIDERS:
+            provider = _CLOUD_PROVIDERS[preferred]()
+            if provider is not None:
+                logger.info(
+                    "Using %s embeddings (%dD)",
+                    provider.provider_name, provider.dimension,
+                )
+                _cached_provider = provider
+                return provider
         logger.debug("Preferred provider %r unavailable, trying fallbacks", preferred)
+
+    # Auto-detect chain: local first
+    provider = _try_ollama()
+    if provider is not None:
+        _cached_provider = provider
+        return provider
 
     provider = _try_openai()
     if provider is not None:
@@ -381,6 +501,7 @@ def get_embedding_provider(
         return provider
 
     raise RuntimeError(
-        "No embedding provider available. Set OPENROUTER_API_KEY or OPENAI_API_KEY, "
-        "or configure a cloud provider (Bedrock / Azure OpenAI / Vertex AI)."
+        "No embedding provider available. Start Ollama (`ollama serve`) with "
+        "`ollama pull bge-m3`, or set OPENROUTER_API_KEY / OPENAI_API_KEY, or "
+        "configure a cloud provider (Bedrock / Azure OpenAI / Vertex AI)."
     )
