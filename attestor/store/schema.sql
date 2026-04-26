@@ -150,6 +150,33 @@ CREATE INDEX IF NOT EXISTS idx_memories_content_hash
 CREATE INDEX IF NOT EXISTS idx_memories_embedding_hnsw
     ON memories USING hnsw (embedding vector_cosine_ops);
 
+-- BM25 / FTS lane (Phase 4.2, roadmap §B.2). A regular tsvector column
+-- maintained by trigger is the canonical Postgres pattern: generated
+-- columns can't reference to_tsvector('english', ...) (not marked
+-- IMMUTABLE since the dictionary is config-loadable), and expression
+-- indexes have the same restriction.
+ALTER TABLE memories ADD COLUMN IF NOT EXISTS content_tsv TSVECTOR;
+
+CREATE OR REPLACE FUNCTION attestor_memories_content_tsv_update() RETURNS TRIGGER AS $$
+BEGIN
+    NEW.content_tsv :=
+        setweight(to_tsvector('english', coalesce(NEW.content, '')), 'A') ||
+        setweight(to_tsvector('english',
+            coalesce(array_to_string(NEW.tags, ' '), '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(NEW.entity, '')), 'C');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_memories_content_tsv ON memories;
+CREATE TRIGGER trg_memories_content_tsv
+    BEFORE INSERT OR UPDATE OF content, tags, entity
+    ON memories
+    FOR EACH ROW EXECUTE FUNCTION attestor_memories_content_tsv_update();
+
+CREATE INDEX IF NOT EXISTS idx_memories_content_tsv
+    ON memories USING GIN (content_tsv);
+
 -- ── Row-Level Security ────────────────────────────────────────────────────
 -- Hard tenant isolation: even an app-level bug that forgets WHERE user_id=...
 -- returns zero rows from another user's data because the database itself
