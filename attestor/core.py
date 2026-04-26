@@ -116,11 +116,25 @@ class AgentMemory:
 
         # Initialize managers
         self._temporal = TemporalManager(self._store)
+        # BM25 / FTS lane (Phase 4.3) — opt-in via v4 schema's content_tsv
+        # column. Only safe when the doc store exposes a psycopg2 conn.
+        bm25_lane = None
+        if (
+            getattr(self._store, "_v4", False)
+            and getattr(self._store, "_conn", None) is not None
+        ):
+            try:
+                from attestor.retrieval.bm25 import BM25Lane
+                bm25_lane = BM25Lane(self._store._conn)
+            except Exception as e:
+                logger.debug("BM25 lane init skipped: %s", e)
+
         self._retrieval = RetrievalOrchestrator(
             self._store,
             min_results=self.config.min_results,
             vector_store=self._vector_store,
             graph=self._graph,
+            bm25_lane=bm25_lane,
         )
         # Wire retrieval tuning from config
         self._retrieval.enable_mmr = self.config.enable_mmr
