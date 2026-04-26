@@ -325,3 +325,83 @@ class RetrievalResult:
         return self.memory.content
 
 
+# ── ContextPack (Phase 6.1, roadmap §D.1) ────────────────────────────────
+
+
+@dataclass(frozen=True)
+class ContextPackEntry:
+    """One memory inside a ContextPack — citation-friendly view.
+
+    The agent's Chain-of-Note instructions cite by ``id`` (e.g. [mem_42]),
+    so the id MUST round-trip exactly. ``source_episode_id`` lets the
+    auditor reconstruct the verbatim round the fact came from.
+    """
+    id: str
+    content: str
+    category: str
+    entity: Optional[str]
+    valid_from: Optional[str]
+    valid_until: Optional[str]
+    confidence: float
+    source_episode_id: Optional[str]
+    score: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "content": self.content,
+            "category": self.category,
+            "entity": self.entity,
+            "valid_from": self.valid_from,
+            "valid_until": self.valid_until,
+            "confidence": self.confidence,
+            "source_episode_id": self.source_episode_id,
+            "score": self.score,
+        }
+
+
+@dataclass(frozen=True)
+class ContextPack:
+    """Structured retrieval envelope for Chain-of-Note consumption.
+
+    Returned by ``AgentMemory.recall_as_context``. The agent prepends
+    ``chain_of_note_prompt`` to its system prompt, then renders
+    ``memories`` (already sorted by score) into the {memories_json}
+    placeholder.
+
+    Why structured: the agent needs to cite ids, abstain when irrelevant,
+    and prefer the right validity window when memories conflict — all
+    impossible if recall_as_context returns plain text.
+    """
+    query: str
+    memories: List[ContextPackEntry]
+    as_of: Optional[str]
+    token_count: int
+    chain_of_note_prompt: str
+
+    @property
+    def memory_count(self) -> int:
+        return len(self.memories)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "query": self.query,
+            "memories": [m.to_dict() for m in self.memories],
+            "as_of": self.as_of,
+            "token_count": self.token_count,
+            "chain_of_note_prompt": self.chain_of_note_prompt,
+        }
+
+    def memories_json(self) -> str:
+        """Render the memories list as a JSON string suitable for the
+        {memories_json} placeholder in the Chain-of-Note prompt."""
+        return json.dumps([m.to_dict() for m in self.memories],
+                          ensure_ascii=False, indent=2)
+
+    def render_prompt(self) -> str:
+        """Return the Chain-of-Note prompt with memories interpolated."""
+        return self.chain_of_note_prompt.format(
+            memories_json=self.memories_json(),
+        )
+
+
