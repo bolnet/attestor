@@ -85,6 +85,45 @@ for r in results:
     print(r.score, r.memory.content)
 ```
 
+### 6. Run a smoke benchmark (optional)
+
+Verify your install end-to-end against a tiny LongMemEval slice. The default
+stack is a **dual-LLM, cross-family** setup that mirrors how we benchmark
+internally — `gpt-5.2` answers, two judges (`gpt-5.2` + `claude-sonnet-4.6`)
+score, and OpenAI's `text-embedding-3-large` (truncated to 1024-D for schema
+compatibility) handles embeddings.
+
+```bash
+export OPENAI_API_KEY=...                              # or OPENROUTER_API_KEY
+.venv/bin/python scripts/lme_smoke_local.py --n 2      # 2-sample oracle smoke
+```
+
+Every model and parameter is overridable via env var **or** CLI flag — pick
+whichever is more ergonomic.
+
+| Env var | CLI flag | Default |
+|---------|----------|---------|
+| `ANSWER_MODEL` | `--answer-model` | `openai/gpt-5.2` |
+| `JUDGE_MODELS` (CSV) | `--judge-model` (repeat) | `openai/gpt-5.2,anthropic/claude-sonnet-4.6` |
+| `DISTILL_MODEL` | `--distill-model` | `openai/gpt-5.2` |
+| `USE_DISTILLATION` (1/0) | `--no-distill` | on |
+| `OPENAI_EMBEDDING_MODEL` | `--embedding-model` | `text-embedding-3-large` |
+| `OPENAI_EMBEDDING_DIMENSIONS` | `--embedding-dim` | `1024` |
+| `PG_URL` | `--pg-url` | `postgresql://postgres:attestor@localhost:5432/attestor_v4_test` |
+| `LME_VARIANT` | `--variant` | `oracle` |
+| `LME_N` | `--n` | `2` |
+| `LME_PARALLEL` | `--parallel` | `2` |
+| `LME_BUDGET` | `--budget` | `4000` |
+
+Quick swap to a cheaper model for tight iteration:
+
+```bash
+ANSWER_MODEL=openai/gpt-4.1-mini .venv/bin/python scripts/lme_smoke_local.py --n 2
+```
+
+The script forces attestor's embedder to OpenAI (`ATTESTOR_DISABLE_LOCAL_EMBED=1`)
+so the smoke is deterministic regardless of whether Ollama is running.
+
 ---
 
 ## Architecture

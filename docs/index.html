@@ -1848,36 +1848,39 @@ footer.colophon {
     <div style="margin-top:48px;opacity:1;">
       <h3 style="font-family:var(--ff-display);font-size:28px;letter-spacing:-0.01em;margin:0 0 8px;">Recall flow &mdash; <em>what happens on</em> <code>recall()</code></h3>
       <pre style="background:var(--ink-raise);border:1px solid var(--rule);padding:20px 24px;font-family:var(--ff-mono);font-size:12px;line-height:1.5;overflow-x:auto;color:var(--paper-dim);">
-                   mem.recall(query, budget=2000)
-                                &#9474;
-          &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
-          &#9474;                     &#9474;                     &#9474;
-          &#9660;                     &#9660;                     &#9660;
-   &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
-   &#9474; Tag matcher   &#9474;     &#9474; Graph expander&#9474;     &#9474; Vector search &#9474;
-   &#9474;  &#8594; doc store  &#9474;     &#9474;  &#8594; graph store&#9474;     &#9474;  &#8594; vec store  &#9474;
-   &#9474;  FTS, tags,   &#9474;     &#9474;  BFS depth 2  &#9474;     &#9474;  cosine ANN   &#9474;
-   &#9474;  stop-filter  &#9474;     &#9474;  from entities&#9474;     &#9474;  top-K IDs    &#9474;
-   &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
-           &#9474;                     &#9474;                     &#9474;
-           &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
-                                 &#9660;
-                     Candidate memory IDs (~100s)
-                                 &#9474;
-                                 &#9660;
-                    Hydrate IDs &#8592; document store
-                                 &#9474;
-                                 &#9660;
-              Fusion + Rank  (RRF k=60 &#183; PageRank &#183; confidence decay)
-                                 &#9474;
-                                 &#9660;
-              Diversity + Fit  (MMR &#955;=0.7 &#183; greedy token-budget pack)
-                                 &#9474;
-                                 &#9660;
-                   Ranked memories &#8804; budget tokens
+                  mem.recall(query, budget=2000)
+                               &#9474;
+                               &#9660;
+            &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+            &#9474; 01  Vector top-K   &#8594; vec store &#9474;
+            &#9474;     pgvector &#183; cosine &#183; k=50    &#9474;
+            &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                               &#9660;
+            &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+            &#9474; 02  Graph narrow   &#8594; graph     &#9474;
+            &#9474;     Neo4j BFS depth &#8804; 2          &#9474;
+            &#9474;     hop-affinity boost / penalty &#9474;
+            &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                               &#9660;
+            &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+            &#9474; 03  Triples inject               &#9474;
+            &#9474;     uses &#183; authored-by &#183; supersedes &#9474;
+            &#9474;     synthetic-memory facts       &#9474;
+            &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                               &#9660;
+            &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+            &#9474; 04  MMR diversity &#955; = 0.7        &#9474;
+            &#9474; 05  Decay + temporal boost        &#9474;
+            &#9474; 06  Greedy token pack &#8804; budget    &#9474;
+            &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                               &#9660;
+                  List[RetrievalResult] &#8804; budget
                           (zero LLM calls)
+
+   Optional BM25 / FTS lane &#8594; fused with the vector lane via RRF k=60
+   when the document store has the content_tsv tsvector column populated.
 </pre>
-      <p class="caption" style="font-size:13px;color:var(--muted);font-style:italic;">Only memory IDs travel between layers until the hydrate step. A store with ten million rows still returns a tight result set inside the caller&rsquo;s token ceiling.</p>
+      <p class="caption" style="font-size:13px;color:var(--muted);font-style:italic;">Each step takes the previous step&rsquo;s candidate set as input. Only memory IDs travel until the final budget-fit step hydrates the keepers from the document store. A store with ten million rows still returns a tight result set inside the caller&rsquo;s token ceiling.</p>
     </div>
 
     <!-- Three pillars — Isolation, Temporal, Provenance -->
@@ -2120,6 +2123,7 @@ footer.colophon {
         <button class="tab-btn active" onclick="switchTab(event, 'tab-python')"><span class="tab-num">01</span>Python API</button>
         <button class="tab-btn" onclick="switchTab(event, 'tab-rest')"><span class="tab-num">02</span>REST API</button>
         <button class="tab-btn" onclick="switchTab(event, 'tab-mcp')"><span class="tab-num">03</span>MCP</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-smoke')"><span class="tab-num">04</span>Smoke benchmark</button>
       </div>
 
       <div id="tab-python" class="tab-panel active">
@@ -2177,6 +2181,31 @@ results = executor.<span class="fn">recall</span>(<span class="string">"order se
 <span class="comment">#   memory_add        memory_recall     memory_search</span>
 <span class="comment">#   memory_get        memory_forget     memory_timeline</span>
 <span class="comment">#   memory_stats      memory_health</span></div>
+      </div>
+
+      <div id="tab-smoke" class="tab-panel">
+        <div class="code-block" data-lang="Bash &middot; Dual-LLM smoke benchmark"><button class="code-copy-btn" onclick="copyCodeBlock(this)">Copy</button><span class="comment"># Run a tiny LongMemEval smoke against your local install.</span>
+<span class="comment"># Defaults: dual-LLM cross-family judging + OpenAI embeddings.</span>
+<span class="cmd">$ export OPENAI_API_KEY=...</span>
+<span class="cmd">$ .venv/bin/python scripts/lme_smoke_local.py --n 2</span>
+
+<span class="comment"># Default stack (override any of these via env or CLI flag):</span>
+<span class="comment">#   answerer  : openai/gpt-5.2</span>
+<span class="comment">#   judges    : openai/gpt-5.2 + anthropic/claude-sonnet-4.6  (dual)</span>
+<span class="comment">#   distiller : openai/gpt-5.2  (Mem0-style fact extraction on)</span>
+<span class="comment">#   embedder  : text-embedding-3-large @ 1024-D (schema-compat)</span>
+
+<span class="comment"># Swap any slot in one line — env var or CLI flag, your call:</span>
+<span class="cmd">$ ANSWER_MODEL=openai/gpt-4.1-mini python scripts/lme_smoke_local.py --n 2</span>
+<span class="cmd">$ python scripts/lme_smoke_local.py --judge-model openai/gpt-5.2 \</span>
+<span class="cmd">                                   --judge-model anthropic/claude-haiku-4.5</span>
+
+<span class="comment"># Everything else is also configurable:</span>
+<span class="comment">#   --embedding-model / --embedding-dim   pin embedder + dim</span>
+<span class="comment">#   --variant {oracle,s,m}  --n N         dataset slice + size</span>
+<span class="comment">#   --parallel K  --budget T              concurrency + token budget</span>
+<span class="comment">#   --no-distill                          turn off Mem0-style distillation</span>
+<span class="comment">#   --pg-url postgres://&hellip;                target a different Postgres</span></div>
       </div>
     </div>
   </div>
