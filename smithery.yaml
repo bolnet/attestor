@@ -1,0 +1,45 @@
+# Smithery configuration: https://smithery.ai/docs/build/project-config
+#
+# Attestor's primary distribution is PyPI (`pip install attestor`) and the
+# official MCP Registry (`io.github.bolnet/attestor`). This file makes the
+# server available via Smithery for clients that prefer Smithery's flow.
+#
+# Production deployments require Postgres 16 + pgvector and Neo4j 5 + GDS
+# reachable from the host running attestor. The defaults below assume the
+# host running this file has already provisioned those backends; for the
+# Smithery listing-verification check (no backends present), set
+# `tolerateInitFailure: true` and the server boots in introspection-only
+# mode advertising all 8 tools via `tools/list`.
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      attestorPath:
+        type: string
+        description: Directory containing attestor's config.toml. Defaults to ~/.attestor.
+      openaiApiKey:
+        type: string
+        description: OpenAI API key (used for the text-embedding-3-large fallback embedder when Ollama is unavailable).
+      openrouterApiKey:
+        type: string
+        description: OpenRouter API key (used for the federated LLM extraction / consolidation paths and the LongMemEval benchmark runner).
+      disableLocalEmbed:
+        type: boolean
+        description: Skip the local Ollama embedder probe (e.g., on hosts without Ollama). Defaults to true on Smithery hosts.
+        default: true
+      tolerateInitFailure:
+        type: boolean
+        description: Allow MCP boot to continue when backend init fails (introspection-only mode — tools/list works, tools/call returns a configure-backends error). Useful when running on Smithery without provisioning Postgres + Neo4j.
+        default: true
+  commandFunction: |-
+    (config) => {
+      const env = {};
+      if (config.attestorPath) env.ATTESTOR_PATH = config.attestorPath;
+      if (config.openaiApiKey) env.OPENAI_API_KEY = config.openaiApiKey;
+      if (config.openrouterApiKey) env.OPENROUTER_API_KEY = config.openrouterApiKey;
+      if (config.disableLocalEmbed !== false) env.ATTESTOR_DISABLE_LOCAL_EMBED = "1";
+      if (config.tolerateInitFailure !== false) env.ATTESTOR_MCP_TOLERATE_INIT_FAILURE = "1";
+      return { command: "attestor", args: ["mcp"], env };
+    }
