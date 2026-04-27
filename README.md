@@ -2,28 +2,49 @@
 
 **The memory layer for agent teams.** Self-hosted, deterministic retrieval, zero LLM in the critical path.
 
+[![PyPI](https://img.shields.io/pypi/v/attestor?label=PyPI&color=C15F3C&labelColor=1A1614)](https://pypi.org/project/attestor/)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/attestor?label=installs%2Fmo&color=C15F3C&labelColor=1A1614)](https://pypi.org/project/attestor/)
+[![GitHub Stars](https://img.shields.io/github/stars/bolnet/attestor?style=flat&label=stars&color=C15F3C&labelColor=1A1614)](https://github.com/bolnet/attestor/stargazers)
+[![Build](https://github.com/bolnet/attestor/actions/workflows/workflow.yml/badge.svg)](https://github.com/bolnet/attestor/actions/workflows/workflow.yml)
+[![Evals](https://github.com/bolnet/attestor/actions/workflows/evals.yml/badge.svg)](https://github.com/bolnet/attestor/actions/workflows/evals.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-1A1614.svg?labelColor=C15F3C)](LICENSE)
+
 ```
-pip install attestor          # Python library + CLI + REST API + MCP server
+pip install attestor
 ```
 
-- **PyPI:** `attestor`
-- **Import:** `attestor`
-- **Status:** v4.0.0 alpha (greenfield; no v3 migration path)
-- **License:** see `LICENSE`
+| | |
+|---|---|
+| **Version** | `4.0.0a1` (alpha; greenfield rebuild — no v3 migration path) |
+| **PyPI** | `attestor` |
+| **Import** | `attestor` |
+| **Live site** | <https://attestor.dev/> |
+| **Repo** | <https://github.com/bolnet/attestor> |
+| **License** | MIT |
 
 ---
 
 ## What it is
 
-Attestor is a memory store for multi-agent systems where the same memories are persisted across **three storage roles** — document, vector, and graph — and read back through a **deterministic 6-step retrieval pipeline** that never calls an LLM on the hot path.
+Attestor is a memory store for agent teams that need a **shared, tenant-isolated memory** with **bi-temporal replay**, **deterministic retrieval**, and an **auditable supersession chain**. It runs as a Python library, a Starlette REST service, or an MCP server — same API in all three.
 
-It is designed for:
+It is built around three claims, each grounded in code:
 
-- agent teams that need a shared, tenant-isolated memory store with RBAC and audit trails
-- products that must answer *"what did we know on 2026-03-01?"* (bi-temporal replay)
-- environments where latency, cost, and reproducibility matter more than peak relevance
+1. **Bi-temporal — replay any past state.** Every memory has both event time (`valid_from` / `valid_until`) and transaction time (`t_created` / `t_expired`). Nothing is deleted; everything is queryable forever (`attestor/temporal/manager.py:43-73`, `core.py:888-890`).
+2. **Semantic-first retrieval, no LLM in the hot path.** A six-step deterministic pipeline. Same query → same ranking. Unit-testable (`attestor/retrieval/orchestrator.py:1-14`).
+3. **Conversation ingest with auditable conflict resolution.** Two-pass speaker-locked extraction, then a four-decision (`ADD / UPDATE / INVALIDATE / NOOP`) resolver per fact. Every supersession carries an `evidence_episode_id` (`attestor/extraction/conflict_resolver.py:98`).
 
-It is **not** a general vector database, a RAG framework, or an LLM agent runtime. It plugs into your agent stack as a backend.
+### Designed for
+
+- Multi-agent products where many LLMs write to the same memory store
+- Regulated chat systems that need point-in-time reconstruction (compliance, audit, FOIA-style queries)
+- Self-hosted deployments — your VPC, your Postgres, your Neo4j
+
+### *Not* designed for
+
+- A general-purpose vector database
+- A RAG framework with built-in chunking, reranking, and orchestration
+- An LLM agent runtime — Attestor is the memory backend; the agent loop is yours
 
 ---
 
@@ -32,40 +53,40 @@ It is **not** a general vector database, a RAG framework, or an LLM agent runtim
 ### 1. Install
 
 ```bash
-pip install attestor
-# or
-pipx install attestor
+pip install attestor                 # or: pipx install attestor
 ```
 
-### 2. Bring up a local Postgres + Neo4j
+### 2. Bring up local Postgres + Neo4j
 
 ```bash
-attestor setup local      # writes docker-compose.yml under attestor/infra/local
+attestor setup local                                       # writes attestor/infra/local/docker-compose.yml
 docker compose -f attestor/infra/local/docker-compose.yml up -d
 ```
 
-Postgres ships with `pgvector`. Neo4j ships with GDS for PageRank / BFS / Leiden.
+Postgres 16 ships with `pgvector` (document + vector roles). Neo4j 5 ships with GDS (graph role: PageRank, BFS, Leiden).
 
 ### 3. Pull the default embedder
 
 ```bash
-ollama pull bge-m3        # 1024-D, 8K context, local default
+ollama pull bge-m3                   # 1024-D, 8K context, local-first default
 ```
 
-### 4. Verify everything is wired up
+The provider chain in `attestor/store/embeddings.py` checks `http://localhost:11434` first; cloud providers are fallbacks. Override via `ATTESTOR_EMBEDDING_PROVIDER` / `ATTESTOR_EMBEDDING_MODEL`.
+
+### 4. Verify (mandatory)
 
 ```bash
 attestor doctor
 ```
 
-You should see green for **Document Store (Postgres)**, **Vector Store (pgvector)**, **Graph Store (Neo4j)**, and **Retrieval Pipeline**.
+You should see green for **Document Store**, **Vector Store**, **Graph Store**, and **Retrieval Pipeline**. If the graph store is offline, recall continues against the surviving roles — degradation is explicit and tiered (`core.py:99-115`).
 
 ### 5. Use it
 
 ```python
 from attestor import AgentMemory, AgentContext, AgentRole
 
-mem = AgentMemory()  # picks up env / ~/.attestor.toml automatically
+mem = AgentMemory()                  # picks up env / ~/.attestor.toml automatically
 
 ctx = AgentContext(
     agent_id="researcher-1",
@@ -85,93 +106,33 @@ for r in results:
     print(r.score, r.memory.content)
 ```
 
+> **SOLO mode (zero-config).** In v4, `AgentMemory().add('foo')` auto-provisions a singleton `local` user, an Inbox project (`metadata.is_inbox=true`), and a daily session — so the snippet above works on a fresh database without configuring identity (`core.py:179-209`). For multi-tenant production use, pass an explicit `AgentContext` with a real `namespace`.
+
 ### 6. Run a smoke benchmark (optional)
 
-Verify your install end-to-end against a tiny LongMemEval slice. The default
-stack is a **dual-LLM, cross-family** setup that mirrors how we benchmark
-internally — `gpt-5.2` answers, two judges (`gpt-5.2` + `claude-sonnet-4.6`)
-score, and OpenAI's `text-embedding-3-large` (truncated to 1024-D for schema
-compatibility) handles embeddings.
+Verify your install end-to-end against a tiny LongMemEval slice. Defaults match the canonical benchmark stack: `openai/gpt-5.2` answerer, dual judges (`openai/gpt-5.2` + `anthropic/claude-sonnet-4.6`), `openai/gpt-5.2` distiller, OpenAI `text-embedding-3-large` truncated to 1024-D.
 
 ```bash
-export OPENAI_API_KEY=...                              # or OPENROUTER_API_KEY
-.venv/bin/python scripts/lme_smoke_local.py --n 2      # 2-sample oracle smoke
+export OPENAI_API_KEY=...
+.venv/bin/python scripts/lme_smoke_local.py --n 2
 ```
 
-Every model and parameter is overridable via env var **or** CLI flag — pick
-whichever is more ergonomic.
-
-| Env var | CLI flag | Default |
-|---------|----------|---------|
-| `ANSWER_MODEL` | `--answer-model` | `openai/gpt-5.2` |
-| `JUDGE_MODELS` (CSV) | `--judge-model` (repeat) | `openai/gpt-5.2,anthropic/claude-sonnet-4.6` |
-| `DISTILL_MODEL` | `--distill-model` | `openai/gpt-5.2` |
-| `USE_DISTILLATION` (1/0) | `--no-distill` | on |
-| `OPENAI_EMBEDDING_MODEL` | `--embedding-model` | `text-embedding-3-large` |
-| `OPENAI_EMBEDDING_DIMENSIONS` | `--embedding-dim` | `1024` |
-| `PG_URL` | `--pg-url` | `postgresql://postgres:attestor@localhost:5432/attestor_v4_test` |
-| `LME_VARIANT` | `--variant` | `oracle` |
-| `LME_N` | `--n` | `2` |
-| `LME_PARALLEL` | `--parallel` | `2` |
-| `LME_BUDGET` | `--budget` | `4000` |
-
-Quick swap to a cheaper model for tight iteration:
-
-```bash
-ANSWER_MODEL=openai/gpt-4.1-mini .venv/bin/python scripts/lme_smoke_local.py --n 2
-```
-
-The script forces attestor's embedder to OpenAI (`ATTESTOR_DISABLE_LOCAL_EMBED=1`)
-so the smoke is deterministic regardless of whether Ollama is running.
+Every model and parameter is overridable via env var or CLI flag. See `--help` for the full table.
 
 ---
 
 ## Architecture
 
-### Three storage roles
+### Bi-temporal — replay any past state
 
-Every memory is persisted across the required backends in your topology:
+Every memory carries two time axes:
 
-| Role | Purpose | Default | Alternatives |
-|------|---------|---------|--------------|
-| **Document** | Source of truth (content, tags, entity, ts, provenance, confidence) | Postgres | AlloyDB, ArangoDB, DynamoDB, Cosmos DB |
-| **Vector** | Dense embedding per memory | Postgres + pgvector | AlloyDB ScaNN, ArangoDB, OpenSearch Serverless, Cosmos DiskANN |
-| **Graph** | Entity nodes + typed edges (`uses`, `authored-by`, `supersedes`) | Neo4j (GDS) | AGE on AlloyDB, ArangoDB, Neptune, NetworkX (Azure) |
+| Axis | Columns | Meaning |
+|------|---------|---------|
+| **Event time** | `valid_from`, `valid_until` | When the fact is true *in the world* |
+| **Transaction time** | `t_created`, `t_expired` | When the row landed *in the store* |
 
-Postgres is always the source of truth. Neo4j (or whichever graph store you pick) is **derived state, rebuildable from Postgres**. If the vector or graph store goes down, the document path keeps serving — degradation is explicit and tiered.
-
-### Retrieval — semantic-first, no LLM in the loop
-
-The orchestrator (`attestor/retrieval/orchestrator.py`) runs the same 6 steps for every query:
-
-1. **Vector semantic search** — top-K = 50 nearest by cosine
-2. **Graph narrow** — soft boost by hop-distance (BFS depth ≤ 2) from each candidate's entity to the question entities
-3. **Triples injection** — typed-edge facts injected as synthetic memories so the consumer can reason over relations, not just text
-4. **MMR rerank** — λ = 0.7 diversity vs. relevance trade-off
-5. **Confidence decay + temporal boost** — recency / decay applied per memory
-6. **Budget fit** — greedy pack into the agent's token budget
-
-Optional **BM25 / FTS lane** (`bm25_lane=...` on the orchestrator) runs a `tsvector` keyword search in parallel and **fuses with the vector lane via Reciprocal Rank Fusion (RRF, k = 60)**. Useful for acronyms, IDs, and rare proper nouns where embeddings under-recall. Gracefully no-ops on backends that don't have the `content_tsv` column.
-
-Every call writes a JSONL trace to `logs/attestor_trace.jsonl` (disable with `ATTESTOR_TRACE=0`).
-
-### Multi-agent primitives
-
-- **Six RBAC roles** (`AgentRole` enum): `ORCHESTRATOR`, `PLANNER`, `EXECUTOR`, `RESEARCHER`, `REVIEWER`, `MONITOR`
-- **Namespace isolation** via Postgres Row-Level Security on every tenant table (`tenant_isolation_*` policies on the `attestor.current_user_id` session var)
-- **Provenance** on every memory (who wrote it, which session, which episode)
-- **Per-agent write quotas and token budgets**
-- **Recall cache** per `AgentContext` session — repeated queries are deduplicated transparently
-- **`AgentContext.scratchpad: Dict[str, Any]`** — typed lane for planner → executor handoffs without rounding through the store
-
-### Bi-temporal — nothing is deleted
-
-Every memory has two time axes:
-
-- **Event time** — `valid_from` / `valid_until` (when the fact is true in the world)
-- **Transaction time** — `t_created` / `t_expired` (when the row landed in the store)
-
-Plus a `superseded_by` chain. Old facts are never deleted — they remain queryable forever.
+Plus a `superseded_by` chain. Old facts are never deleted — they remain queryable forever (`attestor/temporal/manager.py:30-66`).
 
 ```python
 # What did we believe on March 1?
@@ -181,17 +142,155 @@ mem.recall(query="who runs engineering?", as_of="2026-03-01T00:00:00Z", context=
 mem.recall(query="alice", time_window=("2026-02-01", "2026-04-01"), context=ctx)
 ```
 
-**Auto-supersession on write.** `add()` runs `TemporalManager.check_contradictions()` against the new memory before insert; any active row with the same `(entity, category, namespace)` and different content is automatically marked superseded by the new id (`status="superseded"`, `valid_until=now`, `superseded_by=<new_id>`). Detection is rule-based string-equality today — soft / similarity-based contradiction is on the roadmap.
+`as_of` and `time_window` propagate end-to-end through the orchestrator and document store. Auto-supersession on write is wired into `core.py:add()` (`core.py:762, 784-785`): on every `add`, the temporal manager finds active rows with the same `(entity, category, namespace)` and different content, marks them `superseded`, sets `valid_until=now`, and links `superseded_by=<new_id>`. Detection is rule-based string equality today.
+
+### Tenant isolation — Postgres Row-Level Security
+
+Every tenant table (`users`, `projects`, `sessions`, `episodes`, `memories`, `user_quotas`, `deletion_audit`) carries a `tenant_isolation_*` policy keyed off the `attestor.current_user_id` session variable. An empty / unset value fails closed — no rows visible (`attestor/store/schema.sql:311-327`).
+
+> **Honest disclosure.** Enforcement lives in **Postgres**, not Python. The `AgentRole` enum in `attestor/context.py:49-56` is metadata that flows onto memories for provenance; it does *not* gate operations in Python. RLS is what actually controls access. This is correct architecture for a memory backend, but worth knowing if you read the Python alone.
+
+### The retrieval pipeline — semantic-first, six steps
+
+`attestor/retrieval/orchestrator.py` runs the same six steps for every query:
+
+1. **Vector top-K** — pgvector cosine, k=50
+2. **Graph narrow** — Neo4j BFS depth ≤ 2 from each candidate's entity to the question entities; affinity bonus per hop (0-hop=+0.30, 1-hop=+0.20, 2-hop=+0.10; unreachable=−0.05). Discrete, not "soft".
+3. **Triples inject** — typed-edge facts (`uses`, `authored-by`, `supersedes`) injected as synthetic memories
+4. **MMR rerank** — λ=0.7
+5. **Confidence decay + temporal boost** — recency lifts; stale, low-confidence rows fall
+6. **Budget fit** — greedy monotonic-by-score pack into the caller's token budget
+
+Every call writes a JSONL trace to `logs/attestor_trace.jsonl` (disable via `ATTESTOR_TRACE=0`).
+
+### Three storage roles
+
+| Role | Purpose | Default | Alternatives |
+|------|---------|---------|--------------|
+| **Document** | Source of truth (content, tags, entity, ts, provenance, confidence) | Postgres 16 | AlloyDB, ArangoDB, DynamoDB, Cosmos DB |
+| **Vector** | Dense embedding per memory | pgvector | AlloyDB ScaNN, ArangoDB, OpenSearch Serverless, Cosmos DiskANN |
+| **Graph** | Entity nodes + typed edges | Neo4j 5 + GDS | Apache AGE on AlloyDB, ArangoDB, Neptune, NetworkX (Azure) |
+
+Postgres is the source of truth. Neo4j is **derived state, rebuildable from Postgres**. If the vector or graph store goes down, the document path keeps serving — degradation is explicit and tiered.
+
+### Optional BM25 / FTS lane
+
+A trigger-maintained `content_tsv` tsvector + GIN index lifts queries that embeddings under-recall (acronyms, IDs, rare proper nouns). Enabled when v4 schema is detected; fuses with the vector lane via Reciprocal Rank Fusion (RRF, k=60). Graceful no-op on backends without the column (`core.py:122-130`).
+
+---
+
+## Conversation ingest
+
+The heavyweight write path that turns conversation turns into auditable memories. `core.py:ingest_round(turn)` orchestrates four passes:
+
+```
+turn  →  extract_user_facts(user_turn)        ┐
+        extract_agent_facts(assistant_turn)   ┘  → resolve_conflicts → apply
+```
+
+### Two-pass speaker-locked extraction
+
+`attestor/extraction/round_extractor.py:216, 258` — separate prompts for user vs assistant turns. The user-turn extractor only emits facts attributable to the user; the assistant-turn extractor only emits facts the assistant introduced. Stops cross-attribution. The "+53.6 over Mem0" delta in our LongMemEval scores comes from this split.
+
+### Four-decision conflict resolver
+
+`attestor/extraction/conflict_resolver.py:40, 98` — for each newly-extracted fact, an LLM call against existing similar memories returns one of:
+
+| Decision | Effect |
+|----------|--------|
+| `ADD` | New info, no existing match — write fresh memory |
+| `UPDATE` | Same entity + predicate, refined value — keep existing id |
+| `INVALIDATE` | Old memory contradicted — mark superseded (timeline replays) |
+| `NOOP` | Already represented — skip |
+
+Each `Decision` carries `evidence_episode_id`. Every supersession is auditable. Failsafe: parse failure on a single fact yields `ADD`-by-default — better a duplicate-ish row than a silent drop.
+
+> **Two write paths, two contracts.** `mem.add(...)` runs the lightweight rule-based supersession (§Bi-temporal). `mem.ingest_round(turn)` runs the full four-decision pipeline. Pick `ingest_round` for conversational data; pick `add` for structured writes where you've already done the conflict reasoning.
+
+### Sleep-time consolidation
+
+`mem.consolidate()` (`core.py:526`) re-extracts and synthesizes facts from recent episodes with a stronger model. Currently a Python-API-only call — no CLI command. Schedule it from your application (cron, systemd timer, ECS scheduled task) when you want fresher facts than the streaming extractor produces.
+
+### Reflection engine
+
+`attestor/consolidation/reflection.py` runs periodic synthesis across N episodes for one user. Outputs:
+
+- `stable_preferences` — patterns appearing in 3+ episodes
+- `stable_constraints` — rules the user repeatedly invokes
+- `changed_beliefs` — preferences that shifted (old → new, with explicit invalidate)
+- `contradictions_for_review` — flagged for **HUMAN REVIEW**, *not* auto-resolved
+
+The "do not auto-resolve" stance is the load-bearing piece for regulated chat systems. The prompt is explicit (`reflection.py:35-66`): *"Do NOT auto-resolve contradictions. Flag them for human review."*
 
 ### Chain-of-Note reading
 
 ```python
 pack = mem.recall_as_pack(query="who runs engineering?", context=ctx)
-# pack.memories: list of {id, content, validity_window, confidence, source_episode_id}
-# pack.prompt: default Chain-of-Note prompt (NOTES → SYNTHESIS → CITE → ABSTAIN → CONFLICT)
+# pack.memories : list of {id, content, validity_window, confidence, source_episode_id}
+# pack.prompt   : default Chain-of-Note prompt with NOTES → SYNTHESIS → CITE → ABSTAIN → CONFLICT structure
 ```
 
-The default prompt has explicit ABSTAIN and CONFLICT clauses — every frontier model defaults to confabulation otherwise.
+The default prompt has explicit `ABSTAIN` and `CONFLICT` clauses — every frontier model defaults to confabulation otherwise.
+
+---
+
+## Multi-agent primitives
+
+### Six roles
+
+`AgentRole`: `ORCHESTRATOR`, `PLANNER`, `EXECUTOR`, `RESEARCHER`, `REVIEWER`, `MONITOR` (`attestor/context.py:49-56`). The role flows onto every memory's metadata for provenance. Access enforcement happens at the Postgres RLS layer (see §Tenant isolation).
+
+### AgentContext — handoff, scratchpad, trail
+
+```python
+orchestrator = AgentContext.from_env(agent_id="orchestrator", namespace="project:acme")
+planner      = orchestrator.as_agent("planner",  role=AgentRole.PLANNER)
+executor     = planner.as_agent("executor",      role=AgentRole.EXECUTOR)
+
+# Each child carries parent_agent_id + accumulating agent_trail.
+# All three share the same scratchpad: Dict[str, Any] for typed handoff data.
+```
+
+`as_agent()` creates a child context with `parent_agent_id`, full `agent_trail`, and a shared `scratchpad`. The trail accumulates — useful for proving "this answer came from agent X who got it from agent Y."
+
+### Per-agent token budgets
+
+`AgentContext.token_budget` (default 20 000) is enforced — `recall()` packs results greedily until the budget is exhausted (`scorer.py:fit_to_budget`). `token_budget_used` accumulates across calls in a session.
+
+### Optional write quotas
+
+`mem.set_quota(user_id, daily_writes=...)` → enforced on `add` against the v4 `user_quotas` table (`core.py:592-621`). Optional; unset means unlimited.
+
+---
+
+## Security & Compliance
+
+### Row-Level Security
+
+Cross-link to §Tenant isolation. RLS policies are the access-control surface; the Python layer trusts them. Set `attestor.current_user_id` per connection.
+
+### Provenance on every memory
+
+Every memory carries `agent_id`, `session_id`, `source_episode_id`. The supersession chain (`superseded_by`) is preserved forever. Conversation episodes are stored verbatim, separate from the memories extracted from them — meaning you can always reconstruct *which conversation turn produced which fact*.
+
+### Deletion audit log
+
+Hard deletes (e.g., GDPR purges) write a row to `deletion_audit` before the cascade — what was deleted, when, why, by whom. This is the carve-out for the otherwise-immutable schema.
+
+### GDPR — export and purge
+
+```python
+mem.export_user(external_id="user-42")     # full data export (memories + episodes + sessions + projects)
+mem.purge_user(external_id="user-42",      # cascading hard delete with audit trail
+               reason="GDPR right-to-erasure request 2026-04-27")
+mem.deletion_audit_log(limit=100)          # forensic readback
+```
+
+`core.py:557-590`. v4 only. Returns / writes everything Subject Access requires for Art. 15 / Art. 17.
+
+### Optional: Ed25519 provenance signing
+
+Enable via config (`signing.enabled = true`). On every `add`, attestor signs the canonical payload `id || agent_id || t_created || content_hash` with an Ed25519 key. `mem.verify_memory(memory_id)` returns `bool` (`core.py:623-640`). Optional, off by default — turn on for adversarial-write contexts where you need cryptographic non-repudiation.
 
 ---
 
@@ -201,12 +300,12 @@ Same API across all three. Only configuration changes.
 
 | Mode | Shape | When to use |
 |------|-------|-------------|
-| **A — Embedded library** | `AgentMemory(config)` in-process, talks directly to Postgres + Neo4j | Single-process agents, scripts, notebooks |
-| **B — Sidecar** | `attestor api` on `localhost:8080`, language-agnostic HTTP client shares the same Postgres + Neo4j | Polyglot agents on one box (Python + TS + Go) |
+| **A — Embedded library** | `AgentMemory(config)` in-process; talks directly to Postgres + Neo4j | Single-process agents, scripts, notebooks |
+| **B — Sidecar** | `attestor api` on `localhost:8080`; language-agnostic HTTP client shares the same Postgres + Neo4j | Polyglot agents on one box (Python + TS + Go) |
 | **C — Shared service** | One Attestor service in front of an agent mesh (App Runner / Cloud Run / Container Apps) backed by managed Postgres + Neo4j | Production multi-agent platforms |
 
 ```bash
-attestor api    --port 8080         # Mode B / C — Starlette ASGI REST API
+attestor api    --port 8080         # Mode B / C — Starlette ASGI REST
 attestor serve  --transport stdio   # MCP stdio server
 attestor mcp    --transport http    # MCP HTTP server
 ```
@@ -218,7 +317,7 @@ attestor mcp    --transport http    # MCP HTTP server
 | Backend | Document | Vector | Graph | Status |
 |---------|:--------:|:------:|:-----:|--------|
 | **Postgres + Neo4j** *(default)* | ✓ | pgvector | Neo4j + GDS | Production-ready |
-| **ArangoDB** | ✓ | ✓ | ✓ | Production-ready (single backend covers all 3 roles) |
+| **ArangoDB** | ✓ | ✓ | ✓ | Production-ready (one engine, all 3 roles) |
 | **AWS** | DynamoDB | OpenSearch Serverless | Neptune | Backend code + Terraform shipped |
 | **Azure** | Cosmos DB | Cosmos DiskANN | NetworkX (in-process) | Backend code shipped, Terraform forthcoming |
 | **GCP** | AlloyDB | AlloyDB ScaNN | AGE on AlloyDB | Backend code shipped, Terraform forthcoming |
@@ -236,16 +335,17 @@ Reference Terraform lives under `attestor/infra/`.
 
 ## Embeddings
 
-Provider auto-detect (`attestor/store/embeddings.py`), in this order:
+Provider auto-detect (`attestor/store/embeddings.py:get_embedding_provider`), in this order:
 
 1. **Local Ollama `bge-m3`** — 1024-D, 8K context — used when `http://localhost:11434` is reachable
 2. **Cloud-native** — Bedrock Titan / Vertex / Azure OpenAI when their SDK + creds are present
-3. **OpenAI `text-embedding-3-large`** (3072-D) — when `OPENAI_API_KEY` is set
+3. **OpenAI `text-embedding-3-large`** (3072-D native; pin `OPENAI_EMBEDDING_DIMENSIONS=1024` for schema compat)
 4. **OpenRouter** — for federated runs
 
-Local models are the default. Cloud APIs are fallbacks. Override via env:
+Local-first by design. Override:
 
 ```bash
+export ATTESTOR_DISABLE_LOCAL_EMBED=1            # skip the Ollama probe entirely
 export ATTESTOR_EMBEDDING_PROVIDER=openai
 export ATTESTOR_EMBEDDING_MODEL=text-embedding-3-large
 ```
@@ -254,35 +354,32 @@ export ATTESTOR_EMBEDDING_MODEL=text-embedding-3-large
 
 ## CLI
 
-`attestor --help` lists all commands. The most useful ones:
+`attestor --help` lists everything. The most useful commands:
 
 | Command | Purpose |
 |---------|---------|
 | `attestor init` | Create a starter config |
-| `attestor setup local` | Generate local Docker Compose for Postgres + Neo4j |
+| `attestor setup local` | Generate Docker Compose for Postgres + Neo4j |
 | `attestor doctor` | Health-check every store + the retrieval pipeline |
-| `attestor add` | Add a memory |
-| `attestor recall` | Recall relevant memories |
-| `attestor search` | Search with filters (entity / category / namespace / time window) |
-| `attestor list` | List memories |
-| `attestor timeline` | Show entity timeline |
+| `attestor add` / `recall` / `search` / `list` | CRUD-ish memory ops |
+| `attestor timeline` | Entity timeline (uses bi-temporal manager) |
 | `attestor stats` | Store statistics |
-| `attestor export` / `import` | JSON export and import |
+| `attestor export` / `import` | JSON dump / restore |
 | `attestor compact` | Remove archived memories |
-| `attestor update` / `forget` | Mutate a memory's content / archive it |
-| `attestor inspect` | Inspect the raw database |
+| `attestor update` / `forget` | Mutate / archive a memory |
+| `attestor inspect` | Inspect raw database state |
 | `attestor api` | Start the Starlette REST API |
 | `attestor serve` | Start MCP server (stdio) |
 | `attestor mcp` | Start MCP server (HTTP) |
-| `attestor ui` | Browser UI for the store |
-| `attestor hook {session-start,post-tool-use,stop}` | Run a Claude Code lifecycle hook |
-| `attestor locomo` / `attestor mab` / `attestor lme` | Built-in benchmark runners (LoCoMo, MultiAgentBench, LongMemEval) |
+| `attestor ui` | Read-only browser UI for the store |
+| `attestor hook {session-start, post-tool-use, stop}` | Run a Claude Code lifecycle hook |
+| `attestor lme` / `locomo` / `mab` | Built-in benchmark runners (see §Evaluation) |
 
 ---
 
 ## MCP server
 
-`attestor serve` exposes an MCP server with these tools:
+`attestor serve` exposes an MCP server with eight tools:
 
 | Tool | Purpose |
 |------|---------|
@@ -319,7 +416,7 @@ Single instruction users can give Claude Code:
 install attestor
 ```
 
-(Or run `/install-attestor`.) The installer (`commands/install-attestor.md`) interviews you on:
+(Or run `/install-attestor`.) The installer interviews you on:
 
 1. **Scope** — global (`~/.claude/.mcp.json`) vs project (`.mcp.json`)
 2. **Postgres connection** — local Docker, Neon, RDS, etc.
@@ -333,54 +430,89 @@ Then it installs `attestor` via pipx, writes the MCP config, optionally writes `
 
 ---
 
+## Evaluation
+
+> **Boundary statement.** The dual-LLM judge stack is a **benchmarking** mechanism, *not* the runtime contract. Recall in production is single-pipeline and deterministic. Multiple judges score answers in evaluation only — never in user-facing reads.
+
+| Runner | Source | Measures |
+|--------|--------|----------|
+| `attestor lme` | LongMemEval (Google's long-memory benchmark) | answer accuracy under long history, distillation, dual-judge cross-family |
+| `attestor locomo` | LoCoMo | conversational long-memory consistency |
+| `attestor mab` | MultiAgentBench | multi-agent coordination |
+| AbstentionBench (CI gate) | internal | when *not* to answer — known unknowns |
+| `scripts/lme_smoke_local.py` | dual-LLM smoke | quick install verification (see Quick Start §6) |
+
+The smoke driver mirrors the canonical published-benchmark stack exactly. See `--help` for the full env-var / CLI-flag override matrix.
+
+---
+
 ## Project layout
 
 ```
 attestor/
-  core.py                -- AgentMemory (main public API)
-  client.py              -- MemoryClient (HTTP drop-in for remote Attestor)
-  context.py             -- AgentContext (identity, role, namespace, budget, scratchpad)
-  models.py              -- Memory, RetrievalResult, ContextPack
-  cli.py                 -- attestor CLI entry point
-  api.py                 -- Starlette ASGI REST API
-  longmemeval.py         -- LongMemEval benchmark runner
+  core.py                  -- AgentMemory (main public API)
+  client.py                -- MemoryClient (HTTP drop-in for remote Attestor)
+  context.py               -- AgentContext, AgentRole, Visibility
+  models.py                -- Memory, RetrievalResult, ContextPack
+  cli.py                   -- attestor CLI entry point
+  api.py                   -- Starlette ASGI REST API
+  longmemeval.py           -- LongMemEval benchmark runner (dual-judge)
+  locomo.py                -- LoCoMo runner
+  doctor_v4.py             -- v4 schema + invariant validator
+  init_wizard.py           -- interactive install flow
   store/
-    base.py              -- DocumentStore / VectorStore / GraphStore protocols
-    registry.py          -- Backend selection
-    connection.py        -- Config layering / env resolution
-    embeddings.py        -- Provider auto-detect (Ollama / OpenAI / Bedrock / Vertex / Azure)
-    postgres_backend.py  -- pgvector (document + vector roles)
-    neo4j_backend.py     -- Neo4j + GDS (graph role)
-    arango_backend.py    -- All 3 roles in one
-    aws_backend.py       -- DynamoDB + OpenSearch Serverless + Neptune
-    azure_backend.py     -- Cosmos DB DiskANN + NetworkX
-    gcp_backend.py       -- AlloyDB pgvector + AGE + ScaNN
-    schema.sql           -- v4 Postgres schema (RLS, bi-temporal columns)
+    base.py                -- DocumentStore / VectorStore / GraphStore protocols
+    registry.py            -- backend selection
+    connection.py          -- config layering / env resolution
+    embeddings.py          -- provider auto-detect (Ollama / OpenAI / Bedrock / Vertex / Azure)
+    postgres_backend.py    -- pgvector (document + vector roles)
+    neo4j_backend.py       -- Neo4j + GDS (graph role)
+    arango_backend.py      -- all 3 roles in one
+    aws_backend.py         -- DynamoDB + OpenSearch Serverless + Neptune
+    azure_backend.py       -- Cosmos DB DiskANN + NetworkX
+    gcp_backend.py         -- AlloyDB pgvector + AGE + ScaNN
+    schema.sql             -- v4 Postgres schema (RLS, bi-temporal columns, content_tsv)
+  conversation/
+    ingest.py              -- ingest_round() pipeline
+  extraction/
+    round_extractor.py     -- 2-pass speaker-locked extraction
+    conflict_resolver.py   -- 4-decision contract (ADD/UPDATE/INVALIDATE/NOOP)
+    rule_based.py          -- deterministic fact extraction (no LLM)
+    prompts.py             -- shared prompt templates
+  consolidation/
+    consolidator.py        -- sleep-time re-extraction
+    reflection.py          -- cross-thread synthesis (stable patterns + flagged contradictions)
   graph/
-    extractor.py         -- Deterministic entity / relation extraction
+    extractor.py           -- entity / relation extraction
   retrieval/
-    orchestrator.py      -- 6-step semantic-first pipeline
+    orchestrator.py        -- 6-step semantic-first pipeline
     tag_matcher.py
-    scorer.py            -- MMR, confidence decay, entity boost, fit
-    trace.py             -- JSONL trace writer
+    scorer.py              -- MMR, confidence decay, entity boost, fit-to-budget
+    trace.py               -- JSONL trace writer
   temporal/
-    manager.py           -- Timelines, supersession, contradiction detection, as_of replay
-  extraction/             -- Rule-based + optional LLM memory extraction
+    manager.py             -- timelines, supersession, contradiction detection, as_of replay
+  identity/
+    signing.py             -- Ed25519 provenance signing (optional)
+    defaults.py            -- SOLO mode auto-provisioning
   mcp/
-    server.py            -- MCP server (tools, resources, prompts)
+    server.py              -- MCP server (tools, resources, prompts)
   hooks/
     session_start.py
     post_tool_use.py
     stop.py
+  ui/
+    app.py                 -- Starlette read-only viewer
+    static/, templates/    -- Evidence Board UI
   utils/
     config.py, tokens.py
   infra/
-    local/                -- Docker Compose (Postgres + Neo4j)
-    aws_arango/           -- Reference Terraform
-tests/                    -- Unit tests; live cloud tests env-gated
-evals/                    -- LongMemEval / LoCoMo / MultiAgentBench harnesses
-docs/                     -- Architecture notes, ADRs
-commands/                 -- /install-attestor, etc.
+    local/                 -- Docker Compose (Postgres + Neo4j)
+    aws_arango/            -- Reference Terraform
+tests/                     -- Unit tests; live cloud tests env-gated
+evals/                     -- LongMemEval / LoCoMo / MultiAgentBench / AbstentionBench harnesses
+docs/                      -- Architecture notes, ADRs
+commands/                  -- /install-attestor, etc.
+scripts/                   -- lme_smoke_local.py, etc.
 ```
 
 ---
@@ -393,17 +525,14 @@ poetry run pytest tests/ -q                          # unit tests, no external s
 ATTESTOR_LIVE_PG=1 poetry run pytest tests/live -q   # live integration (env-gated)
 ```
 
-Style:
+Style: `black` formatting, `isort` imports, `ruff` lint, `mypy` types. PEP 8, type-annotated signatures, dataclasses for DTOs. Many small files (200–400 lines typical, 800 max).
 
-- `black` for formatting, `isort` for imports, `ruff` for lint, `mypy` for types
-- PEP 8, type-annotated signatures, dataclasses for DTOs
-- Many small files (200–400 lines typical, 800 max)
-
-Conventions worth knowing before you contribute:
+Conventions worth knowing:
 
 - Postgres is the source of truth. Neo4j is derived; rebuild it from Postgres if it drifts.
 - Non-fatal errors in vector / graph paths are caught and logged. The document path never silently breaks.
 - Configuration layering: env vars → `~/.attestor.toml` → in-code overrides.
+- Two write paths: `add()` for structured (lightweight rule-based supersession), `ingest_round()` for conversational (full 2-pass + 4-decision contract).
 
 ---
 
@@ -431,12 +560,12 @@ It probes Document Store (Postgres), Vector Store (pgvector), Graph Store (Neo4j
 
 ## Status & versioning
 
-- **Version:** 4.0.0 (alpha)
-- **v3 → v4:** greenfield rebuild. v3 was alpha-only with no production users; **there is no automated migration**. Drop your v3 DB and reinstall.
+- **Version:** 4.0.0a1 (alpha)
+- **v3 → v4:** greenfield rebuild on a v4-native Postgres schema with hard tenant isolation, bi-temporal facts, and a no-LLM retrieval critical path. **There is no automated migration.** v3 was alpha-only with no production users; drop your v3 DB and reinstall.
 - See [`CHANGELOG.md`](./CHANGELOG.md) for the full track-by-track changelog.
 
 ---
 
 ## License
 
-See [`LICENSE`](./LICENSE).
+MIT. See [`LICENSE`](./LICENSE).
