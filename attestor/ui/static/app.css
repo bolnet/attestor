@@ -6,14 +6,9 @@
 
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap");
 
-/* Departure Mono — hosted on GitHub by designer Helena Zhang, free for any use */
-@font-face {
-  font-family: "Departure Mono";
-  src: url("https://cdn.jsdelivr.net/gh/helenabyte/departure-mono@v1.422/fonts/webfonts/DepartureMono-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+/* Mono stack falls back through IBM Plex Mono → ui-monospace → Menlo. */
+/* Departure Mono was previously loaded from a CDN URL that 404'd; */
+/* dropped to avoid console errors. Re-add via self-host when desired. */
 
 :root {
   /* ink & paper */
@@ -978,6 +973,23 @@ select.field {
   font-size: 20px;
   color: var(--ghost);
   font-variation-settings: "opsz" 144, "SOFT" 100;
+}
+
+.recall-warnings {
+  margin: 16px 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.recall-warning {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--rust, #c04a2a);
+  background: rgba(192, 74, 42, 0.08);
+  border-left: 3px solid var(--rust, #c04a2a);
+  padding: 10px 14px;
+  line-height: 1.5;
 }
 
 .recall-header {

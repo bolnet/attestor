@@ -46,7 +46,7 @@
     <line class="hair" x1="24" y1="328" x2="396" y2="328"/>
     <text class="muted sans" x="24" y="318" font-size="10"></text>
   </g>
-  <text class="muted sans" x="64" y="450" font-size="10">FILLED BY &#183; SQLITE &#183; POSTGRES 16 &#183; COSMOS DB &#183; ARANGODB</text>
+  <text class="muted sans" x="64" y="450" font-size="10">FILLED BY &#183; POSTGRES 16 &#183; ALLOYDB &#183; ARANGODB &#183; DYNAMODB &#183; COSMOS DB</text>
 
   <!-- Card 2 — Vector store -->
   <g transform="translate(490,90)">
@@ -73,7 +73,7 @@
     <text class="ink" x="24" y="314" font-size="13">or word overlaps the query.</text>
     <line class="hair" x1="24" y1="328" x2="396" y2="328"/>
   </g>
-  <text class="muted sans" x="514" y="450" font-size="10">FILLED BY &#183; CHROMADB &#183; PGVECTOR &#183; COSMOS DISKANN &#183; ARANGODB</text>
+  <text class="muted sans" x="514" y="450" font-size="10">FILLED BY &#183; PGVECTOR &#183; ALLOYDB SCANN &#183; ARANGODB &#183; OPENSEARCH &#183; COSMOS DISKANN</text>
 
   <!-- Card 3 — Graph store -->
   <g transform="translate(940,90)">
@@ -100,5 +100,5 @@
     <text class="ink" x="24" y="314" font-size="13">via the graph, not the text.</text>
     <line class="hair" x1="24" y1="328" x2="396" y2="328"/>
   </g>
-  <text class="muted sans" x="964" y="450" font-size="10">FILLED BY &#183; NETWORKX &#183; APACHE AGE &#183; ARANGODB &#183; COSMOS GRAPH</text>
+  <text class="muted sans" x="964" y="450" font-size="10">FILLED BY &#183; NEO4J + GDS &#183; APACHE AGE &#183; ARANGODB &#183; NEPTUNE &#183; NETWORKX</text>
 </svg>

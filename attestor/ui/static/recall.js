@@ -1,5 +1,5 @@
 // Attestor — Recall Pipeline Replay
-// Renders the 5-layer retrieval cascade step by step.
+// Renders the semantic-first retrieval pipeline step by step.
 
 (function () {
   "use strict";
@@ -124,6 +124,14 @@
         </div>
       </div>
     `;
+
+    if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+      html += `<div class="recall-warnings">`;
+      data.warnings.forEach((w) => {
+        html += `<div class="recall-warning">⚠ ${esc(w)}</div>`;
+      });
+      html += `</div>`;
+    }
 
     html += renderPipelineDiagram(data);
 

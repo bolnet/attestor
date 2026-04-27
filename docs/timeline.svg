@@ -85,7 +85,7 @@
 
   <!-- Recall label -->
   <text class="accent sans" x="700" y="108" font-size="11" text-anchor="middle" font-weight="700">&#8592; LOAD_CONTEXT RANKS, DEDUPES, BUDGET-FITS ALL FOUR PRIOR MEMORIES</text>
-  <text class="muted sans" x="700" y="124" font-size="10" text-anchor="middle">5-LAYER PIPELINE &#183; ZERO LLM CALLS &#183; DETERMINISTIC</text>
+  <text class="muted sans" x="700" y="124" font-size="10" text-anchor="middle">SEMANTIC-FIRST PIPELINE &#183; ZERO LLM CALLS &#183; DETERMINISTIC</text>
 
   <!-- Outcome box at right -->
   <g transform="translate(40,430)">

@@ -1530,9 +1530,9 @@ footer.colophon {
       <span><b>ACCESS</b>RBAC</span>
       <span><b>TRACE</b>PROVENANCE</span>
       <span><b>CONTEXT</b>TOKEN BUDGETS</span>
-      <span><b>RETRIEVAL LAYERS</b>5</span>
+      <span><b>PIPELINE</b>SEMANTIC-FIRST</span>
       <span><b>PYTHON</b>3.10 &mdash; 3.14</span>
-      <span><b>STACK</b>SQLite &middot; ChromaDB &middot; NetworkX</span>
+      <span><b>STACK</b>Postgres &middot; pgvector &middot; Neo4j</span>
       <span><b>CLOUD</b>PostgreSQL &middot; ArangoDB &middot; Cosmos &middot; AlloyDB</span>
       <span><b>DEPLOY</b>AWS &middot; Azure &middot; GCP</span>
       <span><b>RETRIEVAL</b>RRF &middot; PageRank &middot; MMR</span>
@@ -1542,9 +1542,9 @@ footer.colophon {
       <span><b>ACCESS</b>RBAC</span>
       <span><b>TRACE</b>PROVENANCE</span>
       <span><b>CONTEXT</b>TOKEN BUDGETS</span>
-      <span><b>RETRIEVAL LAYERS</b>5</span>
+      <span><b>PIPELINE</b>SEMANTIC-FIRST</span>
       <span><b>PYTHON</b>3.10 &mdash; 3.14</span>
-      <span><b>STACK</b>SQLite &middot; ChromaDB &middot; NetworkX</span>
+      <span><b>STACK</b>Postgres &middot; pgvector &middot; Neo4j</span>
       <span><b>CLOUD</b>PostgreSQL &middot; ArangoDB &middot; Cosmos &middot; AlloyDB</span>
       <span><b>DEPLOY</b>AWS &middot; Azure &middot; GCP</span>
       <span><b>RETRIEVAL</b>RRF &middot; PageRank &middot; MMR</span>
@@ -1727,16 +1727,16 @@ footer.colophon {
     <div class="section-filing reveal">
       <span class="section-num">&sect; 03</span>
       <span class="section-name">&mdash; The Retrieval Pipeline</span>
-      <span>Five layers &middot; zero inference calls</span>
+      <span>Semantic-first &middot; zero inference calls</span>
     </div>
 
     <div class="reveal">
-      <h2 class="section-head">Five layers. <em>No LLM.</em> Fully deterministic.</h2>
-      <p class="standfirst">When an agent calls <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">recall(query, budget)</code>, five cooperating layers find, fuse, score, and fit the most relevant memories into the requested token ceiling. Ten million memories in the store. Your context window never sees more than the budget. And because there&rsquo;s no LLM in the path, the same query always returns the same ranking. You can unit&#8209;test it.</p>
+      <h2 class="section-head">Semantic-first. <em>No LLM.</em> Fully deterministic.</h2>
+      <p class="standfirst">When an agent calls <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">recall(query, budget)</code>, six cooperating steps find, narrow, rank, diversify, decay, and fit the most relevant memories into the requested token ceiling. Ten million memories in the store. Your context window never sees more than the budget. And because there&rsquo;s no LLM in the path, the same query always returns the same ranking. You can unit&#8209;test it.</p>
     </div>
 
     <figure class="reveal" style="margin:28px auto 8px;max-width:1040px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:20px;">
-      <img src="pipeline.svg" alt="Five-layer retrieval pipeline — tag match, graph expansion, vector search, fusion, diversity+fit" style="display:block;width:100%;height:auto;">
+      <img src="pipeline.svg" alt="Semantic-first retrieval pipeline — vector top-K, graph narrow, triples inject, MMR diversity, decay, budget fit" style="display:block;width:100%;height:auto;">
       <figcaption style="font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:#3a3530;text-align:center;margin-top:12px;">Fig. 3 &mdash; Same pipeline. Ten memories or ten million. The budget holds.</figcaption>
     </figure>
 
@@ -1744,42 +1744,50 @@ footer.colophon {
       <div class="pipeline-step">
         <div class="step-index">01</div>
         <div class="step-body">
-          <h3>Tag Match</h3>
-          <p>Stop-word filtered tag extraction against SQLite's tag index. Exact and partial hits. Fast. Deterministic.</p>
+          <h3>Vector Top-K</h3>
+          <p>Embed the query (local Ollama bge-m3 by default; cloud providers as fallback) and fetch the 50 nearest memories from pgvector by cosine similarity.</p>
         </div>
-        <div class="step-engine"><b>SQLite</b>Tag index &middot; FTS</div>
+        <div class="step-engine"><b>pgvector</b>k=50 &middot; cosine</div>
       </div>
       <div class="pipeline-step">
         <div class="step-index">02</div>
         <div class="step-body">
-          <h3>Graph Expansion</h3>
-          <p>Multi-hop BFS on the entity graph. Query "Python" discovers "FastAPI," "Django," and "pip" through relationship edges.</p>
+          <h3>Graph Narrow</h3>
+          <p>BFS depth&nbsp;&le;&nbsp;2 on the entity graph from each candidate's entity to the question entities. Boosts hits by hop distance; penalises unreachable.</p>
         </div>
-        <div class="step-engine"><b>NetworkX / AGE</b>BFS &middot; depth 2</div>
+        <div class="step-engine"><b>Neo4j + GDS</b>BFS &middot; depth &le; 2</div>
       </div>
       <div class="pipeline-step">
         <div class="step-index">03</div>
         <div class="step-body">
-          <h3>Vector Search</h3>
-          <p>Semantic similarity for everything tag and graph miss. Cloud-native embeddings when available; local sentence-transformers otherwise.</p>
+          <h3>Triples Inject</h3>
+          <p>Inject typed-edge triples (<code>uses</code>, <code>authored-by</code>, <code>supersedes</code>) as synthetic memories so consumers reason over relations, not just text.</p>
         </div>
-        <div class="step-engine"><b>ChromaDB / pgvector</b>Cosine similarity</div>
+        <div class="step-engine"><b>Graph store</b>typed edges</div>
       </div>
       <div class="pipeline-step">
         <div class="step-index">04</div>
         <div class="step-body">
-          <h3>RRF Fusion + PageRank</h3>
-          <p>Reciprocal Rank Fusion blends results from every layer; PageRank boosts memories about well-connected entities; confidence decay favors recent writes.</p>
+          <h3>MMR Diversity</h3>
+          <p>Maximal Marginal Relevance rerank with &lambda;=0.7 trades relevance against diversity, eliminating near-duplicate candidates while preserving topical coverage.</p>
         </div>
-        <div class="step-engine"><b>Fusion</b>RRF &middot; k=60</div>
+        <div class="step-engine"><b>MMR</b>&lambda; = 0.7</div>
       </div>
       <div class="pipeline-step">
         <div class="step-index">05</div>
         <div class="step-body">
-          <h3>MMR Diversity + Budget Fit</h3>
-          <p>Maximal Marginal Relevance eliminates near-duplicates. Greedy selection packs the top-scoring memories into the caller's token budget. The rest never enter context.</p>
+          <h3>Decay + Boost</h3>
+          <p>Confidence decay penalises stale, low-confidence rows; temporal boost lifts recent writes. Optional BM25/FTS lane fuses with vector via RRF (k=60).</p>
         </div>
-        <div class="step-engine"><b>MMR</b>&lambda; = 0.7</div>
+        <div class="step-engine"><b>Fusion</b>RRF &middot; k=60</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-index">06</div>
+        <div class="step-body">
+          <h3>Budget Fit</h3>
+          <p>Greedy monotonic-by-score selection packs the surviving memories into the caller's token budget. The rest never enter context.</p>
+        </div>
+        <div class="step-engine"><b>Greedy</b>token pack</div>
       </div>
     </div>
 
@@ -1922,7 +1930,7 @@ footer.colophon {
 <span style="color:var(--muted);">memory row</span><br>
 &nbsp;&nbsp;<span style="color:var(--accent-warm);">id &middot; content &middot; provenance</span><br>
 <span style="color:var(--accent);">&darr;</span><br>
-<span style="color:var(--muted);">5-layer recall</span><br>
+<span style="color:var(--muted);">semantic-first recall</span><br>
 <span style="color:var(--accent);">&darr;</span><br>
 <b style="color:var(--accent);">agent answer [mem_42]</b>
           </div>
@@ -1954,7 +1962,7 @@ footer.colophon {
       <h3 style="font-family:var(--ff-display);font-size:28px;font-weight:500;margin:0 0 14px;color:var(--paper);">Self-host locally in <em>one command</em>.</h3>
       <pre style="background:var(--ink);color:var(--paper);font-family:var(--ff-mono);font-size:14px;padding:18px 22px;border:1px solid var(--rule-strong);border-radius:4px;overflow-x:auto;margin:0 0 14px;"><span style="color:var(--accent);">$</span> pip install attestor
 <span style="color:var(--accent);">$</span> attestor api --host 0.0.0.0 --port 8080</pre>
-      <p style="margin:0;color:var(--paper-dim);font-size:15px;line-height:1.7;">Starlette ASGI on <code style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);color:var(--paper);padding:2px 6px;border:1px solid var(--rule-strong);border-radius:3px;">http://localhost:8080</code>. SQLite + ChromaDB + NetworkX provision automatically under <code style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);color:var(--paper);padding:2px 6px;border:1px solid var(--rule-strong);border-radius:3px;">~/.attestor</code>. Point every agent in your stack at the same URL &mdash; they share memory instantly. No Docker. No API keys. Air-gap it behind your firewall and walk away.</p>
+      <p style="margin:0;color:var(--paper-dim);font-size:15px;line-height:1.7;">Starlette ASGI on <code style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);color:var(--paper);padding:2px 6px;border:1px solid var(--rule-strong);border-radius:3px;">http://localhost:8080</code>. Run <code style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);color:var(--paper);padding:2px 6px;border:1px solid var(--rule-strong);border-radius:3px;">attestor setup local</code> to bring up Postgres&nbsp;16 + Neo4j (with GDS) via the bundled Docker Compose. Point every agent in your stack at the same URL &mdash; they share memory instantly. No SaaS. No API keys. Air-gap it behind your firewall and walk away.</p>
     </div>
 
     <div class="matrix reveal">
@@ -1991,7 +1999,7 @@ footer.colophon {
       <div class="matrix-cell">
         <span class="matrix-tag">Backend &middot; 06</span>
         <h3>Local / On-Prem</h3>
-        <p>SQLite + ChromaDB + NetworkX. Air-gapped deployments. Full data sovereignty.</p>
+        <p>Postgres + pgvector + Neo4j via Docker Compose. Air-gapped deployments. Full data sovereignty.</p>
         <div class="matrix-spec">No network egress</div>
       </div>
     </div>
@@ -2008,7 +2016,7 @@ footer.colophon {
         <div style="padding:16px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
           <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">LANE &#183; 01</div>
           <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;margin:6px 0 10px;">Laptop</div>
-          <div style="color:var(--muted);line-height:1.6;"><code>pip install</code><br><b>Doc:</b> SQLite<br><b>Vec:</b> ChromaDB<br><b>Graph:</b> NetworkX</div>
+          <div style="color:var(--muted);line-height:1.6;"><code>attestor setup local</code><br><b>Doc:</b> Postgres 16<br><b>Vec:</b> pgvector<br><b>Graph:</b> Neo4j + GDS</div>
         </div>
         <div style="padding:16px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
           <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.2em;color:var(--accent);">LANE &#183; 02</div>

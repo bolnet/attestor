@@ -82,12 +82,12 @@
     <text class="cream" x="24" y="200" font-size="13">Provenance &#183; Token budgets</text>
     <text class="cream" x="24" y="220" font-size="13">Write quotas &#183; Review flags</text>
 
-    <text class="accent sans" x="24" y="256" font-size="11">RETRIEVAL &#183; 5-LAYER CASCADE</text>
-    <text class="cream" x="24" y="280" font-size="13">01 &#183; Tag match</text>
-    <text class="cream" x="24" y="298" font-size="13">02 &#183; Graph expansion (BFS)</text>
-    <text class="cream" x="24" y="316" font-size="13">03 &#183; Vector search</text>
-    <text class="cream" x="24" y="334" font-size="13">04 &#183; RRF fusion + PageRank</text>
-    <text class="cream" x="24" y="352" font-size="13">05 &#183; MMR diversity + budget fit</text>
+    <text class="accent sans" x="24" y="256" font-size="11">RETRIEVAL &#183; SEMANTIC-FIRST PIPELINE</text>
+    <text class="cream" x="24" y="280" font-size="13">01 &#183; Vector top-K (pgvector)</text>
+    <text class="cream" x="24" y="298" font-size="13">02 &#183; Graph narrow (Neo4j BFS &#8804; 2)</text>
+    <text class="cream" x="24" y="316" font-size="13">03 &#183; Triples + temporal boost</text>
+    <text class="cream" x="24" y="334" font-size="13">04 &#183; MMR diversity (&#955;=0.7)</text>
+    <text class="cream" x="24" y="352" font-size="13">05 &#183; Decay + budget fit</text>
 
     <text class="cream sans" x="356" y="374" font-size="10" text-anchor="end" opacity="0.7">ZERO LLM IN THE RETRIEVAL PATH</text>
   </g>
@@ -108,20 +108,20 @@
     <rect class="card" x="0" y="20"  width="360" height="110" rx="2"/>
     <text class="accent sans" x="20" y="46" font-size="11">01 &#183; DOCUMENT</text>
     <text class="ink" x="20" y="74" font-size="18" font-weight="700">Source of truth</text>
-    <text class="muted" x="20" y="96"  font-size="11">SQLite &#183; PostgreSQL &#183; AlloyDB &#183; ArangoDB</text>
+    <text class="muted" x="20" y="96"  font-size="11">PostgreSQL &#183; AlloyDB &#183; ArangoDB</text>
     <text class="muted" x="20" y="114" font-size="11">DynamoDB &#183; Cosmos DB</text>
 
     <rect class="card" x="0" y="150" width="360" height="110" rx="2"/>
     <text class="accent sans" x="20" y="176" font-size="11">02 &#183; VECTOR</text>
     <text class="ink" x="20" y="204" font-size="18" font-weight="700">Semantic search</text>
-    <text class="muted" x="20" y="226" font-size="11">ChromaDB &#183; pgvector &#183; ScaNN &#183; ArangoDB</text>
+    <text class="muted" x="20" y="226" font-size="11">pgvector &#183; AlloyDB ScaNN &#183; ArangoDB</text>
     <text class="muted" x="20" y="244" font-size="11">OpenSearch Serverless &#183; Cosmos DiskANN</text>
 
     <rect class="card" x="0" y="280" width="360" height="110" rx="2"/>
     <text class="accent sans" x="20" y="306" font-size="11">03 &#183; GRAPH</text>
     <text class="ink" x="20" y="334" font-size="18" font-weight="700">Entities &amp; multi-hop</text>
-    <text class="muted" x="20" y="356" font-size="11">NetworkX &#183; Apache AGE &#183; ArangoDB</text>
-    <text class="muted" x="20" y="374" font-size="11">Neptune &#183; NetworkX-on-Cosmos</text>
+    <text class="muted" x="20" y="356" font-size="11">Neo4j + GDS &#183; Apache AGE &#183; ArangoDB</text>
+    <text class="muted" x="20" y="374" font-size="11">Neptune &#183; NetworkX (Azure)</text>
   </g>
 
   <line class="hair" x1="40" y1="510" x2="1360" y2="510"/>

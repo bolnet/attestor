@@ -1,7 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 820" font-family="Georgia, 'Times New Roman', serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 880" font-family="Georgia, 'Times New Roman', serif">
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#1A1614"/>
+    </marker>
+    <marker id="arr-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#C15F3C"/>
     </marker>
     <style>
       .bg { fill: #F5F1E8; }
@@ -12,6 +15,7 @@
       .rule { stroke: #1A1614; stroke-width: 0.75; }
       .hair { stroke: #C9C0B0; stroke-width: 0.75; }
       .flow { stroke: #1A1614; stroke-width: 1.25; fill: none; }
+      .flow-accent { stroke: #C15F3C; stroke-width: 1.25; stroke-dasharray: 4 3; fill: none; }
       .mono { font-family: 'Menlo', 'Consolas', 'Courier New', monospace; }
       .sans { font-family: 'Helvetica Neue', 'Arial', sans-serif; letter-spacing: 0.12em; }
       .sect { font-size: 11px; letter-spacing: 0.2em; }
@@ -23,101 +27,118 @@
   </defs>
 
   <!-- Paper -->
-  <rect class="bg" width="1400" height="820"/>
+  <rect class="bg" width="1400" height="880"/>
 
-  <!-- Masthead rules -->
+  <!-- Masthead -->
   <line class="rule" x1="40" y1="44" x2="1360" y2="44"/>
   <line class="hair" x1="40" y1="50" x2="1360" y2="50"/>
-  <text class="ink sans sect" x="40" y="36">&#167; HIGH-LEVEL ARCHITECTURE &#183; RETRIEVAL PIPELINE &#183; FIVE LAYERS &#183; ZERO INFERENCE CALLS</text>
+  <text class="ink sans sect" x="40" y="36">&#167; HIGH-LEVEL ARCHITECTURE &#183; RETRIEVAL PIPELINE &#183; SEMANTIC-FIRST &#183; ZERO INFERENCE CALLS</text>
   <text class="muted sans sect" x="1360" y="36" text-anchor="end">FIG. 03 &#183; ATTESTOR</text>
 
   <!-- Input -->
-  <text class="muted sans tag" x="700" y="86" text-anchor="middle">AGENT CALL</text>
-  <text class="ink mono" x="700" y="116" text-anchor="middle" font-size="18">mem.recall(query, budget=2000)</text>
-  <line class="flow" x1="700" y1="132" x2="700" y2="160"/>
+  <text class="muted sans tag" x="700" y="84" text-anchor="middle">AGENT CALL</text>
+  <text class="ink mono" x="700" y="114" text-anchor="middle" font-size="18">mem.recall(query, budget=2000)</text>
+  <line class="flow" x1="700" y1="128" x2="700" y2="160" marker-end="url(#arr)"/>
 
-  <!-- Fan-out to three parallel source layers -->
-  <path class="flow" d="M 700,160 L 260,190" fill="none"/>
-  <path class="flow" d="M 700,160 L 700,190"/>
-  <path class="flow" d="M 700,160 L 1140,190"/>
-
-  <!-- Stage label: PARALLEL SOURCES -->
-  <text class="muted sans stage" x="40" y="186">STAGE A &#183; PARALLEL SOURCES</text>
+  <!-- Stage A label -->
+  <text class="muted sans stage" x="40" y="186">STAGE A &#183; CANDIDATE GENERATION</text>
   <line class="hair" x1="40" y1="192" x2="1360" y2="192"/>
 
-  <!-- Card 01 — Tag Match -->
+  <!-- Card 01 — Vector Top-K -->
   <g transform="translate(80,210)">
     <rect class="card" width="360" height="200" rx="2"/>
     <text class="accent" x="20" y="80" font-size="64" font-family="Georgia, serif">01</text>
     <line class="hair" x1="20" y1="96" x2="340" y2="96"/>
-    <text class="muted sans tag" x="20" y="116">LAYER &#183; TAG MATCH</text>
-    <text class="ink title" x="20" y="144">Tag Match</text>
-    <text class="muted mono" x="20" y="164" font-size="11">SQLite &#183; FTS</text>
-    <text class="ink body" x="20" y="188">Stop-word filtered tags against the</text>
+    <text class="muted sans tag" x="20" y="116">STEP &#183; VECTOR TOP-K</text>
+    <text class="ink title" x="20" y="144">Vector search</text>
+    <text class="muted mono" x="20" y="164" font-size="11">pgvector &#183; cosine &#183; k=50</text>
+    <text class="ink body" x="20" y="186">Embed query, fetch the 50 nearest</text>
   </g>
-  <text class="ink body" x="100" y="422">SQLite tag index. Exact + partial hits.</text>
+  <text class="ink body" x="100" y="430">memories. Local Ollama bge-m3 by default.</text>
 
-  <!-- Card 02 — Graph Expansion -->
+  <!-- Card 02 — Graph Narrow -->
   <g transform="translate(520,210)">
     <rect class="card" width="360" height="200" rx="2"/>
     <text class="accent" x="20" y="80" font-size="64" font-family="Georgia, serif">02</text>
     <line class="hair" x1="20" y1="96" x2="340" y2="96"/>
-    <text class="muted sans tag" x="20" y="116">LAYER &#183; GRAPH EXPANSION</text>
-    <text class="ink title" x="20" y="144">Graph Expansion</text>
-    <text class="muted mono" x="20" y="164" font-size="11">NetworkX &#183; Apache AGE</text>
-    <text class="ink body" x="20" y="188">Multi-hop BFS on the entity graph.</text>
+    <text class="muted sans tag" x="20" y="116">STEP &#183; GRAPH NARROW</text>
+    <text class="ink title" x="20" y="144">Graph affinity</text>
+    <text class="muted mono" x="20" y="164" font-size="11">Neo4j + GDS &#183; BFS depth &#8804; 2</text>
+    <text class="ink body" x="20" y="186">Boost candidates whose entity is near</text>
   </g>
-  <text class="ink body" x="540" y="422">&#8220;Python&#8221; discovers &#8220;FastAPI,&#8221; &#8220;Django.&#8221;</text>
+  <text class="ink body" x="540" y="430">the question entities by hop distance.</text>
 
-  <!-- Card 03 — Vector Search -->
+  <!-- Card 03 — Triples Inject -->
   <g transform="translate(960,210)">
     <rect class="card" width="360" height="200" rx="2"/>
     <text class="accent" x="20" y="80" font-size="64" font-family="Georgia, serif">03</text>
     <line class="hair" x1="20" y1="96" x2="340" y2="96"/>
-    <text class="muted sans tag" x="20" y="116">LAYER &#183; VECTOR SEARCH</text>
-    <text class="ink title" x="20" y="144">Vector Search</text>
-    <text class="muted mono" x="20" y="164" font-size="11">ChromaDB &#183; pgvector</text>
-    <text class="ink body" x="20" y="188">Semantic similarity &#8212; everything tag</text>
+    <text class="muted sans tag" x="20" y="116">STEP &#183; TRIPLES INJECT</text>
+    <text class="ink title" x="20" y="144">Typed-edge facts</text>
+    <text class="muted mono" x="20" y="164" font-size="11">uses &#183; authored-by &#183; supersedes</text>
+    <text class="ink body" x="20" y="186">Inject relation triples as synthetic</text>
   </g>
-  <text class="ink body" x="980" y="422">and graph miss. Cosine similarity.</text>
+  <text class="ink body" x="980" y="430">memories so reasoners see the graph.</text>
 
-  <!-- Fan-in to fusion -->
-  <path class="flow" d="M 260,440 L 700,480"/>
-  <path class="flow" d="M 700,440 L 700,480"/>
-  <path class="flow" d="M 1140,440 L 700,480" marker-end="url(#arr)"/>
+  <!-- Optional BM25 lane note -->
+  <line class="flow-accent" x1="260" y1="448" x2="260" y2="478"/>
+  <text class="accent sans tag" x="280" y="468">OPTIONAL BM25 / FTS LANE &#8594; FUSED VIA RRF k=60</text>
 
-  <!-- Stage label: FUSE & RANK -->
-  <text class="muted sans stage" x="40" y="506">STAGE B &#183; FUSE &#183; RANK &#183; DIVERSIFY &#183; FIT</text>
-  <line class="hair" x1="40" y1="512" x2="1360" y2="512"/>
+  <!-- Sequence flow within Stage A -->
+  <line class="flow" x1="440" y1="310" x2="520" y2="310" marker-end="url(#arr)"/>
+  <line class="flow" x1="880" y1="310" x2="960" y2="310" marker-end="url(#arr)"/>
 
-  <!-- Card 04 — Fusion + Rank -->
-  <g transform="translate(260,530)">
-    <rect class="card" width="880" height="110" rx="2"/>
-    <text class="accent" x="30" y="78" font-size="56" font-family="Georgia, serif">04</text>
-    <line class="hair" x1="130" y1="30" x2="130" y2="90"/>
-    <text class="muted sans tag" x="150" y="40">LAYER &#183; FUSION + RANK</text>
-    <text class="ink title" x="150" y="68">Fusion &amp; Ranking</text>
-    <text class="muted mono" x="150" y="88" font-size="11">In-process &#183; RRF k=60 &#183; PageRank &#183; Confidence decay</text>
-    <line class="hair" x1="560" y1="30" x2="560" y2="90"/>
-    <text class="ink body" x="580" y="58">Reciprocal Rank Fusion blends all three layers.</text>
-    <text class="ink body" x="580" y="78">PageRank boosts central entities; recency decays old writes.</text>
+  <!-- Bridge to Stage B -->
+  <line class="flow" x1="700" y1="468" x2="700" y2="510" marker-end="url(#arr)"/>
+
+  <!-- Stage B label -->
+  <text class="muted sans stage" x="40" y="536">STAGE B &#183; RANK &#183; DIVERSIFY &#183; FIT</text>
+  <line class="hair" x1="40" y1="542" x2="1360" y2="542"/>
+
+  <!-- Card 04 — MMR Diversity -->
+  <g transform="translate(80,560)">
+    <rect class="card" width="360" height="200" rx="2"/>
+    <text class="accent" x="20" y="80" font-size="64" font-family="Georgia, serif">04</text>
+    <line class="hair" x1="20" y1="96" x2="340" y2="96"/>
+    <text class="muted sans tag" x="20" y="116">STEP &#183; MMR DIVERSITY</text>
+    <text class="ink title" x="20" y="144">Diversity rerank</text>
+    <text class="muted mono" x="20" y="164" font-size="11">Maximal Marginal Relevance &#183; &#955;=0.7</text>
+    <text class="ink body" x="20" y="186">Eliminate near-duplicate candidates</text>
   </g>
+  <text class="ink body" x="100" y="780">while preserving topical coverage.</text>
 
-  <line class="flow" x1="700" y1="640" x2="700" y2="680" marker-end="url(#arr)"/>
-
-  <!-- Card 05 — Diversity + Fit -->
-  <g transform="translate(260,680)">
-    <rect class="card" width="880" height="110" rx="2"/>
-    <text class="accent" x="30" y="78" font-size="56" font-family="Georgia, serif">05</text>
-    <line class="hair" x1="130" y1="30" x2="130" y2="90"/>
-    <text class="muted sans tag" x="150" y="40">LAYER &#183; DIVERSITY + FIT</text>
-    <text class="ink title" x="150" y="68">Diversity &amp; Budget Fit</text>
-    <text class="muted mono" x="150" y="88" font-size="11">In-process &#183; MMR &#955;=0.7 &#183; Greedy token pack</text>
-    <line class="hair" x1="560" y1="30" x2="560" y2="90"/>
-    <text class="ink body" x="580" y="58">Maximal Marginal Relevance eliminates near-duplicates.</text>
-    <text class="ink body" x="580" y="78">Greedy selection packs results into the caller&#8217;s token budget.</text>
+  <!-- Card 05 — Decay + Boost -->
+  <g transform="translate(520,560)">
+    <rect class="card" width="360" height="200" rx="2"/>
+    <text class="accent" x="20" y="80" font-size="64" font-family="Georgia, serif">05</text>
+    <line class="hair" x1="20" y1="96" x2="340" y2="96"/>
+    <text class="muted sans tag" x="20" y="116">STEP &#183; DECAY + BOOST</text>
+    <text class="ink title" x="20" y="144">Confidence + temporal</text>
+    <text class="muted mono" x="20" y="164" font-size="11">recency boost &#183; confidence decay</text>
+    <text class="ink body" x="20" y="186">Recent and high-confidence memories</text>
   </g>
+  <text class="ink body" x="540" y="780">rise; stale, low-confidence ones fall.</text>
+
+  <!-- Card 06 — Budget Fit -->
+  <g transform="translate(960,560)">
+    <rect class="card" width="360" height="200" rx="2"/>
+    <text class="accent" x="20" y="80" font-size="64" font-family="Georgia, serif">06</text>
+    <line class="hair" x1="20" y1="96" x2="340" y2="96"/>
+    <text class="muted sans tag" x="20" y="116">STEP &#183; BUDGET FIT</text>
+    <text class="ink title" x="20" y="144">Greedy token pack</text>
+    <text class="muted mono" x="20" y="164" font-size="11">monotonic by score &#183; budget=2000</text>
+    <text class="ink body" x="20" y="186">Pack the top-scoring memories until</text>
+  </g>
+  <text class="ink body" x="980" y="780">the caller&#8217;s token budget is filled.</text>
+
+  <!-- Sequence flow within Stage B -->
+  <line class="flow" x1="440" y1="660" x2="520" y2="660" marker-end="url(#arr)"/>
+  <line class="flow" x1="880" y1="660" x2="960" y2="660" marker-end="url(#arr)"/>
+
+  <!-- Output -->
+  <line class="flow" x1="700" y1="800" x2="700" y2="836" marker-end="url(#arr)"/>
+  <text class="ink mono" x="700" y="858" text-anchor="middle" font-size="14">List[RetrievalResult] &#8804; budget</text>
 
   <!-- Bottom rule -->
-  <line class="rule" x1="40" y1="810" x2="1360" y2="810"/>
+  <line class="rule" x1="40" y1="870" x2="1360" y2="870"/>
 </svg>
