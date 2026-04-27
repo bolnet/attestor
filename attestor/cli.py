@@ -1131,7 +1131,15 @@ def _cmd_mcp_serve(args):
 
     # Ensure store directory and DB exist
     Path(store_path).mkdir(parents=True, exist_ok=True)
-    AgentMemory(store_path).close()
+    try:
+        AgentMemory(store_path).close()
+    except Exception as init_err:
+        if not os.environ.get("ATTESTOR_MCP_TOLERATE_INIT_FAILURE"):
+            raise
+        print(
+            f"[attestor.mcp] Preflight AgentMemory init failed (tolerated): {init_err}",
+            file=sys.stderr,
+        )
 
     print(f"Starting MCP server for {store_path}...", file=sys.stderr)
     asyncio.run(run_server(store_path))

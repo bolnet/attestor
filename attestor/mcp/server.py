@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from typing import Any
 
@@ -210,7 +211,16 @@ def create_server(memory_path: str):
         )
         sys.exit(1)
 
-    mem = AgentMemory(memory_path)
+    try:
+        mem = AgentMemory(memory_path)
+    except Exception as init_err:
+        if not os.environ.get("ATTESTOR_MCP_TOLERATE_INIT_FAILURE"):
+            raise
+        print(
+            f"[attestor.mcp] AgentMemory init failed (tolerated by ATTESTOR_MCP_TOLERATE_INIT_FAILURE): {init_err}",
+            file=sys.stderr,
+        )
+        mem = None
     server = Server(_brand.PACKAGE_NAME)
 
     # -- Tools --
@@ -374,6 +384,12 @@ def create_server(memory_path: str):
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+        if mem is None:
+            return [TextContent(type="text", text=json.dumps({
+                "error": "Backends are not initialized — Attestor MCP is running in introspection-only mode. "
+                         "Provide working Postgres + Neo4j connections (ATTESTOR_PATH or config.toml) and unset "
+                         "ATTESTOR_MCP_TOLERATE_INIT_FAILURE to enable tool execution.",
+            }))]
         try:
             result = _handle_tool(mem, name, arguments)
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
@@ -381,28 +397,32 @@ def create_server(memory_path: str):
             return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
 
     # -- Resources and Prompts --
+    # When mem is None (introspection-only mode), skip resource/prompt
+    # registration so list_resources / list_prompts return empty rather
+    # than crashing inside handlers that dereference mem.
 
-    handlers = _build_handlers(mem)
+    if mem is not None:
+        handlers = _build_handlers(mem)
 
-    @server.list_resources()
-    async def _list_resources():
-        return await handlers["list_resources"]()
+        @server.list_resources()
+        async def _list_resources():
+            return await handlers["list_resources"]()
 
-    @server.read_resource()
-    async def _read_resource(uri):
-        return await handlers["read_resource"](uri)
+        @server.read_resource()
+        async def _read_resource(uri):
+            return await handlers["read_resource"](uri)
 
-    @server.list_resource_templates()
-    async def _list_resource_templates():
-        return await handlers["list_resource_templates"]()
+        @server.list_resource_templates()
+        async def _list_resource_templates():
+            return await handlers["list_resource_templates"]()
 
-    @server.list_prompts()
-    async def _list_prompts():
-        return await handlers["list_prompts"]()
+        @server.list_prompts()
+        async def _list_prompts():
+            return await handlers["list_prompts"]()
 
-    @server.get_prompt()
-    async def _get_prompt(name, arguments):
-        return await handlers["get_prompt"](name, arguments)
+        @server.get_prompt()
+        async def _get_prompt(name, arguments):
+            return await handlers["get_prompt"](name, arguments)
 
     return server
 
