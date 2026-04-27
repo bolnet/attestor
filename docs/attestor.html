@@ -722,20 +722,20 @@ section{position:relative;z-index:2}
     <div class="section-head">
       <span class="section-head__kicker">§ 03 — Architecture</span>
       <div>
-        <h2 class="section-head__title">Five retrieval layers. <em style="font-style:italic">Zero inference calls.</em></h2>
-        <p class="section-head__sub">When an agent calls recall, five cooperating layers find, fuse, score, and fit.</p>
+        <h2 class="section-head__title">Semantic-first retrieval. <em style="font-style:italic">Zero inference calls.</em></h2>
+        <p class="section-head__sub">When an agent calls recall, six cooperating steps find, narrow, rank, diversify, decay, and fit.</p>
       </div>
     </div>
 
     <div class="col prose">
       <p>
         When an agent calls <code style="font-family:var(--mono);color:var(--accent);font-size:.9em">recall(query, budget)</code>,
-        five cooperating layers find, fuse, score, and fit the most relevant memories into the requested token ceiling.
+        a six-step semantic-first pipeline finds, narrows, ranks, diversifies, decays, and fits the most relevant memories into the requested token ceiling.
         Ten million memories in the store. Your context window never sees more than the budget. Same query, same ranking, always.
       </p>
     </div>
 
-    <div class="pipeline" aria-label="Five-layer retrieval pipeline diagram">
+    <div class="pipeline" aria-label="Semantic-first retrieval pipeline diagram">
       <svg viewBox="0 0 1080 280" role="img" aria-label="Retrieval pipeline">
         <defs>
           <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -762,56 +762,56 @@ section{position:relative;z-index:2}
         </g>
         <line x1="162" y1="82" x2="208" y2="82" class="flow" marker-end="url(#arrow)"/>
 
-        <!-- Layer 1 -->
+        <!-- Step 1 -->
         <g>
           <rect x="208" y="50" width="152" height="64" class="stage-bg"/>
-          <text x="218" y="46" class="stage-n">01 · Tag Match</text>
-          <text x="218" y="78" class="stage-t">SQLite FTS</text>
-          <text x="218" y="98" class="stage-d">literal + token</text>
+          <text x="218" y="46" class="stage-n">01 · Vector top-K</text>
+          <text x="218" y="78" class="stage-t">pgvector</text>
+          <text x="218" y="98" class="stage-d">cosine · k = 50</text>
         </g>
         <line x1="360" y1="82" x2="388" y2="82" class="flow" marker-end="url(#arrow)"/>
 
-        <!-- Layer 2 -->
+        <!-- Step 2 -->
         <g>
           <rect x="388" y="50" width="152" height="64" class="stage-bg"/>
-          <text x="398" y="46" class="stage-n">02 · Graph Exp.</text>
-          <text x="398" y="78" class="stage-t">BFS depth 2</text>
-          <text x="398" y="98" class="stage-d">entity walk</text>
+          <text x="398" y="46" class="stage-n">02 · Graph narrow</text>
+          <text x="398" y="78" class="stage-t">Neo4j BFS</text>
+          <text x="398" y="98" class="stage-d">depth ≤ 2 · hop boost</text>
         </g>
         <line x1="540" y1="82" x2="568" y2="82" class="flow" marker-end="url(#arrow)"/>
 
-        <!-- Layer 3 -->
+        <!-- Step 3 -->
         <g>
           <rect x="568" y="50" width="152" height="64" class="stage-bg"/>
-          <text x="578" y="46" class="stage-n">03 · Vector</text>
-          <text x="578" y="78" class="stage-t">Cosine ANN</text>
-          <text x="578" y="98" class="stage-d">384-D dense</text>
+          <text x="578" y="46" class="stage-n">03 · Triples inject</text>
+          <text x="578" y="78" class="stage-t">typed edges</text>
+          <text x="578" y="98" class="stage-d">uses · authored-by</text>
         </g>
         <line x1="720" y1="82" x2="748" y2="82" class="flow" marker-end="url(#arrow)"/>
 
-        <!-- Layer 4 -->
+        <!-- Step 4 -->
         <g>
           <rect x="748" y="50" width="152" height="64" class="stage-bg hl"/>
-          <text x="758" y="46" class="stage-n">04 · RRF + PR</text>
-          <text x="758" y="78" class="stage-t">k = 60</text>
-          <text x="758" y="98" class="stage-d">fusion + pagerank</text>
+          <text x="758" y="46" class="stage-n">04 · MMR diversity</text>
+          <text x="758" y="78" class="stage-t">λ = 0.7</text>
+          <text x="758" y="98" class="stage-d">drop near-dupes</text>
         </g>
         <line x1="900" y1="82" x2="928" y2="82" class="flow" marker-end="url(#arrow)"/>
 
-        <!-- Layer 5 -->
+        <!-- Step 5+6 (combined cell) -->
         <g>
           <rect x="928" y="50" width="132" height="64" class="stage-bg hl"/>
-          <text x="938" y="46" class="stage-n">05 · MMR</text>
-          <text x="938" y="78" class="stage-t">λ = 0.7</text>
-          <text x="938" y="98" class="stage-d">diverse + fit</text>
+          <text x="938" y="46" class="stage-n">05 · Decay + 06 · Fit</text>
+          <text x="938" y="78" class="stage-t">budget pack</text>
+          <text x="938" y="98" class="stage-d">temporal · greedy</text>
         </g>
 
         <!-- Brackets -->
         <path class="bracket" d="M 208 145 Q 208 155 218 155 L 710 155 Q 720 155 720 145"/>
-        <text x="464" y="180" class="btext" text-anchor="middle">· Candidate Retrieval ·</text>
+        <text x="464" y="180" class="btext" text-anchor="middle">· Candidate Generation ·</text>
 
         <path class="bracket" d="M 748 145 Q 748 155 758 155 L 1050 155 Q 1060 155 1060 145"/>
-        <text x="904" y="180" class="btext" text-anchor="middle">· Rank &amp; Fit ·</text>
+        <text x="904" y="180" class="btext" text-anchor="middle">· Rank · Diversify · Fit ·</text>
 
         <!-- Output -->
         <g>
@@ -834,7 +834,7 @@ section{position:relative;z-index:2}
       <div class="storage__cell" role="listitem">
         <div class="storage__k"><span class="idx">Role 01</span> <span>Document</span></div>
         <h4 class="storage__t">Source of truth</h4>
-        <p class="storage__p">Content, tags, entity, category, timestamps, provenance, confidence. SQLite locally, Postgres / Cosmos / DynamoDB / Arango in the cloud.</p>
+        <p class="storage__p">Content, tags, entity, category, timestamps, provenance, confidence. Postgres 16 by default; AlloyDB, Cosmos DB, DynamoDB, or ArangoDB in the cloud.</p>
       </div>
       <div class="storage__cell" role="listitem">
         <div class="storage__k"><span class="idx">Role 02</span> <span>Vector</span></div>
@@ -1053,8 +1053,8 @@ section{position:relative;z-index:2}
       <div class="deploy__cell" role="listitem">
         <svg class="deploy__glyph" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="6" width="26" height="17" rx="1"/><path d="M10 27h12M14 23v4M18 23v4"/></svg>
         <h4 class="deploy__t">Laptop</h4>
-        <p class="deploy__stack">SQLite · Chroma · NetworkX</p>
-        <p class="deploy__p">Zero config. Embedded. Three storage roles in-process.</p>
+        <p class="deploy__stack">Postgres 16 · pgvector · Neo4j + GDS</p>
+        <p class="deploy__p">Docker Compose. Three storage roles, one command up.</p>
       </div>
       <div class="deploy__cell" role="listitem">
         <svg class="deploy__glyph" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="4" width="26" height="6"/><rect x="3" y="13" width="26" height="6"/><rect x="3" y="22" width="26" height="6"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="16" r="1" fill="currentColor"/><circle cx="7" cy="25" r="1" fill="currentColor"/></svg>

@@ -11,45 +11,46 @@
     <div class="container">
       <a href="./" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">&larr; Back to Attestor</a>
       <h1 style="font-size: 2rem; margin-top: 24px;">Privacy Policy</h1>
-      <p class="tagline">Last updated: March 16, 2026</p>
+      <p class="tagline">Last updated: April 27, 2026</p>
     </div>
   </section>
 
   <section class="problem" style="padding: 40px 0;">
     <div class="container">
       <h2>Summary</h2>
-      <p class="problem-text">Attestor stores all data locally on your machine. No data is collected, transmitted, or shared with anyone.</p>
+      <p class="problem-text">Attestor stores all data in infrastructure you control &mdash; either entirely on-device or in a database you administer. Nothing leaves your network unless you explicitly opt into a cloud provider for embeddings or LLM-based extraction.</p>
 
       <h2>Data Storage</h2>
-      <p class="problem-text">All memories, entity graphs, and vector embeddings are stored in local files on your device:</p>
+      <p class="problem-text">Memories, entity graphs, and vector embeddings live in the storage backends you configure. The default topology is fully self-hosted:</p>
       <ul style="color: var(--text-secondary); margin-bottom: 2rem; padding-left: 1.5rem; line-height: 2;">
-        <li><strong>SQLite database</strong> — <code>memory.db</code> in your store directory</li>
-        <li><strong>ChromaDB vectors</strong> — <code>chroma/</code> directory in your store</li>
-        <li><strong>NetworkX graph</strong> — <code>graph.json</code> in your store</li>
-        <li><strong>Configuration</strong> — <code>config.json</code> in your store</li>
+        <li><strong>Document &amp; vector store</strong> &mdash; PostgreSQL 16 with the <code>pgvector</code> extension (source of truth for content, tags, entity, provenance, confidence, and dense embeddings)</li>
+        <li><strong>Graph store</strong> &mdash; Neo4j 5 with the GDS plugin (entity nodes plus typed edges such as <code>uses</code>, <code>authored-by</code>, <code>supersedes</code>)</li>
+        <li><strong>Configuration</strong> &mdash; <code>~/.attestor.toml</code> on your machine</li>
+        <li><strong>Local Docker option</strong> &mdash; <code>attestor setup local</code> generates a Docker Compose file that brings both services up on your laptop</li>
       </ul>
+      <p class="problem-text">Postgres and Neo4j can also be swapped for any of the supported alternatives (AlloyDB, ArangoDB, AWS DynamoDB + OpenSearch + Neptune, Azure Cosmos DB, GCP AlloyDB) &mdash; the storage role still runs in your cloud account, never ours.</p>
 
       <h2>No Data Collection</h2>
       <p class="problem-text">Attestor does not:</p>
       <ul style="color: var(--text-secondary); margin-bottom: 2rem; padding-left: 1.5rem; line-height: 2;">
-        <li>Send any data to external servers</li>
+        <li>Send any data to attestor-operated servers (we don&rsquo;t run any)</li>
         <li>Collect usage analytics or telemetry</li>
         <li>Require account registration</li>
         <li>Phone home or check licenses</li>
-        <li>Access any network resources</li>
+        <li>Access any network resources you didn&rsquo;t configure</li>
       </ul>
 
       <h2>Embeddings</h2>
-      <p class="problem-text">Vector embeddings are computed locally using sentence-transformers (all-MiniLM-L6-v2). The model runs on your machine. No text is sent to any API for embedding computation.</p>
+      <p class="problem-text">By default Attestor computes embeddings using local Ollama (<code>bge-m3</code>, 1024-D) on <code>http://localhost:11434</code> &mdash; nothing leaves the machine. If a cloud embedding provider is configured (OpenAI <code>text-embedding-3-large</code>, AWS Bedrock, Azure OpenAI, or Vertex AI), text is sent to that provider under your account&rsquo;s privacy terms. Provider selection is fully under your control via the <code>ATTESTOR_EMBEDDING_PROVIDER</code> environment variable.</p>
 
       <h2>Claude Code Integration</h2>
-      <p class="problem-text">When used as a Claude Code plugin or MCP server, Attestor runs locally alongside Claude Code. Memory data flows between Attestor and Claude Code on your machine via the Model Context Protocol (stdio). No memory data is sent to Anthropic's servers — only your conversation with Claude is sent, which may include recalled memories that Claude Code injects into the conversation context.</p>
+      <p class="problem-text">When used as a Claude Code plugin or MCP server, Attestor runs locally alongside Claude Code. Memory data flows between Attestor and Claude Code on your machine via the Model Context Protocol (stdio). No memory data is sent to Anthropic&rsquo;s servers &mdash; only your conversation with Claude is sent, which may include recalled memories that Claude Code injects into the conversation context.</p>
 
       <h2>Third-Party Services</h2>
-      <p class="problem-text">Attestor has zero external dependencies by default. Optional features (LLM-based extraction) require an API key you provide and control.</p>
+      <p class="problem-text">Attestor has no built-in third-party telemetry or analytics. Optional features that <em>do</em> reach the network &mdash; cloud embedding providers, LLM-based extraction (OpenRouter / OpenAI / Anthropic), or the LongMemEval benchmark runners &mdash; are off by default and require an API key you provide and control. The default Postgres + Neo4j topology requires no third-party service.</p>
 
       <h2>Open Source</h2>
-      <p class="problem-text">Attestor is open source under the Apache 2.0 license. You can audit the complete source code at <a href="https://github.com/bolnet/attestor" style="color: var(--orange-light);">github.com/bolnet/attestor</a>.</p>
+      <p class="problem-text">Attestor is open source under the MIT license. You can audit the complete source code at <a href="https://github.com/bolnet/attestor" style="color: var(--orange-light);">github.com/bolnet/attestor</a>.</p>
 
       <h2>Contact</h2>
       <p class="problem-text">For privacy questions, open an issue at <a href="https://github.com/bolnet/attestor/issues" style="color: var(--orange-light);">github.com/bolnet/attestor/issues</a>.</p>
@@ -63,7 +64,7 @@
         <a href="https://pypi.org/project/attestor/">PyPI</a>
         <a href="./">Home</a>
       </div>
-      <p class="footer-license">Apache 2.0 License</p>
+      <p class="footer-license">MIT License</p>
     </div>
   </footer>
 </body>
