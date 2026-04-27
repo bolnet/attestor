@@ -1091,7 +1091,14 @@ JUDGE_PROMPT = (
 
 
 def _get_client(api_key: Optional[str] = None) -> Any:
-    """Instantiate an OpenAI client pointed at OpenRouter for benchmark runs."""
+    """Instantiate an OpenAI-compatible client.
+
+    Default target is OpenRouter. Override with ``LME_LLM_BASE_URL`` to
+    point at any OpenAI-compatible endpoint — most importantly local
+    Ollama at ``http://localhost:11434/v1`` for offline / no-key runs.
+    When the base URL points at localhost, ``OPENROUTER_API_KEY`` is
+    optional (Ollama accepts any non-empty key).
+    """
     try:
         from openai import OpenAI
     except ImportError as e:  # pragma: no cover — import-time error path
@@ -1100,12 +1107,21 @@ def _get_client(api_key: Optional[str] = None) -> Any:
             "`poetry add --group dev openai`."
         ) from e
 
+    base_url = os.environ.get("LME_LLM_BASE_URL", OPENROUTER_BASE_URL)
+    is_local = "localhost" in base_url or "127.0.0.1" in base_url
+
     key = api_key or os.environ.get("OPENROUTER_API_KEY")
     if not key:
-        raise RuntimeError(
-            "OPENROUTER_API_KEY not set — required for LongMemEval answer/judge."
-        )
-    return OpenAI(base_url=OPENROUTER_BASE_URL, api_key=key)
+        if is_local:
+            key = "ollama"  # placeholder; Ollama ignores the key
+        else:
+            raise RuntimeError(
+                "OPENROUTER_API_KEY not set — required for LongMemEval "
+                "answer/judge against a remote endpoint. Set "
+                "LME_LLM_BASE_URL=http://localhost:11434/v1 to run "
+                "against local Ollama instead."
+            )
+    return OpenAI(base_url=base_url, api_key=key)
 
 
 def _chat(client: Any, model: str, prompt: str, *, max_tokens: int = 300) -> str:

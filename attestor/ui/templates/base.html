@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Attestor — Forensic Archive{% endblock %}</title>
-  <link rel="stylesheet" href="/ui/static/app.css?v=2">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%230A0C10'/><text x='8' y='12' font-family='Georgia,serif' font-size='12' font-weight='700' fill='%23E9DDC0' text-anchor='middle'>m</text></svg>">
+  <link rel="stylesheet" href="/ui/static/app.css?v=3">
   <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 </head>
 <body>
@@ -41,7 +42,7 @@
 
   <footer class="ticker">
     <div class="ticker__pulse" data-secs="0">Live · read-only</div>
-    <div class="ticker__mid">ATTESTOR v2 · DETERMINISTIC RETRIEVAL · NO LLM IN CRITICAL PATH</div>
+    <div class="ticker__mid">ATTESTOR v4 · DETERMINISTIC RETRIEVAL · NO LLM IN CRITICAL PATH</div>
     <div>{{ stats.total_memories or 0 }} · ON DISK</div>
   </footer>
 

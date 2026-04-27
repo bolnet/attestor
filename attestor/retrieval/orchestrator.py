@@ -403,13 +403,17 @@ class RetrievalOrchestrator:
         t = time.monotonic()
         vector_hits_raw: List[Dict] = []
         candidates: List[Dict] = []
+        vector_error: Optional[str] = None
         if self.vector_store:
             try:
                 vector_hits_raw = self.vector_store.search(
                     query, limit=VECTOR_TOP_K, namespace=namespace
                 )
-            except Exception:
+            except Exception as e:
                 vector_hits_raw = []
+                vector_error = f"{type(e).__name__}: {e}"
+        else:
+            vector_error = "no vector_store configured"
         for vr in vector_hits_raw:
             mid = vr["memory_id"]
             memory = self.store.get(mid)
@@ -422,7 +426,7 @@ class RetrievalOrchestrator:
                 "memory": memory, "distance": distance,
                 "vector_sim": max(0.0, 1.0 - distance),
             })
-        layers.append({
+        vector_layer: Dict = {
             "name": "Vector Top-K",
             "description": f"Top {VECTOR_TOP_K} by cosine similarity",
             "count": len(candidates),
@@ -439,7 +443,10 @@ class RetrievalOrchestrator:
                 }
                 for c in candidates
             ],
-        })
+        }
+        if vector_error:
+            vector_layer["error"] = vector_error
+        layers.append(vector_layer)
 
         # Graph narrow
         t = time.monotonic()
@@ -523,6 +530,14 @@ class RetrievalOrchestrator:
             ],
         })
 
+        warnings: List[str] = []
+        if vector_error:
+            warnings.append(
+                "Vector lane failed — query did not produce an embedding. "
+                "Likely the embedder (Ollama / OpenAI) is unreachable. "
+                f"Underlying error: {vector_error}"
+            )
+
         return {
             "query": query,
             "namespace": namespace,
@@ -530,6 +545,7 @@ class RetrievalOrchestrator:
             "total_latency_ms": round((time.monotonic() - t_total) * 1000, 2),
             "layers": layers,
             "final_count": len(final),
+            "warnings": warnings,
             "config": {
                 "pipeline": "semantic_first",
                 "vector_top_k": VECTOR_TOP_K,

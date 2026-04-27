@@ -56,6 +56,16 @@ logs/*.jsonl
 logs/*.log
 logs/*.pid
 
+# Auto-generated benchmark / classifier / LME run outputs (and their hashes).
+# These are too large and too noisy to track. Curated *_fails.json and
+# *_delta.json files are exempt below.
+logs/bench_*.json
+logs/classifier_*.json
+logs/lme_*.json
+logs/lme_*.json.sha256
+!logs/*_fails.json
+!logs/*_delta.json
+
 # Local tooling caches
 .DS_Store
 .claude/

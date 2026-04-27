@@ -55,7 +55,7 @@
     <text class="ink mono" x="20" y="84" font-size="12">pip install attestor</text>
     <text class="ink mono" x="20" y="102" font-size="12">attestor api</text>
     <line class="hair" x1="20" y1="112" x2="300" y2="112"/>
-    <text class="muted" x="20" y="124" font-size="10">SQLite &#183; ChromaDB &#183; NetworkX</text>
+    <text class="muted" x="20" y="124" font-size="10">Postgres 16 &#183; pgvector &#183; Neo4j (Docker)</text>
   </g>
 
   <!-- STATION 2: DEV VM -->
