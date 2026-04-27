@@ -61,6 +61,8 @@ pip install attestor                 # or: pipx install attestor
 ```bash
 docker pull ghcr.io/bolnet/attestor:latest          # GitHub Container Registry
 docker pull bolnet2025/attestor:latest              # Docker Hub
+docker pull quay.io/bolnet/attestor:latest          # Quay.io (Red Hat)
+docker pull public.ecr.aws/m6h5j7o3/attestor:latest # AWS ECR Public Gallery
 ```
 
 For full production use, point the container at an external Postgres + Neo4j via env vars (or compose them with `attestor/infra/local/docker-compose.yml`).

@@ -24,6 +24,9 @@ env:
   # because GitHub username `bolnet` was already taken there). Override
   # by setting DOCKERHUB_USERNAME repository secret.
   DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE || 'bolnet2025' }}
+  # Quay.io namespace + image. Quay supports the same `bolnet` namespace
+  # as GitHub — pushes go through robot account `bolnet+pusher`.
+  QUAY_IMAGE: quay.io/bolnet/attestor
 
 jobs:
   build-and-push:
@@ -61,6 +64,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Log in to Quay.io
+        id: quay_login
+        if: github.event_name != 'pull_request' && env.QUAY_USERNAME != '' && env.QUAY_TOKEN != ''
+        env:
+          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_TOKEN }}
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -68,6 +83,7 @@ jobs:
           images: |
             ${{ env.GHCR_IMAGE }}
             ${{ steps.dockerhub_login.outcome == 'success' && format('docker.io/{0}/attestor', env.DOCKERHUB_NAMESPACE) || '' }}
+            ${{ steps.quay_login.outcome == 'success' && env.QUAY_IMAGE || '' }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
