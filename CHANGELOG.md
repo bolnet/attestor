@@ -2,6 +2,12 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0a2] — 2026-04-27
+
+**Hotfix on the same day as 4.0.0a1.** Adds `requests` to required core dependencies so the documented default embedder (local Ollama `bge-m3`) actually works on a fresh `pip install attestor`. In 4.0.0a1, `attestor doctor` raised `RuntimeError: No embedding provider available` even with Ollama running, because `OllamaEmbeddingProvider` lazy-imports `requests` and that wasn't in the wheel's deps. Smoke-verified end-to-end against PyPI: `pip install --pre attestor==4.0.0a2` now succeeds and Ollama probe returns a 1024-D bge-m3 embedding.
+
+Users on `4.0.0a1` should `pip install --upgrade --pre "attestor==4.0.0a2"` (or pin to `attestor==4.*`).
+
 ## [4.0.0a1] — 2026-04-27
 
 **v4 — deterministic, auditable memory tier purpose-built for multi-agent chat systems.** Greenfield rebuild on a v4-native Postgres schema with hard tenant isolation, bi-temporal facts, and a no-LLM retrieval critical path. v3 was alpha-only with no production users; there is no automated migration path, and no v3 data to carry forward. Drop your previous DB and install fresh.
