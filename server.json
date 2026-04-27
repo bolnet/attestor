@@ -1,0 +1,59 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.bolnet/attestor",
+  "title": "Attestor",
+  "description": "Self-hosted memory for agent teams. Bi-temporal replay, deterministic retrieval, audit log.",
+  "version": "4.0.0a3",
+  "repository": {
+    "url": "https://github.com/bolnet/attestor",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "attestor",
+      "version": "4.0.0a3",
+      "runtimeHint": "python",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp",
+          "description": "MCP stdio server subcommand."
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "ATTESTOR_PATH",
+          "description": "Directory containing attestor's config.toml. Defaults to ~/.attestor.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "ATTESTOR_DISABLE_LOCAL_EMBED",
+          "description": "Set to 1 to skip the local Ollama embedder probe (e.g., on hosts without Ollama). Defaults to unset (Ollama is the default embedder).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "description": "OpenAI API key (used for the OpenAI text-embedding-3-large fallback embedder when Ollama is unavailable).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "OPENROUTER_API_KEY",
+          "description": "OpenRouter API key (used for the federated LLM extraction / consolidation paths and for the LongMemEval benchmark runner).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

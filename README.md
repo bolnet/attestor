@@ -569,3 +569,6 @@ It probes Document Store (Postgres), Vector Store (pgvector), Graph Store (Neo4j
 ## License
 
 MIT. See [`LICENSE`](./LICENSE).
+
+<!-- mcp-name: io.github.bolnet/attestor -->
+
