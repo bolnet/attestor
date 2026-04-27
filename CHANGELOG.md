@@ -2,6 +2,12 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0a4] — 2026-04-27
+
+Introspection-only fallback for the MCP server so external registries (Glama, Smithery) can verify the listing without provisioning Postgres + Neo4j. When `ATTESTOR_MCP_TOLERATE_INIT_FAILURE=1` is set, `attestor mcp` swallows backend connection errors at startup and continues to advertise its 8 tools via `tools/list`. Any `tools/call` against a non-initialized server returns a clear "configure backends to enable execution" error instead of crashing. Production deployments leave the env var unset and behave as before — strict, fail-closed init.
+
+Also adds a top-level `Dockerfile` that builds an introspection-only image (~150 MB, single layer over `python:3.12-slim`) for use as the registry-listing artifact. Real production deployments continue to use `attestor/infra/local/docker-compose.yml` or one of the cloud Terraform stacks under `attestor/infra/{aws_arango,azure,gcp_alloydb}`.
+
 ## [4.0.0a3] — 2026-04-27
 
 Adds the `mcp-name: io.github.bolnet/attestor` marker to the PyPI README so the MCP Registry can validate ownership of the PyPI package and accept the `server.json` publish. No code changes vs `4.0.0a2`.
