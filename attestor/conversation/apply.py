@@ -13,11 +13,19 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
-from attestor.extraction.conflict_resolver import Decision
-from attestor.extraction.round_extractor import ExtractedFact
 from attestor.models import Memory
+
+if TYPE_CHECKING:
+    # Decision and ExtractedFact are only used in type annotations
+    # (PEP 563 lazy via `from __future__ import annotations`). Importing
+    # them at runtime would close a cycle:
+    #   extraction.conflict_resolver → extraction.round_extractor →
+    #   conversation.turns → conversation.__init__ → conversation.apply
+    # Type-checking-only keeps the wheel importable in a fresh install.
+    from attestor.extraction.conflict_resolver import Decision
+    from attestor.extraction.round_extractor import ExtractedFact
 
 logger = logging.getLogger("attestor.conversation.apply")
 

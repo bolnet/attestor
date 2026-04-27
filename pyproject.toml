@@ -25,6 +25,14 @@ dependencies = [
     "tomlkit>=0.12.0",
     "starlette>=0.27.0",
     "uvicorn>=0.23.0",
+    # Postgres + Neo4j are the v4 default backends. The codebase imports
+    # them eagerly (attestor/conversation/episodes.py, store/postgres_backend.py,
+    # store/neo4j_backend.py), so they must be present at install time for
+    # `import attestor.conversation` to even resolve. Cloud-only deployments
+    # that swap to ArangoDB / DynamoDB / Cosmos / AlloyDB will install
+    # these as harmless extras until backend imports are made lazy.
+    "psycopg2-binary>=2.9.0",
+    "neo4j>=5.0.0",
 ]
 
 [project.urls]
@@ -69,6 +77,7 @@ packages = [{ include = "attestor" }]
 pytest = ">=7.0"
 pytest-cov = ">=4.0"
 requests = ">=2.28.0"
+twine = "^6.2.0"
 
 [build-system]
 requires = ["poetry-core"]

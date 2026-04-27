@@ -2,9 +2,18 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0.0] — unreleased
+## [4.0.0a1] — 2026-04-27
 
 **v4 — deterministic, auditable memory tier purpose-built for multi-agent chat systems.** Greenfield rebuild on a v4-native Postgres schema with hard tenant isolation, bi-temporal facts, and a no-LLM retrieval critical path. v3 was alpha-only with no production users; there is no automated migration path, and no v3 data to carry forward. Drop your previous DB and install fresh.
+
+This is the first public alpha cut of v4 to PyPI. API surface should be considered subject to breaking change until 4.0.0 stable; install with `pip install "attestor==4.*"` to track the alpha line.
+
+### Packaging — alpha release fixes
+
+- Top-level package now re-exports `AgentContext`, `AgentRole`, `Visibility` from `attestor.context` so the README's first code example (`from attestor import AgentMemory, AgentContext, AgentRole`) works in a fresh `pip install`.
+- `attestor.conversation.__init__` no longer eagerly imports `apply` / `episodes` / `ingest` (they close an import cycle through `attestor.extraction`). The heavier submodules are imported explicitly: `from attestor.conversation.ingest import ConversationIngest`.
+- `attestor.conversation.apply` moved `Decision` and `ExtractedFact` imports under `TYPE_CHECKING` (PEP 563 lazy via `from __future__ import annotations`), breaking the same cycle at the type-annotation layer.
+- `psycopg2-binary>=2.9.0` and `neo4j>=5.0.0` promoted to required core dependencies. The codebase imports both eagerly (e.g. `attestor/conversation/episodes.py`, `store/postgres_backend.py`, `store/neo4j_backend.py`); they were previously listed as optional `[project.optional-dependencies]` extras, which made `pip install attestor` produce a wheel that crashed on first import. Cloud-only deployments swapping to ArangoDB / DynamoDB / Cosmos / AlloyDB still install these as harmless extras until the eager backend imports are made lazy.
 
 ### Added
 
