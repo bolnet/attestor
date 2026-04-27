@@ -1735,10 +1735,638 @@ footer.colophon {
       <p class="standfirst">When an agent calls <code style="font-family:var(--ff-mono);font-size:15px;color:var(--accent);background:var(--ink-raise);padding:2px 8px;border:1px solid var(--rule);">recall(query, budget)</code>, six cooperating steps find, narrow, rank, diversify, decay, and fit the most relevant memories into the requested token ceiling. Ten million memories in the store. Your context window never sees more than the budget. And because there&rsquo;s no LLM in the path, the same query always returns the same ranking. You can unit&#8209;test it.</p>
     </div>
 
-    <figure class="reveal" style="margin:28px auto 8px;max-width:1040px;background:#f4efe3;border:1px solid var(--rule-strong);border-radius:6px;padding:20px;">
-      <img src="pipeline.svg" alt="Semantic-first retrieval pipeline — vector top-K, graph narrow, triples inject, MMR diversity, decay, budget fit" style="display:block;width:100%;height:auto;">
-      <figcaption style="font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:#3a3530;text-align:center;margin-top:12px;">Fig. 3 &mdash; Same pipeline. Ten memories or ten million. The budget holds.</figcaption>
+    <!-- ── Interactive recall pipeline (live trace) ────────────────── -->
+    <style>
+      .recall-stage {
+        margin: 32px auto 8px;
+        max-width: 1080px;
+        background: var(--ink);
+        border: 1px solid var(--rule-strong);
+        padding: 22px 24px 18px;
+        font-family: var(--ff-mono);
+        position: relative;
+      }
+      .recall-stage::before {
+        content: "";
+        position: absolute;
+        top: 7px; left: 7px; right: 7px; bottom: 7px;
+        border: 1px solid var(--rule);
+        pointer-events: none;
+      }
+      .recall-stage__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 10px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--paper-dim);
+        padding-bottom: 12px;
+        border-bottom: 1px dashed var(--rule);
+      }
+      .recall-stage__label { color: var(--accent); }
+      .recall-stage__status { display: inline-flex; align-items: center; gap: 8px; }
+      .recall-stage__status-dot {
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        background: var(--paper-dim);
+      }
+      .recall-stage[data-state="playing"] .recall-stage__status-dot {
+        background: var(--accent);
+        animation: rs-pulse 1.2s ease-in-out infinite;
+        box-shadow: 0 0 6px var(--accent);
+      }
+      @keyframes rs-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.35; }
+      }
+      .recall-stage__query {
+        font-family: var(--ff-mono);
+        font-size: 14px;
+        color: var(--paper);
+        padding: 18px 0 22px;
+        border-bottom: 1px dashed var(--rule);
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .recall-stage__prompt { color: var(--paper-dim); }
+      .recall-stage__query-text { color: var(--accent); }
+      .recall-stage__cursor {
+        display: inline-block;
+        width: 8px; height: 14px;
+        background: var(--accent);
+        margin-left: 1px;
+        vertical-align: -2px;
+        animation: rs-blink 1s steps(1) infinite;
+      }
+      @keyframes rs-blink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0; }
+      }
+      .recall-stage__grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        padding: 22px 0;
+      }
+      .recall-stage__cell {
+        position: relative;
+        border: 1px solid var(--rule);
+        background: transparent;
+        padding: 14px 16px 50px;
+        min-height: 150px;
+        transition: border-color 0.4s, background 0.4s;
+      }
+      .recall-stage__cell[data-active="true"] {
+        border-color: var(--accent);
+        background: var(--ink-raise);
+      }
+      .recall-stage__cell[data-passed="true"] {
+        border-color: rgba(193, 95, 60, 0.35);
+      }
+      .recall-stage__cell-num {
+        position: absolute;
+        top: 8px; right: 14px;
+        font-family: var(--ff-display);
+        font-size: 30px;
+        font-weight: 300;
+        color: var(--accent);
+        font-style: italic;
+        line-height: 1;
+        opacity: 0.65;
+      }
+      .recall-stage__cell[data-active="true"] .recall-stage__cell-num,
+      .recall-stage__cell[data-passed="true"] .recall-stage__cell-num { opacity: 1; }
+      .recall-stage__cell-tag {
+        display: block;
+        font-size: 9px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--paper-dim);
+        margin-bottom: 4px;
+      }
+      .recall-stage__cell-name {
+        display: block;
+        font-family: var(--ff-display);
+        font-size: 18px;
+        font-weight: 500;
+        color: var(--paper);
+        margin-bottom: 4px;
+        font-style: italic;
+      }
+      .recall-stage__cell-engine {
+        display: block;
+        font-size: 11px;
+        color: var(--paper-dim);
+        margin-bottom: 14px;
+      }
+      .recall-stage__tiles {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 2px;
+        height: 28px;
+        margin-bottom: 8px;
+      }
+      .recall-stage__tiles > i {
+        display: block;
+        background: rgba(245, 241, 232, 0.06);
+        border-radius: 1px;
+        transition: background 0.25s, transform 0.35s, opacity 0.25s;
+      }
+      .recall-stage__tiles > i[data-state="kept"] { background: var(--paper-dim); }
+      .recall-stage__tiles > i[data-state="boosted"] {
+        background: var(--accent);
+        transform: scale(1.6);
+        box-shadow: 0 0 4px var(--accent);
+      }
+      .recall-stage__tiles > i[data-state="triple"] {
+        background: var(--accent-warm, #d6a574);
+        transform: rotate(45deg) scale(1.1);
+      }
+      .recall-stage__tiles > i[data-state="rejected"] {
+        background: rgba(245, 241, 232, 0.04);
+        opacity: 0.5;
+      }
+      .recall-stage__cell-count {
+        position: absolute;
+        bottom: 12px; right: 16px;
+        font-family: var(--ff-mono);
+        font-size: 22px;
+        color: var(--paper);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.02em;
+      }
+      .recall-stage__cell-count-label {
+        position: absolute;
+        bottom: 38px; right: 16px;
+        font-size: 9px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--paper-dim);
+      }
+      .recall-stage__result {
+        background: var(--ink-raise);
+        border: 1px solid var(--rule);
+        padding: 16px 20px;
+        min-height: 64px;
+        font-size: 12px;
+        color: var(--paper-dim);
+        margin: 8px 0 14px;
+        font-family: var(--ff-mono);
+        line-height: 1.85;
+      }
+      .recall-stage__result-line {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 14px;
+        opacity: 0;
+        transform: translateY(4px);
+        transition: opacity 0.4s, transform 0.4s;
+        align-items: baseline;
+      }
+      .recall-stage__result-line[data-visible="true"] {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .recall-stage__result-score { color: var(--accent); font-variant-numeric: tabular-nums; }
+      .recall-stage__result-text { color: var(--paper); }
+      .recall-stage__result-meta { color: var(--rule-strong); font-size: 10px; letter-spacing: 0.06em; }
+      .recall-stage__result-empty {
+        color: var(--paper-dim);
+        font-style: italic;
+        font-size: 13px;
+      }
+      .recall-stage__proof {
+        font-size: 10px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        text-align: center;
+        color: var(--paper-dim);
+        padding: 14px 0;
+        border-top: 1px dashed var(--rule);
+        border-bottom: 1px dashed var(--rule);
+      }
+      .recall-stage__proof-em { color: var(--accent); }
+      .recall-stage__sep { margin: 0 12px; color: var(--rule-strong); }
+      .recall-stage__controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-top: 14px;
+        flex-wrap: wrap;
+      }
+      .recall-stage__btn {
+        background: transparent;
+        border: 1px solid var(--rule);
+        color: var(--paper-dim);
+        padding: 6px 12px;
+        font-family: var(--ff-mono);
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+      }
+      .recall-stage__btn:hover { color: var(--accent); border-color: var(--accent); }
+      .recall-stage__btn--active { color: var(--accent); border-color: var(--accent); }
+      .recall-stage__btn--small { padding: 5px 8px; font-size: 9px; letter-spacing: 0.12em; }
+      .recall-stage__scrub-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 220px; }
+      .recall-stage__scrub {
+        flex: 1;
+        height: 2px;
+        background: var(--rule);
+        outline: none;
+        cursor: pointer;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .recall-stage__scrub::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 12px; height: 12px;
+        background: var(--accent);
+        border-radius: 50%;
+        cursor: pointer;
+      }
+      .recall-stage__scrub::-moz-range-thumb {
+        width: 12px; height: 12px;
+        background: var(--accent);
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+      .recall-stage__time {
+        font-size: 10px;
+        color: var(--paper-dim);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.12em;
+        min-width: 78px;
+        text-align: right;
+      }
+      .recall-stage__artifacts {
+        font-size: 9px;
+        color: var(--paper-dim);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        text-align: center;
+        padding-top: 14px;
+        margin-top: 6px;
+      }
+      .recall-stage__art-link { color: var(--paper-dim); text-decoration: none; }
+      .recall-stage__art-link:hover { color: var(--accent); }
+      .recall-stage__art-link--soon { opacity: 0.55; cursor: not-allowed; }
+      @media (max-width: 760px) {
+        .recall-stage__grid { grid-template-columns: 1fr; }
+        .recall-stage__query { white-space: normal; }
+      }
+    </style>
+
+    <figure class="recall-stage reveal" data-state="idle">
+      <div class="recall-stage__head">
+        <span class="recall-stage__label">&sect; Live trace &middot; Recall pipeline</span>
+        <span class="recall-stage__status">
+          <span class="recall-stage__status-dot"></span>
+          <span data-status-text>Idle &middot; auto-plays on scroll</span>
+        </span>
+      </div>
+
+      <div class="recall-stage__query">
+        <span class="recall-stage__prompt">$ mem.recall(</span><span class="recall-stage__query-text" data-query></span><span class="recall-stage__cursor"></span><span class="recall-stage__prompt">, budget=2000)</span>
+      </div>
+
+      <div class="recall-stage__grid">
+        <div class="recall-stage__cell" data-cell="1">
+          <span class="recall-stage__cell-num">01</span>
+          <span class="recall-stage__cell-tag">Stage 01</span>
+          <span class="recall-stage__cell-name">Vector Top-K</span>
+          <span class="recall-stage__cell-engine">pgvector &middot; cosine &middot; k=50</span>
+          <div class="recall-stage__tiles" data-tiles></div>
+          <span class="recall-stage__cell-count-label">candidates</span>
+          <span class="recall-stage__cell-count" data-count>—</span>
+        </div>
+        <div class="recall-stage__cell" data-cell="2">
+          <span class="recall-stage__cell-num">02</span>
+          <span class="recall-stage__cell-tag">Stage 02</span>
+          <span class="recall-stage__cell-name">Graph Narrow</span>
+          <span class="recall-stage__cell-engine">Neo4j BFS &middot; depth &le; 2</span>
+          <div class="recall-stage__tiles" data-tiles></div>
+          <span class="recall-stage__cell-count-label">kept</span>
+          <span class="recall-stage__cell-count" data-count>—</span>
+        </div>
+        <div class="recall-stage__cell" data-cell="3">
+          <span class="recall-stage__cell-num">03</span>
+          <span class="recall-stage__cell-tag">Stage 03</span>
+          <span class="recall-stage__cell-name">Triples Inject</span>
+          <span class="recall-stage__cell-engine">typed edges &middot; uses &middot; auth-by</span>
+          <div class="recall-stage__tiles" data-tiles></div>
+          <span class="recall-stage__cell-count-label">+triples</span>
+          <span class="recall-stage__cell-count" data-count>—</span>
+        </div>
+        <div class="recall-stage__cell" data-cell="4">
+          <span class="recall-stage__cell-num">04</span>
+          <span class="recall-stage__cell-tag">Stage 04</span>
+          <span class="recall-stage__cell-name">MMR Diversity</span>
+          <span class="recall-stage__cell-engine">&lambda; = 0.7 &middot; drop near-dups</span>
+          <div class="recall-stage__tiles" data-tiles></div>
+          <span class="recall-stage__cell-count-label">distinct</span>
+          <span class="recall-stage__cell-count" data-count>—</span>
+        </div>
+        <div class="recall-stage__cell" data-cell="5">
+          <span class="recall-stage__cell-num">05</span>
+          <span class="recall-stage__cell-tag">Stage 05</span>
+          <span class="recall-stage__cell-name">Decay + Boost</span>
+          <span class="recall-stage__cell-engine">recency &middot; confidence</span>
+          <div class="recall-stage__tiles" data-tiles></div>
+          <span class="recall-stage__cell-count-label">re-ranked</span>
+          <span class="recall-stage__cell-count" data-count>—</span>
+        </div>
+        <div class="recall-stage__cell" data-cell="6">
+          <span class="recall-stage__cell-num">06</span>
+          <span class="recall-stage__cell-tag">Stage 06</span>
+          <span class="recall-stage__cell-name">Budget Fit</span>
+          <span class="recall-stage__cell-engine">greedy pack &middot; &le; 2000 tok</span>
+          <div class="recall-stage__tiles" data-tiles></div>
+          <span class="recall-stage__cell-count-label">packed</span>
+          <span class="recall-stage__cell-count" data-count>—</span>
+        </div>
+      </div>
+
+      <div class="recall-stage__result" data-result>
+        <div class="recall-stage__result-empty">Result frame &mdash; ranked memories will land here when the pipeline completes.</div>
+      </div>
+
+      <div class="recall-stage__proof">
+        <span class="recall-stage__proof-em">0 LLM calls</span>
+        <span class="recall-stage__sep">&middot;</span>
+        <span>6 deterministic steps</span>
+        <span class="recall-stage__sep">&middot;</span>
+        <span>same query &rarr; <span class="recall-stage__proof-em">same ranking</span></span>
+      </div>
+
+      <div class="recall-stage__controls">
+        <button class="recall-stage__btn" data-action="toggle">&#9654; Play</button>
+        <button class="recall-stage__btn" data-action="replay">&#8634; Replay</button>
+        <div class="recall-stage__scrub-wrap">
+          <input type="range" min="0" max="14000" value="0" step="50" data-scrub class="recall-stage__scrub" aria-label="Scrub timeline">
+          <span class="recall-stage__time" data-time>00.0 / 14.0</span>
+        </div>
+        <button class="recall-stage__btn recall-stage__btn--small" data-speed="0.5">0.5&times;</button>
+        <button class="recall-stage__btn recall-stage__btn--small recall-stage__btn--active" data-speed="1">1&times;</button>
+        <button class="recall-stage__btn recall-stage__btn--small" data-speed="2">2&times;</button>
+      </div>
+
+      <div class="recall-stage__artifacts">
+        <a href="pipeline.svg" download class="recall-stage__art-link">&darr; Static pipeline (SVG)</a>
+        <span class="recall-stage__sep">&middot;</span>
+        <a href="#" class="recall-stage__art-link recall-stage__art-link--soon" onclick="event.preventDefault();" title="Render with Remotion — coming soon">&darr; Render as MP4 <span style="opacity:.55">(soon)</span></a>
+      </div>
     </figure>
+
+    <script>
+    (function () {
+      const root = document.querySelector('.recall-stage');
+      if (!root) return;
+
+      const STATE = {
+        duration: 14000,
+        speed: 1.0,
+        playing: false,
+        t: 0,
+        autoplayed: false,
+        lastTick: 0,
+      };
+
+      const PHASES = [
+        { name: 'query',  from: 0,     to: 1800 },
+        { name: 'stage1', from: 1800,  to: 3500 },
+        { name: 'stage2', from: 3500,  to: 5400 },
+        { name: 'stage3', from: 5400,  to: 7200 },
+        { name: 'stage4', from: 7200,  to: 9000 },
+        { name: 'stage5', from: 9000,  to: 10700 },
+        { name: 'stage6', from: 10700, to: 12500 },
+        { name: 'result', from: 12500, to: 14000 },
+      ];
+
+      const COUNTS = {
+        1: { entry: 0,  peak: 50, exit: 50 },
+        2: { entry: 50, peak: 50, exit: 38 },
+        3: { entry: 38, peak: 42, exit: 42 },
+        4: { entry: 42, peak: 42, exit: 24 },
+        5: { entry: 24, peak: 24, exit: 24 },
+        6: { entry: 24, peak: 24, exit: 8  },
+      };
+
+      const QUERY_FULL = '"who runs engineering at acme?"';
+
+      const RESULT_LINES = [
+        { score: 0.94, text: 'Alice promoted to VP Engineering',  meta: 'valid_from 2026-03-15' },
+        { score: 0.91, text: 'Engineering org reports to Alice',  meta: '[authored-by]' },
+        { score: 0.88, text: 'Alice was engineering manager',     meta: 'superseded 2026-03-15' },
+        { score: 0.82, text: 'Acme org chart Q1 2026',            meta: 'episode #4421' },
+        { score: 0.79, text: 'Alice hired at Acme',               meta: 'valid_from 2024-01-08' },
+        { score: 0.71, text: 'Acme leadership announce',          meta: 'agent: researcher-1' },
+        { score: 0.65, text: 'Engineering headcount: 142',        meta: 'q1-snapshot' },
+        { score: 0.58, text: 'Alice background: ex-Stripe',       meta: '[authored-by]' },
+      ];
+
+      // Pre-build tiles (50 per cell)
+      const cells = Array.from(root.querySelectorAll('[data-cell]'));
+      cells.forEach((cell) => {
+        const tiles = cell.querySelector('[data-tiles]');
+        tiles.innerHTML = '';
+        for (let i = 0; i < 50; i++) tiles.appendChild(document.createElement('i'));
+      });
+
+      // Pre-build result list
+      const resultNode = root.querySelector('[data-result]');
+      function renderResultLines(visibleCount) {
+        if (visibleCount <= 0) {
+          resultNode.innerHTML = '<div class="recall-stage__result-empty">Result frame &mdash; ranked memories will land here when the pipeline completes.</div>';
+          return;
+        }
+        resultNode.innerHTML = RESULT_LINES.map((line, i) => `
+          <div class="recall-stage__result-line" data-line="${i}" data-visible="${i < visibleCount ? 'true' : 'false'}">
+            <span class="recall-stage__result-score">${line.score.toFixed(2)}</span>
+            <span class="recall-stage__result-text">${line.text}</span>
+            <span class="recall-stage__result-meta">— ${line.meta}</span>
+          </div>
+        `).join('');
+      }
+
+      const queryNode  = root.querySelector('[data-query]');
+      const statusNode = root.querySelector('[data-status-text]');
+      const scrubNode  = root.querySelector('[data-scrub]');
+      const timeNode   = root.querySelector('[data-time]');
+      const playBtn    = root.querySelector('[data-action="toggle"]');
+
+      function statusFor(name) {
+        return ({
+          query:  'Embed query &middot; pgvector probe',
+          stage1: 'Stage 01 &middot; Vector top-K (cosine)',
+          stage2: 'Stage 02 &middot; Graph narrow (BFS &le; 2)',
+          stage3: 'Stage 03 &middot; Inject typed-edge triples',
+          stage4: 'Stage 04 &middot; MMR diversity rerank',
+          stage5: 'Stage 05 &middot; Decay + temporal boost',
+          stage6: 'Stage 06 &middot; Greedy budget pack',
+          result: 'Hydrate from doc store &middot; trace written',
+        })[name] || 'Idle';
+      }
+
+      function ease(p) { return p < 0.5 ? 2*p*p : 1 - Math.pow(-2*p+2, 2)/2; }
+
+      function render(t) {
+        const phase = PHASES.find(p => t >= p.from && t < p.to) || PHASES[PHASES.length - 1];
+        const phaseProgress = Math.min(1, Math.max(0, (t - phase.from) / (phase.to - phase.from)));
+        const phaseIdx = PHASES.indexOf(phase);
+
+        // Query typing
+        const qp = Math.min(1, t / 1800);
+        queryNode.textContent = QUERY_FULL.substring(0, Math.floor(QUERY_FULL.length * qp));
+
+        // Cells
+        cells.forEach((cell, idx) => {
+          const stageNum = idx + 1;
+          const expectedPhaseIdx = stageNum; // stage1 is idx 1
+          const isActive = phaseIdx === expectedPhaseIdx;
+          const hasPassed = phaseIdx > expectedPhaseIdx;
+          cell.setAttribute('data-active', isActive ? 'true' : 'false');
+          cell.setAttribute('data-passed', hasPassed ? 'true' : 'false');
+
+          const cfg = COUNTS[stageNum];
+          const tiles = cell.querySelectorAll('[data-tiles] > i');
+          const countNode = cell.querySelector('[data-count]');
+
+          let visible;
+          if (!isActive && !hasPassed) {
+            visible = -1;
+          } else if (isActive) {
+            const e = ease(phaseProgress);
+            if (phaseProgress < 0.5) {
+              visible = Math.round(cfg.entry + (cfg.peak - cfg.entry) * (e * 2));
+            } else {
+              visible = Math.round(cfg.peak + (cfg.exit - cfg.peak) * ((e - 0.5) * 2));
+            }
+          } else {
+            visible = cfg.exit;
+          }
+
+          countNode.textContent = visible < 0 ? '—' : visible;
+
+          tiles.forEach((tile, i) => {
+            if (visible < 0) {
+              tile.removeAttribute('data-state');
+              return;
+            }
+            if (i < visible) {
+              if (stageNum === 2 && i < 8) tile.setAttribute('data-state', 'boosted');
+              else if (stageNum === 3 && i >= 38) tile.setAttribute('data-state', 'triple');
+              else if (stageNum === 5 && (i % 4 === 0)) tile.setAttribute('data-state', 'boosted');
+              else tile.setAttribute('data-state', 'kept');
+            } else {
+              tile.setAttribute('data-state', 'rejected');
+            }
+          });
+        });
+
+        // Result frame
+        if (phase.name === 'result') {
+          const visCount = Math.ceil(RESULT_LINES.length * Math.min(1, phaseProgress * 1.2));
+          renderResultLines(visCount);
+        } else if (phaseIdx >= PHASES.findIndex(p => p.name === 'result')) {
+          renderResultLines(RESULT_LINES.length);
+        } else if (phase.name === 'stage6' && phaseProgress > 0.7) {
+          renderResultLines(Math.ceil(2 * (phaseProgress - 0.7) / 0.3));
+        } else {
+          renderResultLines(0);
+        }
+
+        // Scrub + time
+        if (!STATE._scrubbing) scrubNode.value = String(Math.round(t));
+        const sec = (t / 1000).toFixed(1);
+        timeNode.textContent = `${sec.padStart(4, '0')} / 14.0`;
+
+        // Status
+        if (STATE.playing) {
+          statusNode.innerHTML = statusFor(phase.name);
+        } else if (t === 0) {
+          statusNode.innerHTML = 'Idle &middot; auto-plays on scroll';
+        } else if (t >= STATE.duration - 1) {
+          statusNode.innerHTML = 'Done &middot; <span style="color:var(--accent)">0 LLM calls</span> &middot; replay anytime';
+        } else {
+          statusNode.innerHTML = 'Paused';
+        }
+
+        // Play button label
+        playBtn.innerHTML = STATE.playing ? '&#10074;&#10074; Pause' : '&#9654; Play';
+      }
+
+      function tick(now) {
+        if (!STATE.playing) return;
+        const dt = (now - STATE.lastTick) * STATE.speed;
+        STATE.lastTick = now;
+        STATE.t = Math.min(STATE.duration, STATE.t + dt);
+        render(STATE.t);
+        if (STATE.t >= STATE.duration) {
+          STATE.playing = false;
+          root.setAttribute('data-state', 'idle');
+          render(STATE.t);
+          return;
+        }
+        requestAnimationFrame(tick);
+      }
+      function play() {
+        if (STATE.t >= STATE.duration - 1) STATE.t = 0;
+        STATE.playing = true;
+        STATE.lastTick = performance.now();
+        root.setAttribute('data-state', 'playing');
+        requestAnimationFrame(tick);
+        render(STATE.t);
+      }
+      function pause() {
+        STATE.playing = false;
+        root.setAttribute('data-state', 'idle');
+        render(STATE.t);
+      }
+      function replay() { STATE.t = 0; play(); }
+      function setSpeed(s) {
+        STATE.speed = s;
+        root.querySelectorAll('[data-speed]').forEach(b => b.classList.remove('recall-stage__btn--active'));
+        const btn = root.querySelector(`[data-speed="${s}"]`);
+        if (btn) btn.classList.add('recall-stage__btn--active');
+      }
+
+      // Wire controls
+      playBtn.addEventListener('click', () => STATE.playing ? pause() : play());
+      root.querySelector('[data-action="replay"]').addEventListener('click', replay);
+      root.querySelectorAll('[data-speed]').forEach(b => {
+        b.addEventListener('click', () => setSpeed(parseFloat(b.dataset.speed)));
+      });
+      scrubNode.addEventListener('input', (e) => {
+        STATE._scrubbing = true;
+        if (STATE.playing) pause();
+        STATE.t = parseInt(e.target.value, 10);
+        render(STATE.t);
+      });
+      scrubNode.addEventListener('change', () => { STATE._scrubbing = false; });
+
+      // Auto-play on scroll into view (once)
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting && !STATE.autoplayed) {
+            STATE.autoplayed = true;
+            STATE.t = 0;
+            play();
+          }
+        });
+      }, { threshold: 0.4 });
+      obs.observe(root);
+
+      // Initial paint
+      render(0);
+    })();
+    </script>
+
+    <p style="font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:var(--paper-dim);text-align:center;margin:8px 0 28px;">Fig. 3 &mdash; Live trace. Same pipeline. Ten memories or ten million. Replay it; it ranks the same.</p>
 
     <div class="pipeline reveal">
       <div class="pipeline-step">
@@ -1941,6 +2569,114 @@ footer.colophon {
         </div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     § 03.5 · MULTI-LLM COOPERATION
+     ═══════════════════════════════════════════════════ -->
+<section id="cooperation" style="border-top:1px solid var(--rule);">
+  <div class="container">
+    <div class="section-filing reveal">
+      <span class="section-num">&sect; 03.5</span>
+      <span class="section-name">&mdash; Multi-LLM cooperation</span>
+      <span>Many models &middot; one auditable memory</span>
+    </div>
+
+    <div class="reveal">
+      <h2 class="section-head">Many LLMs, one memory. <em>Conflicts resolved on contract,</em> not vibes.</h2>
+      <p class="standfirst">Real agent teams have a planner, an executor, and a reviewer &mdash; often on different model families. They write to the same memory store. Without a contract for how those writes interact, you get duplicate facts, lost edits, and silent overwrites. Attestor ships five mechanisms that turn multi-LLM writes into an auditable transaction log.</p>
+    </div>
+
+    <!-- Five mechanisms grid -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:32px;">
+
+      <!-- 01 — Write-time supersession -->
+      <div class="reveal" style="padding:26px 28px;border:1px solid var(--rule-strong);background:var(--ink-raise);border-left:3px solid var(--accent);">
+        <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">MECHANISM &middot; 01</div>
+        <h4 style="font-family:var(--ff-display);font-size:24px;font-weight:600;margin:8px 0 12px;">Write-time supersession</h4>
+        <p style="font-size:14.5px;line-height:1.65;color:var(--paper-dim);margin:0 0 14px;">Deterministic. Zero LLM in the loop. On every <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">add()</code>, attestor checks for active rows with the same <code>(entity, category, namespace)</code> and different content. Each match is auto-marked <code>superseded</code> with <code>valid_until=now</code> and <code>superseded_by=&lt;new_id&gt;</code>.</p>
+        <div style="font-family:var(--ff-mono);font-size:12px;color:var(--paper);background:var(--ink);border:1px solid var(--rule);padding:14px;line-height:1.7;">
+<span style="color:var(--muted);"># add()</span><br>
+<span style="color:var(--muted);">  &darr;</span><br>
+<span style="color:var(--accent-warm);">  check_contradictions(memory)</span><br>
+<span style="color:var(--muted);">  &darr;</span><br>
+<span style="color:var(--accent-warm);">  store.insert(memory)</span><br>
+<span style="color:var(--muted);">  &darr;</span><br>
+<span style="color:var(--accent);">  for old in contradictions: supersede(old, memory.id)</span>
+        </div>
+        <p style="font-size:12.5px;color:var(--muted);font-style:italic;margin:12px 0 0;">Old facts are <strong>never deleted</strong>. <code style="font-family:var(--ff-mono);font-size:11px;">recall(as_of=&hellip;)</code> still returns them.</p>
+      </div>
+
+      <!-- 02 — Ingest-time 4-decision contract -->
+      <div class="reveal" style="padding:26px 28px;border:1px solid var(--rule-strong);background:var(--ink-raise);border-left:3px solid var(--accent);">
+        <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">MECHANISM &middot; 02</div>
+        <h4 style="font-family:var(--ff-display);font-size:24px;font-weight:600;margin:8px 0 12px;">Four-decision conflict resolver</h4>
+        <p style="font-size:14.5px;line-height:1.65;color:var(--paper-dim);margin:0 0 14px;">For conversation ingest, every newly extracted fact gets one of four decisions from the LLM. Each carries an <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">evidence_episode_id</code> &mdash; every supersession is auditable.</p>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-family:var(--ff-mono);font-size:12px;line-height:1.6;">
+          <code style="color:var(--accent);">ADD</code>          <span style="color:var(--paper-dim);">no existing match &mdash; write fresh</span>
+          <code style="color:var(--accent);">UPDATE</code>       <span style="color:var(--paper-dim);">refined value, keep id</span>
+          <code style="color:var(--accent);">INVALIDATE</code>   <span style="color:var(--paper-dim);">old contradicted &mdash; mark superseded</span>
+          <code style="color:var(--accent);">NOOP</code>         <span style="color:var(--paper-dim);">already represented &mdash; skip</span>
+        </div>
+        <p style="font-size:12.5px;color:var(--muted);font-style:italic;margin:14px 0 0;">Failsafe: any LLM/parse failure falls back to <code style="font-family:var(--ff-mono);font-size:11px;color:var(--accent);">ADD</code>-by-default. Better a duplicate-ish row than a silent drop.</p>
+      </div>
+
+      <!-- 03 — Speaker-locked extraction -->
+      <div class="reveal" style="padding:26px 28px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+        <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">MECHANISM &middot; 03</div>
+        <h4 style="font-family:var(--ff-display);font-size:24px;font-weight:600;margin:8px 0 12px;">Speaker-locked extraction</h4>
+        <p style="font-size:14.5px;line-height:1.65;color:var(--paper-dim);margin:0 0 14px;">Two passes per round, with separate prompts. User-turn extractor only emits facts attributable to the user; assistant-turn extractor only emits facts the assistant introduced. Stops cross-attribution &mdash; the &ldquo;Mem0 +53.6&rdquo; fix in our LongMemEval scores.</p>
+        <div style="font-family:var(--ff-mono);font-size:12px;color:var(--paper);background:var(--ink);border:1px solid var(--rule);padding:14px;line-height:1.7;">
+<span style="color:var(--muted);">user turn &rarr;</span> <span class="kw" style="color:var(--accent-warm);">extract_user_facts(turn)</span><br>
+<span style="color:var(--muted);">                     &darr; speaker = "user"</span><br>
+<br>
+<span style="color:var(--muted);">assistant turn &rarr;</span> <span class="kw" style="color:var(--accent-warm);">extract_agent_facts(turn)</span><br>
+<span style="color:var(--muted);">                          &darr; speaker = "&lt;agent_id&gt;"</span>
+        </div>
+      </div>
+
+      <!-- 04 — Sleep-time reflection -->
+      <div class="reveal" style="padding:26px 28px;border:1px solid var(--rule-strong);background:var(--ink-raise);">
+        <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">MECHANISM &middot; 04</div>
+        <h4 style="font-family:var(--ff-display);font-size:24px;font-weight:600;margin:8px 0 12px;">Sleep-time reflection</h4>
+        <p style="font-size:14.5px;line-height:1.65;color:var(--paper-dim);margin:0 0 14px;">Periodic synthesis across a user&rsquo;s recent facts. One LLM call distills many episodes into structured outputs:</p>
+        <ul style="font-family:var(--ff-mono);font-size:12px;color:var(--paper-dim);line-height:1.85;margin:0 0 12px;padding-left:20px;">
+          <li><code style="color:var(--accent);">stable_preferences</code> &mdash; patterns appearing in 3+ episodes</li>
+          <li><code style="color:var(--accent);">stable_constraints</code> &mdash; rules the user repeatedly invokes</li>
+          <li><code style="color:var(--accent);">changed_beliefs</code> &mdash; preferences shifted (old &rarr; new)</li>
+          <li><code style="color:var(--accent);">contradictions_for_review</code> &mdash; flagged, <strong>not auto-resolved</strong></li>
+        </ul>
+        <p style="font-size:12.5px;color:var(--muted);font-style:italic;margin:0;">Hard contradictions in regulated chat systems must be a human decision &mdash; the prompt is explicit: <em>do NOT auto-resolve</em>.</p>
+      </div>
+
+      <!-- 05 — Dual-judge anti-collusion -->
+      <div class="reveal" style="padding:26px 28px;border:1px solid var(--rule-strong);background:var(--ink-raise);grid-column:1 / span 2;border-left:3px solid var(--accent);">
+        <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);">MECHANISM &middot; 05</div>
+        <h4 style="font-family:var(--ff-display);font-size:24px;font-weight:600;margin:8px 0 12px;">Dual-judge benchmarking &mdash; anti-collusion by construction</h4>
+        <p style="font-size:14.5px;line-height:1.65;color:var(--paper-dim);margin:0 0 14px;">Every LongMemEval answer is scored by <strong>two independent judges from different model families</strong> &mdash; the second judge anchors out answerer-judge collusion. Same model judging its own answer rewards itself; cross-family judging surfaces real disagreement.</p>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:center;">
+          <div style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);border:1px solid var(--rule-strong);padding:14px;text-align:center;">
+            <div style="color:var(--muted);font-size:11px;letter-spacing:0.18em;">JUDGE 01</div>
+            <div style="color:var(--accent);margin-top:6px;">openai/gpt-5.2</div>
+          </div>
+          <div style="font-family:var(--ff-mono);font-size:11px;color:var(--muted);text-align:center;letter-spacing:0.16em;">vs cross<br>family</div>
+          <div style="font-family:var(--ff-mono);font-size:13px;background:var(--ink);border:1px solid var(--rule-strong);padding:14px;text-align:center;">
+            <div style="color:var(--muted);font-size:11px;letter-spacing:0.18em;">JUDGE 02</div>
+            <div style="color:var(--accent);margin-top:6px;">anthropic/claude-sonnet-4.6</div>
+          </div>
+        </div>
+        <p style="font-size:12.5px;color:var(--muted);font-style:italic;margin:14px 0 0;">The <code style="font-family:var(--ff-mono);font-size:11px;color:var(--accent);">scripts/lme_smoke_local.py</code> driver runs this exact dual-judge stack against your install. See the Quickstart &raquo; <em>Smoke benchmark</em> tab.</p>
+      </div>
+
+    </div>
+
+    <!-- Provenance closing line -->
+    <div class="reveal" style="margin-top:36px;padding:22px 26px;border:1px dashed var(--rule-strong);background:var(--ink-raise);">
+      <div style="font-family:var(--ff-mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);margin-bottom:8px;">PROVENANCE INVARIANT</div>
+      <p style="font-size:14.5px;line-height:1.65;color:var(--paper);margin:0;">Every memory carries <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">agent_id</code>, <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">session_id</code>, and <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">source_episode_id</code>. Every <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">supersede</code> writes the prior id into <code style="font-family:var(--ff-mono);font-size:12px;color:var(--accent);">superseded_by</code>. Cryptographic signing is opt-in (Phase 8.1). The result: any disputed answer can be traced back to <em>which agent wrote which fact, when, and what it superseded</em>.</p>
+    </div>
+
   </div>
 </section>
 
