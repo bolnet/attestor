@@ -56,6 +56,15 @@ It is built around three claims, each grounded in code:
 pip install attestor                 # or: pipx install attestor
 ```
 
+**Or pull the container** (introspection-grade image, single layer over `python:3.12-slim`):
+
+```bash
+docker pull ghcr.io/bolnet/attestor:latest          # GitHub Container Registry
+docker pull bolnet2025/attestor:latest              # Docker Hub
+```
+
+For full production use, point the container at an external Postgres + Neo4j via env vars (or compose them with `attestor/infra/local/docker-compose.yml`).
+
 ### 2. Bring up local Postgres + Neo4j
 
 ```bash
