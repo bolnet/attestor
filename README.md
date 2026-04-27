@@ -79,7 +79,7 @@ The provider chain in `attestor/store/embeddings.py` checks `http://localhost:11
 attestor doctor
 ```
 
-You should see green for **Document Store**, **Vector Store**, **Graph Store**, and **Retrieval Pipeline**. If the graph store is offline, recall continues against the surviving roles — degradation is explicit and tiered (`core.py:99-115`).
+All four checks must be green for the default install: **Document Store**, **Vector Store**, **Graph Store**, **Retrieval Pipeline**. Graph (Neo4j) is required — the 6-step retrieval pipeline narrows on graph neighborhoods and the conversation ingest path writes typed edges (`uses`, `authored-by`, `supersedes`). The only hard dependency that *cannot* be down is the document store (Postgres); transient vector-probe failures are surfaced in the response trace rather than swallowed (`retrieval/orchestrator.py` — `vector_error` field).
 
 ### 5. Use it
 
@@ -171,7 +171,7 @@ Every call writes a JSONL trace to `logs/attestor_trace.jsonl` (disable via `ATT
 | **Vector** | Dense embedding per memory | pgvector | AlloyDB ScaNN, ArangoDB, OpenSearch Serverless, Cosmos DiskANN |
 | **Graph** | Entity nodes + typed edges | Neo4j 5 + GDS | Apache AGE on AlloyDB, ArangoDB, Neptune, NetworkX (Azure) |
 
-Postgres is the source of truth. Neo4j is **derived state, rebuildable from Postgres**. If the vector or graph store goes down, the document path keeps serving — degradation is explicit and tiered.
+Postgres is the source of truth. Neo4j is **derived state, rebuildable from Postgres** — but it's required for the canonical install: graph expansion is step 2 of the retrieval pipeline and conversation ingest writes typed edges. The only role that cannot be down is the document store; the orchestrator records transient vector-probe failures in the response trace (`vector_error`) instead of swallowing them.
 
 ### Optional BM25 / FTS lane
 
@@ -305,9 +305,9 @@ Same API across all three. Only configuration changes.
 | **C — Shared service** | One Attestor service in front of an agent mesh (App Runner / Cloud Run / Container Apps) backed by managed Postgres + Neo4j | Production multi-agent platforms |
 
 ```bash
-attestor api    --port 8080         # Mode B / C — Starlette ASGI REST
-attestor serve  --transport stdio   # MCP stdio server
-attestor mcp    --transport http    # MCP HTTP server
+attestor api    --port 8080         # Mode B / C — Starlette ASGI REST (HTTP)
+attestor mcp    --path ~/.attestor  # MCP stdio server (zero-config; for Claude Desktop / Cursor / Windsurf)
+attestor serve  ~/.attestor         # MCP stdio server (positional-path variant; equivalent transport)
 ```
 
 ---
@@ -369,8 +369,8 @@ export ATTESTOR_EMBEDDING_MODEL=text-embedding-3-large
 | `attestor update` / `forget` | Mutate / archive a memory |
 | `attestor inspect` | Inspect raw database state |
 | `attestor api` | Start the Starlette REST API |
-| `attestor serve` | Start MCP server (stdio) |
-| `attestor mcp` | Start MCP server (HTTP) |
+| `attestor serve <path>` | Start MCP stdio server (positional-path variant) |
+| `attestor mcp [--path …]` | Start MCP stdio server (zero-config; default for Claude Desktop / Cursor / Windsurf) |
 | `attestor ui` | Read-only browser UI for the store |
 | `attestor hook {session-start, post-tool-use, stop}` | Run a Claude Code lifecycle hook |
 | `attestor lme` / `locomo` / `mab` | Built-in benchmark runners (see §Evaluation) |
@@ -379,7 +379,7 @@ export ATTESTOR_EMBEDDING_MODEL=text-embedding-3-large
 
 ## MCP server
 
-`attestor serve` exposes an MCP server with eight tools:
+`attestor mcp` (or `attestor serve <path>`) exposes an MCP stdio server with eight tools:
 
 | Tool | Purpose |
 |------|---------|
@@ -554,13 +554,13 @@ print(mem.health())              # Python API
 { "tool": "memory_health" }
 ```
 
-It probes Document Store (Postgres), Vector Store (pgvector), Graph Store (Neo4j), and the retrieval pipeline. If any role is degraded, `recall()` continues against the surviving roles and the response includes the degradation in its trace.
+It probes Document Store (Postgres), Vector Store (pgvector), Graph Store (Neo4j), and the retrieval pipeline. All four are required for the default topology — graph expansion is step 2 of the canonical pipeline, not an optional accelerator. Transient vector-probe failures surface in the `recall()` trace (`vector_error`) so callers can distinguish a degraded result from a clean one.
 
 ---
 
 ## Status & versioning
 
-- **Version:** 4.0.0a1 (alpha)
+- **Version:** 4.0.0a3 (alpha) — published to [PyPI](https://pypi.org/project/attestor/) and the [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=attestor) as `io.github.bolnet/attestor`
 - **v3 → v4:** greenfield rebuild on a v4-native Postgres schema with hard tenant isolation, bi-temporal facts, and a no-LLM retrieval critical path. **There is no automated migration.** v3 was alpha-only with no production users; drop your v3 DB and reinstall.
 - See [`CHANGELOG.md`](./CHANGELOG.md) for the full track-by-track changelog.
 
