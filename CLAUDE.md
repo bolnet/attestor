@@ -29,7 +29,7 @@ attestor/
   graph/
     extractor.py       -- Entity/relation extraction (4-output GraphRAG)
   retrieval/
-    orchestrator.py    -- 5-layer cascade with RRF fusion
+    orchestrator.py    -- 6-step semantic-first cascade (vector → BM25 → RRF → graph → MMR → fit)
     tag_matcher.py
     scorer.py          -- Temporal + entity + PageRank boosts, confidence decay, MMR
   temporal/
@@ -74,14 +74,20 @@ Other backends available as opt-in: ArangoDB, AWS (DynamoDB + OpenSearch + Neptu
 | Vector | Dense embedding per memory | Postgres (pgvector) | AlloyDB ScaNN, Arango, OpenSearch, Cosmos DiskANN |
 | Graph | Entity nodes + typed edges (`uses`, `authored-by`, `supersedes`) | Neo4j (GDS) | AGE (AlloyDB), Arango, Neptune, NetworkX (Azure) |
 
-**5-layer retrieval pipeline (deterministic, no LLM):**
-1. Tag Match (Postgres FTS / trigram)
-2. Graph Expansion (Neo4j BFS depth=2)
-3. Vector Search (pgvector cosine)
-4. Fusion + Rank (RRF k=60, PageRank, confidence decay)
-5. Diversity + Fit (MMR λ=0.7, greedy token-budget pack)
+**6-step retrieval pipeline (deterministic, no LLM in the hot path):**
+1. Vector top-K (pgvector cosine)
+2. BM25 lane (optional Postgres full-text rank, Phase 4.3)
+3. RRF blend (vector + BM25 → unified rank, k=60)
+4. Graph narrow (Neo4j BFS depth=2 affinity bonus + synthetic triple injection)
+5. MMR diversity (λ=0.7) + confidence decay
+6. Token-budget pack (greedy fit to recall budget)
 
-**Multi-agent primitives:** 6 RBAC roles (ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR), namespace isolation (row-level tenant column), provenance tracking, write quotas, token budgets per agent.
+Implementation: `attestor/retrieval/orchestrator.py`. The pipeline is
+semantic-first (vector → BM25 → RRF → graph → MMR → fit) as of 2026-04-19;
+a separate tag-match utility lives at `attestor/retrieval/tag_matcher.py`
+but is consumed by the entity extractor, not the recall pipeline.
+
+**Multi-agent primitives:** 6 RBAC roles (ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR) — currently **advisory metadata** (the role enum exists in `attestor/context.py` but is not enforced at the recall layer; only `read_only` gates writes). Namespace isolation is row-level on Postgres but **not yet enforced on Neo4j** (graph entity nodes are global across namespaces). Provenance tracking, write quotas, and per-agent token budgets are wired.
 
 **Temporal:** Contradiction detection auto-supersedes older facts; nothing is deleted. Every fact has a validity window; `recall(as_of=...)` replays the past.
 
