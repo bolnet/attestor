@@ -54,7 +54,15 @@ def admin_conn():
 
 @pytest.fixture
 def fresh_schema(admin_conn):
-    raw = SCHEMA_PATH.read_text().replace("{embedding_dim}", "16")
+    # 1024-D matches Ollama bge-m3 (the default local embedder used by the
+    # AgentMemory enforcement test below). The embedder/schema dim
+    # assertion in AgentMemory.__init__ rejects mismatches at startup.
+    #
+    # Clear the module-level embedder cache (see test_gdpr.py for the
+    # same rationale — prior tests can leak a MagicMock embedder).
+    from attestor.store.embeddings import clear_embedding_cache
+    clear_embedding_cache()
+    raw = SCHEMA_PATH.read_text().replace("{embedding_dim}", "1024")
     with admin_conn.cursor() as cur:
         for tbl in ("user_quotas", "memories", "episodes",
                     "sessions", "projects", "users"):
