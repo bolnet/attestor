@@ -725,8 +725,19 @@ def _cmd_import(args):
 
 
 def _cmd_inspect(args):
+    # v4 schema renamed `created_at` → `t_created`. Try the v4 column
+    # first; fall back to v3 so existing pre-v4 installs keep working.
     with AgentMemory(args.path) as mem:
-        rows = mem.execute("SELECT id, content, tags, category, entity, status, created_at FROM memories ORDER BY created_at DESC LIMIT 50")
+        try:
+            rows = mem.execute(
+                "SELECT id, content, tags, category, entity, status, t_created "
+                "FROM memories ORDER BY t_created DESC LIMIT 50"
+            )
+        except Exception:
+            rows = mem.execute(
+                "SELECT id, content, tags, category, entity, status, created_at "
+                "FROM memories ORDER BY created_at DESC LIMIT 50"
+            )
         if not rows:
             print("No memories in store.")
             return

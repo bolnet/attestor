@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -13,6 +14,48 @@ _EMPTY_RESPONSE = {}
 _READ_ONLY_PREFIXES = (
     "cat", "ls", "head", "tail", "echo", "grep", "find", "rg", "pwd", "which", "type",
 )
+
+# Secret patterns to redact BEFORE we persist any captured Bash command or
+# tool output. The canonical leak vector this guards against: a captured
+# command like `curl -H "Authorization: Bearer ey..." https://api.foo`
+# would otherwise land in the memory store with the live token.
+#
+# Patterns cover: OpenAI / OpenRouter / Anthropic / Voyage / GitHub /
+# AWS / GCP / generic bearer tokens / generic header-style "X-API-Key:".
+_SECRET_PATTERNS = (
+    # Authorization / bearer headers (any value after "Bearer " up to whitespace/quote)
+    (re.compile(r"(?i)\b(authorization\s*:\s*bearer\s+)\S+", re.UNICODE),  r"\1<REDACTED>"),
+    (re.compile(r"(?i)\b(x-api-key\s*:\s*)\S+",            re.UNICODE),   r"\1<REDACTED>"),
+    # Provider-specific key prefixes (must come BEFORE the generic prefix=value rule)
+    (re.compile(r"\bsk-or-v1-[A-Za-z0-9_-]{20,}"),  "<REDACTED:openrouter>"),
+    (re.compile(r"\bsk-proj-[A-Za-z0-9_-]{20,}"),   "<REDACTED:openai>"),
+    (re.compile(r"\bsk-ant-[A-Za-z0-9_-]{20,}"),    "<REDACTED:anthropic>"),
+    (re.compile(r"\bsk-[A-Za-z0-9_-]{32,}"),        "<REDACTED:openai>"),
+    (re.compile(r"\bpa-[A-Za-z0-9_-]{30,}"),        "<REDACTED:voyage>"),
+    (re.compile(r"\bghp_[A-Za-z0-9]{30,}"),         "<REDACTED:github>"),
+    (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{30,}"), "<REDACTED:github>"),
+    (re.compile(r"\bAKIA[A-Z0-9]{16}\b"),           "<REDACTED:aws>"),
+    (re.compile(r"\bASIA[A-Z0-9]{16}\b"),           "<REDACTED:aws>"),
+    (re.compile(r"\bya29\.[A-Za-z0-9_-]{20,}"),     "<REDACTED:gcp>"),
+    # Env-export style: KEY=value where KEY ends in _TOKEN / _KEY / _SECRET / _PASSWORD
+    (re.compile(r"(?i)\b([A-Z][A-Z0-9_]*(?:_TOKEN|_KEY|_SECRET|_PASSWORD)\s*=\s*)\S+"),
+                                                    r"\1<REDACTED>"),
+)
+
+
+def _redact_secrets(text: str) -> str:
+    """Apply all secret-pattern redactions to ``text``.
+
+    Order matters: provider-specific patterns run before the generic
+    ``KEY=value`` pattern so a literal ``OPENAI_API_KEY=sk-proj-...``
+    becomes ``OPENAI_API_KEY=<REDACTED>`` (key name preserved, value
+    redacted) rather than the looser fallback.
+    """
+    if not text:
+        return text
+    for pattern, replacement in _SECRET_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
 
 
 def handle(payload: dict) -> dict:
@@ -65,7 +108,13 @@ def handle(payload: dict) -> dict:
             if first_word in _READ_ONLY_PREFIXES:
                 return _EMPTY_RESPONSE
 
-            output_summary = (tool_output or "")[:200]
+            # Redact secrets BEFORE building the captured content. A
+            # `curl -H "Authorization: Bearer ..."` would otherwise land
+            # in the memory store with the live token. Same for any
+            # `OPENAI_API_KEY=sk-...` style export, AWS access keys,
+            # GitHub PATs, etc.
+            command = _redact_secrets(command)
+            output_summary = _redact_secrets((tool_output or "")[:200])
             content = f"Ran command: {command}"
             if output_summary:
                 content += f"\nOutput: {output_summary}"

@@ -223,4 +223,68 @@ try:
 except Exception:  # pragma: no cover - UI is optional
     pass
 
-app = Starlette(routes=routes)
+
+def _build_middleware() -> list:
+    """Return the Starlette middleware stack for the resolved mode.
+
+    SOLO mode (default) returns no middleware — the api is a single-user
+    local service and bearer tokens would just be noise.
+
+    HOSTED / SHARED modes attach :class:`JWTAuthMiddleware`. In those
+    modes ``ATTESTOR_JWT_PUBLIC_KEY`` (PEM or JWKS JSON) MUST be set;
+    if it isn't, every request returns 500 ``"auth not configured"`` so
+    we fail visibly rather than serving anonymous traffic in a
+    multi-tenant deployment.
+
+    Configurable via env (only used when mode != SOLO):
+
+      ATTESTOR_JWT_PUBLIC_KEY     PEM string or path to .pem; required.
+      ATTESTOR_JWT_AUDIENCE       Optional ``aud`` claim to enforce.
+      ATTESTOR_JWT_ISSUER         Optional ``iss`` claim to enforce.
+      ATTESTOR_JWT_ALGORITHMS     Comma-separated; default ``RS256``.
+      ATTESTOR_JWT_LEEWAY_SECONDS Default ``0``.
+    """
+    from starlette.middleware import Middleware
+
+    from attestor.auth import JWTAuthMiddleware
+    from attestor.mode import AttestorMode, detect_mode
+
+    mode = detect_mode()
+    if mode is AttestorMode.SOLO:
+        return []
+
+    public_key = os.environ.get("ATTESTOR_JWT_PUBLIC_KEY")
+    if public_key and os.path.isfile(public_key):
+        # Allow pointing at a .pem on disk for cloud deploys that
+        # mount keys via a volume rather than env-encoding them.
+        try:
+            with open(public_key, "r", encoding="utf-8") as fh:
+                public_key = fh.read()
+        except OSError as e:
+            logger.error("could not read ATTESTOR_JWT_PUBLIC_KEY=%r: %s",
+                         public_key, e)
+            public_key = None
+
+    algorithms_raw = os.environ.get("ATTESTOR_JWT_ALGORITHMS", "RS256")
+    algorithms = [a.strip() for a in algorithms_raw.split(",") if a.strip()]
+
+    leeway = 0
+    try:
+        leeway = int(os.environ.get("ATTESTOR_JWT_LEEWAY_SECONDS", "0"))
+    except ValueError:
+        pass
+
+    return [
+        Middleware(
+            JWTAuthMiddleware,
+            mode=mode,
+            public_key=public_key,
+            audience=os.environ.get("ATTESTOR_JWT_AUDIENCE"),
+            issuer=os.environ.get("ATTESTOR_JWT_ISSUER"),
+            algorithms=algorithms,
+            leeway_seconds=leeway,
+        ),
+    ]
+
+
+app = Starlette(routes=routes, middleware=_build_middleware())
