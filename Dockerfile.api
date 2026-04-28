@@ -1,0 +1,81 @@
+# Dockerfile.api — Attestor HTTP API server (canonical stack: PG + Neo4j + Voyage).
+#
+# Companion to `Dockerfile` (the introspection-only MCP stub for the Glama
+# listing). This image ships the full Starlette HTTP API and is the deploy
+# target for cloud platforms — Cloud Run / Container Apps / App Runner.
+#
+# Default stack per `configs/attestor.yaml`:
+#   document/vector  postgres + pgvector
+#   graph            neo4j 5
+#   embedder         voyage AI (voyage-4 @ 1024-D)
+#
+# Other backends (Arango / Cosmos / Neptune / AlloyDB-AGE) remain importable
+# but are not installed or configured by default; users who want them can
+# layer their own image FROM this one or set the relevant env vars.
+#
+# Build & tag (matches `image.api_ref_template` in configs/attestor.yaml):
+#   docker build -f Dockerfile.api -t attestor:api-4.0.0a5 .
+#
+# Run locally (against compose-managed PG + Neo4j):
+#   docker run --rm -p 8080:8080 \
+#     -e POSTGRES_URL=postgresql://postgres:attestor@host.docker.internal:5432/attestor \
+#     -e NEO4J_URI=bolt://host.docker.internal:7687 \
+#     -e NEO4J_PASSWORD=attestor \
+#     -e VOYAGE_API_KEY=$VOYAGE_API_KEY \
+#     -e OPENAI_API_KEY=$OPENAI_API_KEY \
+#     attestor:api-4.0.0a5
+#
+# Cloud-ready features:
+#   - Honors $PORT (Cloud Run / App Runner / Container Apps convention; default 8080)
+#   - Binds 0.0.0.0
+#   - PID 1 = uvicorn (no shell wrapper at exec time — signals propagate cleanly)
+#   - Healthcheck against /health (used by managed-platform load balancers + smoke)
+
+FROM python:3.12-slim-bookworm
+
+LABEL org.opencontainers.image.title="Attestor API"
+LABEL org.opencontainers.image.description="Attestor HTTP API — Postgres + pgvector + Neo4j + Voyage AI"
+LABEL org.opencontainers.image.source="https://github.com/bolnet/attestor"
+LABEL org.opencontainers.image.url="https://attestor.dev"
+LABEL org.opencontainers.image.licenses="MIT"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    ATTESTOR_PATH=/data/attestor \
+    PORT=8080
+
+# libpq5 for psycopg2 wheels; everything else is pure-python.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY pyproject.toml README.md ./
+COPY attestor/ attestor/
+
+# Install attestor with the canonical-stack extras. We deliberately do NOT
+# install [aws]/[azure]/[gcp]/[arango] extras — those are unpromoted optional
+# backends and shipping their dependencies inflates the image without value.
+RUN pip install --upgrade pip \
+    && pip install ".[voyage,cloud-embeddings]" \
+    && pip install \
+        "starlette>=0.27.0" \
+        "uvicorn[standard]>=0.23.0" \
+        "psycopg2-binary>=2.9.0" \
+        "neo4j>=5.0.0"
+
+RUN mkdir -p /data/attestor
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 --start-period=20s \
+    CMD python -c "import urllib.request, sys, os; \
+p=os.environ.get('PORT','8080'); \
+r=urllib.request.urlopen(f'http://localhost:{p}/health', timeout=3); \
+sys.exit(0 if r.status==200 else 1)" || exit 1
+
+# Shell form so $PORT expands. `exec` replaces the shell so SIGTERM
+# from the orchestrator reaches uvicorn directly (clean shutdown).
+ENTRYPOINT ["sh", "-c", "exec uvicorn attestor.api:app --host 0.0.0.0 --port ${PORT}"]
