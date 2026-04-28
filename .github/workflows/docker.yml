@@ -1,12 +1,19 @@
 name: Build & Push Docker Image
 
-# Multi-arch (amd64 + arm64) container build that publishes the Attestor
-# MCP image to GitHub Container Registry on every push to main / tagged
-# release, and to Docker Hub when DOCKERHUB_USERNAME + DOCKERHUB_TOKEN
-# secrets are present (gracefully skips Hub push when missing).
+# Multi-arch (amd64 + arm64) container build that publishes BOTH:
 #
-# Source: ./Dockerfile (introspection-only profile — see file header for
-# why this is the registry-listing artifact, not the production image).
+#   1. ./Dockerfile         — introspection-only MCP image, the artifact
+#                             external registries (Glama, Smithery) verify.
+#                             Pushed with the canonical version tags
+#                             (e.g. 4.0.0a5, latest, v4).
+#   2. ./Dockerfile.api     — full HTTP API image, the artifact cloud
+#                             deploys actually pull. Pushed with `api-`
+#                             prefixed tags (e.g. api-4.0.0a5, api-latest).
+#
+# Targets GHCR + Docker Hub + Quay (when the relevant secrets are set —
+# missing secrets are skipped gracefully). Manual pushes to AWS ECR
+# Public + GCP Artifact Registry + Azure ACR are no longer needed once
+# this workflow runs on a release.
 
 on:
   push:
@@ -96,7 +103,7 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Extract metadata
+      - name: Extract metadata — MCP introspection image
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -115,7 +122,23 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
-      - name: Build and push
+      - name: Extract metadata — full API image
+        id: meta_api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image_list.outputs.images }}
+          # The api image gets `api-` prefixed tags so it can coexist with
+          # the introspection image in the same repo without collision.
+          # docs/install/{aws,gcp,azure}.md and configs/attestor.yaml's
+          # `image.api_ref_template` both reference :api-<version>.
+          tags: |
+            type=semver,pattern=api-{{version}}
+            type=semver,pattern=api-{{major}}.{{minor}}
+            type=sha,format=short,prefix=api-sha-
+            type=raw,value=api-latest,enable={{is_default_branch}}
+            type=raw,value=api-latest,enable=${{ github.event_name == 'release' }}
+
+      - name: Build and push — MCP introspection image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -124,5 +147,20 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=mcp
+          cache-to: type=gha,mode=max,scope=mcp
+
+      - name: Build and push — full API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.api
+          # API image is currently amd64-only. The published Dockerfile.api
+          # uses pinned wheels that ship for amd64; arm64 multi-arch is a
+          # follow-up (matches the linux/amd64 caveat in docs/install/).
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta_api.outputs.tags }}
+          labels: ${{ steps.meta_api.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
