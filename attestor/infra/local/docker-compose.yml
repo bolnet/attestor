@@ -85,10 +85,13 @@ services:
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USERNAME: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-attestor}
+      # Secrets — read from .env. Embedder choice and dim live in
+      # configs/attestor.yaml (canonical default: voyage-4 @ 1024-D); the
+      # api container reads them from there via attestor.config.get_stack().
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-large}
-      OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-1536}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ATTESTOR_DATA_DIR: /data/attestor
     volumes:
       - attestor_data:/data/attestor
