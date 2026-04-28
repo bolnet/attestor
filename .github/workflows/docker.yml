@@ -76,14 +76,36 @@ jobs:
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_TOKEN }}
 
+      - name: Compute image list
+        id: image_list
+        # Build the image list dynamically so empty entries don't end up
+        # in the YAML. metadata-action treats empty lines as "use only the
+        # first image" — that's why prior releases only pushed
+        # ghcr.io/...:latest. This step assembles a clean newline-
+        # separated list with no blanks.
+        run: |
+          {
+            echo 'images<<EOF'
+            echo '${{ env.GHCR_IMAGE }}'
+            if [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+              echo 'docker.io/${{ env.DOCKERHUB_NAMESPACE }}/attestor'
+            fi
+            if [ -n "${{ secrets.QUAY_TOKEN }}" ]; then
+              echo '${{ env.QUAY_IMAGE }}'
+            fi
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ env.GHCR_IMAGE }}
-            ${{ steps.dockerhub_login.outcome == 'success' && format('docker.io/{0}/attestor', env.DOCKERHUB_NAMESPACE) || '' }}
-            ${{ steps.quay_login.outcome == 'success' && env.QUAY_IMAGE || '' }}
+          images: ${{ steps.image_list.outputs.images }}
+          # type=semver only fires when github.ref starts with refs/tags/v*
+          # — release events satisfy this since the tag IS the ref. The
+          # version coming out is the tag minus the "v" prefix (e.g.
+          # v4.0.0a5 → 4.0.0a5). Force the strip via match patterns so
+          # alpha/pre-release versions don't get filtered.
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
