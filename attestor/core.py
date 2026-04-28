@@ -777,6 +777,13 @@ class AgentMemory:
         t0 = time.monotonic()
         self._store.insert(memory)
         store_timings["document_ms"] = round((time.monotonic() - t0) * 1000, 2)
+        from attestor import trace as _tr
+        if _tr.is_enabled():
+            _tr.event("ingest.write.pg",
+                      memory_id=memory.id, namespace=namespace,
+                      content_len=len(content), tags=list(tags or []),
+                      category=category, entity=entity,
+                      latency_ms=store_timings["document_ms"])
 
         # v4 provenance signing (Phase 8.1) — sign AFTER insert so the
         # canonical payload includes the DB-generated id + t_created.
@@ -806,12 +813,20 @@ class AgentMemory:
                 t0 = time.monotonic()
                 self._vector_store.add(memory.id, content, namespace=namespace)
                 store_timings["vector_ms"] = round((time.monotonic() - t0) * 1000, 2)
+                if _tr.is_enabled():
+                    _tr.event("ingest.write.vector",
+                              memory_id=memory.id, namespace=namespace,
+                              latency_ms=store_timings["vector_ms"], ok=True)
             except Exception as e:
                 store_timings["vector_ms"] = -1  # failed
                 logger.warning(
                     "vector add failed for memory %s: %s: %s",
                     memory.id, type(e).__name__, e,
                 )
+                if _tr.is_enabled():
+                    _tr.event("ingest.write.vector",
+                              memory_id=memory.id, namespace=namespace,
+                              ok=False, error=f"{type(e).__name__}: {e}")
 
         # Update entity graph (also non-fatal; surface exceptions for the
         # same reason — silent drops here mean recall layer 2 returns
@@ -824,6 +839,11 @@ class AgentMemory:
                     content, tags or [], entity, category,
                     namespace=namespace,
                 )
+                if _tr.is_enabled():
+                    _tr.event("ingest.extract",
+                              memory_id=memory.id, namespace=namespace,
+                              entity_count=len(nodes), relation_count=len(edges),
+                              entity_names=[n["name"] for n in nodes][:10])
                 # Tag every entity / relation with the writer's namespace
                 # so the graph layer enforces tenancy alongside Postgres.
                 # Older graph backends without the kwarg still accept the
@@ -859,12 +879,21 @@ class AgentMemory:
                             metadata=edge.get("metadata"),
                         )
                 store_timings["graph_ms"] = round((time.monotonic() - t0) * 1000, 2)
+                if _tr.is_enabled():
+                    _tr.event("ingest.write.graph",
+                              memory_id=memory.id, namespace=namespace,
+                              entity_count=len(nodes), relation_count=len(edges),
+                              latency_ms=store_timings["graph_ms"], ok=True)
             except Exception as e:
                 store_timings["graph_ms"] = -1  # failed
                 logger.warning(
                     "graph add failed for memory %s: %s: %s",
                     memory.id, type(e).__name__, e,
                 )
+                if _tr.is_enabled():
+                    _tr.event("ingest.write.graph",
+                              memory_id=memory.id, namespace=namespace,
+                              ok=False, error=f"{type(e).__name__}: {e}")
 
         total_ms = round((time.monotonic() - t_total) * 1000, 2)
         store_timings["total_ms"] = total_ms
