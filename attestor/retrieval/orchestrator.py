@@ -222,7 +222,14 @@ class RetrievalOrchestrator:
         when both are None.
         """
         t_total = time.monotonic()
+        from attestor import trace as _tr
         question_entities = self._question_entities(query)
+        if _tr.is_enabled():
+            _tr.event("recall.start", query=query[:200], namespace=namespace,
+                      token_budget=token_budget,
+                      question_entities=question_entities,
+                      as_of=str(as_of) if as_of else None,
+                      time_window=str(time_window) if time_window else None)
 
         # ── Step 1: Vector top-K ──
         vector_hits_raw: List[Dict] = []
@@ -242,6 +249,12 @@ class RetrievalOrchestrator:
                     )
             except Exception:
                 vector_hits_raw = []
+        if _tr.is_enabled():
+            _tr.event("recall.stage.vector",
+                      top_k=VECTOR_TOP_K, hit_count=len(vector_hits_raw),
+                      hits=[{"id": h.get("memory_id"),
+                             "distance": round(float(h.get("distance", 1.0)), 4)}
+                            for h in vector_hits_raw[:10]])
 
         # ── Step 1b: BM25 lane (Phase 4.3) ──
         # Runs alongside the vector lane; fused via RRF below. When the
@@ -261,6 +274,13 @@ class RetrievalOrchestrator:
                 )
             except Exception:
                 bm25_hits_raw = []
+        if _tr.is_enabled():
+            _tr.event("recall.stage.bm25",
+                      enabled=self.bm25_lane is not None,
+                      hit_count=len(bm25_hits_raw),
+                      hits=[{"id": h.memory_id,
+                             "rank": getattr(h, "rank", None)}
+                            for h in bm25_hits_raw[:10]])
 
         # ── Step 2: Materialise vector candidates with preliminary vector_sim
         # status='active' is current-state filtering. When as_of is set,
@@ -323,6 +343,11 @@ class RetrievalOrchestrator:
                     c["vector_sim"] = max(
                         c["vector_sim"], 1.0 - (pos / n),
                     )
+            if _tr.is_enabled():
+                _tr.event("recall.stage.rrf",
+                          fused_count=len(fused),
+                          top_fused=[{"id": mid, "rank": i}
+                                     for i, mid in enumerate(fused[:10])])
 
         # ── Step 2: Graph narrow ──
         # Pass namespace through so the BFS can't pull affinity from
@@ -331,6 +356,12 @@ class RetrievalOrchestrator:
         affinity_map = self._graph_affinity_map(
             question_entities, namespace=namespace,
         )
+        if _tr.is_enabled():
+            _tr.event("recall.stage.graph",
+                      query_entities=question_entities,
+                      reachable_entity_count=len(affinity_map),
+                      affinity_sample={k: v for k, v in
+                                       list(affinity_map.items())[:10]})
         trace_hits = []
         for c in candidates:
             mem = c["memory"]
@@ -386,7 +417,12 @@ class RetrievalOrchestrator:
 
         # ── Step 4: MMR diversity ──
         if self.enable_mmr:
+            _pre_mmr_count = len(results)
             results = mmr_rerank(results, lambda_param=self.mmr_lambda)
+            if _tr.is_enabled():
+                _tr.event("recall.stage.mmr",
+                          lambda_=self.mmr_lambda,
+                          in_count=_pre_mmr_count, out_count=len(results))
 
         # ── Step 5: Confidence decay ──
         results = confidence_decay_boost(
@@ -397,7 +433,22 @@ class RetrievalOrchestrator:
         )
 
         # ── Step 6: Fit to budget ──
+        _pre_pack_count = len(results)
         final = fit_to_budget(results, token_budget)
+        if _tr.is_enabled():
+            _tr.event("recall.stage.pack",
+                      token_budget=token_budget,
+                      in_count=_pre_pack_count, out_count=len(final))
+            _tr.event("recall.done",
+                      query=query[:120],
+                      final_count=len(final),
+                      latency_ms=round((time.monotonic() - t_total) * 1000, 2),
+                      final_ids=[
+                          {"id": r.memory.id, "score": round(r.score, 4),
+                           "source": r.match_source,
+                           "preview": r.memory.content[:80]}
+                          for r in final[:20]
+                      ])
 
         trace_write({
             "kind": "recall",

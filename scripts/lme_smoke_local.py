@@ -101,6 +101,12 @@ def _parse_args() -> argparse.Namespace:
         help="Don't prompt to confirm the resolved stack",
     )
     p.add_argument("--verbose", action="store_true")
+    p.add_argument(
+        "--trace",
+        action="store_true",
+        help="Exhaustive per-stage trace (sets ATTESTOR_TRACE=1; writes "
+             "JSONL to logs/lme_smoke_<ts>.jsonl)",
+    )
     return p.parse_args()
 
 
@@ -212,6 +218,20 @@ async def _run(args: argparse.Namespace, stack: StackConfig) -> None:
 
 def main() -> int:
     args = _parse_args()
+
+    if args.trace:
+        from datetime import datetime as _dt
+        ts = _dt.now().strftime("%Y%m%d_%H%M%S")
+        trace_path = ROOT / "logs" / f"lme_smoke_{ts}.jsonl"
+        trace_path.parent.mkdir(parents=True, exist_ok=True)
+        os.environ["ATTESTOR_TRACE"] = "1"
+        os.environ["ATTESTOR_TRACE_FILE"] = str(trace_path)
+        # Re-read env after setting it; module load happens later but the
+        # smoke imports attestor.* below — make sure trace.py picks it up.
+        import attestor.trace as _tr
+        _tr.reset_for_test()
+        print(f"[{RUN_LABEL}] trace ON — events stream to stderr; "
+              f"jsonl → {trace_path}")
 
     logging.basicConfig(
         level=logging.INFO if args.verbose else logging.WARNING,

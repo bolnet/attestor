@@ -585,7 +585,21 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
     def _embed(self, text: str) -> List[float]:
         """Generate embedding using the shared provider."""
         self._ensure_embedding_fn()
-        return self._embedder.embed(text)
+        from attestor import trace as _tr
+        if not _tr.is_enabled():
+            return self._embedder.embed(text)
+        import time as _time
+        t0 = _time.monotonic()
+        vec = self._embedder.embed(text)
+        _tr.event(
+            "ingest.embed",
+            provider=getattr(self._embedder, "provider", type(self._embedder).__name__),
+            model=getattr(self._embedder, "model", "?"),
+            dim=len(vec),
+            text_len=len(text),
+            latency_ms=round((_time.monotonic() - t0) * 1000, 2),
+        )
+        return vec
 
     def _build_embedding_text(self, memory_id: str, content: str) -> str:
         """Build the text used for embedding (Phase 4.1, roadmap §B.1).
