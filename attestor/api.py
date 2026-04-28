@@ -132,16 +132,24 @@ async def add_memory(request: Request) -> JSONResponse:
     if not content:
         return _err("content is required")
     mem = _get_mem()
-    m = mem.add(
-        content=content,
-        tags=body.get("tags", []),
-        category=body.get("category", "general"),
-        entity=body.get("entity"),
-        namespace=body.get("namespace", "default"),
-        event_date=body.get("event_date"),
-        confidence=body.get("confidence", 1.0),
-        metadata=body.get("metadata", {}),
-    )
+    # Import lazily — quotas is Postgres-specific and may pull psycopg2.
+    from attestor.quotas import QuotaExceeded
+
+    try:
+        m = mem.add(
+            content=content,
+            tags=body.get("tags", []),
+            category=body.get("category", "general"),
+            entity=body.get("entity"),
+            namespace=body.get("namespace", "default"),
+            event_date=body.get("event_date"),
+            confidence=body.get("confidence", 1.0),
+            metadata=body.get("metadata", {}),
+        )
+    except QuotaExceeded as e:
+        # 429 Too Many Requests — include the limit field name so clients
+        # can show a useful error (e.g. "max_writes_per_day reached").
+        return _err(f"quota exceeded: {e}", status=429)
     return _ok(m.to_dict())
 
 

@@ -99,12 +99,21 @@ class MemoryClient:
     # -- Read --
 
     def recall(
-        self, query: str, budget: Optional[int] = None
+        self,
+        query: str,
+        budget: Optional[int] = None,
+        namespace: Optional[str] = None,
     ) -> List[RetrievalResult]:
-        """Recall memories via the HTTP API."""
+        """Recall memories via the HTTP API.
+
+        ``namespace`` is forwarded to the server so namespace-scoped recall
+        works over HTTP (parity with the embedded ``AgentMemory.recall``).
+        """
         body: Dict[str, Any] = {"query": query}
         if budget:
             body["budget"] = budget
+        if namespace is not None:
+            body["namespace"] = namespace
 
         data = self._post("/recall", body)
         results = []
@@ -118,10 +127,13 @@ class MemoryClient:
         return results
 
     def recall_as_context(
-        self, query: str, budget: Optional[int] = None
+        self,
+        query: str,
+        budget: Optional[int] = None,
+        namespace: Optional[str] = None,
     ) -> str:
         """Recall and format as context string."""
-        results = self.recall(query, budget=budget)
+        results = self.recall(query, budget=budget, namespace=namespace)
         if not results:
             return ""
         lines = []
