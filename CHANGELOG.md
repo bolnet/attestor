@@ -2,6 +2,35 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] — 2026-04-28
+
+First stable 4.x release. **`pip install attestor` now returns this version.** Promoting the alpha line to stable so the documented install path matches the documented architecture (Postgres + pgvector + Neo4j + Voyage AI + the four-role gpt-4.1 / claude-sonnet-4-6 model lineup). Eight PRs landed today on top of `4.0.0a5`:
+
+**Security & governance**
+
+- **(#72) RBAC enforcement at the AgentContext layer.** The six `AgentRole` values were advisory metadata until now. New `ROLE_PERMISSIONS` matrix gates writes / forgets per role: `ORCHESTRATOR = R+W+F`; `PLANNER` / `EXECUTOR` / `RESEARCHER` = `R+W`; `REVIEWER` / `MONITOR` = `R` only. `read_only=True` remains an independent kill switch that strips writes regardless of role.
+- **(#74) Neo4j namespace tenancy.** Postgres has had row-level namespace isolation; Neo4j entity nodes were global. Closed the cross-tenant graph-affinity leak: composite `(key, namespace)` constraint on entity nodes; `coalesce(e.namespace, 'default')` filter on every BFS traversal in the recall hot path. Pre-namespace nodes still recall under `namespace="default"`.
+
+**Reliability & safety nets**
+
+- **(#75) Embedder dimension assertion at startup.** Guards the silent-no-op write failure documented in `project_pgvector_dim_lesson.md`. If the embedder produces D-dim vectors and the `pgvector(N)` schema declares N ≠ D, `AgentMemory.__init__` now raises `EmbedderDimMismatchError` with both numbers and remediation steps. Previously every `UPDATE memories SET embedding = ...` silently no-op'd because the doc-path swallows non-fatal vector errors. Caught two existing tests (`test_gdpr`, `test_quotas`) that were "passing" only because of this exact bug.
+- **(#76) Exhaustive end-to-end pipeline tracing.** Off by default (`ATTESTOR_TRACE=1` to enable). Surfaces every step of ingest (`ingest.write.pg`, `ingest.embed`, `ingest.write.vector`, `ingest.extract`, `ingest.write.graph`) and retrieval (`recall.start`, `.stage.vector`, `.stage.bm25`, `.stage.rrf`, `.stage.candidates`, `.stage.graph`, `.stage.mmr`, `.stage.pack`, `.done`). Stderr one-liners + JSONL companion at `ATTESTOR_TRACE_FILE`. Defensive secret redactor scrubs sk-/pa-/AKIA/ghp_/Bearer headers if a key-shaped string ever sneaks into a trace field.
+- **(#77) v4 namespace round-trip.** The v4 schema dropped the top-level `namespace` column when tenancy moved to `user_id + project_id + scope`, but the `Memory` dataclass and `recall()` API still expose `namespace` as a string. Pre-fix, every v4 row rehydrated with `namespace="default"` and the orchestrator's namespace filter dropped 100% of candidates. **Caught by the new tracing in #76 within ten minutes of shipping it.** Fix: `core.add()` stamps `metadata["_namespace"]` when v4 is active and namespace ≠ "default"; `Memory.from_row` reads it back. End-to-end smoke went from `final_count=0` to `final_count=10` on the same question, both judges agreeing.
+
+**API parity**
+
+- **(#73) `MemoryClient` ↔ `api.py` parity drift.** `MemoryClient.recall()` now forwards `namespace` in the JSON body (was silently dropped over HTTP); `/add` now maps `QuotaExceeded` → HTTP **429** with the field name in the error string, instead of the generic 500.
+
+**Docs & polish**
+
+- **(#78)** Promote the `ContextPack` typed retrieval envelope in the README — every field a Chain-of-Note flow needs (`id`, `confidence`, `valid_from`, `valid_until`, `source_episode_id`) shown in three lines of code. Flag `DocumentStore.tag_search` as superseded by the semantic-first cascade.
+
+**Migration notes**
+
+- No breaking API changes vs `4.0.0a5`. Callers passing `namespace=` to `mem.add()` / `mem.recall()` on v4 backends now actually have their namespace persisted and matched on read (this was silently broken before).
+- Callers using `AgentRole` other than the default `EXECUTOR` should review the new `ROLE_PERMISSIONS` matrix; `REVIEWER` and `MONITOR` are now read-only.
+- The new embedder-dim assertion is fail-fast. If you see `EmbedderDimMismatchError` on startup, your schema's `vector(N)` doesn't match your embedder's output dim — follow the remediation steps in the error message.
+
 ## [4.0.0a5] — 2026-04-28
 
 Surfaces previously-silent `try/except: pass` failures in the vector and graph write paths so dimension-mismatch and similar configuration drift become visible in logs instead of presenting as 0-hit recall results with no diagnostic trail. Three call sites updated (`core.py:add()` vector branch, `add()` graph branch, `update()` re-index) — each now `logger.warning(...)`s the swallowed exception. No behavior change beyond log surface; the document path remains the only hard dependency and still completes successfully when vector/graph writes fail.
