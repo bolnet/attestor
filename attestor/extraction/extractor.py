@@ -11,7 +11,7 @@ from attestor.models import Memory
 def extract_memories(
     messages: List[Dict[str, Any]],
     use_llm: bool = False,
-    model: str = "openai/gpt-4.1-mini",
+    model: Optional[str] = None,
 ) -> List[Memory]:
     """Extract memories from conversation messages.
 
@@ -24,6 +24,9 @@ def extract_memories(
         List of Memory objects extracted from the conversation.
     """
     if use_llm:
+        if model is None:
+            from attestor.config import get_stack
+            model = get_stack().models.extraction
         return _llm_extract(messages, model)
     return _rule_extract(messages)
 
@@ -63,7 +66,7 @@ def extract_from_session(
     speaker_a: str = "A",
     speaker_b: str = "B",
     session_date: str = "",
-    model: str = "openai/gpt-4.1-mini",
+    model: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> Tuple[List[Memory], List[Dict[str, Any]]]:
     """Extract memories and relation triples from a conversation session.
@@ -74,6 +77,9 @@ def extract_from_session(
     Returns (memories, triples) where triples are dicts with
     subject, predicate, object, event_date keys.
     """
+    if model is None:
+        from attestor.config import get_stack
+        model = get_stack().models.extraction
     try:
         from attestor.extraction.llm_extractor import llm_extract_session
 
@@ -95,7 +101,7 @@ def extract_from_session_full(
     speaker_a: str = "A",
     speaker_b: str = "B",
     session_date: str = "",
-    model: str = "openai/gpt-4.1-mini",
+    model: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> Tuple[
     List[Memory],
@@ -108,6 +114,9 @@ def extract_from_session_full(
     Returns (fact_memories, triples, entity_profiles, concept_profiles).
     Falls back to (rule_facts, [], [], []) if openai is unavailable.
     """
+    if model is None:
+        from attestor.config import get_stack
+        model = get_stack().models.extraction
     try:
         from attestor.extraction.llm_extractor import llm_extract_session_full
 

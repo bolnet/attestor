@@ -74,6 +74,17 @@ stack:
     # without burning the cost of running Sonnet for everything.
     verifier: anthropic/claude-sonnet-4-6
 
+    # Planner — query rewriting + multi-step query decomposition.
+    # Used by attestor.retrieval.planner. Claude Opus is the default
+    # because the planner's job is small but reasoning-heavy.
+    planner: anthropic/claude-opus-4.7
+
+    # Benchmark default — generic fallback for ad-hoc benchmark commands
+    # where no specific role applies (e.g. `attestor locomo` when the
+    # user doesn't pass --answer-model). Cheap by design — bench
+    # iteration happens often.
+    benchmark_default: openai/gpt-4.1-mini
+
   # ─── Retrieval budget ────────────────────────────────────────────────
   # Token budget per recall (the orchestrator MMR-packs candidates
   # under this ceiling). 4000 is the canonical benchmark default.

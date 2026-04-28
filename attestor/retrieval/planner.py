@@ -25,9 +25,17 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_PLANNER_MODEL = os.environ.get(
-    "PLANNER_MODEL", "anthropic/claude-opus-4.7"
-)
+
+
+def _default_planner_model() -> str:
+    """Resolve the planner model: env override > YAML > hardcoded fallback."""
+    if env := os.environ.get("PLANNER_MODEL"):
+        return env
+    from attestor.config import get_stack
+    return get_stack().models.planner
+
+
+DEFAULT_PLANNER_MODEL = _default_planner_model()
 
 VALID_INTENTS = frozenset({
     "FACTUAL_RECALL",

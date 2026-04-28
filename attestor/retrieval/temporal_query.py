@@ -137,10 +137,13 @@ class TemporalQueryExpander:
         self,
         client: Optional[Any] = None,
         *,
-        model: str = "openai/gpt-4o-mini",
+        model: Optional[str] = None,
         max_tokens: int = 256,
     ) -> None:
         self._client = client
+        if model is None:
+            from attestor.config import get_stack
+            model = get_stack().models.extraction
         self._model = model
         self._max_tokens = max_tokens
 

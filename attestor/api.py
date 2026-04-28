@@ -19,16 +19,15 @@ _mem = None
 
 
 def _build_config() -> Optional[Dict[str, Any]]:
-    """Build backend config from env. Returns None for embedded default.
+    """Build backend config. Returns None when no backend can be resolved.
 
-    Layer 0 stack (preferred): POSTGRES_URL + NEO4J_URI together → Postgres
-    (doc + vector via pgvector) plus Neo4j (graph + GDS).
-
-    Resolution order:
-        1. POSTGRES_URL [+ optional NEO4J_URI]  -> Postgres (+ Neo4j) stack
-        2. NEO4J_URI alone                      -> graph-only (rare; for tests)
-        3. ARANGO_URL                           -> single-engine ArangoDB
-        4. None                                 -> error; Attestor requires a configured backend
+    Resolution order (top wins):
+        1. Explicit env vars: POSTGRES_URL [+ NEO4J_URI] / NEO4J_URI alone /
+           ARANGO_URL — preserved for cloud deploys that bind secrets via env.
+        2. ``configs/attestor.yaml`` via ``attestor.config.get_stack()`` —
+           when no env vars are set we honor the YAML SoT. Pass
+           ATTESTOR_CONFIG=/path/to/yaml to override the default file.
+        3. None — caller bubbles a clear error.
     """
     postgres_url = os.environ.get("POSTGRES_URL")
     neo4j_uri = os.environ.get("NEO4J_URI")
@@ -82,7 +81,16 @@ def _build_config() -> Optional[Dict[str, Any]]:
                 },
             },
         }
-    return None
+
+    # No env override — defer to the YAML SoT.
+    try:
+        from attestor.config import build_backend_config, get_stack
+        return build_backend_config(get_stack())
+    except SystemExit:
+        # YAML missing required env (e.g. NEO4J_PASSWORD) — return None so
+        # the api surfaces a clear "configure backends" error rather than
+        # the loader's exit message.
+        return None
 
 
 def _get_mem():

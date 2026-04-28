@@ -229,16 +229,16 @@ def main(argv=None):
     )
     p_locomo.add_argument("--data", default=None, help="Path to locomo10.json (downloads if not provided)")
     p_locomo.add_argument(
-        "--judge-model", default="openai/gpt-4.1-mini",
-        help="LLM for judging answers",
+        "--judge-model", default=None,
+        help="LLM for judging answers (default: stack.models.judge from configs/attestor.yaml)",
     )
     p_locomo.add_argument(
-        "--answer-model", default="openai/gpt-4.1-mini",
-        help="LLM for answer synthesis",
+        "--answer-model", default=None,
+        help="LLM for answer synthesis (default: stack.models.answerer from configs/attestor.yaml)",
     )
     p_locomo.add_argument(
-        "--extraction-model", default="openai/gpt-4.1-mini",
-        help="LLM for fact extraction",
+        "--extraction-model", default=None,
+        help="LLM for fact extraction (default: stack.models.extraction from configs/attestor.yaml)",
     )
     p_locomo.add_argument("--use-extraction", action="store_true", help="Extract facts with LLM")
     p_locomo.add_argument("--resolve-pronouns", action="store_true", default=True, help="Resolve pronouns/time refs (default: on)")
@@ -261,8 +261,8 @@ def main(argv=None):
         help="Category codes: AR, CR, TTL, LRU (default: AR CR)",
     )
     p_mab.add_argument(
-        "--answer-model", default="openai/gpt-4.1-mini",
-        help="LLM for answer synthesis (OpenRouter model ID)",
+        "--answer-model", default=None,
+        help="LLM for answer synthesis (default: stack.models.benchmark_default from configs/attestor.yaml)",
     )
     p_mab.add_argument("--max-examples", type=int, default=None, help="Max examples per category")
     p_mab.add_argument("--skip-examples", type=int, default=0, help="Skip first N examples per category")
@@ -293,12 +293,13 @@ def main(argv=None):
         help="HuggingFace dataset variant when auto-downloading (default: s)",
     )
     p_lme.add_argument(
-        "--answer-model", default="openai/gpt-4.1-mini",
-        help="LLM for answer synthesis",
+        "--answer-model", default=None,
+        help="LLM for answer synthesis (default: stack.models.answerer from configs/attestor.yaml)",
     )
     p_lme.add_argument(
         "--judge-model", action="append", default=None,
-        help="LLM for judging answers. Pass multiple times for dual-judge scoring.",
+        help="LLM for judging answers (default: [stack.models.judge, stack.models.verifier]). "
+             "Pass multiple times for dual-judge scoring.",
     )
     p_lme.add_argument(
         "--use-extraction", action="store_true",
@@ -310,8 +311,8 @@ def main(argv=None):
              "into 0..N third-person facts with absolute dates before embed/graph.",
     )
     p_lme.add_argument(
-        "--distill-model", default="openai/gpt-5.1",
-        help="OpenRouter model id for the distiller (default: openai/gpt-5.1).",
+        "--distill-model", default=None,
+        help="LLM for the per-turn distiller (default: stack.models.distill from configs/attestor.yaml)",
     )
     p_lme.add_argument("--max-samples", type=int, default=None, help="Cap on samples")
     p_lme.add_argument(
@@ -909,16 +910,22 @@ def _cmd_locomo(args):
         _load_env_file(args.env_file)
     api_key = os.environ.get("OPENROUTER_API_KEY")
 
+    from attestor.config import get_stack
     from attestor.locomo import run_locomo, print_locomo
+
+    stack = get_stack()
+    judge_model = args.judge_model or stack.models.judge
+    answer_model = args.answer_model or stack.models.answerer
+    extraction_model = args.extraction_model or stack.models.extraction
 
     print("Running LOCOMO benchmark...")
     print("(Long Conversation Memory -- industry-standard benchmark)\n")
 
     results = run_locomo(
         data_path=args.data,
-        judge_model=args.judge_model,
-        answer_model=args.answer_model,
-        extraction_model=args.extraction_model,
+        judge_model=judge_model,
+        answer_model=answer_model,
+        extraction_model=extraction_model,
         use_extraction=args.use_extraction,
         resolve_pronouns=args.resolve_pronouns,
         max_conversations=args.max_conversations,
@@ -1014,9 +1021,15 @@ def _cmd_longmemeval(args):
         samples = samples[: args.max_samples]
         print(f"capped to {len(samples)} samples")
 
+    from attestor.config import get_stack
     from attestor.longmemeval import DEFAULT_JUDGES  # local import to avoid cycle
 
-    judge_models = args.judge_model or list(DEFAULT_JUDGES)
+    stack = get_stack()
+    # Judge panel: CLI flag > YAML (judge + verifier) > legacy DEFAULT_JUDGES
+    judge_models = args.judge_model or [stack.models.judge, stack.models.verifier]
+    answer_model = args.answer_model or stack.models.answerer
+    distill_model = args.distill_model or stack.models.distill
+    verify_model = args.verify_model or stack.models.verifier
 
     from attestor._paths import resolve_store_path
     import threading
@@ -1038,24 +1051,24 @@ def _cmd_longmemeval(args):
             return AgentMemory(store_path, config=backend_config)
 
     print(
-        f"Running LongMemEval: answer={args.answer_model} "
+        f"Running LongMemEval: answer={answer_model} "
         f"judges={judge_models} samples={len(samples)} budget={args.budget} "
         f"parallel={args.parallel}"
     )
     report = run(
         samples,
         mem_factory=mem_factory,
-        answer_model=args.answer_model,
+        answer_model=answer_model,
         judge_models=judge_models,
         api_key=api_key,
         budget=args.budget,
         use_extraction=args.use_extraction,
         use_distillation=args.use_distillation,
-        distill_model=args.distill_model,
+        distill_model=distill_model,
         max_facts=args.max_facts,
         parallel=args.parallel,
         verify=args.verify,
-        verify_model=args.verify_model,
+        verify_model=verify_model,
         verbose=args.verbose,
         output_path=args.output,
         dataset_path=dataset_path,
