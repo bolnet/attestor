@@ -10,8 +10,9 @@
 # "configure backends to enable execution" error.
 #
 # Real production deployment uses attestor/infra/local/docker-compose.yml
-# (Postgres + Neo4j + Attestor) or one of the cloud Terraform stacks under
-# attestor/infra/{aws_arango,azure,gcp_alloydb}.
+# (Postgres + Neo4j + Attestor). For cloud deploys see docs/install/{aws,gcp,
+# azure}.md (imperative, validated 2026-04-28). The companion Dockerfile.api
+# builds the full HTTP API image and is what cloud deploys actually pull.
 
 FROM python:3.12-slim
 
