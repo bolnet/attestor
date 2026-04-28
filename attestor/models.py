@@ -237,13 +237,25 @@ class Memory:
         created_at = _maybe_iso(row.get("created_at")) or datetime.now(timezone.utc).isoformat()
         valid_from = _maybe_iso(row.get("valid_from")) or created_at
 
+        # Namespace resolution: v3 schema has a top-level `namespace` column;
+        # v4 dropped it (tenancy moved to user_id + project_id + scope) so a
+        # v4 read returns no namespace and the dataclass defaults to "default".
+        # That breaks any caller that uses namespace as a metadata-style key
+        # (e.g. the LME bench writes namespace="lme_<sample>" for sample
+        # isolation across the shared DB). Fall back to metadata["_namespace"]
+        # which AgentContext already stamps and which we now stamp from
+        # core.add() too. Final fallback is the legacy "default".
+        _ns_from_row = row.get("namespace")
+        if _ns_from_row is None:
+            _md_for_ns = metadata if isinstance(metadata, dict) else {}
+            _ns_from_row = _md_for_ns.get("_namespace", "default")
         return cls(
             id=str(row["id"]),
             content=row["content"],
             tags=list(tags) if tags is not None else [],
             category=row.get("category", "general"),
             entity=row.get("entity"),
-            namespace=row.get("namespace", "default"),
+            namespace=_ns_from_row,
             user_id=_maybe_str(row.get("user_id")),
             project_id=_maybe_str(row.get("project_id")),
             session_id=_maybe_str(row.get("session_id")),
