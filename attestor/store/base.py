@@ -37,6 +37,12 @@ class DocumentStore(ABC):
         limit: int = 100,
     ) -> List[Memory]: ...
 
+    # NOTE: tag_search predates the semantic-first cascade and is no longer
+    # called by the canonical recall pipeline (vector → BM25 → RRF → graph
+    # → MMR → fit). It is kept on the interface for direct admin/UI lookup
+    # by tag-set on backends that have a cheap tag index, and for backwards
+    # compat with v3 callers. New callers should prefer recall() / search()
+    # — those are what the orchestrator routes through.
     @abstractmethod
     def tag_search(
         self,

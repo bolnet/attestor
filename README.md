@@ -244,13 +244,22 @@ The "do not auto-resolve" stance is the load-bearing piece for regulated chat sy
 
 ### Chain-of-Note reading
 
+`recall()` returns a list. `recall_as_pack()` returns a **typed retrieval envelope** an agent can actually reason about — every field a Chain-of-Note flow needs to cite, abstain, or pick the right validity window when memories conflict:
+
 ```python
 pack = mem.recall_as_pack(query="who runs engineering?", context=ctx)
-# pack.memories : list of {id, content, validity_window, confidence, source_episode_id}
-# pack.prompt   : default Chain-of-Note prompt with NOTES → SYNTHESIS → CITE → ABSTAIN → CONFLICT structure
+
+for entry in pack.memories:
+    print(entry.id,                    # cite this in the answer
+          entry.confidence,            # weight or abstain
+          entry.valid_from,            # bi-temporal window for conflict resolution
+          entry.valid_until,
+          entry.source_episode_id)     # provenance back to the round it came from
+
+agent.send(pack.render_prompt())       # Chain-of-Note prompt, memories interpolated as JSON
 ```
 
-The default prompt has explicit `ABSTAIN` and `CONFLICT` clauses — every frontier model defaults to confabulation otherwise.
+`ContextPack` is `frozen=True`, hashable, JSON-serializable. It drops cleanly into a tool call. The default prompt has explicit `ABSTAIN` and `CONFLICT` clauses — every frontier model defaults to confabulation otherwise.
 
 ---
 
@@ -258,7 +267,10 @@ The default prompt has explicit `ABSTAIN` and `CONFLICT` clauses — every front
 
 ### Six roles
 
-`AgentRole`: `ORCHESTRATOR`, `PLANNER`, `EXECUTOR`, `RESEARCHER`, `REVIEWER`, `MONITOR` (`attestor/context.py:49-56`). The role flows onto every memory's metadata for provenance. Access enforcement happens at the Postgres RLS layer (see §Tenant isolation).
+`AgentRole`: `ORCHESTRATOR`, `PLANNER`, `EXECUTOR`, `RESEARCHER`, `REVIEWER`, `MONITOR` (`attestor/context.py:49-56`). The role flows onto every memory's metadata for provenance. **Access enforcement is two-layer:**
+
+- **AgentContext layer** — `ROLE_PERMISSIONS` matrix gates writes / forgets per role. Matrix: `ORCHESTRATOR = R+W+F`; `PLANNER` / `EXECUTOR` / `RESEARCHER` = `R+W`; `REVIEWER` / `MONITOR` = `R` only. `read_only=True` is an independent kill switch.
+- **Postgres RLS layer** — row-level filter on `user_id` (see §Tenant isolation).
 
 ### AgentContext — handoff, scratchpad, trail
 
