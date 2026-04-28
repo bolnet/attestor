@@ -33,7 +33,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, FrozenSet, List, Optional, Union
 
 from attestor.models import Memory, MemoryScope, RetrievalResult
 
@@ -54,6 +54,37 @@ class AgentRole(str, Enum):
     RESEARCHER = "researcher"
     REVIEWER = "reviewer"
     MONITOR = "monitor"
+
+
+class RolePermission(str, Enum):
+    """Capabilities granted by a role.
+
+    READ      -- recall / search / timeline (always granted; recall path
+                 stays open so a misconfigured role never blinds an agent)
+    WRITE     -- add_memory
+    FORGET    -- forget (archival; admin-tier capability)
+    """
+
+    READ = "read"
+    WRITE = "write"
+    FORGET = "forget"
+
+
+# Role -> capability matrix. ORCHESTRATOR is the admin tier (full perms).
+# REVIEWER + MONITOR are read-only by intent: a reviewer that writes
+# contaminates the evidence trail; a monitor that writes is a feedback
+# loop. PLANNER / EXECUTOR / RESEARCHER need write but not forget --
+# immutability is a feature, only the orchestrator can archive.
+ROLE_PERMISSIONS: Dict[AgentRole, FrozenSet[RolePermission]] = {
+    AgentRole.ORCHESTRATOR: frozenset(
+        {RolePermission.READ, RolePermission.WRITE, RolePermission.FORGET}
+    ),
+    AgentRole.PLANNER:   frozenset({RolePermission.READ, RolePermission.WRITE}),
+    AgentRole.EXECUTOR:  frozenset({RolePermission.READ, RolePermission.WRITE}),
+    AgentRole.RESEARCHER: frozenset({RolePermission.READ, RolePermission.WRITE}),
+    AgentRole.REVIEWER:  frozenset({RolePermission.READ}),
+    AgentRole.MONITOR:   frozenset({RolePermission.READ}),
+}
 
 
 @dataclass
@@ -262,6 +293,28 @@ class AgentContext:
             "or use ATTESTOR_PATH / ATTESTOR_URL env vars."
         )
 
+    # ------------------------------------------------------------------ #
+    #  RBAC                                                                #
+    # ------------------------------------------------------------------ #
+
+    def _require_permission(self, perm: RolePermission) -> None:
+        """Raise PermissionError if the current role lacks ``perm``.
+
+        Looks up the role in ROLE_PERMISSIONS. ``read_only=True`` is an
+        independent gate -- it strips WRITE/FORGET regardless of role
+        (so an ORCHESTRATOR with read_only=True still cannot write).
+        """
+        granted = ROLE_PERMISSIONS.get(self.role, frozenset())
+        if self.read_only and perm in (RolePermission.WRITE, RolePermission.FORGET):
+            raise PermissionError(
+                f"Agent '{self.agent_id}' is read-only in this context"
+            )
+        if perm not in granted:
+            raise PermissionError(
+                f"Agent '{self.agent_id}' (role={self.role.value}) "
+                f"lacks permission '{perm.value}'"
+            )
+
     def add_memory(
         self,
         content: str,
@@ -276,12 +329,9 @@ class AgentContext:
         """Add a memory with full provenance tracking.
 
         Attaches agent_id, session_id, namespace, and visibility to metadata.
-        Enforces write quota and read_only constraints.
+        Enforces role permissions, write quota, and read_only constraints.
         """
-        if self.read_only:
-            raise PermissionError(
-                f"Agent '{self.agent_id}' is read-only in this context"
-            )
+        self._require_permission(RolePermission.WRITE)
 
         writes_by_me = sum(
             1 for mid in self.memories_written
@@ -382,11 +432,8 @@ class AgentContext:
         return mem.timeline(entity, namespace=self.namespace)
 
     def forget(self, memory_id: str) -> bool:
-        """Archive a memory. Requires write access."""
-        if self.read_only:
-            raise PermissionError(
-                f"Agent '{self.agent_id}' is read-only in this context"
-            )
+        """Archive a memory. Requires the FORGET capability (admin-tier)."""
+        self._require_permission(RolePermission.FORGET)
         mem = self._get_memory()
         return mem.forget(memory_id)
 
