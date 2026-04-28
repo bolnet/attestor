@@ -810,20 +810,42 @@ class AgentMemory:
                 t0 = time.monotonic()
                 nodes, edges = extract_entities_and_relations(
                     content, tags or [], entity, category,
+                    namespace=namespace,
                 )
+                # Tag every entity / relation with the writer's namespace
+                # so the graph layer enforces tenancy alongside Postgres.
+                # Older graph backends without the kwarg still accept the
+                # call via the TypeError fallback below.
                 for node in nodes:
-                    self._graph.add_entity(
-                        node["name"],
-                        entity_type=node.get("type", "general"),
-                        attributes=node.get("attributes"),
-                    )
+                    try:
+                        self._graph.add_entity(
+                            node["name"],
+                            entity_type=node.get("type", "general"),
+                            attributes=node.get("attributes"),
+                            namespace=namespace,
+                        )
+                    except TypeError:
+                        self._graph.add_entity(
+                            node["name"],
+                            entity_type=node.get("type", "general"),
+                            attributes=node.get("attributes"),
+                        )
                 for edge in edges:
-                    self._graph.add_relation(
-                        edge["from"],
-                        edge["to"],
-                        relation_type=edge.get("type", "related_to"),
-                        metadata=edge.get("metadata"),
-                    )
+                    try:
+                        self._graph.add_relation(
+                            edge["from"],
+                            edge["to"],
+                            relation_type=edge.get("type", "related_to"),
+                            metadata=edge.get("metadata"),
+                            namespace=namespace,
+                        )
+                    except TypeError:
+                        self._graph.add_relation(
+                            edge["from"],
+                            edge["to"],
+                            relation_type=edge.get("type", "related_to"),
+                            metadata=edge.get("metadata"),
+                        )
                 store_timings["graph_ms"] = round((time.monotonic() - t0) * 1000, 2)
             except Exception as e:
                 store_timings["graph_ms"] = -1  # failed
