@@ -87,7 +87,7 @@ semantic-first (vector → BM25 → RRF → graph → MMR → fit) as of 2026-04
 a separate tag-match utility lives at `attestor/retrieval/tag_matcher.py`
 but is consumed by the entity extractor, not the recall pipeline.
 
-**Multi-agent primitives:** 6 RBAC roles (ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR) — currently **advisory metadata** (the role enum exists in `attestor/context.py` but is not enforced at the recall layer; only `read_only` gates writes). Namespace isolation is row-level on Postgres but **not yet enforced on Neo4j** (graph entity nodes are global across namespaces). Provenance tracking, write quotas, and per-agent token budgets are wired.
+**Multi-agent primitives:** 6 RBAC roles (ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR) — **enforced at the AgentContext layer** via `ROLE_PERMISSIONS` in `attestor/context.py`. Matrix: ORCHESTRATOR = READ+WRITE+FORGET; PLANNER/EXECUTOR/RESEARCHER = READ+WRITE; REVIEWER/MONITOR = READ only. `read_only=True` is an independent kill switch that strips WRITE+FORGET regardless of role. Direct `AgentMemory.add()` calls (without an AgentContext) bypass the matrix — RBAC is a context-layer guarantee, not a backend one. Namespace isolation is row-level on Postgres but **not yet enforced on Neo4j** (graph entity nodes are global across namespaces). Provenance tracking, write quotas, and per-agent token budgets are wired.
 
 **Temporal:** Contradiction detection auto-supersedes older facts; nothing is deleted. Every fact has a validity window; `recall(as_of=...)` replays the past.
 
