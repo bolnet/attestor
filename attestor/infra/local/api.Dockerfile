@@ -9,13 +9,16 @@
 #   POSTGRES_URL  -> Postgres (pgvector)         [doc + vector store]
 #   NEO4J_URI     -> Neo4j 5 (with GDS)          [graph store]
 #
-# Embeddings: OpenRouter -> openai/text-embedding-3-large (1536D Matryoshka).
-#   OPENROUTER_API_KEY        preferred
-#   OPENAI_API_KEY            fallback
-#   OPENAI_EMBEDDING_MODEL    default text-embedding-3-large
-#   OPENAI_EMBEDDING_DIMENSIONS default 1536
+# Embeddings: configs/attestor.yaml is the source of truth — canonical
+# default is Voyage AI voyage-4 @ 1024-D. The api container reads the
+# stack via attestor.config.get_stack() and sets the right env vars at
+# startup. Provide secrets via env at run time:
+#   VOYAGE_API_KEY            primary (canonical embedder)
+#   OPENROUTER_API_KEY        for the LLM roles (answerer / judge / verifier)
+#   OPENAI_API_KEY            alternate to OPENROUTER_API_KEY
+#   ANTHROPIC_API_KEY         only when not routing through OpenRouter
 #
-# Build: docker build -f api.Dockerfile -t attestor/api:3.0.0 ../../..
+# Build: docker build -f api.Dockerfile -t attestor/api:latest ../../..
 FROM python:3.12-slim-bookworm
 
 LABEL org.opencontainers.image.title="attestor/api"
@@ -40,8 +43,6 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir --no-deps .
 
 ENV ATTESTOR_DATA_DIR=/data/attestor \
-    OPENAI_EMBEDDING_MODEL=text-embedding-3-large \
-    OPENAI_EMBEDDING_DIMENSIONS=1536 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
