@@ -1,16 +1,32 @@
 name: Build & Push Docker Image
 
+# Multi-arch (amd64 + arm64) container build that publishes the Attestor
+# MCP image to GitHub Container Registry on every push to main / tagged
+# release, and to Docker Hub when DOCKERHUB_USERNAME + DOCKERHUB_TOKEN
+# secrets are present (gracefully skips Hub push when missing).
+#
+# Source: ./Dockerfile (introspection-only profile — see file header for
+# why this is the registry-listing artifact, not the production image).
+
 on:
   push:
     branches: [main]
     tags: ["v*"]
   pull_request:
     branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  GHCR_IMAGE: ghcr.io/${{ github.repository }}
+  # Docker Hub namespace owned by the maintainer (bolnet2025 on Docker Hub
+  # because GitHub username `bolnet` was already taken there). Override
+  # by setting DOCKERHUB_USERNAME repository secret.
+  DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE || 'bolnet2025' }}
+  # Quay.io namespace + image. Quay supports the same `bolnet` namespace
+  # as GitHub — pushes go through robot account `bolnet+pusher`.
+  QUAY_IMAGE: quay.io/bolnet/attestor
 
 jobs:
   build-and-push:
@@ -33,27 +49,55 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        id: dockerhub_login
+        if: github.event_name != 'pull_request' && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to Quay.io
+        id: quay_login
+        if: github.event_name != 'pull_request' && env.QUAY_USERNAME != '' && env.QUAY_TOKEN != ''
+        env:
+          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_TOKEN }}
 
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: |
+            ${{ env.GHCR_IMAGE }}
+            ${{ steps.dockerhub_login.outcome == 'success' && format('docker.io/{0}/attestor', env.DOCKERHUB_NAMESPACE) || '' }}
+            ${{ steps.quay_login.outcome == 'success' && env.QUAY_IMAGE || '' }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern=v{{major}}
             type=sha,format=short
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: attestor/infra/aws_arango/Dockerfile
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

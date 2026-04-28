@@ -784,17 +784,26 @@ class AgentMemory:
         for old in contradictions:
             self._temporal.supersede(old, memory.id)
 
-        # Store in vector DB
+        # Store in vector DB. Non-fatal — the document path is the source
+        # of truth and recall degrades gracefully without vectors. Surface
+        # the exception via logger.warning so the failure is debuggable
+        # (silent pass made dim-mismatch / Ollama-down / schema-drift bugs
+        # invisible until recall returned 0 hits).
         if self._vector_store:
             try:
                 t0 = time.monotonic()
                 self._vector_store.add(memory.id, content, namespace=namespace)
                 store_timings["vector_ms"] = round((time.monotonic() - t0) * 1000, 2)
-            except Exception:
+            except Exception as e:
                 store_timings["vector_ms"] = -1  # failed
-                pass  # Non-fatal
+                logger.warning(
+                    "vector add failed for memory %s: %s: %s",
+                    memory.id, type(e).__name__, e,
+                )
 
-        # Update entity graph
+        # Update entity graph (also non-fatal; surface exceptions for the
+        # same reason — silent drops here mean recall layer 2 returns
+        # nothing without the operator knowing).
         if self._graph:
             try:
                 from attestor.graph.extractor import extract_entities_and_relations
@@ -816,9 +825,12 @@ class AgentMemory:
                         metadata=edge.get("metadata"),
                     )
                 store_timings["graph_ms"] = round((time.monotonic() - t0) * 1000, 2)
-            except Exception:
+            except Exception as e:
                 store_timings["graph_ms"] = -1  # failed
-                pass  # Non-fatal
+                logger.warning(
+                    "graph add failed for memory %s: %s: %s",
+                    memory.id, type(e).__name__, e,
+                )
 
         total_ms = round((time.monotonic() - t_total) * 1000, 2)
         store_timings["total_ms"] = total_ms
@@ -866,14 +878,18 @@ class AgentMemory:
 
         self._store.update(memory)
 
-        # Re-index in vector store if content changed
+        # Re-index in vector store if content changed. Non-fatal; surface
+        # exceptions through logger.warning (same reasoning as add()).
         if content is not None and self._vector_store:
             try:
                 self._vector_store.add(
                     memory.id, content, namespace=memory.namespace,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(
+                    "vector re-index failed for memory %s on update: %s: %s",
+                    memory.id, type(e).__name__, e,
+                )
 
         return memory
 

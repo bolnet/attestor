@@ -56,6 +56,17 @@ It is built around three claims, each grounded in code:
 pip install attestor                 # or: pipx install attestor
 ```
 
+**Or pull the container** (introspection-grade image, single layer over `python:3.12-slim`):
+
+```bash
+docker pull ghcr.io/bolnet/attestor:latest          # GitHub Container Registry
+docker pull bolnet2025/attestor:latest              # Docker Hub
+docker pull quay.io/bolnet/attestor:latest          # Quay.io (Red Hat)
+docker pull public.ecr.aws/m6h5j7o3/attestor:latest # AWS ECR Public Gallery
+```
+
+For full production use, point the container at an external Postgres + Neo4j via env vars (or compose them with `attestor/infra/local/docker-compose.yml`).
+
 ### 2. Bring up local Postgres + Neo4j
 
 ```bash
@@ -560,7 +571,7 @@ It probes Document Store (Postgres), Vector Store (pgvector), Graph Store (Neo4j
 
 ## Status & versioning
 
-- **Version:** 4.0.0a4 (alpha) — published to [PyPI](https://pypi.org/project/attestor/) and the [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=attestor) as `io.github.bolnet/attestor`
+- **Version:** 4.0.0a5 (alpha) — published to [PyPI](https://pypi.org/project/attestor/) and the [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=attestor) as `io.github.bolnet/attestor`
 - **v3 → v4:** greenfield rebuild on a v4-native Postgres schema with hard tenant isolation, bi-temporal facts, and a no-LLM retrieval critical path. **There is no automated migration.** v3 was alpha-only with no production users; drop your v3 DB and reinstall.
 - See [`CHANGELOG.md`](./CHANGELOG.md) for the full track-by-track changelog.
 

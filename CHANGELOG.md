@@ -2,6 +2,14 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0a5] — 2026-04-28
+
+Surfaces previously-silent `try/except: pass` failures in the vector and graph write paths so dimension-mismatch and similar configuration drift become visible in logs instead of presenting as 0-hit recall results with no diagnostic trail. Three call sites updated (`core.py:add()` vector branch, `add()` graph branch, `update()` re-index) — each now `logger.warning(...)`s the swallowed exception. No behavior change beyond log surface; the document path remains the only hard dependency and still completes successfully when vector/graph writes fail.
+
+Concrete failure mode that motivated the change: a Postgres schema provisioned with `vector(1536)` (OpenAI text-embedding-3-large default) silently rejected every bge-m3 (1024-dim) embedding via `psycopg2.errors.DataException`, leaving the `embedding` column NULL on every memory and turning recall into a no-op. The new log line surfaces the actual error message so operators can diagnose and migrate the schema.
+
+Distribution: this release also mirrors the image to **5 Docker registries** simultaneously via the auto-publish workflow — `bolnet2025/attestor` (Docker Hub), `ghcr.io/bolnet/attestor` (GHCR), `quay.io/bolnet/attestor` (Quay.io), and `public.ecr.aws/m6h5j7o3/attestor` (AWS ECR Public, manual one-shot).
+
 ## [4.0.0a4] — 2026-04-27
 
 Introspection-only fallback for the MCP server so external registries (Glama, Smithery) can verify the listing without provisioning Postgres + Neo4j. When `ATTESTOR_MCP_TOLERATE_INIT_FAILURE=1` is set, `attestor mcp` swallows backend connection errors at startup and continues to advertise its 8 tools via `tools/list`. Any `tools/call` against a non-initialized server returns a clear "configure backends to enable execution" error instead of crashing. Production deployments leave the env var unset and behave as before — strict, fail-closed init.
