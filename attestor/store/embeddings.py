@@ -285,6 +285,84 @@ class AzureOpenAIEmbeddingProvider:
         return [d.embedding for d in resp.data]
 
 
+class VoyageEmbeddingProvider:
+    """Voyage AI embeddings (Anthropic's recommended embedder partner).
+
+    Default model is ``voyage-4`` (1024D, Matryoshka — supports 256/512/1024/2048).
+    The 1024D default fits stock pgvector HNSW and matches Attestor's
+    canonical schema after the v4.0.0a5 dim-mismatch fix.
+
+    Honours ``input_type`` semantics: callers using ``embed()`` here pass
+    documents (write path); query-side embedding goes through the same
+    method, but the orchestrator's vector_store.search() embeds queries
+    via the same provider so per-call differentiation isn't currently
+    plumbed. Voyage docs recommend using ``input_type="query"`` /
+    ``"document"`` for retrieval — wired here as a constructor flag.
+    """
+
+    DEFAULT_MODEL = "voyage-4"
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        dimensions: Optional[int] = None,
+        input_type: str = "document",
+    ) -> None:
+        try:
+            import voyageai
+        except ImportError:
+            raise RuntimeError(
+                "voyageai not installed. Run `pip install voyageai` "
+                "or `pip install attestor[voyage]`."
+            )
+
+        api_key = api_key or os.environ.get("VOYAGE_API_KEY")
+        if not api_key:
+            raise RuntimeError("VOYAGE_API_KEY not set")
+
+        self._client = voyageai.Client(api_key=api_key)
+        self._model = model or os.environ.get("VOYAGE_EMBEDDING_MODEL") or self.DEFAULT_MODEL
+        self._input_type = input_type
+
+        dim_env = os.environ.get("VOYAGE_EMBEDDING_DIMENSIONS")
+        if dimensions is not None:
+            self._dimensions = dimensions
+        elif dim_env:
+            self._dimensions = int(dim_env)
+        else:
+            self._dimensions = None  # let Voyage default (1024 for voyage-4 family)
+
+        # Probe dimension
+        probe_kwargs: Dict[str, Any] = {"model": self._model, "input_type": self._input_type}
+        if self._dimensions is not None:
+            probe_kwargs["output_dimension"] = self._dimensions
+        result = self._client.embed(["dim"], **probe_kwargs)
+        self._dimension = len(result.embeddings[0])
+
+    @property
+    def dimension(self) -> int:
+        return self._dimension
+
+    @property
+    def provider_name(self) -> str:
+        return f"voyage:{self._model}"
+
+    def _embed_kwargs(self) -> Dict[str, Any]:
+        kw: Dict[str, Any] = {"model": self._model, "input_type": self._input_type}
+        if self._dimensions is not None:
+            kw["output_dimension"] = self._dimensions
+        return kw
+
+    def embed(self, text: str) -> List[float]:
+        result = self._client.embed([text], **self._embed_kwargs())
+        return result.embeddings[0]
+
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        result = self._client.embed(texts, **self._embed_kwargs())
+        return result.embeddings
+
+
 class VertexAIEmbeddingProvider:
     """Google Vertex AI text-embedding-005 (768D)."""
 
@@ -326,6 +404,33 @@ class VertexAIEmbeddingProvider:
 # ═══════════════════════════════════════════════════════════════════════
 # Factory
 # ═══════════════════════════════════════════════════════════════════════
+
+
+def _try_voyage() -> Optional[EmbeddingProvider]:
+    """Try Voyage AI (Anthropic's recommended embedder partner).
+
+    Activated by VOYAGE_API_KEY. Configurable via:
+        VOYAGE_API_KEY              required
+        VOYAGE_EMBEDDING_MODEL      default ``voyage-4`` (also: voyage-4-large/lite/nano,
+                                    voyage-3.5, voyage-code-3, voyage-finance-2, voyage-law-2)
+        VOYAGE_EMBEDDING_DIMENSIONS default 1024 (model default; voyage-4 family supports
+                                    256/512/1024/2048 — pick to match your pgvector schema)
+        VOYAGE_INPUT_TYPE           default ``document``
+    """
+    if not os.environ.get("VOYAGE_API_KEY"):
+        return None
+    try:
+        provider = VoyageEmbeddingProvider(
+            input_type=os.environ.get("VOYAGE_INPUT_TYPE", "document"),
+        )
+        logger.info(
+            "Using %s embeddings (%dD)",
+            provider.provider_name, provider.dimension,
+        )
+        return provider
+    except Exception as e:
+        logger.debug("Voyage embeddings unavailable: %s", e)
+        return None
 
 
 def _try_ollama() -> Optional[EmbeddingProvider]:
@@ -429,6 +534,7 @@ def _try_openai() -> Optional[EmbeddingProvider]:
 
 
 _CLOUD_PROVIDERS = {
+    "voyage": _try_voyage,
     "bedrock": _try_bedrock,
     "azure_openai": _try_azure_openai,
     "vertex_ai": _try_vertex_ai,
@@ -451,10 +557,11 @@ def get_embedding_provider(
     """Get the best available embedding provider.
 
     Fallback chain (preferred wins if specified and available):
-        0. preferred ("ollama" / "bedrock" / "azure_openai" / "vertex_ai")
-        1. Local Ollama (bge-m3 default) — if daemon reachable + model pulled
-        2. Cloud-native (Bedrock / Azure OpenAI / Vertex AI) — credentials present
-        3. OpenAI / OpenRouter — API key set
+        0. preferred ("voyage" / "ollama" / "openai" / "bedrock" / "azure_openai" / "vertex_ai")
+        1. Voyage AI (Anthropic's recommended partner) — if VOYAGE_API_KEY set
+        2. Local Ollama (bge-m3 default) — if daemon reachable + model pulled
+        3. Cloud-native (Bedrock / Azure OpenAI / Vertex AI) — credentials present
+        4. OpenAI / OpenRouter — API key set
 
     Set ``ATTESTOR_DISABLE_LOCAL_EMBED=1`` to skip the Ollama probe (e.g.
     on hosted deployments where Ollama isn't installed).
@@ -489,7 +596,15 @@ def get_embedding_provider(
                 return provider
         logger.debug("Preferred provider %r unavailable, trying fallbacks", preferred)
 
-    # Auto-detect chain: local first
+    # Auto-detect chain.
+    # Voyage AI takes precedence over Ollama auto-detect when VOYAGE_API_KEY
+    # is set, because that env var is an explicit user opt-in (vs Ollama
+    # which is auto-probed). User opt-in beats auto-detect.
+    provider = _try_voyage()
+    if provider is not None:
+        _cached_provider = provider
+        return provider
+
     provider = _try_ollama()
     if provider is not None:
         _cached_provider = provider
@@ -501,7 +616,8 @@ def get_embedding_provider(
         return provider
 
     raise RuntimeError(
-        "No embedding provider available. Start Ollama (`ollama serve`) with "
-        "`ollama pull bge-m3`, or set OPENROUTER_API_KEY / OPENAI_API_KEY, or "
-        "configure a cloud provider (Bedrock / Azure OpenAI / Vertex AI)."
+        "No embedding provider available. Set one of: VOYAGE_API_KEY (Anthropic-"
+        "recommended partner), OPENAI_API_KEY / OPENROUTER_API_KEY, or start "
+        "Ollama (`ollama serve` + `ollama pull bge-m3`), or configure a cloud "
+        "provider (Bedrock / Azure OpenAI / Vertex AI)."
     )

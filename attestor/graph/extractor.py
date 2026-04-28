@@ -5,6 +5,75 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+# Date patterns. Multi-hop temporal queries fail when the event description
+# and the date live in different memories — vector search finds one but not
+# the other (their token / semantic overlap is near-zero). Promoting dates
+# to first-class entities lets graph expansion chain them: query about
+# `sarah → camping_event` traverses the shared `july_4` date entity to the
+# separate calendar memory that gives the actual date.
+#
+# Reference benchmark failure mode: logs/phase2_temporal_fails.json
+# (six "When did X go to Y?" queries that all missed the same way).
+_MONTHS = (
+    "january|february|march|april|may|june|july|august|september|october|november|december"
+    "|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec"
+)
+# "July 4", "July 4th", "July 4, 2026", "March 21st"
+_DATE_DAY_PATTERN = re.compile(
+    rf"\b({_MONTHS})\s+(\d{{1,2}})(?:st|nd|rd|th)?(?:,?\s+(\d{{4}}))?\b",
+    re.IGNORECASE,
+)
+# Bare month references like "in July" / "during March 2026"
+_DATE_MONTH_PATTERN = re.compile(
+    rf"\b({_MONTHS})(?:\s+(\d{{4}}))?\b",
+    re.IGNORECASE,
+)
+
+
+def _extract_dates(content: str) -> List[str]:
+    """Return canonicalized date entity names found in content.
+
+    Examples:
+        "July 4th weekend"          -> ["July 4"]
+        "Sunday June 28"            -> ["June 28"]
+        "March 2026"                -> ["March 2026"]
+        "October 11" + "October"    -> ["October 11", "October"]
+
+    Day-specific dates win over bare months in the same string — we only
+    add the bare month entity if no day-pattern already covers it.
+    """
+    out: List[str] = []
+    seen_months: set[str] = set()
+    for m in _DATE_DAY_PATTERN.finditer(content):
+        month, day, year = m.group(1).capitalize(), m.group(2), m.group(3)
+        # Normalize month abbreviations
+        month = _MONTH_NORMALIZE.get(month.lower(), month)
+        canonical = f"{month} {int(day)}"
+        if year:
+            canonical += f", {year}"
+        out.append(canonical)
+        seen_months.add(month.lower())
+    for m in _DATE_MONTH_PATTERN.finditer(content):
+        month, year = m.group(1).capitalize(), m.group(2)
+        month = _MONTH_NORMALIZE.get(month.lower(), month)
+        if month.lower() in seen_months:
+            continue  # already captured with a day
+        canonical = f"{month} {year}" if year else month
+        if canonical not in out:
+            out.append(canonical)
+    return out
+
+
+_MONTH_NORMALIZE = {
+    "jan": "January", "feb": "February", "mar": "March", "apr": "April",
+    "jun": "June", "jul": "July", "aug": "August", "sep": "September",
+    "sept": "September", "oct": "October", "nov": "November", "dec": "December",
+    "january": "January", "february": "February", "march": "March", "april": "April",
+    "may": "May", "june": "June", "july": "July", "august": "August",
+    "september": "September", "october": "October", "november": "November", "december": "December",
+}
+
+
 # Patterns for extracting relationships from memory content
 _RELATION_PATTERNS = [
     # "X uses Y", "X prefers Y"
@@ -73,6 +142,28 @@ def extract_entities_and_relations(
                         "type": "related_to",
                         "metadata": {"source": "tag"},
                     })
+
+    # Extract date entities (multi-hop temporal fix). Every date mention
+    # becomes a first-class entity, edged from the primary entity (or
+    # "user" if none) with type "occurred_on". Graph expansion (step 2
+    # of the retrieval pipeline) can now chain across memories that
+    # share a date — the event memory and the date memory both link to
+    # `July 4`, so a query about Sarah's camping pulls in the calendar
+    # memory that says when July 4 weekend was.
+    for date_name in _extract_dates(content):
+        nodes.append({
+            "name": date_name,
+            "type": "date",
+            "attributes": {},
+        })
+        source = entity or "user"
+        if source.lower() != date_name.lower():
+            edges.append({
+                "from": source,
+                "to": date_name,
+                "type": "occurred_on",
+                "metadata": {"source": "date_extractor"},
+            })
 
     # Extract relations from content via patterns
     content_lower = content.lower()
