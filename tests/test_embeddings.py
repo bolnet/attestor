@@ -37,6 +37,13 @@ class TestGetEmbeddingProvider:
     def setup_method(self):
         clear_embedding_cache()
 
+    def teardown_method(self):
+        # Clear the module-level cached provider so MagicMock embedders
+        # used in these tests don't leak into subsequent suites that
+        # boot a real PostgresBackend (where the embedder/schema dim
+        # guard would otherwise fire against a leaked stub).
+        clear_embedding_cache()
+
     def test_raises_without_any_key(self):
         """No local ollama, no cloud creds, no OpenAI key → explicit error."""
         with patch.dict("os.environ", {}, clear=True):

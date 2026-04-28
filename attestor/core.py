@@ -96,6 +96,18 @@ class AgentMemory:
         doc_backend = role_assignments["document"]
         self._store: DocumentStore = _get_or_create(doc_backend)
 
+        # Embedder/schema dim guard — fail-fast if the embedder produces
+        # D-dim vectors but the pgvector schema declares vector(N) with
+        # N != D. Without this guard, every UPDATE on memories.embedding
+        # silently no-ops (the doc-write path swallows non-fatal vector
+        # errors) and Attestor accepts writes that store nothing in the
+        # vector lane. Skips on non-Postgres stores, on first-init
+        # (table not created yet), and on introspection errors.
+        from attestor.store.embedder_dim_check import (
+            assert_embedder_dim_matches_schema,
+        )
+        assert_embedder_dim_matches_schema(self._store)
+
         # Initialize vector store (optional — graceful degradation)
         self._vector_store: Optional[VectorStore] = None
         if "vector" in role_assignments:
