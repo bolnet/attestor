@@ -56,18 +56,25 @@ It is built around three claims, each grounded in code:
 pip install attestor                 # or: pipx install attestor
 ```
 
-**Or pull the container** (introspection-grade image, single layer over `python:3.12-slim`):
+**Or pull the container** (introspection-grade image, single layer over `python:3.12-slim`, currently `linux/amd64`):
 
 ```bash
-docker pull ghcr.io/bolnet/attestor:latest                                                        # GHCR
-docker pull bolnet2025/attestor:latest                                                            # Docker Hub
-docker pull quay.io/bolnet/attestor:latest                                                        # Quay.io
-docker pull public.ecr.aws/m6h5j7o3/attestor:latest                                               # AWS ECR Public
-docker pull memwright.azurecr.io/attestor:latest                                                  # Azure ACR (private)
-docker pull us-central1-docker.pkg.dev/coral-marker-452616-n4/attestor/attestor:latest            # GCP Artifact Registry
+docker pull ghcr.io/bolnet/attestor:latest      # recommended — anonymous pull, mirrored to all registries below
 ```
 
-For full production use, point the container at an external Postgres + Neo4j via env vars (or compose them with `attestor/infra/local/docker-compose.yml`).
+Same image is mirrored to:
+
+| Registry          | Pull address                                                            |
+| ----------------- | ----------------------------------------------------------------------- |
+| GHCR              | `ghcr.io/bolnet/attestor:latest`                                        |
+| Docker Hub        | `bolnet2025/attestor:latest`                                            |
+| Quay              | `quay.io/bolnet/attestor:latest`                                        |
+| AWS ECR Public    | `public.ecr.aws/m6h5j7o3/attestor:latest`                               |
+| GCP AR            | `us-central1-docker.pkg.dev/coral-marker-452616-n4/attestor/attestor:latest` |
+
+(An internal Azure ACR mirror exists at `memwright.azurecr.io/attestor` but is private — Azure customers should use `az acr import` from one of the public registries above.)
+
+The image's default entrypoint is `attestor mcp` (MCP server over stdio). For full production use, point the container at an external Postgres + Neo4j via env vars (or compose them with `attestor/infra/local/docker-compose.yml`); override the entrypoint to run `attestor doctor`, `attestor api`, etc.
 
 ### 2. Bring up local Postgres + Neo4j
 

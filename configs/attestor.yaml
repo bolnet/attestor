@@ -1,0 +1,130 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Attestor — single source of truth for the default stack.
+#
+# Every benchmark, smoke runner, deploy script, and Terraform module reads
+# from THIS FILE. Nothing else should hardcode a model name, registry
+# address, embedder, or DB URL. If you need a different stack for a one-off
+# run, copy this file and pass `--config <copy>.yaml` to whatever script —
+# don't introduce a second hardcoded default anywhere in code.
+#
+# Updated 2026-04-28. The model lineup reflects the 500-sample LongMemEval
+# results in `results/bench_lme_4models_20260428/` — gpt-4.1 won overall
+# (72.2%), sonnet-4-6 second (66.8%); gpt-5 family dropped as worst-and-
+# priciest. Embedder is Voyage AI per `project_voyage_embedder_setup.md`.
+# Stack scope is locked to PG+pgvector+Neo4j per
+# `feedback_only_pg_neo4j_stack.md` (other backends remain in code as
+# optional / unpromoted).
+# ─────────────────────────────────────────────────────────────────────────
+
+stack:
+
+  # ─── Data plane ──────────────────────────────────────────────────────
+  # Postgres holds the document and vector roles (pgvector). It is the
+  # SOURCE OF TRUTH — Neo4j graph is derived state and rebuildable from
+  # Postgres. Vector dim must match `embedder.dimensions` below.
+  postgres:
+    url: postgresql://postgres:attestor@localhost:5432/attestor_v4_test
+    v4: true
+    skip_schema_init: true   # benchmarks reapply schema themselves
+
+  # Neo4j holds the graph role (entity nodes + typed edges, PageRank, BFS,
+  # Leiden via the GDS plugin). The orchestrator uses it for hop-N
+  # affinity-map expansion in the 5-layer retrieval pipeline.
+  neo4j:
+    url: bolt://localhost:7687
+    auth:
+      username: neo4j
+      password_env: NEO4J_PASSWORD     # resolved from environment
+    database: neo4j
+
+  # ─── Embedder ────────────────────────────────────────────────────────
+  # Voyage AI is the canonical embedder (Anthropic's recommended partner).
+  # voyage-4 outputs 1024-D natively — drops into the v4 pgvector schema
+  # `vector(1024)` with no Matryoshka truncation. The auto-detect chain
+  # in `attestor/store/embeddings.py` prefers Voyage when its key is set.
+  embedder:
+    provider: voyage
+    model: voyage-4
+    dimensions: 1024
+    api_key_env: VOYAGE_API_KEY        # resolved from environment
+
+  # ─── Models (per-role assignment) ────────────────────────────────────
+  # All four roles use distinct models tuned to their job. See
+  # `project_lme_4models_20260428.md` for the benchmark numbers that
+  # justify each pick.
+  models:
+    # Answerer — synthesises the final reply from retrieved context.
+    # gpt-4.1 won overall on LongMemEval, especially on temporal +
+    # multi-session reasoning.
+    answerer: openai/gpt-4.1
+
+    # Judge — single-judge panel. gpt-4.1 was the strongest standalone
+    # judge in the 4-model run.
+    judge: openai/gpt-4.1
+
+    # Extraction / distillation — runs once per turn during ingest to
+    # pull explicit facts out of the conversation. Cheap model is fine
+    # because the workload is volume-heavy and structurally simple.
+    extraction: openai/gpt-4.1-mini
+    distill:    openai/gpt-4.1-mini
+
+    # Verifier — second-pass cross-check after Judge. Claude Sonnet 4.6
+    # complements gpt-4.1: its recall strengths catch errors the
+    # gpt-4.1 judge misses, raising the panel's effective accuracy
+    # without burning the cost of running Sonnet for everything.
+    verifier: anthropic/claude-sonnet-4-6
+
+  # ─── Retrieval budget ────────────────────────────────────────────────
+  # Token budget per recall (the orchestrator MMR-packs candidates
+  # under this ceiling). 4000 is the canonical benchmark default.
+  budget: 4000
+
+  # Concurrency across samples in benchmark runs (LME / LoCoMo / BEAM).
+  parallel: 2
+
+# ─── Container image (for cloud deploys) ────────────────────────────────
+# The published image is currently the *introspection-only* MCP stub
+# (Glama listing). For Path B cloud deploys we build a separate
+# `attestor:api-<version>` image with `attestor api` as the entrypoint
+# and push to all 5 public registries below. Each cloud pulls from its
+# native registry to minimize cross-cloud egress and pull latency.
+image:
+  ref: ghcr.io/bolnet/attestor:latest    # default for local docker-compose
+  api_ref_template: "ghcr.io/bolnet/attestor:api-{version}"
+
+  # Native registry mirror per cloud. When deploying to a given cloud,
+  # use that cloud's mirror — same digest, no cross-cloud pull cost.
+  registries:
+    ghcr:        ghcr.io/bolnet/attestor
+    dockerhub:   bolnet2025/attestor
+    quay:        quay.io/bolnet/attestor
+    aws_ecr:     public.ecr.aws/m6h5j7o3/attestor
+    gcp_ar:      us-central1-docker.pkg.dev/coral-marker-452616-n4/attestor/attestor
+    azure_acr:   memwright.azurecr.io/attestor   # private — use `az acr import` to mirror
+
+# ─── Cloud deploy targets ──────────────────────────────────────────────
+# Default deploy plan per cloud. PG + Neo4j only — multi-backend code
+# paths (Arango/Cosmos/Neptune/AlloyDB-AGE) stay in the repo as optional
+# but are NOT featured here.
+clouds:
+
+  gcp:
+    region: us-central1
+    compute: cloud_run
+    postgres: cloud_sql              # or "neon" for shared free tier
+    neo4j:    auradb                 # AuraDB Free, 1 instance
+    image_ref_key: gcp_ar
+
+  azure:
+    region: eastus
+    compute: container_apps
+    postgres: azure_postgres_flex    # or "neon"
+    neo4j:    auradb
+    image_ref_key: azure_acr
+
+  aws:
+    region: us-east-1
+    compute: app_runner
+    postgres: rds_postgres           # or "neon"
+    neo4j:    auradb                 # or self-hosted on EC2
+    image_ref_key: aws_ecr
