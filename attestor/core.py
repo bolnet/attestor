@@ -751,6 +751,18 @@ class AgentMemory:
                 logger.debug("Dedup hit: content_hash=%s -> id=%s", chash[:8], existing.id)
                 return existing
 
+        # In v4 the schema has no `namespace` column (tenancy moved to
+        # user_id + project_id + scope). Stamp the namespace into metadata
+        # so it survives the round-trip — Memory.from_row() reads it back
+        # from metadata["_namespace"] when there's no top-level column.
+        # Without this, any caller that uses namespace as a sub-tenancy key
+        # (LME bench writes namespace="lme_<sample>"; ad-hoc multi-tenant
+        # callers passing namespace=...) silently drops 100% of recall
+        # candidates because every read returns namespace="default".
+        _final_metadata = dict(metadata or {})
+        if v4_active and namespace and namespace != "default":
+            _final_metadata.setdefault("_namespace", namespace)
+
         memory = Memory(
             content=content,
             tags=tags or [],
@@ -760,7 +772,7 @@ class AgentMemory:
             event_date=event_date,
             confidence=confidence,
             content_hash=chash,
-            metadata=metadata or {},
+            metadata=_final_metadata,
             # v4 fields (None / defaults when caller didn't pass them)
             user_id=user_id,
             project_id=project_id,
