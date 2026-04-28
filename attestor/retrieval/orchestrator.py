@@ -291,16 +291,25 @@ class RetrievalOrchestrator:
         require_active = (as_of is None and time_window is None)
         candidates: List[Dict] = []
         seen_ids: set = set()
+        _drop = {"missing": 0, "inactive": 0, "namespace": 0, "kept": 0,
+                 "first_drop_status": None, "first_drop_namespace": None}
         for vr in vector_hits_raw:
             mid = vr["memory_id"]
             if mid in seen_ids:
                 continue
             memory = self.store.get(mid)
             if not memory:
+                _drop["missing"] += 1
                 continue
             if require_active and memory.status != "active":
+                _drop["inactive"] += 1
+                if _drop["first_drop_status"] is None:
+                    _drop["first_drop_status"] = memory.status
                 continue
             if namespace and memory.namespace != namespace:
+                _drop["namespace"] += 1
+                if _drop["first_drop_namespace"] is None:
+                    _drop["first_drop_namespace"] = memory.namespace
                 continue
             distance = float(vr.get("distance", 1.0))
             vector_sim = max(0.0, 1.0 - distance)
@@ -308,6 +317,18 @@ class RetrievalOrchestrator:
                 {"memory": memory, "distance": distance, "vector_sim": vector_sim}
             )
             seen_ids.add(mid)
+            _drop["kept"] += 1
+        if _tr.is_enabled():
+            _tr.event("recall.stage.candidates",
+                      vector_in=len(vector_hits_raw),
+                      kept=_drop["kept"],
+                      dropped_missing=_drop["missing"],
+                      dropped_inactive=_drop["inactive"],
+                      dropped_namespace=_drop["namespace"],
+                      sample_inactive_status=_drop["first_drop_status"],
+                      sample_other_namespace=_drop["first_drop_namespace"],
+                      require_active=require_active,
+                      filter_namespace=namespace)
 
         # Pull BM25-only hits into the candidate set (vector_sim=0 for those).
         # The RRF-style boost below rewards them based on their BM25 rank.
