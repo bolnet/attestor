@@ -41,6 +41,16 @@ class AzureBackend(DocumentStore, VectorStore, GraphStore):
         cosmos_database: Database name (default "attestor")
 
     When no cosmos_key is provided, falls back to DefaultAzureCredential.
+
+    Tenancy note:
+        The graph role is an in-process NetworkX MultiDiGraph and this
+        deploy mode is single-tenant by assumption (one Azure account ==
+        one tenant). The orchestrator's ``namespace`` kwarg is ignored
+        here intentionally — adding multi-tenancy would require splitting
+        the in-memory graph per namespace and re-loading from Cosmos on
+        every recall. If a multi-tenant Azure deploy is needed, switch
+        the graph role to the Neo4j backend, which enforces namespace
+        scoping at the Cypher layer.
     """
 
     ROLES: Set[str] = {"document", "vector", "graph"}

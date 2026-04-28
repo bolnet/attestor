@@ -36,43 +36,52 @@ def extract_entities_and_relations(
     tags: List[str],
     entity: Optional[str],
     category: str,
+    namespace: Optional[str] = None,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Extract entities and relations from a memory's content and metadata.
 
     Returns (nodes, edges) where:
-      - nodes: [{"name": str, "type": str, "attributes": dict}, ...]
-      - edges: [{"from": str, "to": str, "type": str, "metadata": dict}, ...]
+      - nodes: [{"name": str, "type": str, "namespace": str, "attributes": dict}, ...]
+      - edges: [{"from": str, "to": str, "type": str, "namespace": str, "metadata": dict}, ...]
+
+    Every produced node/edge carries the writer's ``namespace`` so the
+    graph backend can enforce tenancy without additional plumbing. When
+    ``namespace`` is ``None`` the field is omitted from each dict (the
+    backend treats absent values as ``"default"`` via coalesce on read).
     """
     nodes: List[Dict[str, Any]] = []
     edges: List[Dict[str, Any]] = []
 
+    def _node(name: str, type_: str, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        out: Dict[str, Any] = {"name": name, "type": type_, "attributes": attributes}
+        if namespace is not None:
+            out["namespace"] = namespace
+        return out
+
+    def _edge(
+        from_: str, to: str, type_: str, metadata: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "from": from_, "to": to, "type": type_, "metadata": metadata,
+        }
+        if namespace is not None:
+            out["namespace"] = namespace
+        return out
+
     # Primary entity from the memory
     if entity:
         entity_type = _CATEGORY_TYPE_MAP.get(category, "concept")
-        nodes.append({
-            "name": entity,
-            "type": entity_type,
-            "attributes": {"category": category},
-        })
+        nodes.append(_node(entity, entity_type, {"category": category}))
 
     # Extract entities from tags (proper nouns / meaningful keywords)
     for tag in tags:
         if tag and len(tag) > 1:
             # Tags that look like proper nouns or tool names
             if tag[0].isupper() or tag in _KNOWN_TOOLS:
-                nodes.append({
-                    "name": tag,
-                    "type": _guess_type(tag),
-                    "attributes": {},
-                })
+                nodes.append(_node(tag, _guess_type(tag), {}))
                 # Create relation from primary entity to tag entity
                 if entity and tag.lower() != entity.lower():
-                    edges.append({
-                        "from": entity,
-                        "to": tag,
-                        "type": "related_to",
-                        "metadata": {"source": "tag"},
-                    })
+                    edges.append(_edge(entity, tag, "related_to", {"source": "tag"}))
 
     # Extract relations from content via patterns
     content_lower = content.lower()
@@ -83,18 +92,11 @@ def extract_entities_and_relations(
             # Clean up the target
             target = target.split(",")[0].strip()  # Take first item if list
             if len(target) > 1 and len(target) < 50:
-                nodes.append({
-                    "name": target,
-                    "type": _guess_type(target),
-                    "attributes": {},
-                })
+                nodes.append(_node(target, _guess_type(target), {}))
                 source = entity or "user"
-                edges.append({
-                    "from": source,
-                    "to": target,
-                    "type": rel_type,
-                    "metadata": {"source": "content_pattern"},
-                })
+                edges.append(
+                    _edge(source, target, rel_type, {"source": "content_pattern"})
+                )
 
     return nodes, edges
 

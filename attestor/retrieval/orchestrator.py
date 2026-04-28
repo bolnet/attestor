@@ -96,22 +96,38 @@ class RetrievalOrchestrator:
         return entities
 
     def _graph_affinity_map(
-        self, question_entities: List[str]
+        self,
+        question_entities: List[str],
+        namespace: Optional[str] = None,
     ) -> Dict[str, int]:
         """Map lowercased candidate-entity → min hop distance to any question entity.
 
         Empty map when no graph is available or the question has no entities.
+        ``namespace`` scopes the BFS — without it, a recall in tenant A could
+        pull a graph affinity bonus from tenant B's entities. Backends that
+        don't accept ``namespace`` (e.g. v3 graph stores) silently ignore it
+        via the TypeError fallback below.
         """
         affinity: Dict[str, int] = {}
         if not self.graph or not question_entities:
             return affinity
+
+        def _related(entity: str, depth: int) -> List[str]:
+            # Try namespace-aware signature first; fall back for backends
+            # that haven't adopted the kwarg yet.
+            try:
+                return self.graph.get_related(
+                    entity, depth=depth, namespace=namespace,
+                )
+            except TypeError:
+                return self.graph.get_related(entity, depth=depth)
 
         for q_ent in question_entities:
             q_key = q_ent.lower()
             affinity[q_key] = min(affinity.get(q_key, 0), 0)
 
             try:
-                d1 = self.graph.get_related(q_ent, depth=1)
+                d1 = _related(q_ent, 1)
             except Exception:
                 d1 = []
             for name in d1:
@@ -120,7 +136,7 @@ class RetrievalOrchestrator:
                     affinity[k] = 1
 
             try:
-                d2 = self.graph.get_related(q_ent, depth=GRAPH_MAX_DEPTH)
+                d2 = _related(q_ent, GRAPH_MAX_DEPTH)
             except Exception:
                 d2 = []
             for name in d2:
@@ -130,16 +146,25 @@ class RetrievalOrchestrator:
         return affinity
 
     def _graph_context_triples(
-        self, question_entities: List[str]
+        self,
+        question_entities: List[str],
+        namespace: Optional[str] = None,
     ) -> List[str]:
-        """Render typed edges incident to question entities as inline strings."""
+        """Render typed edges incident to question entities as inline strings.
+
+        Filters edges by ``namespace`` so synthetic-triple injection can't
+        leak relationships from other tenants into the recall context.
+        """
         triples: List[str] = []
         if not self.graph or not hasattr(self.graph, "get_edges"):
             return triples
         seen = set()
         for ent in question_entities:
             try:
-                edges = self.graph.get_edges(ent)
+                try:
+                    edges = self.graph.get_edges(ent, namespace=namespace)
+                except TypeError:
+                    edges = self.graph.get_edges(ent)
             except Exception:
                 continue
             for edge in edges[:30]:
@@ -300,7 +325,12 @@ class RetrievalOrchestrator:
                     )
 
         # ── Step 2: Graph narrow ──
-        affinity_map = self._graph_affinity_map(question_entities)
+        # Pass namespace through so the BFS can't pull affinity from
+        # entities written by another tenant. Pre-namespace nodes still
+        # recall under namespace="default" via coalesce in the backend.
+        affinity_map = self._graph_affinity_map(
+            question_entities, namespace=namespace,
+        )
         trace_hits = []
         for c in candidates:
             mem = c["memory"]
@@ -334,7 +364,9 @@ class RetrievalOrchestrator:
         ]
 
         # ── Step 3: Inject synthetic triple memories ──
-        triple_strs = self._graph_context_triples(question_entities)
+        triple_strs = self._graph_context_triples(
+            question_entities, namespace=namespace,
+        )
         for triple_str in triple_strs[:20]:
             results.append(
                 RetrievalResult(
@@ -450,7 +482,9 @@ class RetrievalOrchestrator:
 
         # Graph narrow
         t = time.monotonic()
-        affinity_map = self._graph_affinity_map(question_entities)
+        affinity_map = self._graph_affinity_map(
+            question_entities, namespace=namespace,
+        )
         results: List[RetrievalResult] = []
         narrowed: List[Dict] = []
         for c in candidates:
@@ -487,7 +521,9 @@ class RetrievalOrchestrator:
 
         # Triples + boosts + MMR + budget
         t = time.monotonic()
-        triple_strs = self._graph_context_triples(question_entities)
+        triple_strs = self._graph_context_triples(
+            question_entities, namespace=namespace,
+        )
         for triple_str in triple_strs[:20]:
             results.append(
                 RetrievalResult(
