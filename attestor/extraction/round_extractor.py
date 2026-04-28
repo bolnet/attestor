@@ -36,7 +36,13 @@ from attestor.extraction.prompts import (
 
 logger = logging.getLogger("attestor.extraction.round")
 
-DEFAULT_MODEL = "openai/gpt-4.1-mini"
+def _default_model() -> str:
+    """Resolve the extraction model from ``configs/attestor.yaml``."""
+    from attestor.config import get_stack
+    return get_stack().models.extraction
+
+
+DEFAULT_MODEL = _default_model()
 DEFAULT_MAX_TOKENS = 2048
 
 USER_FACT_CATEGORIES = {

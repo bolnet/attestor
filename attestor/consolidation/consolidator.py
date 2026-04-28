@@ -36,9 +36,18 @@ from attestor.models import Memory
 
 logger = logging.getLogger("attestor.consolidation.consolidator")
 
-# Production runs use a stronger reasoning model here than synchronous
-# extraction. claude-opus-4-7 is the recommended default per roadmap.
-DEFAULT_CONSOLIDATION_MODEL = "openai/gpt-4o"
+def _default_consolidation_model() -> str:
+    """Resolve the consolidation model from ``configs/attestor.yaml``.
+
+    Consolidation is a heavier reasoning task than synchronous extraction
+    so we use the verifier slot (Claude Sonnet by default in the
+    canonical stack).
+    """
+    from attestor.config import get_stack
+    return get_stack().models.verifier
+
+
+DEFAULT_CONSOLIDATION_MODEL = _default_consolidation_model()
 
 
 @dataclass(frozen=True)

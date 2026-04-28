@@ -1121,13 +1121,19 @@ class AgentMemory:
     def extract(
         self,
         messages: List[Dict[str, Any]],
-        model: str = "claude-haiku",
+        model: Optional[str] = None,
         use_llm: bool = False,
         namespace: str = "default",
     ) -> List[Memory]:
-        """Extract and store memories from conversation messages."""
+        """Extract and store memories from conversation messages.
+
+        ``model`` defaults to ``stack.models.extraction`` from
+        ``configs/attestor.yaml``.
+        """
         from attestor.extraction.extractor import extract_memories
 
+        # extract_memories already resolves None → stack default; pass
+        # through unchanged.
         extracted = extract_memories(messages, use_llm=use_llm, model=model)
         stored = []
         for mem in extracted:

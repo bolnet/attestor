@@ -48,9 +48,25 @@ from typing import Any, Callable, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "openai/gpt-4.1-mini"
+def _default_model() -> str:
+    """Resolve the LME benchmark default model from
+    ``configs/attestor.yaml``."""
+    from attestor.config import get_stack
+    return get_stack().models.benchmark_default
+
+
+def _default_judges() -> tuple[str, ...]:
+    """Resolve the dual-judge panel: the primary judge from the YAML
+    plus the verifier (cross-family) — matches the canonical recommended
+    ``Judge=gpt-4.1, Verifier=claude-sonnet-4-6`` pairing."""
+    from attestor.config import get_stack
+    s = get_stack()
+    return (s.models.judge, s.models.verifier)
+
+
+DEFAULT_MODEL = _default_model()
 # Default dual-judge. Second judge anchors out answerer-judge collusion.
-DEFAULT_JUDGES = ("openai/gpt-4.1-mini", "anthropic/claude-haiku-4.5")
+DEFAULT_JUDGES = _default_judges()
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_PARALLEL = 4
 
@@ -662,7 +678,7 @@ def distill_turn(
     role: str,
     content: str,
     session_date: str,
-    model: str = "openai/gpt-5.1",
+    model: Optional[str] = None,
     api_key: Optional[str] = None,
     max_tokens: int = 3000,
 ) -> List[DistilledFact]:
@@ -679,6 +695,9 @@ def distill_turn(
     text = (content or "").strip()
     if not text:
         return []
+    if model is None:
+        from attestor.config import get_stack
+        model = get_stack().models.distill
     fallback_speaker = _normalize_speaker(role)
     # NOTE: str.replace (not str.format) — the prompt contains JSON worked
     # examples whose literal '{...}' would otherwise be misread as format
@@ -710,9 +729,9 @@ def ingest_history(
     sample: LMESample,
     *,
     use_extraction: bool = False,
-    extraction_model: str = "openai/gpt-4.1-mini",
+    extraction_model: Optional[str] = None,
     use_distillation: bool = False,
-    distill_model: str = "openai/gpt-5.1",
+    distill_model: Optional[str] = None,
     api_key: Optional[str] = None,
     verbose: bool = False,
 ) -> IngestStats:
@@ -738,6 +757,14 @@ def ingest_history(
     Returns:
         ``IngestStats`` with turn / memory / session counts.
     """
+    if extraction_model is None or distill_model is None:
+        from attestor.config import get_stack
+        s = get_stack()
+        if extraction_model is None:
+            extraction_model = s.models.extraction
+        if distill_model is None:
+            distill_model = s.models.distill
+
     ns = namespace_for(sample)
     turns_seen = 0
     memories_added = 0
@@ -1761,7 +1788,7 @@ async def _process_sample(
     use_extraction: bool,
     max_facts: int,
     use_distillation: bool = False,
-    distill_model: str = "openai/gpt-5.1",
+    distill_model: Optional[str] = None,
     verify: bool = False,
     verify_model: Optional[str] = None,
 ) -> SampleReport:
@@ -1898,7 +1925,7 @@ async def run_async(
     budget: int = 4000,
     use_extraction: bool = False,
     use_distillation: bool = False,
-    distill_model: str = "openai/gpt-5.1",
+    distill_model: Optional[str] = None,
     max_facts: int = 40,
     parallel: int = DEFAULT_PARALLEL,
     verify: bool = False,
@@ -1935,6 +1962,13 @@ async def run_async(
     from dataclasses import asdict
 
     judge_models = list(judge_models or list(DEFAULT_JUDGES))
+    if distill_model is None or verify_model is None:
+        from attestor.config import get_stack
+        s = get_stack()
+        if distill_model is None:
+            distill_model = s.models.distill
+        if verify_model is None and verify:
+            verify_model = s.models.verifier
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     semaphore = asyncio.Semaphore(max(1, parallel))
@@ -2103,7 +2137,7 @@ def run(
     budget: int = 4000,
     use_extraction: bool = False,
     use_distillation: bool = False,
-    distill_model: str = "openai/gpt-5.1",
+    distill_model: Optional[str] = None,
     max_facts: int = 40,
     parallel: int = DEFAULT_PARALLEL,
     verify: bool = False,

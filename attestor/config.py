@@ -1,0 +1,462 @@
+"""Single source of truth for Attestor configuration.
+
+Every model name, DB URL, embedder choice, retrieval budget, registry
+address and per-cloud deploy plan in this codebase comes from one
+file: ``configs/attestor.yaml``. This module is the loader.
+
+Public surface
+--------------
+
+    get_stack(*, strict=False) -> StackConfig
+        Lazy-loads, parses, and caches the YAML. Subsequent calls
+        return the same object. Pass ``strict=True`` to fail loudly
+        when required env refs are missing (the loader otherwise
+        substitutes safe placeholders so tests/CI work without a
+        full secrets set).
+
+    set_stack(stack)
+        Replace the cached stack. For tests + benchmark harnesses that
+        want to swap configs at runtime.
+
+    reset_stack()
+        Drop the cache so the next ``get_stack()`` re-reads the YAML.
+
+    StackConfig (frozen dataclass)
+        Resolved values. See class for fields.
+
+Resolution order (highest to lowest priority):
+
+    1. Explicit CLI flag passed by the user
+    2. Explicit env var (e.g. POSTGRES_URL, VOYAGE_API_KEY, ANSWER_MODEL)
+    3. ``configs/attestor.yaml`` value
+    4. Hardcoded fallback (only when YAML is absent AND env unset)
+
+Env override:
+    ATTESTOR_CONFIG=/path/to/different.yaml
+        Use a non-default config file. Useful for one-off A/B runs.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from dataclasses import dataclass, field, replace
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import yaml
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_CONFIG = REPO_ROOT / "configs" / "attestor.yaml"
+
+
+# ─── Hardcoded fallbacks (USED ONLY when YAML is missing) ──────────────
+#
+# These are the canonical defaults captured at the time the YAML was
+# written. They exist so tests / CI can run in a stripped checkout
+# without `configs/attestor.yaml`. Production deployments must have
+# the YAML; the runtime emits a warning when these fallbacks fire.
+
+_FALLBACK_POSTGRES_URL = "postgresql://postgres:attestor@localhost:5432/attestor_v4_test"
+_FALLBACK_NEO4J_URL = "bolt://localhost:7687"
+_FALLBACK_NEO4J_DB = "neo4j"
+_FALLBACK_NEO4J_USER = "neo4j"
+_FALLBACK_EMBEDDER_PROVIDER = "voyage"
+_FALLBACK_EMBEDDER_MODEL = "voyage-4"
+_FALLBACK_EMBEDDER_DIM = 1024
+_FALLBACK_ANSWERER = "openai/gpt-4.1"
+_FALLBACK_JUDGE = "openai/gpt-4.1"
+_FALLBACK_EXTRACTION = "openai/gpt-4.1-mini"
+_FALLBACK_DISTILL = "openai/gpt-4.1-mini"
+_FALLBACK_VERIFIER = "anthropic/claude-sonnet-4-6"
+_FALLBACK_PLANNER = "anthropic/claude-opus-4.7"
+_FALLBACK_BENCHMARK = "openai/gpt-4.1-mini"
+_FALLBACK_BUDGET = 4000
+_FALLBACK_PARALLEL = 2
+
+
+# ─── Dataclasses ──────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class PostgresCfg:
+    url: str
+    v4: bool
+    skip_schema_init: bool
+
+
+@dataclass(frozen=True)
+class Neo4jCfg:
+    url: str
+    username: str
+    password: str
+    database: str
+
+
+@dataclass(frozen=True)
+class EmbedderCfg:
+    provider: str
+    model: str
+    dimensions: int
+
+
+@dataclass(frozen=True)
+class ModelsCfg:
+    """Per-role model assignment.
+
+    All seven roles are required. Roles map to actual call sites:
+
+      answerer    — final answer synthesis from retrieved context
+                    (attestor.locomo.answer_question, longmemeval.run_async)
+      judge       — single-judge correctness verdict on benchmark answers
+                    (locomo.judge_answer, longmemeval.judge_*)
+      extraction  — fact extraction during ingest
+                    (extraction.llm_extractor, extraction.round_extractor)
+      distill     — Mem0-style distillation during ingest
+                    (longmemeval.run_async distill_model)
+      verifier    — second-pass cross-check after judge
+                    (mab.run_*, longmemeval verifier role)
+      planner     — query rewriting / multi-step planning
+                    (retrieval.planner)
+      benchmark_default — generic fallback for ad-hoc bench commands
+                          where no specific role applies
+    """
+    answerer: str
+    judge: str
+    extraction: str
+    distill: str
+    verifier: str
+    planner: str
+    benchmark_default: str
+
+
+@dataclass(frozen=True)
+class ImageCfg:
+    ref: str
+    api_ref_template: str
+    registries: Dict[str, str] = field(default_factory=dict)
+
+    def native_ref(self, key: str, *, version: Optional[str] = None) -> str:
+        if key not in self.registries:
+            raise KeyError(f"unknown registry key {key!r}")
+        base = self.registries[key]
+        tag = f"api-{version}" if version else "latest"
+        return f"{base}:{tag}"
+
+
+@dataclass(frozen=True)
+class StackConfig:
+    postgres: PostgresCfg
+    neo4j: Neo4jCfg
+    embedder: EmbedderCfg
+    models: ModelsCfg
+    image: ImageCfg
+    budget: int
+    parallel: int
+    clouds: Dict[str, Dict[str, Any]]
+
+
+# ─── YAML helpers ─────────────────────────────────────────────────────
+
+def _resolve_env_password(node: Any, *, strict: bool) -> str:
+    """Resolve a password from ``password`` (literal) or ``password_env``."""
+    if isinstance(node, dict):
+        if node.get("password"):
+            return str(node["password"])
+        env_name = node.get("password_env")
+        if env_name:
+            value = os.environ.get(env_name)
+            if value:
+                return value
+            if strict:
+                raise SystemExit(
+                    f"[attestor.config] required env {env_name!r} not set"
+                )
+            return ""  # placeholder for non-strict (tests / CI without secrets)
+    if strict:
+        raise SystemExit(
+            f"[attestor.config] could not resolve password from {node!r}"
+        )
+    return ""
+
+
+def _build_fallback_stack() -> StackConfig:
+    """Hardcoded stack used when ``configs/attestor.yaml`` is absent."""
+    return StackConfig(
+        postgres=PostgresCfg(
+            url=os.environ.get("POSTGRES_URL", _FALLBACK_POSTGRES_URL),
+            v4=True,
+            skip_schema_init=True,
+        ),
+        neo4j=Neo4jCfg(
+            url=os.environ.get("NEO4J_URI", _FALLBACK_NEO4J_URL),
+            username=os.environ.get("NEO4J_USERNAME", _FALLBACK_NEO4J_USER),
+            password=os.environ.get("NEO4J_PASSWORD", ""),
+            database=os.environ.get("NEO4J_DATABASE", _FALLBACK_NEO4J_DB),
+        ),
+        embedder=EmbedderCfg(
+            provider=_FALLBACK_EMBEDDER_PROVIDER,
+            model=_FALLBACK_EMBEDDER_MODEL,
+            dimensions=_FALLBACK_EMBEDDER_DIM,
+        ),
+        models=ModelsCfg(
+            answerer=_FALLBACK_ANSWERER,
+            judge=_FALLBACK_JUDGE,
+            extraction=_FALLBACK_EXTRACTION,
+            distill=_FALLBACK_DISTILL,
+            verifier=_FALLBACK_VERIFIER,
+            planner=_FALLBACK_PLANNER,
+            benchmark_default=_FALLBACK_BENCHMARK,
+        ),
+        image=ImageCfg(ref="", api_ref_template="", registries={}),
+        budget=_FALLBACK_BUDGET,
+        parallel=_FALLBACK_PARALLEL,
+        clouds={},
+    )
+
+
+def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
+    raw = yaml.safe_load(cfg_path.read_text())
+    stack_blk = raw.get("stack") or {}
+    image_blk = raw.get("image") or {}
+    clouds_blk = raw.get("clouds") or {}
+
+    pg = stack_blk.get("postgres") or {}
+    neo = stack_blk.get("neo4j") or {}
+    emb = stack_blk.get("embedder") or {}
+    models = stack_blk.get("models") or {}
+
+    return StackConfig(
+        postgres=PostgresCfg(
+            url=pg.get("url", _FALLBACK_POSTGRES_URL),
+            v4=bool(pg.get("v4", True)),
+            skip_schema_init=bool(pg.get("skip_schema_init", True)),
+        ),
+        neo4j=Neo4jCfg(
+            url=neo.get("url", _FALLBACK_NEO4J_URL),
+            username=(neo.get("auth") or {}).get("username", _FALLBACK_NEO4J_USER),
+            password=_resolve_env_password(neo.get("auth") or {}, strict=strict),
+            database=neo.get("database", _FALLBACK_NEO4J_DB),
+        ),
+        embedder=EmbedderCfg(
+            provider=emb.get("provider", _FALLBACK_EMBEDDER_PROVIDER),
+            model=emb.get("model", _FALLBACK_EMBEDDER_MODEL),
+            dimensions=int(emb.get("dimensions", _FALLBACK_EMBEDDER_DIM)),
+        ),
+        models=ModelsCfg(
+            answerer=models.get("answerer", _FALLBACK_ANSWERER),
+            judge=models.get("judge", _FALLBACK_JUDGE),
+            extraction=models.get("extraction", _FALLBACK_EXTRACTION),
+            distill=models.get("distill", _FALLBACK_DISTILL),
+            verifier=models.get("verifier", _FALLBACK_VERIFIER),
+            planner=models.get("planner", _FALLBACK_PLANNER),
+            benchmark_default=models.get("benchmark_default", _FALLBACK_BENCHMARK),
+        ),
+        image=ImageCfg(
+            ref=image_blk.get("ref", ""),
+            api_ref_template=image_blk.get("api_ref_template", ""),
+            registries=dict(image_blk.get("registries") or {}),
+        ),
+        budget=int(stack_blk.get("budget", _FALLBACK_BUDGET)),
+        parallel=int(stack_blk.get("parallel", _FALLBACK_PARALLEL)),
+        clouds=dict(clouds_blk),
+    )
+
+
+# ─── Public surface ────────────────────────────────────────────────────
+
+_cached_stack: Optional[StackConfig] = None
+
+
+def load_stack(path: Path | str | None = None, *, strict: bool = False) -> StackConfig:
+    """Read ``configs/attestor.yaml`` (or override path) and resolve env refs.
+
+    Bypasses the cache. Most callers should use ``get_stack()`` instead.
+    """
+    if path is None:
+        path = os.environ.get("ATTESTOR_CONFIG") or DEFAULT_CONFIG
+    cfg_path = Path(path)
+    if not cfg_path.exists():
+        if strict:
+            raise SystemExit(f"[attestor.config] config not found: {cfg_path}")
+        return _build_fallback_stack()
+    return _parse_yaml(cfg_path, strict=strict)
+
+
+def get_stack(*, strict: bool = False) -> StackConfig:
+    """Return the cached stack, loading on first call.
+
+    Most production code should call this. The cache is per-process and
+    safe to call repeatedly. Use ``set_stack()`` for test injection or
+    ``reset_stack()`` to force a re-read.
+    """
+    global _cached_stack
+    if _cached_stack is None:
+        _cached_stack = load_stack(strict=strict)
+    return _cached_stack
+
+
+def set_stack(stack: StackConfig) -> None:
+    """Override the cached stack. For tests + benchmark harnesses."""
+    global _cached_stack
+    _cached_stack = stack
+
+
+def reset_stack() -> None:
+    """Drop the cache. Next ``get_stack()`` re-reads the YAML."""
+    global _cached_stack
+    _cached_stack = None
+
+
+# ─── Helpers used by scripts ─────────────────────────────────────────
+
+def configure_embedder(stack: StackConfig) -> None:
+    """Pin embedder selection via env vars so the auto-detect chain in
+    ``attestor.store.embeddings.get_embedding_provider()`` returns the
+    provider this stack asked for. Always disables Ollama auto-probe."""
+    os.environ["ATTESTOR_DISABLE_LOCAL_EMBED"] = "1"
+    if stack.embedder.provider == "voyage":
+        if not os.environ.get("VOYAGE_API_KEY"):
+            raise SystemExit(
+                "[attestor.config] embedder=voyage but VOYAGE_API_KEY not set"
+            )
+        os.environ["VOYAGE_EMBEDDING_MODEL"] = stack.embedder.model
+        os.environ["VOYAGE_EMBEDDING_DIMENSIONS"] = str(stack.embedder.dimensions)
+        os.environ["OPENAI_EMBEDDING_DIMENSIONS"] = str(stack.embedder.dimensions)
+    elif stack.embedder.provider == "openai":
+        os.environ.pop("VOYAGE_API_KEY", None)
+        os.environ["OPENAI_EMBEDDING_MODEL"] = stack.embedder.model
+        os.environ["OPENAI_EMBEDDING_DIMENSIONS"] = str(stack.embedder.dimensions)
+    else:
+        raise SystemExit(
+            f"[attestor.config] unknown embedder provider: {stack.embedder.provider!r}"
+        )
+
+
+def build_backend_config(
+    stack: StackConfig, *, no_graph: bool = False
+) -> Dict[str, Any]:
+    """``AgentMemory`` ``backend_configs`` payload for the canonical
+    PG+Neo4j stack. When ``no_graph`` is set, drops Neo4j (graph role)
+    so a Postgres-only run is possible."""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(stack.postgres.url)
+    db = (parsed.path or "/").lstrip("/") or "attestor_v4_test"
+
+    backend_configs: Dict[str, Dict[str, Any]] = {
+        "postgres": {
+            "url": f"{parsed.scheme}://{parsed.hostname}:{parsed.port or 5432}",
+            "database": db,
+            "auth": {
+                "username": parsed.username or "postgres",
+                "password": parsed.password or "attestor",
+            },
+            "v4": stack.postgres.v4,
+            "skip_schema_init": stack.postgres.skip_schema_init,
+        },
+    }
+    backends = ["postgres"]
+    if not no_graph:
+        backend_configs["neo4j"] = {
+            "url": stack.neo4j.url,
+            "database": stack.neo4j.database,
+            "auth": {
+                "username": stack.neo4j.username,
+                "password": stack.neo4j.password,
+            },
+        }
+        backends.append("neo4j")
+    return {
+        "mode": "solo",
+        "backends": backends,
+        "backend_configs": backend_configs,
+    }
+
+
+def verify_neo4j_reachable(stack: StackConfig) -> None:
+    """Connect to Neo4j up-front so a benchmark that *expects* the
+    graph role doesn't fall through silently."""
+    try:
+        from neo4j import GraphDatabase
+    except ImportError as e:
+        raise SystemExit(
+            f"[attestor.config] neo4j driver not installed: {e}"
+        )
+    try:
+        with GraphDatabase.driver(
+            stack.neo4j.url, auth=(stack.neo4j.username, stack.neo4j.password)
+        ) as drv:
+            drv.verify_connectivity()
+    except Exception as e:
+        raise SystemExit(
+            f"[attestor.config] Neo4j unreachable at {stack.neo4j.url}: {e}\n"
+            "        The default stack requires Neo4j (graph role)."
+        )
+
+
+def print_stack_banner(stack: StackConfig, *, run_label: str) -> None:
+    """Print the resolved stack so users sanity-check before any
+    expensive call."""
+    print("=" * 72)
+    print(f"[{run_label}] resolved Attestor stack (configs/attestor.yaml):")
+    print(f"  document/vector  postgres @ {stack.postgres.url}")
+    print(f"  graph            neo4j    @ {stack.neo4j.url} ({stack.neo4j.database})")
+    print(f"  embedder         {stack.embedder.provider}:{stack.embedder.model}"
+          f" @ {stack.embedder.dimensions}-D")
+    print(f"  models")
+    print(f"    answerer            {stack.models.answerer}")
+    print(f"    judge               {stack.models.judge}")
+    print(f"    extraction          {stack.models.extraction}")
+    print(f"    distill             {stack.models.distill}")
+    print(f"    verifier            {stack.models.verifier}")
+    print(f"    planner             {stack.models.planner}")
+    print(f"    benchmark_default   {stack.models.benchmark_default}")
+    print(f"  budget           {stack.budget} tokens · parallel = {stack.parallel}")
+    print("=" * 72)
+
+
+def confirm_or_exit(stack: StackConfig, *, run_label: str, yes: bool) -> None:
+    """Print banner + interactive confirm (or ``--yes`` for non-interactive)."""
+    print_stack_banner(stack, run_label=run_label)
+    if yes:
+        print(f"[{run_label}] --yes supplied; proceeding without prompt")
+        return
+    if not sys.stdin.isatty():
+        raise SystemExit(
+            f"[{run_label}] non-interactive shell and --yes not supplied; aborting."
+        )
+    answer = input(f"[{run_label}] Proceed with this stack? [y/N] ").strip().lower()
+    if answer not in ("y", "yes"):
+        raise SystemExit(f"[{run_label}] aborted by user")
+
+
+@dataclass(frozen=True)
+class CloudTarget:
+    name: str
+    region: str
+    compute: str
+    postgres: str
+    neo4j: str
+    image_ref: str
+
+
+def cloud_target(
+    stack: StackConfig, name: str, *, version: Optional[str] = None
+) -> CloudTarget:
+    """Resolve the deploy plan for ``gcp`` / ``azure`` / ``aws`` with the
+    native-registry image ref already substituted."""
+    if name not in stack.clouds:
+        available = ", ".join(sorted(stack.clouds))
+        raise SystemExit(
+            f"[attestor.config] unknown cloud {name!r} (available: {available})"
+        )
+    cloud = stack.clouds[name]
+    image_ref = stack.image.native_ref(cloud["image_ref_key"], version=version)
+    return CloudTarget(
+        name=name,
+        region=cloud["region"],
+        compute=cloud["compute"],
+        postgres=cloud["postgres"],
+        neo4j=cloud["neo4j"],
+        image_ref=image_ref,
+    )

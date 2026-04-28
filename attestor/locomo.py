@@ -26,7 +26,14 @@ from attestor.core import AgentMemory
 from attestor.mab import token_f1, _upgrade_embeddings_for_benchmark
 from attestor.retrieval.planner import QueryPlan, plan_query
 
-DEFAULT_MODEL = "openai/gpt-4.1-mini"
+def _default_model() -> str:
+    """Resolve the LoCoMo benchmark default model from
+    ``configs/attestor.yaml``."""
+    from attestor.config import get_stack
+    return get_stack().models.benchmark_default
+
+
+DEFAULT_MODEL = _default_model()
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
@@ -270,7 +277,7 @@ def ingest_conversation(
     mem: AgentMemory,
     conversation: Dict[str, Any],
     use_extraction: bool = False,
-    extraction_model: str = "openai/gpt-4.1-mini",
+    extraction_model: Optional[str] = None,
     api_key: Optional[str] = None,
     verbose: bool = False,
     graph=None,
@@ -293,6 +300,10 @@ def ingest_conversation(
     total_triples = 0
     speaker_a = conversation["speaker_a"]
     speaker_b = conversation["speaker_b"]
+
+    if extraction_model is None:
+        from attestor.config import get_stack
+        extraction_model = get_stack().models.extraction
 
     if use_extraction:
         from attestor.extraction.extractor import extract_from_session
@@ -587,9 +598,9 @@ def judge_answer(
 
 def run_locomo(
     data_path: Optional[str] = None,
-    judge_model: str = "openai/gpt-4.1-mini",
-    answer_model: str = "openai/gpt-4.1-mini",
-    extraction_model: str = "openai/gpt-4.1-mini",
+    judge_model: Optional[str] = None,
+    answer_model: Optional[str] = None,
+    extraction_model: Optional[str] = None,
     use_extraction: bool = False,
     resolve_pronouns: bool = True,
     max_conversations: Optional[int] = None,
@@ -622,6 +633,17 @@ def run_locomo(
         cache_dir.mkdir(parents=True, exist_ok=True)
         data_path = str(cache_dir / "locomo10.json")
         download_locomo(data_path)
+
+    # Resolve any unset model arg from the YAML SoT.
+    if judge_model is None or answer_model is None or extraction_model is None:
+        from attestor.config import get_stack
+        s = get_stack()
+        if judge_model is None:
+            judge_model = s.models.judge
+        if answer_model is None:
+            answer_model = s.models.answerer
+        if extraction_model is None:
+            extraction_model = s.models.extraction
 
     conversations = load_locomo(data_path)
     if max_conversations:

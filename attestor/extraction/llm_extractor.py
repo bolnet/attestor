@@ -9,7 +9,19 @@ from typing import Any, Dict, List, Optional, Tuple
 from attestor.models import Memory
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_EXTRACTION_MODEL = "openai/gpt-4.1-mini"
+
+
+def _default_extraction_model() -> str:
+    """Resolve the extraction model from ``configs/attestor.yaml``."""
+    from attestor.config import get_stack
+    return get_stack().models.extraction
+
+
+# Backwards-compatible attribute access — code that still references
+# this constant gets a string at import time. New code should call
+# ``_default_extraction_model()`` so config changes take effect without
+# a process restart.
+DEFAULT_EXTRACTION_MODEL = _default_extraction_model()
 
 
 def _get_client(api_key: Optional[str] = None):

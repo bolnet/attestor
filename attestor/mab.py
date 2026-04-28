@@ -588,11 +588,19 @@ def answer_question(
     mem: AgentMemory,
     question: str,
     budget: int = 6000,
-    model: str = "claude-haiku-4-5-20251001",
+    model: Optional[str] = None,
     api_key: Optional[str] = None,
     source: str = "",
 ) -> str:
-    """Recall from memory + LLM synthesis to answer a MAB question."""
+    """Recall from memory + LLM synthesis to answer a MAB question.
+
+    ``model`` defaults to ``stack.models.verifier`` from
+    ``configs/attestor.yaml`` (the cross-family Anthropic pick that
+    complements the gpt-4.1 judge in the canonical lineup).
+    """
+    if model is None:
+        from attestor.config import get_stack
+        model = get_stack().models.verifier
     use_exact = _is_exact_source(source)
     effective_budget = _get_budget_for_source(source, budget)
 
@@ -745,7 +753,7 @@ def run_mab(
     max_questions: Optional[int] = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     context_max_tokens: Optional[int] = None,
-    answer_model: str = "openai/gpt-4.1-mini",
+    answer_model: Optional[str] = None,
     recall_budget: int = 6000,
     verbose: bool = False,
     api_key: Optional[str] = None,
@@ -773,6 +781,9 @@ def run_mab(
     """
     if categories is None:
         categories = ["AR", "CR"]
+    if answer_model is None:
+        from attestor.config import get_stack
+        answer_model = get_stack().models.benchmark_default
 
     # Load data
     data = load_mab(
