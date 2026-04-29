@@ -167,6 +167,9 @@ class AgentMemory:
             self._retrieval.vector_top_k = _retrieval_cfg.vector_top_k
             self._retrieval.mmr_top_n = _retrieval_cfg.mmr_top_n
             self._retrieval.multi_query_cfg = _retrieval_cfg.multi_query
+            self._retrieval.temporal_prefilter_cfg = (
+                _retrieval_cfg.temporal_prefilter
+            )
         except Exception as _e:
             logger.debug("retrieval cfg not applied: %s", _e)
 
