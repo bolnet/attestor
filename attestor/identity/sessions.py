@@ -51,8 +51,33 @@ class SessionRepo:
         self, user_id: str, project_id: str, day: str,
     ) -> Session:
         """SOLO-mode helper: one session per (user, day). ``day`` is an ISO
-        date string (e.g. '2026-04-25'). Returns existing if found."""
+        date string (e.g. '2026-04-25'). Returns existing if found.
+
+        Race-safe under parallel callers: serializes the SELECT-then-
+        INSERT critical section via a Postgres transactional advisory
+        lock keyed on (user_id, day). Without this, two parallel LME
+        samples sharing the SOLO user (the common case) would both see
+        no daily session and both INSERT — silent duplicate sessions
+        for the same day.
+
+        The lock is transactional (auto-releases on commit/rollback)
+        so we don't leak locks even if an exception fires mid-flight.
+        Schema has no UNIQUE constraint on (user_id, daily_key) so the
+        advisory lock IS the only protection here.
+        """
+        # Hash the (user, day) key into a 32-bit lock id. abs() so the
+        # value fits the postgres int4 range; collision risk is
+        # negligible at this volume (lock space is 2**31).
+        import hashlib
+        digest = hashlib.sha256(
+            f"daily:{user_id}:{day}".encode("utf-8"),
+        ).digest()
+        lock_id = int.from_bytes(digest[:4], "big") & 0x7FFFFFFF
+
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # Acquire the transactional advisory lock — blocks if
+            # another thread already holds it for this (user, day).
+            cur.execute("SELECT pg_advisory_xact_lock(%s)", (lock_id,))
             cur.execute(
                 """
                 SELECT * FROM sessions
@@ -65,13 +90,31 @@ class SessionRepo:
             )
             row = cur.fetchone()
             if row:
+                self._conn.commit()  # release advisory lock
                 return Session.from_row(dict(row))
-        return self.create(
-            user_id=user_id,
-            project_id=project_id,
-            title=f"Local — {day}",
-            metadata={"daily_key": f"solo-daily-{day}", "created_by": "solo_daily"},
-        )
+
+            # Still inside the lock — INSERT now is exclusive for this
+            # (user, day) pair. Other threads block on the lock until
+            # we commit.
+            cur.execute(
+                """
+                INSERT INTO sessions (user_id, project_id, title, metadata)
+                VALUES (%s, %s, %s, %s::jsonb)
+                RETURNING *
+                """,
+                (
+                    user_id,
+                    project_id,
+                    f"Local — {day}",
+                    json.dumps({
+                        "daily_key": f"solo-daily-{day}",
+                        "created_by": "solo_daily",
+                    }),
+                ),
+            )
+            row = cur.fetchone()
+        self._conn.commit()  # releases advisory lock
+        return Session.from_row(dict(row))
 
     # ── Read ──────────────────────────────────────────────────────────────
 
