@@ -1365,9 +1365,11 @@ def _answerer_call(
     model: str,
     prompt: str,
     max_tokens: int,
+    question: Optional[str] = None,
+    context: str = "",
 ) -> str:
     """Produce the answerer's raw response, applying self-consistency
-    when ``stack.self_consistency.enabled`` is True.
+    or critique-and-revise when their YAML knobs are flipped on.
 
     Single-sample path (default): one greedy ``_chat`` call. Identical
     behavior to the legacy code site.
@@ -1376,18 +1378,53 @@ def _answerer_call(
     temperature, reduced via majority vote (or judge_pick) to one
     final answer. Cost is K × answerer cost.
 
-    On any error in the self-consistency path, falls back to the
+    Critique-revise path (Phase 3 PR-E): three-step pipeline — initial
+    answer → critic LLM ground-checks against retrieved context → on
+    VERDICT=revise, a second answerer call produces the corrected
+    answer. ~3x answerer cost worst case (1x extra in the common
+    pass case).
+
+    Mutual exclusion: when both ``stack.self_consistency.enabled``
+    and ``stack.critique_revise.enabled`` are True we prefer
+    self-consistency (already shipped + proven) and log a warning;
+    combining the two safely is a future PR.
+
+    On any error in either layered path, falls back to the
     single-sample path so the LME run never breaks because of a
     config knob.
+
+    Args:
+        question: Optional question text — when omitted, the
+            critique-revise path falls back to extracting the question
+            from the user message in ``messages``. Pass it explicitly
+            from the caller for cleaner critic prompts.
+        context:  Optional retrieved-context block — embedded in the
+            critique/revise prompts so the critic can ground-check
+            the initial answer. Empty string degrades the critic but
+            never breaks the call.
     """
     try:
         from attestor.config import get_stack
         stack = get_stack()
         sc = getattr(stack, "self_consistency", None)
+        cr = getattr(stack, "critique_revise", None)
     except Exception:  # noqa: BLE001 — config errors must not break answerer
         sc = None
+        cr = None
 
-    if sc is not None and sc.enabled and sc.k > 1:
+    sc_on = sc is not None and sc.enabled and sc.k > 1
+    cr_on = cr is not None and cr.enabled
+
+    if sc_on and cr_on:
+        # Combining both layered strategies is a future PR; prefer the
+        # one that's already shipped + proven (self-consistency).
+        logger.warning(
+            "stack.self_consistency and stack.critique_revise both "
+            "enabled; preferring self_consistency for this run "
+            "(critique_revise skipped).",
+        )
+
+    if sc_on:
         try:
             from attestor.longmemeval_consistency import (
                 answer_with_self_consistency,
@@ -1407,6 +1444,29 @@ def _answerer_call(
             # Empty consensus → fall through to single-sample retry.
         except Exception:  # noqa: BLE001
             # Self-consistency layer failed; degrade to single-sample.
+            pass
+    elif cr_on:
+        try:
+            from attestor.longmemeval_critique import (
+                answer_with_critique_revise,
+            )
+            critic_model = cr.critic_model or stack.models.verifier
+            revise_model = cr.revise_model or stack.models.answerer
+            result = answer_with_critique_revise(
+                client=client,
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                question=question,
+                context=context,
+                critic_model=critic_model,
+                revise_model=revise_model,
+                max_revisions=cr.max_revisions,
+            )
+            if result.final_answer:
+                return result.final_answer
+            # Empty final_answer → fall through to single-sample retry.
+        except Exception:  # noqa: BLE001
+            # Critique-revise layer failed; degrade to single-sample.
             pass
 
     return _chat(client, model, prompt, max_tokens=max_tokens, role="answerer")
@@ -1481,6 +1541,8 @@ def answer_question(
         model=model,
         prompt=prompt,
         max_tokens=max_tokens,
+        question=sample.question,
+        context=context,
     ).strip()
     reasoning, first_answer = _strip_reasoning(raw)
 

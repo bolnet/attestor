@@ -237,6 +237,46 @@ _VALID_SC_VOTERS = ("majority", "judge_pick")
 
 
 @dataclass(frozen=True)
+class CritiqueReviseCfg:
+    """Answerer-side critique-and-revise knobs (Phase 3 PR-E, +3-5%).
+
+    When ``enabled`` is True, the LME answerer runs a three-step
+    pipeline: initial answer → critic checks against retrieved
+    context → conditional revise. Lives on ``StackConfig`` directly
+    because this is answerer behavior, NOT retrieval behavior — peer
+    of ``stack.self_consistency``, not nested inside ``stack.retrieval``.
+
+    Disabled by default — flip via ``configs/attestor.yaml``'s
+    ``stack.critique_revise`` per bench run.
+
+    Cost: ~3x answerer in the worst case (one critique + one revise
+    on top of the initial). In the common case where the critic says
+    ``pass`` it's ~2x answerer (one critique, no revise).
+
+    Configuration:
+      enabled        — master switch
+      critic_model   — model id for the critique step; null falls back
+                       to ``models.verifier``
+      revise_model   — model id for the revise step; null falls back
+                       to ``models.answerer``
+      max_revisions  — hard-capped at 1 in this PR (literature shows
+                       diminishing returns past one revision and rapidly-
+                       rising cost). Loader rejects values > 1.
+    """
+
+    enabled: bool = False
+    critic_model: Optional[str] = None
+    revise_model: Optional[str] = None
+    max_revisions: int = 1
+
+
+# Hard cap enforced by the YAML loader. This PR caps critique-revise
+# at one revision; future PRs can lift this when we validate the
+# cost / benefit curve past one round.
+_MAX_CRITIQUE_REVISIONS = 1
+
+
+@dataclass(frozen=True)
 class TemporalPrefilterCfg:
     """Regex-only temporal pre-filter knobs (Phase 3 RC4 — +1.5% LME-S).
 
@@ -372,6 +412,7 @@ class StackConfig:
     parallel: int
     clouds: Dict[str, Dict[str, Any]]
     self_consistency: SelfConsistencyCfg = field(default_factory=SelfConsistencyCfg)
+    critique_revise: CritiqueReviseCfg = field(default_factory=CritiqueReviseCfg)
 
 
 # ─── YAML helpers ─────────────────────────────────────────────────────
@@ -433,6 +474,7 @@ def _build_fallback_stack() -> StackConfig:
         parallel=_FALLBACK_PARALLEL,
         clouds={},
         self_consistency=SelfConsistencyCfg(),
+        critique_revise=CritiqueReviseCfg(),
     )
 
 
@@ -487,6 +529,27 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         judge_model=sc_blk.get("judge_model"),
     )
 
+    cr_blk = stack_blk.get("critique_revise") or {}
+    cr_max_revisions = int(cr_blk.get("max_revisions", 1))
+    if cr_max_revisions > _MAX_CRITIQUE_REVISIONS:
+        raise SystemExit(
+            f"[attestor.config] critique_revise.max_revisions="
+            f"{cr_max_revisions} exceeds the hard cap of "
+            f"{_MAX_CRITIQUE_REVISIONS}; this PR enforces a single "
+            f"revision (literature shows diminishing returns past one)"
+        )
+    if cr_max_revisions < 0:
+        raise SystemExit(
+            f"[attestor.config] critique_revise.max_revisions="
+            f"{cr_max_revisions} must be >= 0"
+        )
+    cr_cfg = CritiqueReviseCfg(
+        enabled=bool(cr_blk.get("enabled", False)),
+        critic_model=cr_blk.get("critic_model"),
+        revise_model=cr_blk.get("revise_model"),
+        max_revisions=cr_max_revisions,
+    )
+
     llm_provider = str(llm_blk.get("provider", _FALLBACK_LLM_PROVIDER))
     if llm_provider not in LLM_PROVIDER_DEFAULTS:
         raise SystemExit(
@@ -539,6 +602,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         parallel=int(stack_blk.get("parallel", _FALLBACK_PARALLEL)),
         clouds=dict(clouds_blk),
         self_consistency=sc_cfg,
+        critique_revise=cr_cfg,
     )
 
 
