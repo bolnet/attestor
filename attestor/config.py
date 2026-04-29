@@ -64,7 +64,7 @@ _FALLBACK_NEO4J_USER = "neo4j"
 _FALLBACK_EMBEDDER_PROVIDER = "voyage"
 _FALLBACK_EMBEDDER_MODEL = "voyage-4"
 _FALLBACK_EMBEDDER_DIM = 1024
-_FALLBACK_ANSWERER = "openai/gpt-5.5"
+_FALLBACK_ANSWERER = "openai/gpt-5.4-mini"
 _FALLBACK_JUDGE = "openai/gpt-5.5"
 # Note: OpenRouter has no gpt-5.5-mini SKU; the -mini roles use 5.4-mini
 # (cheapest current 5.x mini) until a 5.5-mini variant ships.
