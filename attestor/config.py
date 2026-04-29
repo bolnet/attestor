@@ -151,6 +151,38 @@ class ModelsCfg:
 
 
 @dataclass(frozen=True)
+class RetrievalCfg:
+    """Knobs for the 6-step recall cascade.
+
+    The recall pipeline (vector → BM25 → RRF → graph → MMR → fit) is
+    bounded by three quantities that interact:
+
+      vector_top_k  — pgvector's ``LIMIT`` on the cosine-similarity
+                      lane. More candidates = more raw material for
+                      MMR + graph affinity to choose from. Default 50.
+
+      mmr_top_n     — cap on what MMR emits; the diversity rerank
+                      drops redundant memories. Default ``None``
+                      preserves ``mmr_rerank``'s legacy behavior
+                      (no explicit cap; it returns whatever survives
+                      the diversity trim).
+
+      budget        — token cap on the final pack sent to the
+                      answerer. Lives on StackConfig directly (legacy
+                      placement); keeping it there for back-compat.
+                      Models support 200k-1M context; ``budget`` is
+                      what we choose to actually use.
+
+    These three knobs MUST be tuned together. Raising budget alone
+    does nothing if MMR cuts to 10 first; raising vector_top_k alone
+    just gives MMR more candidates to discard.
+    """
+
+    vector_top_k: int = 50
+    mmr_top_n: Optional[int] = None
+
+
+@dataclass(frozen=True)
 class LLMCfg:
     """Where chat-completion calls are routed.
 
@@ -209,6 +241,7 @@ class StackConfig:
     embedder: EmbedderCfg
     models: ModelsCfg
     llm: LLMCfg
+    retrieval: RetrievalCfg
     image: ImageCfg
     budget: int
     parallel: int
@@ -268,6 +301,7 @@ def _build_fallback_stack() -> StackConfig:
             benchmark_default=_FALLBACK_BENCHMARK,
         ),
         llm=LLMCfg.for_provider(_FALLBACK_LLM_PROVIDER),
+        retrieval=RetrievalCfg(),
         image=ImageCfg(ref="", api_ref_template="", registries={}),
         budget=_FALLBACK_BUDGET,
         parallel=_FALLBACK_PARALLEL,
@@ -286,6 +320,13 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
     emb = stack_blk.get("embedder") or {}
     models = stack_blk.get("models") or {}
     llm_blk = stack_blk.get("llm") or {}
+    retrieval_blk = stack_blk.get("retrieval") or {}
+
+    mmr_top_raw = retrieval_blk.get("mmr_top_n")
+    retrieval_cfg = RetrievalCfg(
+        vector_top_k=int(retrieval_blk.get("vector_top_k", 50)),
+        mmr_top_n=(int(mmr_top_raw) if mmr_top_raw is not None else None),
+    )
 
     llm_provider = str(llm_blk.get("provider", _FALLBACK_LLM_PROVIDER))
     if llm_provider not in LLM_PROVIDER_DEFAULTS:
@@ -327,6 +368,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
             benchmark_default=models.get("benchmark_default", _FALLBACK_BENCHMARK),
         ),
         llm=llm_cfg,
+        retrieval=retrieval_cfg,
         image=ImageCfg(
             ref=image_blk.get("ref", ""),
             api_ref_template=image_blk.get("api_ref_template", ""),
@@ -489,6 +531,9 @@ def print_stack_banner(stack: StackConfig, *, run_label: str) -> None:
     print(f"    verifier            {stack.models.verifier}")
     print(f"    planner             {stack.models.planner}")
     print(f"    benchmark_default   {stack.models.benchmark_default}")
+    mmr_cap = stack.retrieval.mmr_top_n if stack.retrieval.mmr_top_n is not None else "uncapped"
+    print(f"  retrieval        vector_top_k={stack.retrieval.vector_top_k}"
+          f" · mmr_top_n={mmr_cap}")
     print(f"  budget           {stack.budget} tokens · parallel = {stack.parallel}")
     print("=" * 72)
 

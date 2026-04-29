@@ -156,6 +156,19 @@ class AgentMemory:
         self._retrieval.confidence_decay_rate = self.config.confidence_decay_rate
         self._retrieval.confidence_boost_rate = self.config.confidence_boost_rate
 
+        # Wire YAML retrieval knobs (vector_top_k, mmr_top_n) onto the
+        # orchestrator. We deliberately don't make AgentMemory crash if
+        # the stack loader fails — this is a tunable, not a correctness
+        # constraint, and the orchestrator's own defaults match the
+        # historical behavior.
+        try:
+            from attestor.config import get_stack
+            _retrieval_cfg = get_stack(strict=False).retrieval
+            self._retrieval.vector_top_k = _retrieval_cfg.vector_top_k
+            self._retrieval.mmr_top_n = _retrieval_cfg.mmr_top_n
+        except Exception as _e:
+            logger.debug("retrieval cfg not applied: %s", _e)
+
         # Operation ring buffer for latency observability
         self._ops_log: Deque[Dict[str, Any]] = deque(maxlen=200)
 

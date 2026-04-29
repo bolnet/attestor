@@ -113,7 +113,28 @@ stack:
   # ─── Retrieval budget ────────────────────────────────────────────────
   # Token budget per recall (the orchestrator MMR-packs candidates
   # under this ceiling). 4000 is the canonical benchmark default.
-  budget: 4000
+  # ─── Retrieval cascade tuning ─────────────────────────────────────────
+  # Three knobs that interact — raising one without the others usually
+  # does nothing.
+  #
+  #   vector_top_k  pgvector LIMIT on the cosine-similarity lane.
+  #                 More candidates → more raw material for graph
+  #                 affinity + MMR to choose from. Default 50; bench
+  #                 runs targeting big context should raise to 200-500.
+  #
+  #   mmr_top_n     post-MMR cap. None means "no cap" (legacy behavior;
+  #                 mmr_rerank's diversity trim decides). Set when you
+  #                 want to bound how many memories actually reach the
+  #                 answerer.
+  #
+  #   budget        token cap on the final pack (below). At budget=4000
+  #                 with 10 memories surviving MMR, MMR is the binding
+  #                 constraint, not budget. Set them together.
+  retrieval:
+    vector_top_k: 50
+    # mmr_top_n: 50    # uncomment to cap; default = no cap
+
+  budget: 4000   # tokens for the pack sent to the answerer
 
   # Concurrency across samples in benchmark runs (LME / LoCoMo / BEAM).
   parallel: 2
