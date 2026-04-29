@@ -81,7 +81,7 @@ stack:
     # Answerer — synthesises the final reply from retrieved context.
     # gpt-4.1 won overall on LongMemEval, especially on temporal +
     # multi-session reasoning.
-    answerer: openai/gpt-5.5
+    answerer: openai/gpt-5.4-mini
 
     # Judge — single-judge panel. gpt-4.1 was the strongest standalone
     # judge in the 4-model run.
