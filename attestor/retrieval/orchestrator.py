@@ -83,6 +83,15 @@ class RetrievalOrchestrator:
         # them via RRF before the rest of the cascade.
         self.multi_query_cfg = None  # type: ignore[assignment]
 
+        # Temporal pre-filter (Phase 3 RC4). Defaults to None — no
+        # behavior change. AgentMemory wires the resolved
+        # TemporalPrefilterCfg post-construction. When
+        # ``temporal_prefilter_cfg.enabled`` is True and the question
+        # contains a relative time phrase, recall() builds a
+        # ``TimeWindow`` and passes it through the existing
+        # ``time_window`` kwarg before Step 1 runs.
+        self.temporal_prefilter_cfg = None  # type: ignore[assignment]
+
     # ── Helpers ──
 
     def _question_entities(self, query: str) -> List[str]:
@@ -244,6 +253,38 @@ class RetrievalOrchestrator:
                       question_entities=question_entities,
                       as_of=str(as_of) if as_of else None,
                       time_window=str(time_window) if time_window else None)
+
+        # ── Step 0: Temporal pre-filter (RC4) ──
+        # When enabled and the question contains a relative time phrase,
+        # tighten the event-time window passed to subsequent lanes. Caller-
+        # supplied time_window takes precedence — never override an explicit
+        # bound. Falls through silently when no phrase matches.
+        tp_cfg = getattr(self, "temporal_prefilter_cfg", None)
+        if (
+            tp_cfg is not None
+            and getattr(tp_cfg, "enabled", False)
+            and time_window is None
+        ):
+            from attestor.retrieval.temporal_prefilter import detect_window
+            detected = detect_window(
+                query, tolerance_days=int(tp_cfg.tolerance_days),
+            )
+            if detected is not None:
+                time_window = detected.window
+                if _tr.is_enabled():
+                    _tr.event(
+                        "recall.stage.temporal_prefilter",
+                        matched_phrase=detected.matched_text,
+                        target=detected.target.isoformat(),
+                        window_start=(
+                            detected.window.start.isoformat()
+                            if detected.window.start else None
+                        ),
+                        window_end=(
+                            detected.window.end.isoformat()
+                            if detected.window.end else None
+                        ),
+                    )
 
         # ── Step 1: Vector top-K ──
         # When multi_query is enabled, this step fans out: rewrite the

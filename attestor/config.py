@@ -237,6 +237,33 @@ _VALID_SC_VOTERS = ("majority", "judge_pick")
 
 
 @dataclass(frozen=True)
+class TemporalPrefilterCfg:
+    """Regex-only temporal pre-filter knobs (Phase 3 RC4 — +1.5% LME-S).
+
+    When ``enabled`` is True and the question contains a relative
+    time phrase ("two weeks ago", "yesterday", "last Monday"), the
+    orchestrator builds a ``TimeWindow`` around the implied event date
+    and passes it through the existing ``time_window`` kwarg to the
+    vector + BM25 lanes — narrowing recall to memories that are
+    plausibly contemporaneous with the question.
+
+    Caller-supplied ``time_window`` always wins; this only fires when
+    no explicit bound was passed. Disabled by default so legacy
+    callers see no behavior change.
+
+    Configuration:
+      enabled         — master switch
+      tolerance_days  — half-width of the window in days. People say
+                        "last week" when they mean 8 days ago; the
+                        tolerance absorbs that drift so the filter
+                        doesn't false-negative.
+    """
+
+    enabled: bool = False
+    tolerance_days: int = 3
+
+
+@dataclass(frozen=True)
 class RetrievalCfg:
     """Knobs for the 6-step recall cascade.
 
@@ -266,11 +293,18 @@ class RetrievalCfg:
     ``multi_query`` extends the cascade with a query-rewrite +
     RRF-merge lane in front of the vector step. Disabled by default
     so legacy callers see no behavior change.
+
+    ``temporal_prefilter`` (RC4) detects relative time phrases in the
+    question and tightens the event-time window passed to the vector
+    + BM25 lanes. Disabled by default; flip per bench run.
     """
 
     vector_top_k: int = 50
     mmr_top_n: Optional[int] = None
     multi_query: MultiQueryCfg = field(default_factory=MultiQueryCfg)
+    temporal_prefilter: TemporalPrefilterCfg = field(
+        default_factory=TemporalPrefilterCfg,
+    )
 
 
 @dataclass(frozen=True)
@@ -426,10 +460,16 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         ),
         merge=str(mq_blk.get("merge", "rrf")),
     )
+    tp_blk = retrieval_blk.get("temporal_prefilter") or {}
+    tp_cfg = TemporalPrefilterCfg(
+        enabled=bool(tp_blk.get("enabled", False)),
+        tolerance_days=int(tp_blk.get("tolerance_days", 3)),
+    )
     retrieval_cfg = RetrievalCfg(
         vector_top_k=int(retrieval_blk.get("vector_top_k", 50)),
         mmr_top_n=(int(mmr_top_raw) if mmr_top_raw is not None else None),
         multi_query=mq_cfg,
+        temporal_prefilter=tp_cfg,
     )
 
     sc_blk = stack_blk.get("self_consistency") or {}

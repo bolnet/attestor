@@ -177,6 +177,17 @@ stack:
       rewriter_reasoning_effort: low
       merge: rrf                         # rrf | union
 
+    # Temporal pre-filter (Phase 3 RC4 — +1.5% on LME-S).
+    # When enabled, detects relative time phrases ("two weeks ago",
+    # "yesterday", "last Monday") in the question and tightens the
+    # vector + BM25 candidate window to memories with event_date
+    # within tolerance_days of the implied target. Caller-supplied
+    # time_window always wins; this only fires when no explicit
+    # bound was passed. Disabled by default.
+    temporal_prefilter:
+      enabled: false
+      tolerance_days: 3
+
   budget: 4000   # tokens for the pack sent to the answerer
 
   # Concurrency across samples in benchmark runs (LME / LoCoMo / BEAM).
