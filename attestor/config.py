@@ -64,13 +64,15 @@ _FALLBACK_NEO4J_USER = "neo4j"
 _FALLBACK_EMBEDDER_PROVIDER = "voyage"
 _FALLBACK_EMBEDDER_MODEL = "voyage-4"
 _FALLBACK_EMBEDDER_DIM = 1024
-_FALLBACK_ANSWERER = "openai/gpt-4.1"
-_FALLBACK_JUDGE = "openai/gpt-4.1"
-_FALLBACK_EXTRACTION = "openai/gpt-4.1-mini"
-_FALLBACK_DISTILL = "openai/gpt-4.1-mini"
+_FALLBACK_ANSWERER = "openai/gpt-5.5"
+_FALLBACK_JUDGE = "openai/gpt-5.5"
+# Note: OpenRouter has no gpt-5.5-mini SKU; the -mini roles use 5.4-mini
+# (cheapest current 5.x mini) until a 5.5-mini variant ships.
+_FALLBACK_EXTRACTION = "openai/gpt-5.4-mini"
+_FALLBACK_DISTILL = "openai/gpt-5.4-mini"
 _FALLBACK_VERIFIER = "anthropic/claude-sonnet-4-6"
 _FALLBACK_PLANNER = "anthropic/claude-opus-4.7"
-_FALLBACK_BENCHMARK = "openai/gpt-4.1-mini"
+_FALLBACK_BENCHMARK = "openai/gpt-5.4-mini"
 _FALLBACK_BUDGET = 4000
 _FALLBACK_PARALLEL = 2
 

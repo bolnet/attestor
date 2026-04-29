@@ -7,10 +7,18 @@
 # run, copy this file and pass `--config <copy>.yaml` to whatever script —
 # don't introduce a second hardcoded default anywhere in code.
 #
-# Updated 2026-04-28. The model lineup reflects the 500-sample LongMemEval
-# results in `results/bench_lme_4models_20260428/` — gpt-4.1 won overall
-# (72.2%), sonnet-4-6 second (66.8%); gpt-5 family dropped as worst-and-
-# priciest. Embedder is Voyage AI per `project_voyage_embedder_setup.md`.
+# Updated 2026-04-28. Model lineup upgraded to gpt-5.5 for the
+# answerer + judge (previously gpt-4.1). OpenRouter has no
+# gpt-5.5-mini SKU yet, so extraction/distill/benchmark_default
+# stay at gpt-5.4-mini (cheapest 5.x mini available) — flip these
+# to gpt-5.5-mini the day OpenRouter ships it.
+#
+# The 500-sample LongMemEval results on disk
+# (`results/bench_lme_4models_20260428/`) reflect the *prior* gpt-4.1
+# lineup — gpt-4.1 72.2%, sonnet-4-6 66.8%, gpt-5-mini 58.8%, gpt-5 52.6%.
+# Re-run the canonical bench against this YAML before publishing any
+# new headline number; the disk numbers are now historical.
+# Embedder is Voyage AI per `project_voyage_embedder_setup.md`.
 # Stack scope is locked to PG+pgvector+Neo4j per
 # `feedback_only_pg_neo4j_stack.md` (other backends remain in code as
 # optional / unpromoted).
@@ -73,17 +81,17 @@ stack:
     # Answerer — synthesises the final reply from retrieved context.
     # gpt-4.1 won overall on LongMemEval, especially on temporal +
     # multi-session reasoning.
-    answerer: openai/gpt-4.1
+    answerer: openai/gpt-5.5
 
     # Judge — single-judge panel. gpt-4.1 was the strongest standalone
     # judge in the 4-model run.
-    judge: openai/gpt-4.1
+    judge: openai/gpt-5.5
 
     # Extraction / distillation — runs once per turn during ingest to
     # pull explicit facts out of the conversation. Cheap model is fine
     # because the workload is volume-heavy and structurally simple.
-    extraction: openai/gpt-4.1-mini
-    distill:    openai/gpt-4.1-mini
+    extraction: openai/gpt-5.4-mini
+    distill:    openai/gpt-5.4-mini
 
     # Verifier — second-pass cross-check after Judge. Claude Sonnet 4.6
     # complements gpt-4.1: its recall strengths catch errors the
@@ -100,7 +108,7 @@ stack:
     # where no specific role applies (e.g. `attestor locomo` when the
     # user doesn't pass --answer-model). Cheap by design — bench
     # iteration happens often.
-    benchmark_default: openai/gpt-4.1-mini
+    benchmark_default: openai/gpt-5.4-mini
 
   # ─── Retrieval budget ────────────────────────────────────────────────
   # Token budget per recall (the orchestrator MMR-packs candidates
