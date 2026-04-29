@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -414,29 +415,41 @@ def load_stack(path: Path | str | None = None, *, strict: bool = False) -> Stack
     return _parse_yaml(cfg_path, strict=strict)
 
 
+_CACHE_LOCK = threading.Lock()
+
+
 def get_stack(*, strict: bool = False) -> StackConfig:
     """Return the cached stack, loading on first call.
 
     Most production code should call this. The cache is per-process and
     safe to call repeatedly. Use ``set_stack()`` for test injection or
     ``reset_stack()`` to force a re-read.
+
+    Thread-safety: double-checked locking around the cache. Without the
+    lock, two parallel threads on cold cache would each call
+    ``load_stack()`` (wasted YAML reads but correct result). With it,
+    only the first thread loads.
     """
     global _cached_stack
     if _cached_stack is None:
-        _cached_stack = load_stack(strict=strict)
+        with _CACHE_LOCK:
+            if _cached_stack is None:
+                _cached_stack = load_stack(strict=strict)
     return _cached_stack
 
 
 def set_stack(stack: StackConfig) -> None:
     """Override the cached stack. For tests + benchmark harnesses."""
     global _cached_stack
-    _cached_stack = stack
+    with _CACHE_LOCK:
+        _cached_stack = stack
 
 
 def reset_stack() -> None:
     """Drop the cache. Next ``get_stack()`` re-reads the YAML."""
     global _cached_stack
-    _cached_stack = None
+    with _CACHE_LOCK:
+        _cached_stack = None
 
 
 # ─── Helpers used by scripts ─────────────────────────────────────────
