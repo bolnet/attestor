@@ -49,9 +49,13 @@ def _get_client(api_key: Optional[str] = None):
     return OpenAI(base_url=OPENROUTER_BASE_URL, api_key=key)
 
 
-def _chat(client, model: str, prompt: str, max_tokens: int = 200) -> str:
+def _chat(client, model: str, prompt: str, max_tokens: int = 200,
+          *, role: str = "locomo.chat") -> str:
     """Send a chat completion request and return the text."""
-    response = client.chat.completions.create(
+    from attestor.llm_trace import traced_create
+    response = traced_create(
+        client,
+        role=role,
         model=model,
         max_tokens=max_tokens,
         messages=[{"role": "user", "content": prompt}],

@@ -115,7 +115,10 @@ def _call_llm(
     max_tokens: int,
 ) -> str:
     """Invoke the LLM and return the raw response text."""
-    response = client.chat.completions.create(
+    from attestor.llm_trace import traced_create
+    response = traced_create(
+        client,
+        role="round_extractor",
         model=model,
         max_tokens=max_tokens,
         messages=[{"role": "user", "content": prompt}],

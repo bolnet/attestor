@@ -651,9 +651,12 @@ def answer_question(
 
     # Retry with exponential backoff on rate limits
     import time as _time
+    from attestor.llm_trace import traced_create
     for attempt in range(5):
         try:
-            response = client.chat.completions.create(
+            response = traced_create(
+                client,
+                role="mab.chat",
                 model=model,
                 max_tokens=300,
                 messages=[{"role": "user", "content": prompt}],

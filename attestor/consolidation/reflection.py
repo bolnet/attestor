@@ -213,7 +213,10 @@ class ReflectionEngine:
             user_id=user_id, facts_json=facts_json,
         )
         try:
-            response = self._client.chat.completions.create(
+            from attestor.llm_trace import traced_create
+            response = traced_create(
+                self._client,
+                role="reflection",
                 model=self._model,
                 max_tokens=self._max_tokens,
                 messages=[{"role": "user", "content": prompt}],

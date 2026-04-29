@@ -153,7 +153,10 @@ def plan_query(
 
     prompt = _PLANNER_PROMPT.format(question=question)
     try:
-        response = client.chat.completions.create(
+        from attestor.llm_trace import traced_create
+        response = traced_create(
+            client,
+            role="planner",
             model=model,
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
