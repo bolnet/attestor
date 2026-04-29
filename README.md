@@ -132,14 +132,180 @@ for r in results:
 
 ### 6. Run a smoke benchmark (optional)
 
-Verify your install end-to-end against a tiny LongMemEval slice. Defaults match the canonical benchmark stack: `openai/gpt-5.2` answerer, dual judges (`openai/gpt-5.2` + `anthropic/claude-sonnet-4.6`), `openai/gpt-5.2` distiller, OpenAI `text-embedding-3-large` truncated to 1024-D.
+Verify your install end-to-end against a tiny LongMemEval slice. Defaults come from `configs/attestor.yaml`: Voyage AI `voyage-4` (1024-D) embedder, `openai/gpt-5.4-mini` answerer, dual judges (`openai/gpt-5.5` + `anthropic/claude-sonnet-4-6`), `parallel=2`.
 
 ```bash
-export OPENAI_API_KEY=...
-.venv/bin/python scripts/lme_smoke_local.py --n 2
+set -a && source .env && set +a   # OPENROUTER_API_KEY, VOYAGE_API_KEY, NEO4J_PASSWORD
+.venv/bin/python scripts/lme_smoke_local.py --n 2 --yes
 ```
 
-Every model and parameter is overridable via env var or CLI flag. See `--help` for the full table.
+Every model and parameter comes from YAML — see [§ Benchmarking](#benchmarking) below for the full bench harness.
+
+---
+
+## Benchmarking
+
+Every benchmark — smoke, single slice, full sweep, synthetic supersession — reads its knobs from two YAMLs:
+
+| File | What lives there |
+|---|---|
+| `configs/attestor.yaml` | Stack — embedder, models, retrieval features, DBs, registries, clouds |
+| `configs/bench.yaml` | Bench-only — variants, category iteration order, target scores, output paths |
+
+The two files **must have disjoint keys**. The CI test `tests/test_config_no_duplicate_keys.py` enforces this; the bench loader (`attestor.bench_config.get_bench`) crashes on overlap. If you want a one-off override (different model for one bench run), use an env var or CLI flag — never duplicate the key in `bench.yaml`.
+
+### Quick smoke (≤ 1 minute, ≤ $0.10)
+
+Confirm the pipeline runs end-to-end before committing or running anything bigger:
+
+```bash
+.venv/bin/python scripts/lme_smoke_local.py --n 2 --yes --variant oracle
+```
+
+`oracle` is the cheapest variant (gold sessions only, no distractor haystack). Schema is reapplied automatically; pass `--skip-schema` if you want to keep a populated DB between runs.
+
+### Single category — `scripts/bench/lme_run.sh`
+
+```bash
+# all 6 categories, current variant from bench.yaml (default: s)
+scripts/bench/lme_run.sh
+
+# one slice — full
+scripts/bench/lme_run.sh knowledge-update
+
+# one slice — capped at N samples (smoke)
+scripts/bench/lme_run.sh knowledge-update 10
+
+# one slice on a different variant (oracle = cheapest, m = ~1M tokens)
+scripts/bench/lme_run.sh knowledge-update "" oracle
+```
+
+Valid categories (LME-S 500 questions split):
+
+| Category | N | What it tests |
+|---|---|---|
+| `single-session-user` | 70 | One session, the user states the fact |
+| `single-session-assistant` | 56 | One session, the assistant states the fact |
+| `single-session-preference` | 30 | One session, user preference |
+| `multi-session` | 133 | Fact spans multiple sessions |
+| `temporal-reasoning` | 133 | Date arithmetic / "X weeks ago" |
+| `knowledge-update` | 78 | Supersession — newer fact must beat older |
+
+The cleaned LME-S dataset has no `abstention` slice; for that, see the synthetic suite below.
+
+Each run persists two files:
+
+```
+docs/bench/lme-{variant}-{category}-{YYYYMMDD}.report.json   # full LMERunReport
+docs/bench/lme-{variant}-{category}-{YYYYMMDD}.summary.json  # BenchmarkSummary
+```
+
+### Full sweep — `scripts/bench/lme_all.sh`
+
+Iterates `bench.yaml`'s `lme.categories` list in order. Adding/removing slices is a YAML edit, not a script edit:
+
+```bash
+# All 6 slices, current variant
+scripts/bench/lme_all.sh
+
+# All 6 slices, capped at 10 samples each (smoke)
+scripts/bench/lme_all.sh 10
+
+# All 6 slices on Oracle variant
+scripts/bench/lme_all.sh "" oracle
+```
+
+If one slice fails, the script logs it and moves on to the next.
+
+### Variant matrix
+
+| Variant | Tokens | Sessions | Use |
+|---|---|---|---|
+| `oracle` | ~3-15k | 1-3 gold | Reasoning ceiling — what the answerer can do with perfect retrieval |
+| `s` | ~115k | ~50 | **Public leaderboard** — fits in long-context window; compares memory layer vs "stuff everything in context" |
+| `m` | ~1M+ | ~500 | Pure retrieval — long-context shortcut can't fit; memory layer is forced |
+
+### Reporting — `scripts/bench/lme_report.py`
+
+Aggregates every `docs/bench/lme-*.summary.json` into one markdown table; picks the most-recent file per `(variant, category)`:
+
+```bash
+.venv/bin/python scripts/bench/lme_report.py                       # stdout
+.venv/bin/python scripts/bench/lme_report.py --variant s           # filter
+.venv/bin/python scripts/bench/lme_report.py \
+    --markdown-out docs/bench/LME-S.md                             # also write file
+```
+
+Output shape:
+
+```
+| Variant | Category | Score | N | Date | Answer | Judges |
+| ------- | -------- | -----:| -:| ---- | ------ | ------ |
+| s | knowledge-update | 87.5% | 78 | 20260429 | openai/gpt-5.4-mini | openai/gpt-5.5, anthropic/claude-sonnet-4-6 |
+```
+
+### Synthetic supersession suite — `python -m evals.knowledge_updates`
+
+50 hand-curated cases, 10 contradiction categories × 5 each (numeric, categorical, temporal, preference, entity, locational, intent, relational, count, status_binary). Each case ingests two sessions (Session 1 states a fact, Session 5 contradicts it) and asks a question that should resolve to the **newer** fact. Metric: % of cases where retrieval surfaces the new fact as top-1.
+
+```bash
+# All 50 cases — ~5 min, ~$0.50 worth of embedding calls
+.venv/bin/python -m evals.knowledge_updates
+
+# Smoke — first 5 cases
+.venv/bin/python -m evals.knowledge_updates --limit 5
+
+# Custom fixtures
+.venv/bin/python -m evals.knowledge_updates --fixtures my_cases.json
+```
+
+Outputs:
+
+```
+docs/bench/knowledge-updates-{YYYYMMDD}.report.json   # per-case verdicts (new_wins | stale_wins | miss | ambiguous)
+docs/bench/knowledge-updates-{YYYYMMDD}.summary.json  # aggregate score + per-category breakdown
+```
+
+Target score (configurable in `bench.yaml`): **92%** new_wins. Below that, the supersession-confidence-decay weight in `attestor/retrieval/scorer.py` needs tuning.
+
+### Cost & runtime guide
+
+Approximate, at `reasoning_effort=high` for answerer + judge, `parallel=2`, OpenRouter pricing:
+
+| Run | N | Wall time | Cost |
+|---|---|---|---|
+| Quick smoke | 2 oracle | ~1 min | < $0.10 |
+| `knowledge-update` slice | 78 | ~30-60 min | ~$3-5 |
+| `temporal-reasoning` slice | 133 | ~50-100 min | ~$5-8 |
+| Full LME-S 500q | 500 | ~75-180 min | ~$20-30 |
+| Synthetic supersession | 50 | ~5 min | ~$0.50 (embeddings only) |
+
+To cut costs, edit `configs/attestor.yaml`'s `models.reasoning_effort.{answerer,judge}` from `high` → `medium` or `low`.
+
+### Configuration cheat sheet — `configs/bench.yaml`
+
+```yaml
+bench:
+  lme:
+    variant: s                    # s | m | oracle
+    cache_dir: ~/.cache/attestor/lme
+    output_dir: docs/bench
+    sample_limit: null            # null = full dataset; int = truncate
+    category: null                # null = all 7; or single slice name
+    categories: [...]             # iteration order for lme_all.sh
+    variants_to_run: [...]        # for full size matrix
+
+  knowledge_updates:
+    fixtures_path: evals/knowledge_updates/fixtures.json
+    n_cases: 50
+    target_score: 0.92
+    categories: [numeric, categorical, ...]
+
+  report:
+    headline_slice: abstention
+    trend_csv: docs/bench/trend.csv
+    markdown_path: docs/bench/LME-S.md
+```
 
 ---
 

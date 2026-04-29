@@ -129,3 +129,39 @@ def test_summarize_from_dataclass_form() -> None:
     s = summarize(_FakeReport())
     assert s.primary_metric == pytest.approx(60.0)
     assert s.per_category == {"temporal": pytest.approx(60.0)}
+
+
+# ── --category filter ─────────────────────────────────────────────────────
+
+
+@pytest.mark.unit
+def test_valid_categories_matches_dataset_question_types() -> None:
+    """VALID_CATEGORIES must mirror the cleaned LME-S question_type values.
+
+    Drift here would mean --category accepts strings that filter to zero
+    samples — silent empty result.
+    """
+    from evals.longmemeval.runner import VALID_CATEGORIES
+
+    expected = {
+        "single-session-user",
+        "single-session-assistant",
+        "single-session-preference",
+        "multi-session",
+        "temporal-reasoning",
+        "knowledge-update",
+    }
+    assert set(VALID_CATEGORIES) == expected
+
+
+@pytest.mark.unit
+def test_run_rejects_unknown_category() -> None:
+    """Catch typos at the CLI boundary, not inside the run loop."""
+    from evals.longmemeval.runner import run
+
+    with pytest.raises(ValueError, match="unknown category"):
+        run(
+            mem_factory=lambda: None,
+            variant="s",
+            category="abstention",   # not in cleaned LME-S
+        )

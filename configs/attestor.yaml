@@ -165,6 +165,18 @@ stack:
     vector_top_k: 50
     # mmr_top_n: 50    # uncomment to cap; default = no cap
 
+    # Multi-query lane (Phase 3 PR-C, RC1 — biggest +8% accuracy lever).
+    # When enabled, the orchestrator rewrites the question into N
+    # paraphrases via a single LLM call and RRF-merges N+1 vector
+    # searches before the rest of the cascade. Disabled by default —
+    # flip to `true` per bench run to measure the lift.
+    multi_query:
+      enabled: false
+      n: 3
+      rewriter_model: null               # null → models.extraction
+      rewriter_reasoning_effort: low
+      merge: rrf                         # rrf | union
+
   budget: 4000   # tokens for the pack sent to the answerer
 
   # Concurrency across samples in benchmark runs (LME / LoCoMo / BEAM).
