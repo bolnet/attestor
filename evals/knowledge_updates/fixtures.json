@@ -1,0 +1,815 @@
+{
+  "version": 1,
+  "description": "50 synthetic supersession cases — Session 1 states a fact, Session 5 contradicts it, Session 10 asks a question that should resolve to the NEWER fact.",
+  "cases": [
+    {
+      "case_id": "ku_numeric_001",
+      "category": "numeric",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-15", "turns": [
+          {"role": "user", "content": "I just bought a Tesla Model 3 — paid $42,000."}
+        ]},
+        {"session_id": "s5", "date": "2025-03-20", "turns": [
+          {"role": "user", "content": "Sold the Tesla last weekend for $38,500 — depreciation hit harder than I thought."}
+        ]}
+      ],
+      "question_date": "2025-04-01",
+      "question": "How much did I sell my Tesla for?",
+      "gold_answer": "$38,500",
+      "stale_answer": "$42,000"
+    },
+    {
+      "case_id": "ku_numeric_002",
+      "category": "numeric",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-10", "turns": [
+          {"role": "user", "content": "My monthly rent is $2,400."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-05", "turns": [
+          {"role": "user", "content": "Landlord raised my rent to $2,650 starting May 1st."}
+        ]}
+      ],
+      "question_date": "2025-05-15",
+      "question": "What's my current monthly rent?",
+      "gold_answer": "$2,650",
+      "stale_answer": "$2,400"
+    },
+    {
+      "case_id": "ku_numeric_003",
+      "category": "numeric",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-01", "turns": [
+          {"role": "user", "content": "I weigh 185 pounds."}
+        ]},
+        {"session_id": "s5", "date": "2025-05-15", "turns": [
+          {"role": "user", "content": "Three months of training and I'm down to 172 pounds now."}
+        ]}
+      ],
+      "question_date": "2025-06-01",
+      "question": "What's my current weight?",
+      "gold_answer": "172 pounds",
+      "stale_answer": "185 pounds"
+    },
+    {
+      "case_id": "ku_numeric_004",
+      "category": "numeric",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-20", "turns": [
+          {"role": "user", "content": "My salary is $145,000 base."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-10", "turns": [
+          {"role": "user", "content": "Got promoted — new base is $168,000."}
+        ]}
+      ],
+      "question_date": "2025-05-01",
+      "question": "What's my current base salary?",
+      "gold_answer": "$168,000",
+      "stale_answer": "$145,000"
+    },
+    {
+      "case_id": "ku_numeric_005",
+      "category": "numeric",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-12", "turns": [
+          {"role": "user", "content": "We have 3 engineers on the platform team."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-25", "turns": [
+          {"role": "user", "content": "Two more engineers joined the platform team last week — we're at 5 now."}
+        ]}
+      ],
+      "question_date": "2025-05-10",
+      "question": "How many engineers are on the platform team currently?",
+      "gold_answer": "5",
+      "stale_answer": "3"
+    },
+
+    {
+      "case_id": "ku_categorical_001",
+      "category": "categorical",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-08", "turns": [
+          {"role": "user", "content": "Project Atlas is in 'Active' status."}
+        ]},
+        {"session_id": "s5", "date": "2025-03-15", "turns": [
+          {"role": "user", "content": "Project Atlas got suspended pending budget review."}
+        ]}
+      ],
+      "question_date": "2025-04-01",
+      "question": "What's the current status of Project Atlas?",
+      "gold_answer": "Suspended",
+      "stale_answer": "Active"
+    },
+    {
+      "case_id": "ku_categorical_002",
+      "category": "categorical",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-01", "turns": [
+          {"role": "user", "content": "I'm a vegetarian."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-20", "turns": [
+          {"role": "user", "content": "Switched to pescatarian — needed more protein for marathon training."}
+        ]}
+      ],
+      "question_date": "2025-05-10",
+      "question": "What's my current dietary classification?",
+      "gold_answer": "Pescatarian",
+      "stale_answer": "Vegetarian"
+    },
+    {
+      "case_id": "ku_categorical_003",
+      "category": "categorical",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-15", "turns": [
+          {"role": "user", "content": "I'm on the Pro plan for $20/month."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-01", "turns": [
+          {"role": "user", "content": "Just upgraded to the Enterprise plan."}
+        ]}
+      ],
+      "question_date": "2025-04-15",
+      "question": "What plan tier am I on?",
+      "gold_answer": "Enterprise",
+      "stale_answer": "Pro"
+    },
+    {
+      "case_id": "ku_categorical_004",
+      "category": "categorical",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-05", "turns": [
+          {"role": "user", "content": "My laptop is a MacBook Pro."}
+        ]},
+        {"session_id": "s5", "date": "2025-05-01", "turns": [
+          {"role": "user", "content": "Switched to a Framework 16 laptop — wanted Linux + repairability."}
+        ]}
+      ],
+      "question_date": "2025-05-20",
+      "question": "What's my current primary laptop?",
+      "gold_answer": "Framework 16",
+      "stale_answer": "MacBook Pro"
+    },
+    {
+      "case_id": "ku_categorical_005",
+      "category": "categorical",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-25", "turns": [
+          {"role": "user", "content": "Issue #443 is currently 'In Progress'."}
+        ]},
+        {"session_id": "s5", "date": "2025-03-10", "turns": [
+          {"role": "user", "content": "Issue #443 was closed yesterday after the fix shipped."}
+        ]}
+      ],
+      "question_date": "2025-03-25",
+      "question": "What's the status of issue #443?",
+      "gold_answer": "Closed",
+      "stale_answer": "In Progress"
+    },
+
+    {
+      "case_id": "ku_temporal_001",
+      "category": "temporal",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-10", "turns": [
+          {"role": "user", "content": "The launch is scheduled for March 15th."}
+        ]},
+        {"session_id": "s5", "date": "2025-02-28", "turns": [
+          {"role": "user", "content": "We pushed launch back to April 22nd — needed more QA time."}
+        ]}
+      ],
+      "question_date": "2025-03-10",
+      "question": "When is the launch scheduled?",
+      "gold_answer": "April 22nd",
+      "stale_answer": "March 15th"
+    },
+    {
+      "case_id": "ku_temporal_002",
+      "category": "temporal",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-01", "turns": [
+          {"role": "user", "content": "My flight to Tokyo leaves Tuesday."}
+        ]},
+        {"session_id": "s5", "date": "2025-02-20", "turns": [
+          {"role": "user", "content": "Rebooked the Tokyo flight for next Friday — work conflict came up."}
+        ]}
+      ],
+      "question_date": "2025-02-25",
+      "question": "Which day does my Tokyo flight leave?",
+      "gold_answer": "Friday",
+      "stale_answer": "Tuesday"
+    },
+    {
+      "case_id": "ku_temporal_003",
+      "category": "temporal",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-15", "turns": [
+          {"role": "user", "content": "Annual review is on March 1st this year."}
+        ]},
+        {"session_id": "s5", "date": "2025-02-10", "turns": [
+          {"role": "user", "content": "HR moved annual review to March 28th."}
+        ]}
+      ],
+      "question_date": "2025-03-15",
+      "question": "When is my annual review?",
+      "gold_answer": "March 28th",
+      "stale_answer": "March 1st"
+    },
+    {
+      "case_id": "ku_temporal_004",
+      "category": "temporal",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-12", "turns": [
+          {"role": "user", "content": "My daughter's birthday party is on Saturday."}
+        ]},
+        {"session_id": "s5", "date": "2025-02-25", "turns": [
+          {"role": "user", "content": "Postponed the birthday party to the following Sunday."}
+        ]}
+      ],
+      "question_date": "2025-03-01",
+      "question": "Which day did we end up holding my daughter's birthday party?",
+      "gold_answer": "Sunday",
+      "stale_answer": "Saturday"
+    },
+    {
+      "case_id": "ku_temporal_005",
+      "category": "temporal",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-20", "turns": [
+          {"role": "user", "content": "Lease ends June 30th."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-12", "turns": [
+          {"role": "user", "content": "Renewed the lease — now ends September 30th, 2026."}
+        ]}
+      ],
+      "question_date": "2025-05-01",
+      "question": "When does my current lease end?",
+      "gold_answer": "September 30th, 2026",
+      "stale_answer": "June 30th, 2025"
+    },
+
+    {
+      "case_id": "ku_preference_001",
+      "category": "preference",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-05", "turns": [
+          {"role": "user", "content": "Coffee in the morning is non-negotiable for me."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-15", "turns": [
+          {"role": "user", "content": "Switched to matcha — coffee was making me anxious."}
+        ]}
+      ],
+      "question_date": "2025-05-01",
+      "question": "What do I drink in the mornings these days?",
+      "gold_answer": "Matcha",
+      "stale_answer": "Coffee"
+    },
+    {
+      "case_id": "ku_preference_002",
+      "category": "preference",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-01", "turns": [
+          {"role": "user", "content": "I prefer Vim for editing."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-25", "turns": [
+          {"role": "user", "content": "Reluctantly moved to VSCode — better LSP integration won me over."}
+        ]}
+      ],
+      "question_date": "2025-05-10",
+      "question": "Which editor do I currently use?",
+      "gold_answer": "VSCode",
+      "stale_answer": "Vim"
+    },
+    {
+      "case_id": "ku_preference_003",
+      "category": "preference",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-12", "turns": [
+          {"role": "user", "content": "I always book aisle seats on flights."}
+        ]},
+        {"session_id": "s5", "date": "2025-03-30", "turns": [
+          {"role": "user", "content": "Window seats grew on me — way better for sleeping on red-eyes."}
+        ]}
+      ],
+      "question_date": "2025-04-15",
+      "question": "Which type of seat do I prefer on flights?",
+      "gold_answer": "Window",
+      "stale_answer": "Aisle"
+    },
+    {
+      "case_id": "ku_preference_004",
+      "category": "preference",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-08", "turns": [
+          {"role": "user", "content": "Postgres is my default for any new project."}
+        ]},
+        {"session_id": "s5", "date": "2025-05-01", "turns": [
+          {"role": "user", "content": "Switched my default to SQLite — Litestream changed the calculus on small apps."}
+        ]}
+      ],
+      "question_date": "2025-05-20",
+      "question": "What's my current default database?",
+      "gold_answer": "SQLite",
+      "stale_answer": "Postgres"
+    },
+    {
+      "case_id": "ku_preference_005",
+      "category": "preference",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-18", "turns": [
+          {"role": "user", "content": "I run 5K every morning before work."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-22", "turns": [
+          {"role": "user", "content": "Knee gave out — switched to swimming five days a week instead."}
+        ]}
+      ],
+      "question_date": "2025-05-05",
+      "question": "What's my current morning exercise?",
+      "gold_answer": "Swimming",
+      "stale_answer": "Running"
+    },
+
+    {
+      "case_id": "ku_entity_001",
+      "category": "entity",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-15", "turns": [
+          {"role": "user", "content": "Alice Chen is our CTO."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-10", "turns": [
+          {"role": "user", "content": "Alice stepped down. Bob Patel took over as CTO this Monday."}
+        ]}
+      ],
+      "question_date": "2025-04-25",
+      "question": "Who is the company's current CTO?",
+      "gold_answer": "Bob Patel",
+      "stale_answer": "Alice Chen"
+    },
+    {
+      "case_id": "ku_entity_002",
+      "category": "entity",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-01", "turns": [
+          {"role": "user", "content": "My primary care doctor is Dr. Mendez."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-15", "turns": [
+          {"role": "user", "content": "Switched to Dr. Khoury — Mendez's office stopped taking my insurance."}
+        ]}
+      ],
+      "question_date": "2025-05-01",
+      "question": "Who's my primary care doctor right now?",
+      "gold_answer": "Dr. Khoury",
+      "stale_answer": "Dr. Mendez"
+    },
+    {
+      "case_id": "ku_entity_003",
+      "category": "entity",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-10", "turns": [
+          {"role": "user", "content": "Our AWS account manager is Jen Wu."}
+        ]},
+        {"session_id": "s5", "date": "2025-03-20", "turns": [
+          {"role": "user", "content": "AWS reassigned us — new account manager is Marcus Lee."}
+        ]}
+      ],
+      "question_date": "2025-04-05",
+      "question": "Who is our current AWS account manager?",
+      "gold_answer": "Marcus Lee",
+      "stale_answer": "Jen Wu"
+    },
+    {
+      "case_id": "ku_entity_004",
+      "category": "entity",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-05", "turns": [
+          {"role": "user", "content": "Maya is my dog."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-30", "turns": [
+          {"role": "user", "content": "Maya passed away last month. We adopted a new puppy named Loki."}
+        ]}
+      ],
+      "question_date": "2025-05-15",
+      "question": "What's the name of my current dog?",
+      "gold_answer": "Loki",
+      "stale_answer": "Maya"
+    },
+    {
+      "case_id": "ku_entity_005",
+      "category": "entity",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-22", "turns": [
+          {"role": "user", "content": "Our agency of record is Wieden+Kennedy."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-08", "turns": [
+          {"role": "user", "content": "Moved the account to Mother Design — better fit for our brand refresh."}
+        ]}
+      ],
+      "question_date": "2025-04-25",
+      "question": "Who's our current agency of record?",
+      "gold_answer": "Mother Design",
+      "stale_answer": "Wieden+Kennedy"
+    },
+
+    {
+      "case_id": "ku_locational_001",
+      "category": "locational",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-10", "turns": [
+          {"role": "user", "content": "I live at 123 Main Street, Austin."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-20", "turns": [
+          {"role": "user", "content": "Moved this weekend — new place is 456 Oak Avenue, Austin."}
+        ]}
+      ],
+      "question_date": "2025-05-01",
+      "question": "What's my current address?",
+      "gold_answer": "456 Oak Avenue, Austin",
+      "stale_answer": "123 Main Street, Austin"
+    },
+    {
+      "case_id": "ku_locational_002",
+      "category": "locational",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-01", "turns": [
+          {"role": "user", "content": "Our HQ is in San Francisco."}
+        ]},
+        {"session_id": "s5", "date": "2025-05-10", "turns": [
+          {"role": "user", "content": "We relocated HQ to Austin — closed the SF office last week."}
+        ]}
+      ],
+      "question_date": "2025-05-25",
+      "question": "Where is our company HQ now?",
+      "gold_answer": "Austin",
+      "stale_answer": "San Francisco"
+    },
+    {
+      "case_id": "ku_locational_003",
+      "category": "locational",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-18", "turns": [
+          {"role": "user", "content": "Database is hosted in us-east-1."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-25", "turns": [
+          {"role": "user", "content": "Migrated everything to us-west-2 — better latency for our user base."}
+        ]}
+      ],
+      "question_date": "2025-05-10",
+      "question": "Which AWS region is our database in?",
+      "gold_answer": "us-west-2",
+      "stale_answer": "us-east-1"
+    },
+    {
+      "case_id": "ku_locational_004",
+      "category": "locational",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-12", "turns": [
+          {"role": "user", "content": "My standing desk is in the home office."}
+        ]},
+        {"session_id": "s5", "date": "2025-05-05", "turns": [
+          {"role": "user", "content": "Reorg'd the apartment — desk is in the living room now."}
+        ]}
+      ],
+      "question_date": "2025-05-20",
+      "question": "Where is my standing desk currently?",
+      "gold_answer": "Living room",
+      "stale_answer": "Home office"
+    },
+    {
+      "case_id": "ku_locational_005",
+      "category": "locational",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-25", "turns": [
+          {"role": "user", "content": "I'm based in Seattle for the next year."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-18", "turns": [
+          {"role": "user", "content": "Plans changed — moved to Denver early."}
+        ]}
+      ],
+      "question_date": "2025-05-01",
+      "question": "Which city am I based in right now?",
+      "gold_answer": "Denver",
+      "stale_answer": "Seattle"
+    },
+
+    {
+      "case_id": "ku_intent_001",
+      "category": "intent",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-12", "turns": [
+          {"role": "user", "content": "I'm planning to cancel the Acme project."}
+        ]},
+        {"session_id": "s5", "date": "2025-03-25", "turns": [
+          {"role": "user", "content": "Decided not to cancel — Acme is back on the roadmap with a new lead."}
+        ]}
+      ],
+      "question_date": "2025-04-10",
+      "question": "What's the current plan for the Acme project?",
+      "gold_answer": "On the roadmap (continuing)",
+      "stale_answer": "Cancel"
+    },
+    {
+      "case_id": "ku_intent_002",
+      "category": "intent",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-08", "turns": [
+          {"role": "user", "content": "Goal this quarter: ship feature X by end of Q1."}
+        ]},
+        {"session_id": "s5", "date": "2025-03-15", "turns": [
+          {"role": "user", "content": "We deprioritized X — Q1 goal pivoted to platform stability."}
+        ]}
+      ],
+      "question_date": "2025-04-01",
+      "question": "What was my Q1 goal in the end?",
+      "gold_answer": "Platform stability",
+      "stale_answer": "Ship feature X"
+    },
+    {
+      "case_id": "ku_intent_003",
+      "category": "intent",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-20", "turns": [
+          {"role": "user", "content": "I want to learn Rust this year."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-30", "turns": [
+          {"role": "user", "content": "Pivoted to learning Zig instead — closer to my embedded work."}
+        ]}
+      ],
+      "question_date": "2025-05-15",
+      "question": "Which language am I currently focused on learning?",
+      "gold_answer": "Zig",
+      "stale_answer": "Rust"
+    },
+    {
+      "case_id": "ku_intent_004",
+      "category": "intent",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-15", "turns": [
+          {"role": "user", "content": "Going to apply for Stanford MBA this fall."}
+        ]},
+        {"session_id": "s5", "date": "2025-05-05", "turns": [
+          {"role": "user", "content": "Decided against the MBA — going to keep building my startup full-time."}
+        ]}
+      ],
+      "question_date": "2025-05-25",
+      "question": "What's my current career plan?",
+      "gold_answer": "Build the startup full-time",
+      "stale_answer": "Apply for Stanford MBA"
+    },
+    {
+      "case_id": "ku_intent_005",
+      "category": "intent",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-15", "turns": [
+          {"role": "user", "content": "Thinking about getting a Tesla as my next car."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-20", "turns": [
+          {"role": "user", "content": "Skipping the Tesla — going with a Rivian R1S instead."}
+        ]}
+      ],
+      "question_date": "2025-05-10",
+      "question": "Which car am I planning to buy next?",
+      "gold_answer": "Rivian R1S",
+      "stale_answer": "Tesla"
+    },
+
+    {
+      "case_id": "ku_relational_001",
+      "category": "relational",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-08", "turns": [
+          {"role": "user", "content": "Sara and I have been dating for two years."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-25", "turns": [
+          {"role": "user", "content": "Sara and I broke up last month."}
+        ]}
+      ],
+      "question_date": "2025-05-10",
+      "question": "What's my current relationship status with Sara?",
+      "gold_answer": "Broken up",
+      "stale_answer": "Dating"
+    },
+    {
+      "case_id": "ku_relational_002",
+      "category": "relational",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-12", "turns": [
+          {"role": "user", "content": "James reports to me on the data team."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-15", "turns": [
+          {"role": "user", "content": "James moved over to the platform team after the reorg — Priya is now his manager."}
+        ]}
+      ],
+      "question_date": "2025-05-01",
+      "question": "Who is James's manager right now?",
+      "gold_answer": "Priya",
+      "stale_answer": "Me"
+    },
+    {
+      "case_id": "ku_relational_003",
+      "category": "relational",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-18", "turns": [
+          {"role": "user", "content": "Acme Corp is a paying customer of ours."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-10", "turns": [
+          {"role": "user", "content": "Acme churned — they didn't renew their contract."}
+        ]}
+      ],
+      "question_date": "2025-04-25",
+      "question": "Is Acme Corp currently a customer?",
+      "gold_answer": "No (churned)",
+      "stale_answer": "Yes (paying customer)"
+    },
+    {
+      "case_id": "ku_relational_004",
+      "category": "relational",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-22", "turns": [
+          {"role": "user", "content": "I'm on the board of NonProfit X."}
+        ]},
+        {"session_id": "s5", "date": "2025-05-08", "turns": [
+          {"role": "user", "content": "Stepped off the NonProfit X board last week — couldn't make the meeting cadence work."}
+        ]}
+      ],
+      "question_date": "2025-05-20",
+      "question": "Am I currently on the NonProfit X board?",
+      "gold_answer": "No",
+      "stale_answer": "Yes"
+    },
+    {
+      "case_id": "ku_relational_005",
+      "category": "relational",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-25", "turns": [
+          {"role": "user", "content": "Working closely with Acme as our top integration partner."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-18", "turns": [
+          {"role": "user", "content": "Switched our flagship integration partner to Globex — they're a better technical fit."}
+        ]}
+      ],
+      "question_date": "2025-05-01",
+      "question": "Who is our top integration partner right now?",
+      "gold_answer": "Globex",
+      "stale_answer": "Acme"
+    },
+
+    {
+      "case_id": "ku_count_001",
+      "category": "count",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-10", "turns": [
+          {"role": "user", "content": "We have 2 kids."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-15", "turns": [
+          {"role": "user", "content": "Our third was born two weeks ago — we have 3 kids now."}
+        ]}
+      ],
+      "question_date": "2025-05-01",
+      "question": "How many kids do I have?",
+      "gold_answer": "3",
+      "stale_answer": "2"
+    },
+    {
+      "case_id": "ku_count_002",
+      "category": "count",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-05", "turns": [
+          {"role": "user", "content": "Open positions on my team: 4."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-22", "turns": [
+          {"role": "user", "content": "Filled three of the open roles — only 1 left to hire."}
+        ]}
+      ],
+      "question_date": "2025-05-10",
+      "question": "How many open positions are on my team?",
+      "gold_answer": "1",
+      "stale_answer": "4"
+    },
+    {
+      "case_id": "ku_count_003",
+      "category": "count",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-15", "turns": [
+          {"role": "user", "content": "I own 5 properties total."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-05", "turns": [
+          {"role": "user", "content": "Sold one of the rentals — down to 4 properties."}
+        ]}
+      ],
+      "question_date": "2025-04-25",
+      "question": "How many properties do I currently own?",
+      "gold_answer": "4",
+      "stale_answer": "5"
+    },
+    {
+      "case_id": "ku_count_004",
+      "category": "count",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-12", "turns": [
+          {"role": "user", "content": "I have 12 active GitHub repos."}
+        ]},
+        {"session_id": "s5", "date": "2025-05-01", "turns": [
+          {"role": "user", "content": "Archived a bunch of old projects — 7 active repos now."}
+        ]}
+      ],
+      "question_date": "2025-05-15",
+      "question": "How many active GitHub repos do I have?",
+      "gold_answer": "7",
+      "stale_answer": "12"
+    },
+    {
+      "case_id": "ku_count_005",
+      "category": "count",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-22", "turns": [
+          {"role": "user", "content": "I'm tracking 8 deals in my pipeline."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-30", "turns": [
+          {"role": "user", "content": "Closed 3 and added 5 new ones — pipeline is at 10 deals."}
+        ]}
+      ],
+      "question_date": "2025-05-10",
+      "question": "How many deals are in my pipeline right now?",
+      "gold_answer": "10",
+      "stale_answer": "8"
+    },
+
+    {
+      "case_id": "ku_status_binary_001",
+      "category": "status_binary",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-08", "turns": [
+          {"role": "user", "content": "I'm subscribed to The Information."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-12", "turns": [
+          {"role": "user", "content": "Cancelled my Information subscription — wasn't reading it enough."}
+        ]}
+      ],
+      "question_date": "2025-04-25",
+      "question": "Am I currently subscribed to The Information?",
+      "gold_answer": "No",
+      "stale_answer": "Yes"
+    },
+    {
+      "case_id": "ku_status_binary_002",
+      "category": "status_binary",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-15", "turns": [
+          {"role": "user", "content": "Two-factor auth is disabled on my main account."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-22", "turns": [
+          {"role": "user", "content": "Finally enabled 2FA on the main account after the phishing scare."}
+        ]}
+      ],
+      "question_date": "2025-05-05",
+      "question": "Is 2FA enabled on my main account?",
+      "gold_answer": "Yes",
+      "stale_answer": "No"
+    },
+    {
+      "case_id": "ku_status_binary_003",
+      "category": "status_binary",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-25", "turns": [
+          {"role": "user", "content": "I'm vaccinated for the flu this season."}
+        ]},
+        {"session_id": "s5", "date": "2025-03-15", "turns": [
+          {"role": "user", "content": "Doctor wants me to skip flu vax this round — turns out I had a reaction."}
+        ]}
+      ],
+      "question_date": "2025-04-10",
+      "question": "Has my flu vaccination status changed this season?",
+      "gold_answer": "Yes (now skipped/no longer planned)",
+      "stale_answer": "No (still vaccinated)"
+    },
+    {
+      "case_id": "ku_status_binary_004",
+      "category": "status_binary",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-02-08", "turns": [
+          {"role": "user", "content": "Working from home full-time these days."}
+        ]},
+        {"session_id": "s5", "date": "2025-05-01", "turns": [
+          {"role": "user", "content": "Back in the office three days a week now — RTO mandate kicked in."}
+        ]}
+      ],
+      "question_date": "2025-05-20",
+      "question": "Am I fully remote right now?",
+      "gold_answer": "No (hybrid, 3 days in office)",
+      "stale_answer": "Yes (full-time remote)"
+    },
+    {
+      "case_id": "ku_status_binary_005",
+      "category": "status_binary",
+      "sessions": [
+        {"session_id": "s1", "date": "2025-01-18", "turns": [
+          {"role": "user", "content": "On a strict no-alcohol regimen for 90 days."}
+        ]},
+        {"session_id": "s5", "date": "2025-04-25", "turns": [
+          {"role": "user", "content": "90-day stretch ended — back to occasional wine with dinner."}
+        ]}
+      ],
+      "question_date": "2025-05-10",
+      "question": "Am I currently abstaining from alcohol?",
+      "gold_answer": "No",
+      "stale_answer": "Yes"
+    }
+  ]
+}

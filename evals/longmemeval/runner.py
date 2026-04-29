@@ -93,6 +93,16 @@ def summarize(report: Any) -> BenchmarkSummary:
 # ── run: full pipeline ────────────────────────────────────────────────────
 
 
+VALID_CATEGORIES = (
+    "single-session-user",
+    "single-session-assistant",
+    "single-session-preference",
+    "multi-session",
+    "temporal-reasoning",
+    "knowledge-update",
+)
+
+
 def run(
     *,
     mem_factory: Callable[[], Any],
@@ -105,6 +115,7 @@ def run(
     parallel: int = 4,
     output_dir: Optional[Path | str] = None,
     sample_limit: Optional[int] = None,
+    category: Optional[str] = None,
 ) -> BenchmarkSummary:
     """End-to-end LME run. Returns the BenchmarkSummary.
 
@@ -113,12 +124,33 @@ def run(
       - ``output_dir/longmemeval_summary.json`` — BenchmarkSummary
 
     ``sample_limit`` truncates the dataset; useful for smoke runs.
+    ``category`` filters samples by ``question_type`` — pass one of
+    :data:`VALID_CATEGORIES` to score a single slice.
     """
     from attestor.longmemeval import (
         DEFAULT_MODEL, load_or_download, run_async,
     )
 
     samples = load_or_download(cache_dir=cache_dir, variant=variant)
+
+    if category is not None:
+        if category not in VALID_CATEGORIES:
+            raise ValueError(
+                f"unknown category {category!r}. "
+                f"Choose one of: {sorted(VALID_CATEGORIES)}"
+            )
+        before = len(samples)
+        samples = [s for s in samples if s.question_type == category]
+        logger.info(
+            "longmemeval: filtered to category=%s (%d → %d samples)",
+            category, before, len(samples),
+        )
+        if not samples:
+            raise SystemExit(
+                f"longmemeval: no samples for category={category!r} in "
+                f"variant={variant!r} — empty result, aborting.",
+            )
+
     if sample_limit is not None and sample_limit > 0:
         samples = samples[:sample_limit]
         logger.info("longmemeval: truncated dataset to %d samples", len(samples))
@@ -167,6 +199,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--parallel", type=int, default=4)
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--cache-dir", default=None)
+    parser.add_argument(
+        "--category", default=None,
+        help=(
+            "filter to one slice — "
+            f"{'|'.join(VALID_CATEGORIES)}"
+        ),
+    )
     args = parser.parse_args(argv)
 
     # The mem_factory builder is intentionally split out — operators wire
@@ -186,6 +225,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         parallel=args.parallel,
         output_dir=args.output_dir,
         sample_limit=args.limit,
+        category=args.category,
     )
     print(json.dumps(summary.to_dict(), indent=2))
     return 0

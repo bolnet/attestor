@@ -1,0 +1,211 @@
+{
+  "total": 2,
+  "answer_model": "openai/gpt-5.4-mini",
+  "judge_models": [
+    "openai/gpt-5.5",
+    "anthropic/claude-sonnet-4-6"
+  ],
+  "by_category": {
+    "temporal-reasoning": {
+      "openai/gpt-5.5": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 100.0
+      },
+      "anthropic/claude-sonnet-4-6": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 100.0
+      }
+    }
+  },
+  "by_judge": {
+    "openai/gpt-5.5": {
+      "correct": 2,
+      "total": 2,
+      "accuracy": 100.0
+    },
+    "anthropic/claude-sonnet-4-6": {
+      "correct": 2,
+      "total": 2,
+      "accuracy": 100.0
+    },
+    "_inter_judge_agreement": {
+      "openai/gpt-5.5__vs__anthropic/claude-sonnet-4-6": {
+        "both_correct": 2,
+        "both_wrong": 0,
+        "agreement_pct": 100.0
+      }
+    }
+  },
+  "started_at": "2026-04-29T14:05:33+00:00",
+  "completed_at": "2026-04-29T14:09:53+00:00",
+  "samples": [
+    {
+      "question_id": "gpt4_2655b836",
+      "category": "temporal-reasoning",
+      "question": "What was the first issue I had with my new car after its first service?",
+      "gold": "GPS system not functioning correctly",
+      "answer": "The GPS system.",
+      "judgments": {
+        "openai/gpt-5.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer identifies the GPS system as the first issue, which matches the gold answer that it was not functioning correctly.",
+          "judge_model": "openai/gpt-5.5"
+        },
+        "anthropic/claude-sonnet-4-6": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer 'The GPS system' semantically matches the gold answer 'GPS system not functioning correctly'.",
+          "judge_model": "anthropic/claude-sonnet-4-6"
+        }
+      },
+      "answer_latency_ms": 7464.52,
+      "ingest_turns": 36,
+      "ingest_memories": 245,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_4be1b6b4_2",
+        "answer_4be1b6b4_3",
+        "answer_4be1b6b4_1"
+      ],
+      "retrieved_session_ids": [
+        "answer_4be1b6b4_2",
+        "answer_4be1b6b4_1",
+        "answer_4be1b6b4_3",
+        "answer_4be1b6b4_3",
+        "answer_4be1b6b4_3",
+        "answer_4be1b6b4_2",
+        "answer_4be1b6b4_2",
+        "answer_4be1b6b4_3",
+        "answer_4be1b6b4_3",
+        "answer_4be1b6b4_1"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 10,
+      "predicted_mode": "fact",
+      "personalization": null
+    },
+    {
+      "question_id": "gpt4_2487a7cb",
+      "category": "temporal-reasoning",
+      "question": "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?",
+      "gold": "'Data Analysis using Python' webinar",
+      "answer": "The **\"Data Analysis using Python\" webinar**.",
+      "judgments": {
+        "openai/gpt-5.5": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI answer exactly matches the gold answer, identifying the 'Data Analysis using Python' webinar as attended first.",
+          "judge_model": "openai/gpt-5.5"
+        },
+        "anthropic/claude-sonnet-4-6": {
+          "label": "CORRECT",
+          "correct": true,
+          "reasoning": "The AI's answer matches the gold answer exactly, identifying the 'Data Analysis using Python' webinar as the first event attended.",
+          "judge_model": "anthropic/claude-sonnet-4-6"
+        }
+      },
+      "answer_latency_ms": 5991.96,
+      "ingest_turns": 24,
+      "ingest_memories": 190,
+      "retrieved_count": 10,
+      "gold_session_ids": [
+        "answer_1c6b85ea_1",
+        "answer_1c6b85ea_2"
+      ],
+      "retrieved_session_ids": [
+        "answer_1c6b85ea_2",
+        "answer_1c6b85ea_1",
+        "answer_1c6b85ea_2",
+        "answer_1c6b85ea_2",
+        "answer_1c6b85ea_2",
+        "answer_1c6b85ea_1",
+        "answer_1c6b85ea_1",
+        "answer_1c6b85ea_1",
+        "answer_1c6b85ea_1"
+      ],
+      "retrieval_hit": true,
+      "retrieval_overlap": 9,
+      "predicted_mode": "fact",
+      "personalization": null
+    }
+  ],
+  "provenance": {
+    "git_sha": "9e7dc309686883b3f6885d6364c554866f378e67",
+    "git_dirty": true,
+    "attestor_version": "unknown",
+    "python_version": "3.13.12",
+    "platform": "darwin",
+    "argv": [
+      "scripts/lme_smoke_local.py",
+      "--variant",
+      "oracle",
+      "--output-dir",
+      "docs/bench",
+      "--yes",
+      "--n",
+      "2"
+    ],
+    "dataset_path": "",
+    "dataset_sha256": "",
+    "dataset_sample_count": 2,
+    "started_at_utc": "2026-04-29T14:05:33+00:00",
+    "completed_at_utc": "2026-04-29T14:09:53+00:00"
+  },
+  "run_config": {
+    "answer_model": "openai/gpt-5.4-mini",
+    "judge_models": [
+      "openai/gpt-5.5",
+      "anthropic/claude-sonnet-4-6"
+    ],
+    "budget": 4000,
+    "use_extraction": false,
+    "use_distillation": true,
+    "distill_model": "openai/gpt-5.4-mini",
+    "max_facts": 40,
+    "parallel": 2,
+    "verify": false,
+    "verify_model": null
+  },
+  "schema_version": "1.1",
+  "by_dimension": {
+    "retrieval": {
+      "hits": 2,
+      "total": 2,
+      "precision": 100.0
+    },
+    "mode_distribution": {
+      "counts": {
+        "fact": 2,
+        "recommendation": 0,
+        "unknown": 0
+      },
+      "fact_pct": 100.0,
+      "recommendation_pct": 0.0
+    },
+    "personalization": {
+      "correct": 0,
+      "total": 0,
+      "accuracy": 0.0
+    },
+    "by_predicted_mode": {
+      "fact": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 100.0
+      },
+      "recommendation": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 0.0
+      },
+      "unknown": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 0.0
+      }
+    }
+  }
+}

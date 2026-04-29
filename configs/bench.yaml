@@ -1,0 +1,79 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Attestor — bench-only configuration.
+#
+# This file holds knobs that ONLY benchmark harnesses care about:
+# dataset variants, category iteration order, target scores, output
+# paths. Stack knobs (embedder, models, retrieval, llm, postgres,
+# neo4j, image, clouds) live in `configs/attestor.yaml` and are
+# loaded into BenchCfg via `scripts/_bench_config.py.get_bench()`.
+#
+# HARD INVARIANT — bench.yaml and attestor.yaml MUST have disjoint
+# dotted-key sets. Enforced by:
+#
+#   1. tests/test_config_no_duplicate_keys.py (CI)
+#   2. attestor.bench_config.get_bench() raises KeyOverlapError on
+#      overlap at runtime
+#
+# If you need to override a stack knob for one benchmark run, use an
+# env var or CLI flag — never duplicate the key here. See
+# `feedback_bench_yaml_no_duplicate_keys.md` for rationale.
+# ─────────────────────────────────────────────────────────────────────────
+
+bench:
+
+  # ─── LongMemEval harness ───────────────────────────────────────────────
+  # Dataset variants: s = 115k tokens (canonical leaderboard),
+  #                   m = ~1M tokens (forces retrieval),
+  #                   oracle = gold sessions only (reasoning ceiling).
+  lme:
+    variant: s
+    cache_dir: ~/.cache/attestor/lme
+    output_dir: docs/bench
+    sample_limit: null      # null = full 500 questions
+    category: null          # null = all 7; or single slice name
+
+    # Iteration order for `lme_s_all.sh` — abstention first because
+    # it's Gemini's #1 priority slice and validates RC2 didn't regress.
+    categories:
+      - abstention
+      - knowledge-update
+      - temporal-reasoning
+      - multi-session
+      - single-session-user
+      - single-session-assistant
+      - single-session-preference
+
+    # For `lme_all_variants.sh` — runs the full size matrix.
+    variants_to_run:
+      - oracle
+      - s
+      - m
+
+  # ─── Synthetic Knowledge-Updates suite (Phase 2) ───────────────────────
+  # 50 hand-curated cases stressing supersession across 10 contradiction
+  # categories. Target 92-95% per Gemini guidance — below that, scorer
+  # tuning is needed in attestor/retrieval/scorer.py.
+  knowledge_updates:
+    fixtures_path: evals/knowledge_updates/fixtures.json
+    n_cases: 50
+    target_score: 0.92
+    categories:
+      - numeric
+      - categorical
+      - temporal
+      - preference
+      - entity
+      - locational
+      - intent
+      - relational
+      - count
+      - status_binary
+
+  # ─── Reporting (Phase 4) ───────────────────────────────────────────────
+  # `headline_slice` picks which LME-S slice provides the README/index.html
+  # hero metric. `trend_csv` accumulates one row per bench run for
+  # sparkline-friendly progress tracking across PRs.
+  report:
+    headline_slice: abstention
+    trend_csv: docs/bench/trend.csv
+    markdown_path: docs/bench/LME-S.md

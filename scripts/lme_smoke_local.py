@@ -91,6 +91,24 @@ def _parse_args() -> argparse.Namespace:
         help="Comma-separated sample IDs to run; overrides --n.",
     )
     p.add_argument(
+        "--category",
+        default=None,
+        help=(
+            "Filter to one slice — single-session-{user,assistant,preference}, "
+            "multi-session, temporal-reasoning, knowledge-update. Applied "
+            "BEFORE --n, so --n caps within the slice. The cleaned LME-S "
+            "dataset has no abstention category."
+        ),
+    )
+    p.add_argument(
+        "--output-dir",
+        default=None,
+        help=(
+            "Persist the full LMERunReport + summary JSON to this dir. "
+            "Used by scripts/bench/lme_run.sh — bench runs always set this."
+        ),
+    )
+    p.add_argument(
         "--skip-schema",
         action="store_true",
         help="Skip schema reapply (faster repeat runs)",
@@ -172,6 +190,21 @@ async def _run(args: argparse.Namespace, stack: StackConfig) -> None:
     print(f"[{RUN_LABEL}] loading LME variant={args.variant!r}…")
     samples = load_or_download(variant=args.variant)
 
+    # Category filter is applied first — --n caps within the slice.
+    if args.category is not None:
+        before = len(samples)
+        samples = [s for s in samples if s.question_type == args.category]
+        print(
+            f"[{RUN_LABEL}] category={args.category!r}: "
+            f"filtered {before} → {len(samples)} samples",
+        )
+        if not samples:
+            sys.stderr.write(
+                f"[{RUN_LABEL}] error: --category={args.category!r} matched "
+                f"zero samples for variant={args.variant!r}\n"
+            )
+            raise SystemExit(2)
+
     wanted_ids = {s.strip() for s in args.sample_ids.split(",") if s.strip()}
     if wanted_ids:
         sample_id_attr = (
@@ -218,6 +251,27 @@ async def _run(args: argparse.Namespace, stack: StackConfig) -> None:
     print(f"[{RUN_LABEL}] DONE — {report.total} samples")
     print(f"[{RUN_LABEL}] by_judge: {json.dumps(report.by_judge, indent=2)}")
     print(f"[{RUN_LABEL}] by_category: {json.dumps(report.by_category, indent=2)}")
+
+    # Persist the report + summary if --output-dir was given. Bench scripts
+    # always set this so docs/bench/ accumulates one JSON per slice run.
+    if args.output_dir:
+        from dataclasses import asdict
+        from datetime import datetime as _dt
+        from evals.longmemeval.runner import summarize
+
+        out = Path(args.output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        date = _dt.now().strftime("%Y%m%d")
+        slug = args.category or "all"
+        base = out / f"lme-{args.variant}-{slug}-{date}"
+        (base.with_suffix(".report.json")).write_text(
+            json.dumps(asdict(report), default=str, indent=2),
+        )
+        summary = summarize(report)
+        (base.with_suffix(".summary.json")).write_text(
+            json.dumps(summary.to_dict(), indent=2),
+        )
+        print(f"[{RUN_LABEL}] persisted → {base}.{{report,summary}}.json")
 
 
 def main() -> int:
