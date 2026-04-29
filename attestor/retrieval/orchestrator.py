@@ -69,6 +69,12 @@ class RetrievalOrchestrator:
         # Retained for callers; has no effect in semantic-first pipeline.
         self.fusion_mode: str = "semantic_first"
 
+        # Vector-lane top-K + MMR cap. Defaults match the legacy
+        # constants below; AgentMemory wires the resolved YAML values
+        # post-construction so callers can also tune via Python.
+        self.vector_top_k: int = VECTOR_TOP_K
+        self.mmr_top_n: Optional[int] = None  # None = no cap
+
     # ── Helpers ──
 
     def _question_entities(self, query: str) -> List[str]:
@@ -240,18 +246,18 @@ class RetrievalOrchestrator:
                 # don't — fall back to the legacy signature on TypeError.
                 try:
                     vector_hits_raw = self.vector_store.search(
-                        query, limit=VECTOR_TOP_K, namespace=namespace,
+                        query, limit=self.vector_top_k, namespace=namespace,
                         as_of=as_of, time_window=time_window,
                     )
                 except TypeError:
                     vector_hits_raw = self.vector_store.search(
-                        query, limit=VECTOR_TOP_K, namespace=namespace,
+                        query, limit=self.vector_top_k, namespace=namespace,
                     )
             except Exception:
                 vector_hits_raw = []
         if _tr.is_enabled():
             _tr.event("recall.stage.vector",
-                      top_k=VECTOR_TOP_K, hit_count=len(vector_hits_raw),
+                      top_k=self.vector_top_k, hit_count=len(vector_hits_raw),
                       hits=[{"id": h.get("memory_id"),
                              "distance": round(float(h.get("distance", 1.0)), 4)}
                             for h in vector_hits_raw[:10]])
@@ -440,9 +446,14 @@ class RetrievalOrchestrator:
         if self.enable_mmr:
             _pre_mmr_count = len(results)
             results = mmr_rerank(results, lambda_param=self.mmr_lambda)
+            # Apply post-MMR cap if configured. None = legacy behavior
+            # (no cap; let mmr_rerank's own diversity trim decide).
+            if self.mmr_top_n is not None and len(results) > self.mmr_top_n:
+                results = results[: self.mmr_top_n]
             if _tr.is_enabled():
                 _tr.event("recall.stage.mmr",
                           lambda_=self.mmr_lambda,
+                          mmr_top_n=self.mmr_top_n,
                           in_count=_pre_mmr_count, out_count=len(results))
 
         # ── Step 5: Confidence decay ──
@@ -477,7 +488,7 @@ class RetrievalOrchestrator:
             "namespace": namespace,
             "token_budget": token_budget,
             "question_entities": question_entities,
-            "vector_top_k": VECTOR_TOP_K,
+            "vector_top_k": self.vector_top_k,
             "vector_hits": trace_hits,
             "graph_triples_injected": len(triple_strs[:20]),
             "ranked_after_blend": ranked_preview,
@@ -511,7 +522,7 @@ class RetrievalOrchestrator:
         if self.vector_store:
             try:
                 vector_hits_raw = self.vector_store.search(
-                    query, limit=VECTOR_TOP_K, namespace=namespace
+                    query, limit=self.vector_top_k, namespace=namespace
                 )
             except Exception as e:
                 vector_hits_raw = []
@@ -532,7 +543,7 @@ class RetrievalOrchestrator:
             })
         vector_layer: Dict = {
             "name": "Vector Top-K",
-            "description": f"Top {VECTOR_TOP_K} by cosine similarity",
+            "description": f"Top {self.vector_top_k} by cosine similarity",
             "count": len(candidates),
             "latency_ms": round((time.monotonic() - t) * 1000, 2),
             "results": [
@@ -656,7 +667,7 @@ class RetrievalOrchestrator:
             "warnings": warnings,
             "config": {
                 "pipeline": "semantic_first",
-                "vector_top_k": VECTOR_TOP_K,
+                "vector_top_k": self.vector_top_k,
                 "vector_weight": VECTOR_WEIGHT,
                 "graph_weight": GRAPH_WEIGHT,
                 "mmr_lambda": self.mmr_lambda,
