@@ -22,6 +22,8 @@ pip install attestor
 | **Repo** | <https://github.com/bolnet/attestor> |
 | **License** | MIT |
 
+> Designed and built by **[Surendra Singh](https://www.linkedin.com/in/singhsurendra/)** — building auditable infrastructure for multi-agent AI, with fifteen years of production-systems discipline brought to the memory layer. Companion projects: [`claude-finance`](https://github.com/bolnet/finance) (Claude-powered financial analytics) · [`private-equity`](https://bolnet.github.io/private-equity/) (PE × AI workshop). [Reach out](https://www.linkedin.com/in/singhsurendra/) if you're hiring senior IC for AI infrastructure.
+
 ---
 
 ## What it is
