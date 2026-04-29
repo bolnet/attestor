@@ -110,6 +110,34 @@ stack:
     # iteration happens often.
     benchmark_default: openai/gpt-5.4-mini
 
+    # ─── Reasoning effort (gpt-5.x reasoning-model param) ──────────────
+    # Higher effort = more internal CoT tokens spent before the visible
+    # answer. The `mini` base + `high` effort combination matches the
+    # o1-mini pattern: cheap base model "punches up" via deeper internal
+    # reasoning. Anthropic models silently ignore this param.
+    reasoning_effort:
+      answerer:    high      # mini base + deep reasoning = punches up
+      judge:       high      # verdict accuracy is the headline
+      extraction:  low       # ingest workhorse; speed > deep reasoning
+      distill:     low
+      verifier:    medium    # second-pass cross-check
+      planner:     medium    # query rewriting
+      benchmark_default: low
+
+    # ─── Output budget per role (10× the legacy 300-token cap) ──────────
+    # Reasoning tokens count against this, so high-effort roles need
+    # real headroom (3000 = ~1500 reasoning + ~500 visible + slack).
+    # Lifting this without raising reasoning_effort just gives the model
+    # more room to ramble — set them together.
+    max_tokens:
+      answerer:    3000      # was 300 → 10×; fits effort:high
+      judge:       3000      # was 300 → 10×
+      extraction:  5000      # was 500 → 10×
+      distill:     5000      # was 500 → 10×
+      verifier:    2000      # was 200 → 10×
+      planner:     3000      # was 300 → 10×
+      benchmark_default: 3000
+
   # ─── Retrieval budget ────────────────────────────────────────────────
   # Token budget per recall (the orchestrator MMR-packs candidates
   # under this ceiling). 4000 is the canonical benchmark default.
