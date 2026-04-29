@@ -1226,7 +1226,8 @@ def _chat(
     if reasoning_effort:
         create_kwargs["reasoning_effort"] = reasoning_effort
 
-    response = client.chat.completions.create(**create_kwargs)
+    from attestor.llm_trace import traced_create
+    response = traced_create(client, role=role or "lme.chat", **create_kwargs)
     return response.choices[0].message.content or ""
 
 

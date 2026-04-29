@@ -161,7 +161,10 @@ class TemporalQueryExpander:
         if client is None:
             return None
         try:
-            response = client.chat.completions.create(
+            from attestor.llm_trace import traced_create
+            response = traced_create(
+                client,
+                role="temporal_query",
                 model=self._model,
                 max_tokens=self._max_tokens,
                 messages=[{"role": "user", "content": prompt}],

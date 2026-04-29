@@ -166,7 +166,10 @@ def llm_extract(
         if msg.get("content")
     )
 
-    response = client.chat.completions.create(
+    from attestor.llm_trace import traced_create
+    response = traced_create(
+        client,
+        role="extraction",
         model=model,
         max_tokens=2048,
         messages=[
@@ -250,7 +253,10 @@ def llm_extract_session_full(
         conversation=conversation_text,
     )
 
-    response = client.chat.completions.create(
+    from attestor.llm_trace import traced_create
+    response = traced_create(
+        client,
+        role="extraction",
         model=model,
         max_tokens=8192,
         messages=[{"role": "user", "content": prompt}],

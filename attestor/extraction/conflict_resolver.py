@@ -139,7 +139,10 @@ def resolve_conflicts(
     )
     cli = client or default_llm_client()
     try:
-        response = cli.chat.completions.create(
+        from attestor.llm_trace import traced_create
+        response = traced_create(
+            cli,
+            role="conflict_resolver",
             model=model,
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],

@@ -133,7 +133,10 @@ def decide_promotions(
         ),
     )
     try:
-        response = client.chat.completions.create(
+        from attestor.llm_trace import traced_create
+        response = traced_create(
+            client,
+            role="session_end_promotion",
             model=model, max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
