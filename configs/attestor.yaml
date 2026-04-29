@@ -182,6 +182,19 @@ stack:
   # Concurrency across samples in benchmark runs (LME / LoCoMo / BEAM).
   parallel: 2
 
+  # Self-consistency answerer (Phase 3 PR-B, +3-6% on LME-S).
+  # When enabled, the LME answerer draws K independent samples at
+  # non-zero temperature and elects the consensus answer (most-
+  # frequent normalized fingerprint by default; optional judge_pick
+  # mode delegates to a judge LLM). 5x answerer cost — gate behind
+  # this YAML knob; flip per bench run.
+  self_consistency:
+    enabled: false
+    k: 5
+    temperature: 0.7
+    voter: majority           # majority | judge_pick
+    judge_model: null         # null → models.judge
+
 # ─── Container image (for cloud deploys) ────────────────────────────────
 # The published image is currently the *introspection-only* MCP stub
 # (Glama listing). For Path B cloud deploys we build a separate

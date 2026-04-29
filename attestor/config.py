@@ -197,6 +197,46 @@ class MultiQueryCfg:
 
 
 @dataclass(frozen=True)
+class SelfConsistencyCfg:
+    """Answerer-side self-consistency knobs (Phase 3 PR-B, +3-6%).
+
+    When ``enabled`` is True, the LME answerer draws K independent
+    samples at non-zero temperature and elects the consensus answer
+    via majority vote (default) or a judge LLM. Lives on
+    ``StackConfig`` directly because this is answerer behavior, NOT
+    retrieval behavior — peer of ``stack.retrieval``, not nested
+    inside it.
+
+    Disabled by default — flip per bench run via this YAML, or via
+    ``ATTESTOR_SELF_CONSISTENCY_ENABLED=1`` for ad-hoc smokes if
+    callers want to add an env override later.
+
+    Cost: K × answerer cost per sample. K=5 means 5x answerer spend;
+    gate carefully.
+
+    Configuration:
+      enabled       — master switch
+      k             — number of samples (5 is the sweet spot per
+                      Wang et al. 2022; diminishing returns past ~10)
+      temperature   — per-sample temperature; 0.7 is the standard
+                      value from the paper
+      voter         — ``majority`` (normalized-fingerprint vote) or
+                      ``judge_pick`` (LLM picks best of K)
+      judge_model   — model id for ``judge_pick``; null falls back
+                      to ``models.judge``
+    """
+
+    enabled: bool = False
+    k: int = 5
+    temperature: float = 0.7
+    voter: str = "majority"
+    judge_model: Optional[str] = None
+
+
+_VALID_SC_VOTERS = ("majority", "judge_pick")
+
+
+@dataclass(frozen=True)
 class RetrievalCfg:
     """Knobs for the 6-step recall cascade.
 
@@ -297,6 +337,7 @@ class StackConfig:
     budget: int
     parallel: int
     clouds: Dict[str, Dict[str, Any]]
+    self_consistency: SelfConsistencyCfg = field(default_factory=SelfConsistencyCfg)
 
 
 # ─── YAML helpers ─────────────────────────────────────────────────────
@@ -357,6 +398,7 @@ def _build_fallback_stack() -> StackConfig:
         budget=_FALLBACK_BUDGET,
         parallel=_FALLBACK_PARALLEL,
         clouds={},
+        self_consistency=SelfConsistencyCfg(),
     )
 
 
@@ -388,6 +430,21 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         vector_top_k=int(retrieval_blk.get("vector_top_k", 50)),
         mmr_top_n=(int(mmr_top_raw) if mmr_top_raw is not None else None),
         multi_query=mq_cfg,
+    )
+
+    sc_blk = stack_blk.get("self_consistency") or {}
+    sc_voter = str(sc_blk.get("voter", "majority"))
+    if sc_voter not in _VALID_SC_VOTERS:
+        raise SystemExit(
+            f"[attestor.config] unknown self_consistency voter "
+            f"{sc_voter!r}; expected one of {list(_VALID_SC_VOTERS)}"
+        )
+    sc_cfg = SelfConsistencyCfg(
+        enabled=bool(sc_blk.get("enabled", False)),
+        k=int(sc_blk.get("k", 5)),
+        temperature=float(sc_blk.get("temperature", 0.7)),
+        voter=sc_voter,
+        judge_model=sc_blk.get("judge_model"),
     )
 
     llm_provider = str(llm_blk.get("provider", _FALLBACK_LLM_PROVIDER))
@@ -441,6 +498,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         budget=int(stack_blk.get("budget", _FALLBACK_BUDGET)),
         parallel=int(stack_blk.get("parallel", _FALLBACK_PARALLEL)),
         clouds=dict(clouds_blk),
+        self_consistency=sc_cfg,
     )
 
 
