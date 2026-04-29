@@ -154,6 +154,112 @@ Every benchmark — smoke, single slice, full sweep, synthetic supersession — 
 
 The two files **must have disjoint keys**. The CI test `tests/test_config_no_duplicate_keys.py` enforces this; the bench loader (`attestor.bench_config.get_bench`) crashes on overlap. If you want a one-off override (different model for one bench run), use an env var or CLI flag — never duplicate the key in `bench.yaml`.
 
+### Download the LongMemEval dataset (one-time, before any bench run)
+
+All `lme_*.sh` scripts use the cleaned LongMemEval split published on HuggingFace by [xiaowu0162/longmemeval-cleaned](https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned). It auto-downloads on first use, but you'll want to know what's happening.
+
+**Cache location** (created on first call):
+
+```
+~/.cache/attestor/longmemeval/
+```
+
+(Or `$XDG_CACHE_HOME/attestor/longmemeval/` if you set XDG_CACHE_HOME.)
+
+**Variants and on-disk sizes:**
+
+| Variant | Filename | Size | Tokens / Q | Use |
+|---|---|---|---|---|
+| `oracle` | `longmemeval_oracle.json` | ~5 MB | ~3-15k | Reasoning ceiling — cheapest smoke |
+| `s` | `longmemeval_s_cleaned.json` | ~250 MB | ~115k | **Public leaderboard** (canonical) |
+| `m` | `longmemeval_m_cleaned.json` | ~2 GB | ~1M+ | Forces retrieval (no long-context shortcut) |
+
+#### Option A — auto-download (recommended)
+
+Just run any bench command. The first call downloads and caches; every subsequent call reads from disk:
+
+```bash
+# Will download longmemeval_oracle.json (~5 MB) the first time
+.venv/bin/python scripts/lme_smoke_local.py --n 2 --yes --variant oracle
+
+# Will download longmemeval_s_cleaned.json (~250 MB) the first time
+scripts/bench/lme_run.sh knowledge-update
+```
+
+You only pay the download cost once per variant. Internet flake during the first run? Delete the partial file in the cache dir and rerun.
+
+#### Option B — pre-warm the cache (offline / CI)
+
+Pre-fetch every variant you plan to use before the bench day:
+
+```bash
+.venv/bin/python -c "
+from attestor.longmemeval import load_or_download
+for v in ('oracle', 's', 'm'):
+    samples = load_or_download(variant=v)
+    print(f'{v}: {len(samples)} samples')
+"
+```
+
+Expected output:
+
+```
+oracle: 500 samples
+s: 500 samples
+m: 500 samples
+```
+
+#### Option C — manual download (firewalled environments)
+
+If your runner can't reach `huggingface.co`, fetch the files on a connected machine and drop them into the cache dir manually:
+
+```bash
+mkdir -p ~/.cache/attestor/longmemeval
+cd ~/.cache/attestor/longmemeval
+
+# pick the variants you need
+curl -L -o longmemeval_oracle.json \
+    https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_oracle.json
+
+curl -L -o longmemeval_s_cleaned.json \
+    https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json
+
+curl -L -o longmemeval_m_cleaned.json \
+    https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_m_cleaned.json
+```
+
+The bench harness checks for these filenames exactly — don't rename them.
+
+#### Verify the dataset is loadable
+
+After download (auto or manual), confirm the loader picks it up cleanly:
+
+```bash
+.venv/bin/python -c "
+from attestor.longmemeval import load_or_download
+from collections import Counter
+samples = load_or_download(variant='s')
+cnt = Counter(s.question_type for s in samples)
+print(f'Loaded {len(samples)} samples')
+for cat, n in sorted(cnt.items(), key=lambda x: -x[1]):
+    print(f'  {cat}: {n}')
+"
+```
+
+Expected for the cleaned `s` variant (500 questions, 6 categories — note: **no abstention slice in the cleaned split**):
+
+```
+Loaded 500 samples
+  multi-session: 133
+  temporal-reasoning: 133
+  knowledge-update: 78
+  single-session-user: 70
+  single-session-assistant: 56
+  single-session-preference: 30
+```
+
+If counts don't match, the file is truncated — re-download.
+
 ### Quick smoke (≤ 1 minute, ≤ $0.10)
 
 Confirm the pipeline runs end-to-end before committing or running anything bigger:
