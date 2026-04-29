@@ -45,7 +45,10 @@ def _reachable() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(not _reachable(), reason="local Postgres unreachable")
+pytestmark = [
+    pytest.mark.live,
+    pytest.mark.skipif(not _reachable(), reason="local Postgres unreachable"),
+]
 
 
 @pytest.fixture(scope="module")

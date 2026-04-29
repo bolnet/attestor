@@ -96,4 +96,5 @@ markers = [
     "docker: tests requiring Docker (deselect with '-m not docker')",
     "unit: fast, dependency-free unit tests",
     "integration: tests that touch real services or the filesystem beyond fixtures",
+    "live: tests that hit the live attestor_v4_test Postgres DB and clobber its schema; deselect during bench runs with '-m \"not live\"'",
 ]

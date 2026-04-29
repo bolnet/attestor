@@ -74,10 +74,13 @@ def _ensure_test_db_exists() -> bool:
     return _pg_reachable(PG_URL)
 
 
-pytestmark = pytest.mark.skipif(
-    not _ensure_test_db_exists(),
-    reason=f"local Postgres unreachable at {PG_URL}",
-)
+pytestmark = [
+    pytest.mark.live,
+    pytest.mark.skipif(
+        not _ensure_test_db_exists(),
+        reason=f"local Postgres unreachable at {PG_URL}",
+    ),
+]
 
 
 # ───────────────────────────────────────────────────────────────────────────
