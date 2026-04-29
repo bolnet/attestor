@@ -1359,6 +1359,59 @@ def _strip_reasoning(raw: str) -> Tuple[str, str]:
     return reasoning, after
 
 
+def _answerer_call(
+    *,
+    client: Any,
+    model: str,
+    prompt: str,
+    max_tokens: int,
+) -> str:
+    """Produce the answerer's raw response, applying self-consistency
+    when ``stack.self_consistency.enabled`` is True.
+
+    Single-sample path (default): one greedy ``_chat`` call. Identical
+    behavior to the legacy code site.
+
+    Self-consistency path: K independent samples at non-zero
+    temperature, reduced via majority vote (or judge_pick) to one
+    final answer. Cost is K × answerer cost.
+
+    On any error in the self-consistency path, falls back to the
+    single-sample path so the LME run never breaks because of a
+    config knob.
+    """
+    try:
+        from attestor.config import get_stack
+        stack = get_stack()
+        sc = getattr(stack, "self_consistency", None)
+    except Exception:  # noqa: BLE001 — config errors must not break answerer
+        sc = None
+
+    if sc is not None and sc.enabled and sc.k > 1:
+        try:
+            from attestor.longmemeval_consistency import (
+                answer_with_self_consistency,
+            )
+            judge_model = sc.judge_model or stack.models.judge
+            result = answer_with_self_consistency(
+                client=client,
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                k=sc.k,
+                temperature=sc.temperature,
+                voter=sc.voter,
+                judge_model=judge_model,
+            )
+            if result.chosen:
+                return result.chosen
+            # Empty consensus → fall through to single-sample retry.
+        except Exception:  # noqa: BLE001
+            # Self-consistency layer failed; degrade to single-sample.
+            pass
+
+    return _chat(client, model, prompt, max_tokens=max_tokens, role="answerer")
+
+
 def answer_question(
     mem: Any,
     sample: LMESample,
@@ -1423,7 +1476,12 @@ def answer_question(
         context=context,
     )
     client = _get_client(api_key)
-    raw = _chat(client, model, prompt, max_tokens=max_tokens, role="answerer").strip()
+    raw = _answerer_call(
+        client=client,
+        model=model,
+        prompt=prompt,
+        max_tokens=max_tokens,
+    ).strip()
     reasoning, first_answer = _strip_reasoning(raw)
 
     final_answer = first_answer
