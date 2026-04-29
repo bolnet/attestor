@@ -15,7 +15,7 @@ pip install attestor
 
 | | |
 |---|---|
-| **Version** | `4.0.0a1` (alpha; greenfield rebuild — no v3 migration path) |
+| **Version** | `4.0.0` (stable; greenfield rebuild — no v3 migration path) |
 | **PyPI** | `attestor` |
 | **Import** | `attestor` |
 | **Live site** | <https://attestor.dev/> |
@@ -592,7 +592,7 @@ It probes Document Store (Postgres), Vector Store (pgvector), Graph Store (Neo4j
 
 ## Status & versioning
 
-- **Version:** 4.0.0a5 (alpha) — published to [PyPI](https://pypi.org/project/attestor/) and the [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=attestor) as `io.github.bolnet/attestor`
+- **Version:** 4.0.0 (stable) — published to [PyPI](https://pypi.org/project/attestor/) and the [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=attestor) as `io.github.bolnet/attestor`. `pip install attestor` returns 4.0.0 (no `--pre` flag needed).
 - **v3 → v4:** greenfield rebuild on a v4-native Postgres schema with hard tenant isolation, bi-temporal facts, and a no-LLM retrieval critical path. **There is no automated migration.** v3 was alpha-only with no production users; drop your v3 DB and reinstall.
 - See [`CHANGELOG.md`](./CHANGELOG.md) for the full track-by-track changelog.
 
