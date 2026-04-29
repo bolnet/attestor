@@ -42,6 +42,15 @@ def _parse_args() -> argparse.Namespace:
         "--markdown-out", default=None,
         help="Write the markdown table to this path in addition to stdout.",
     )
+    p.add_argument(
+        "--trend", action="store_true",
+        help=(
+            "Read docs/bench/trend.csv (path from bench.yaml's "
+            "report.trend_csv) and emit a chronological per-(variant, "
+            "category) progression table with deltas. Replaces the "
+            "default summary view."
+        ),
+    )
     return p.parse_args()
 
 
@@ -114,8 +123,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     cfg = get_bench()
     output_dir = ROOT / cfg.lme.output_dir
 
-    rows = _scan_summaries(output_dir)
-    md = _format_markdown(rows, variant_filter=args.variant)
+    if args.trend:
+        from scripts.bench.trend import format_trend_markdown, read_trend
+        trend_path = ROOT / cfg.report.trend_csv
+        rows = read_trend(trend_path)
+        if args.variant:
+            rows = [r for r in rows if r.get("variant") == args.variant]
+        md = format_trend_markdown(rows)
+    else:
+        rows = _scan_summaries(output_dir)
+        md = _format_markdown(rows, variant_filter=args.variant)
 
     print(md)
 

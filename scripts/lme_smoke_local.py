@@ -273,6 +273,36 @@ async def _run(args: argparse.Namespace, stack: StackConfig) -> None:
         )
         print(f"[{RUN_LABEL}] persisted → {base}.{{report,summary}}.json")
 
+        # Append one row to docs/bench/trend.csv so the report tooling
+        # can show progression over time. Defensive: trend tracking is
+        # optional — never break the bench because of a CSV write.
+        try:
+            from scripts.bench.trend import (
+                append_trend_row, _features_from_stack,
+            )
+            from attestor.bench_config import get_bench
+
+            bench_cfg = get_bench()
+            trend_path = ROOT / bench_cfg.report.trend_csv
+            features = _features_from_stack(stack)
+            row = append_trend_row(
+                trend_path,
+                summary=summary.to_dict(),
+                variant=args.variant,
+                category=args.category,
+                features=features,
+                run_label=RUN_LABEL,
+            )
+            print(
+                f"[{RUN_LABEL}] trend row appended → "
+                f"{trend_path.relative_to(ROOT)} "
+                f"(score={row.score_pct:.1f}%, features={row.features or 'none'})",
+            )
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write(
+                f"[{RUN_LABEL}] warning: trend.csv append failed — {e}\n"
+            )
+
 
 def main() -> int:
     args = _parse_args()

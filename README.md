@@ -336,19 +336,50 @@ If one slice fails, the script logs it and moves on to the next.
 Aggregates every `docs/bench/lme-*.summary.json` into one markdown table; picks the most-recent file per `(variant, category)`:
 
 ```bash
-.venv/bin/python scripts/bench/lme_report.py                       # stdout
-.venv/bin/python scripts/bench/lme_report.py --variant s           # filter
+.venv/bin/python scripts/bench/lme_report.py                       # latest-per-slice
+.venv/bin/python scripts/bench/lme_report.py --variant s           # filter to LME-S
 .venv/bin/python scripts/bench/lme_report.py \
     --markdown-out docs/bench/LME-S.md                             # also write file
+.venv/bin/python scripts/bench/lme_report.py --trend               # progression over time
 ```
 
-Output shape:
+Default mode (latest-per-slice):
 
 ```
 | Variant | Category | Score | N | Date | Answer | Judges |
 | ------- | -------- | -----:| -:| ---- | ------ | ------ |
 | s | knowledge-update | 87.5% | 78 | 20260429 | openai/gpt-5.4-mini | openai/gpt-5.5, anthropic/claude-sonnet-4-6 |
 ```
+
+Trend mode (`--trend`) reads `docs/bench/trend.csv` — one row appended per bench run (auto-populated by `lme_run.sh`) — and shows progression with a `Δ` column:
+
+```
+| Variant | Category | Date | N | Score | Δ | SHA | Features | Run |
+| ------- | -------- | ---- | -:| -----:| -:| --- | -------- | --- |
+| s | knowledge-update | 20260429 | 78 | 80.0% |       | a126e7a |               | bench |
+| s | knowledge-update | 20260430 | 78 | 88.0% | +8.0  | badcf1b | multi_query   | bench |
+| s | knowledge-update | 20260501 | 78 | 91.5% | +3.5  | xxxxxxx | multi_query,hyde | bench |
+```
+
+The `Features` column records exactly which retrieval/answerer flags were enabled per run, so you can see at a glance which knob produced which lift.
+
+### Retrieval + answerer feature flags
+
+Five orthogonal features land via `configs/attestor.yaml` boolean flips. All disabled by default — pick one per bench run, measure the lift, decide which to ship enabled.
+
+| Flag | Section | Estimated lift (literature) | Cost overhead |
+|---|---|---|---|
+| `retrieval.multi_query` | rewrite question into N paraphrases, RRF-merge N+1 vector lanes | +6-10% | 1 small LLM call + N extra vector searches per recall |
+| `retrieval.hyde` | generate hypothetical answer, embed it as a parallel vector lane | +6-10% | 1 small LLM call + 1 extra vector search per recall |
+| `retrieval.temporal_prefilter` | regex-detect "two weeks ago" etc; narrow event-time window before vector | +1.5% | Free (regex-only, no LLM) |
+| `self_consistency` | answerer draws K=5 samples at temperature, elects consensus | +3-6% | 5× answerer cost |
+| `critique_revise` | answer → critique → conditional revise | +3-5% | ~3× answerer worst case |
+
+`multi_query` and `hyde` are mutually exclusive in this release (multi_query wins if both flags are on with a logged warning). `self_consistency` and `critique_revise` are similarly mutually exclusive on the answerer side. Combinations across the two sides (e.g. `multi_query + self_consistency`) are fine.
+
+**To benchmark a single feature:** flip its `enabled: true` in `configs/attestor.yaml`, run the bench slice, compare against a same-day baseline run with everything off. The trend table will show the delta in the `Δ` column.
+
+**Estimated lifts above are from the published literature** — the numbers Attestor actually delivers on LME-S are produced by user-driven bench runs and surfaced via `lme_report.py --trend` once enough data points have accumulated.
 
 ### Synthetic supersession suite — `python -m evals.knowledge_updates`
 
