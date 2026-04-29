@@ -206,6 +206,20 @@ stack:
     voter: majority           # majority | judge_pick
     judge_model: null         # null → models.judge
 
+  # Critique-and-revise (Phase 3 PR-E, +3-5% on LME-S).
+  # When enabled, the LME answerer runs a three-step pipeline:
+  #   1. Initial answer (existing path)
+  #   2. Critic LLM checks the answer against retrieved context
+  #   3. If critic says revise, a second answerer call produces the
+  #      corrected answer.
+  # ~3x answerer cost. Mutually exclusive with self_consistency in
+  # this PR (if both are on, self_consistency wins; warning logged).
+  critique_revise:
+    enabled: false
+    critic_model: null            # null → models.verifier
+    revise_model: null            # null → models.answerer
+    max_revisions: 1              # hard cap; this PR rejects values > 1
+
 # ─── Container image (for cloud deploys) ────────────────────────────────
 # The published image is currently the *introspection-only* MCP stub
 # (Glama listing). For Path B cloud deploys we build a separate
