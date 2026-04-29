@@ -38,8 +38,8 @@
       }
     }
   },
-  "started_at": "2026-04-29T14:05:33+00:00",
-  "completed_at": "2026-04-29T14:09:53+00:00",
+  "started_at": "2026-04-29T14:21:44+00:00",
+  "completed_at": "2026-04-29T14:26:18+00:00",
   "samples": [
     {
       "question_id": "gpt4_2655b836",
@@ -61,9 +61,9 @@
           "judge_model": "anthropic/claude-sonnet-4-6"
         }
       },
-      "answer_latency_ms": 7464.52,
+      "answer_latency_ms": 7510.46,
       "ingest_turns": 36,
-      "ingest_memories": 245,
+      "ingest_memories": 219,
       "retrieved_count": 10,
       "gold_session_ids": [
         "answer_4be1b6b4_2",
@@ -77,10 +77,10 @@
         "answer_4be1b6b4_3",
         "answer_4be1b6b4_3",
         "answer_4be1b6b4_2",
-        "answer_4be1b6b4_2",
         "answer_4be1b6b4_3",
+        "answer_4be1b6b4_1",
         "answer_4be1b6b4_3",
-        "answer_4be1b6b4_1"
+        "answer_4be1b6b4_2"
       ],
       "retrieval_hit": true,
       "retrieval_overlap": 10,
@@ -92,24 +92,24 @@
       "category": "temporal-reasoning",
       "question": "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?",
       "gold": "'Data Analysis using Python' webinar",
-      "answer": "The **\"Data Analysis using Python\" webinar**.",
+      "answer": "The 'Data Analysis using Python' webinar.",
       "judgments": {
         "openai/gpt-5.5": {
           "label": "CORRECT",
           "correct": true,
-          "reasoning": "The AI answer exactly matches the gold answer, identifying the 'Data Analysis using Python' webinar as attended first.",
+          "reasoning": "The AI answer exactly matches the gold answer: the 'Data Analysis using Python' webinar was attended first.",
           "judge_model": "openai/gpt-5.5"
         },
         "anthropic/claude-sonnet-4-6": {
           "label": "CORRECT",
           "correct": true,
-          "reasoning": "The AI's answer matches the gold answer exactly, identifying the 'Data Analysis using Python' webinar as the first event attended.",
+          "reasoning": "The AI's answer matches the gold answer, identifying the 'Data Analysis using Python' webinar as the first event attended.",
           "judge_model": "anthropic/claude-sonnet-4-6"
         }
       },
-      "answer_latency_ms": 5991.96,
+      "answer_latency_ms": 7067.17,
       "ingest_turns": 24,
-      "ingest_memories": 190,
+      "ingest_memories": 209,
       "retrieved_count": 10,
       "gold_session_ids": [
         "answer_1c6b85ea_1",
@@ -117,23 +117,24 @@
       ],
       "retrieved_session_ids": [
         "answer_1c6b85ea_2",
+        "answer_1c6b85ea_2",
+        "answer_1c6b85ea_2",
         "answer_1c6b85ea_1",
         "answer_1c6b85ea_2",
         "answer_1c6b85ea_2",
         "answer_1c6b85ea_2",
-        "answer_1c6b85ea_1",
-        "answer_1c6b85ea_1",
-        "answer_1c6b85ea_1",
+        "answer_1c6b85ea_2",
+        "answer_1c6b85ea_2",
         "answer_1c6b85ea_1"
       ],
       "retrieval_hit": true,
-      "retrieval_overlap": 9,
+      "retrieval_overlap": 10,
       "predicted_mode": "fact",
       "personalization": null
     }
   ],
   "provenance": {
-    "git_sha": "9e7dc309686883b3f6885d6364c554866f378e67",
+    "git_sha": "7392600f6ff3a9e1f41acea74cfad40bb8aabc9f",
     "git_dirty": true,
     "attestor_version": "unknown",
     "python_version": "3.13.12",
@@ -151,8 +152,8 @@
     "dataset_path": "",
     "dataset_sha256": "",
     "dataset_sample_count": 2,
-    "started_at_utc": "2026-04-29T14:05:33+00:00",
-    "completed_at_utc": "2026-04-29T14:09:53+00:00"
+    "started_at_utc": "2026-04-29T14:21:44+00:00",
+    "completed_at_utc": "2026-04-29T14:26:18+00:00"
   },
   "run_config": {
     "answer_model": "openai/gpt-5.4-mini",
