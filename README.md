@@ -154,6 +154,35 @@ Every benchmark — smoke, single slice, full sweep, synthetic supersession — 
 
 The two files **must have disjoint keys**. The CI test `tests/test_config_no_duplicate_keys.py` enforces this; the bench loader (`attestor.bench_config.get_bench`) crashes on overlap. If you want a one-off override (different model for one bench run), use an env var or CLI flag — never duplicate the key in `bench.yaml`.
 
+### What LongMemEval is
+
+[**LongMemEval**](https://arxiv.org/abs/2410.10813) (Wu et al., 2024 — published at ICLR '25) is the canonical benchmark for memory-augmented chat assistants. It measures whether an AI system can correctly answer questions that require recalling facts from long, multi-session conversation histories — the exact scenario Attestor is built for.
+
+**500 questions, 6 reasoning categories, 3 haystack sizes.** Same questions across all three sizes; only the noise around the answer-bearing session changes:
+
+| Variant | Tokens / Q | Sessions | What it measures |
+|---|---|---|---|
+| **`oracle`** | ~3-15k | 1-3 gold | **Reasoning ceiling** — what the answerer can do with perfect retrieval. If you score low here, your prompt or LLM is broken (retrieval can't help). |
+| **`s`** (Standard / Small) | ~115k | ~50 | **Public leaderboard** — the canonical comparison. Fits in a single Claude/GPT context window, so Attestor's retrieval is benchmarked against the "just stuff everything into long context" baseline. |
+| **`m`** (Plus / Medium) | ~1M+ | ~500 | **Pure retrieval** — too big for any context window. Memory layer is forced; no long-context shortcut available. |
+
+**LME-S is the headline number to beat.** A memory layer that scores within 5% of a long-context baseline at 30× lower token cost is the marketing pitch.
+
+**The 6 reasoning categories** (cleaned LME-S, 500 questions total — note: no `abstention` slice in the cleaned split, which the synthetic [supersession suite](#synthetic-supersession-suite--python--m-evalsknowledge_updates) covers):
+
+| Category | N | What it tests |
+|---|---|---|
+| `multi-session` | 133 | Fact spans across multiple sessions — must track an entity over time |
+| `temporal-reasoning` | 133 | Date arithmetic ("two weeks ago", "before X") — *Attestor's bi-temporal layer is built for this slice* |
+| `knowledge-update` | 78 | **Supersession** — newer fact must beat older fact when both exist |
+| `single-session-user` | 70 | One session, fact stated by the user |
+| `single-session-assistant` | 56 | One session, fact stated by the assistant |
+| `single-session-preference` | 30 | One session, user preference |
+
+**Why this benchmark for Attestor:** the `temporal-reasoning` and `knowledge-update` slices directly exercise features that distinguish Attestor from a vanilla RAG: bi-temporal recall, supersession-on-contradiction, event-time vs transaction-time disambiguation. A high score on those slices is the regulated-AI / audit / compliance pitch.
+
+For the published Attestor numbers, see `docs/bench/` — bench artifacts persist as `lme-{variant}-{category}-{date}.{report,summary}.json`. The `Reporting` section below shows how to render them as a table.
+
 ### Download the LongMemEval dataset (one-time, before any bench run)
 
 All `lme_*.sh` scripts use the cleaned LongMemEval split published on HuggingFace by [xiaowu0162/longmemeval-cleaned](https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned). It auto-downloads on first use, but you'll want to know what's happening.
@@ -286,18 +315,7 @@ scripts/bench/lme_run.sh knowledge-update 10
 scripts/bench/lme_run.sh knowledge-update "" oracle
 ```
 
-Valid categories (LME-S 500 questions split):
-
-| Category | N | What it tests |
-|---|---|---|
-| `single-session-user` | 70 | One session, the user states the fact |
-| `single-session-assistant` | 56 | One session, the assistant states the fact |
-| `single-session-preference` | 30 | One session, user preference |
-| `multi-session` | 133 | Fact spans multiple sessions |
-| `temporal-reasoning` | 133 | Date arithmetic / "X weeks ago" |
-| `knowledge-update` | 78 | Supersession — newer fact must beat older |
-
-The cleaned LME-S dataset has no `abstention` slice; for that, see the synthetic suite below.
+Valid `--category` values: `single-session-user`, `single-session-assistant`, `single-session-preference`, `multi-session`, `temporal-reasoning`, `knowledge-update`. See [What LongMemEval is](#what-longmemeval-is) above for sample counts and what each category tests.
 
 Each run persists two files:
 
@@ -322,14 +340,6 @@ scripts/bench/lme_all.sh "" oracle
 ```
 
 If one slice fails, the script logs it and moves on to the next.
-
-### Variant matrix
-
-| Variant | Tokens | Sessions | Use |
-|---|---|---|---|
-| `oracle` | ~3-15k | 1-3 gold | Reasoning ceiling — what the answerer can do with perfect retrieval |
-| `s` | ~115k | ~50 | **Public leaderboard** — fits in long-context window; compares memory layer vs "stuff everything in context" |
-| `m` | ~1M+ | ~500 | Pure retrieval — long-context shortcut can't fit; memory layer is forced |
 
 ### Reporting — `scripts/bench/lme_report.py`
 
