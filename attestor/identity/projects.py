@@ -49,16 +49,54 @@ class ProjectRepo:
         return Project.from_row(dict(row))
 
     def ensure_inbox(self, user_id: str) -> Project:
-        """Idempotent: returns the user's Inbox, creating on first call."""
+        """Idempotent: returns the user's Inbox, creating on first call.
+
+        Race-safe under parallel callers. Schema has UNIQUE (user_id,
+        name) on the projects table — we attempt the INSERT and re-SELECT
+        on conflict. Without this, two threads on cold cache would both
+        find no existing inbox and both INSERT; the loser would crash
+        with psycopg2.errors.UniqueViolation. Common path on LME parallel
+        runs where every sample shares the SOLO user.
+        """
+        # Fast path: already exists.
         existing = self.find_by_name(user_id, INBOX_NAME)
         if existing is not None:
             return existing
-        return self.create(
-            user_id=user_id,
-            name=INBOX_NAME,
-            description="Conversations not assigned to a project",
-            metadata={INBOX_FLAG: True, "created_by": "auto"},
-        )
+
+        # Race-safe insert: ON CONFLICT DO NOTHING returns no row when
+        # another thread won; we then re-SELECT to pick up that thread's
+        # winning row.
+        with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                INSERT INTO projects (user_id, name, description, metadata)
+                VALUES (%s, %s, %s, %s::jsonb)
+                ON CONFLICT (user_id, name) DO NOTHING
+                RETURNING *
+                """,
+                (
+                    user_id,
+                    INBOX_NAME,
+                    "Conversations not assigned to a project",
+                    json.dumps({INBOX_FLAG: True, "created_by": "auto"}),
+                ),
+            )
+            row = cur.fetchone()
+        self._conn.commit()
+        if row is not None:
+            # We won the race.
+            return Project.from_row(dict(row))
+        # Lost the race — pick up the winner's row.
+        existing = self.find_by_name(user_id, INBOX_NAME)
+        if existing is None:
+            # Should be impossible: ON CONFLICT triggered means a row
+            # exists, but we couldn't find it. Defend with a clear error.
+            raise RuntimeError(
+                f"ensure_inbox: ON CONFLICT fired for user_id={user_id} "
+                "but follow-up SELECT returned no row — likely a "
+                "transaction-isolation issue."
+            )
+        return existing
 
     # ── Read ──────────────────────────────────────────────────────────────
 
