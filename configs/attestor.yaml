@@ -124,19 +124,22 @@ stack:
       planner:     medium    # query rewriting
       benchmark_default: low
 
-    # ─── Output budget per role (10× the legacy 300-token cap) ──────────
-    # Reasoning tokens count against this, so high-effort roles need
-    # real headroom (3000 = ~1500 reasoning + ~500 visible + slack).
-    # Lifting this without raising reasoning_effort just gives the model
-    # more room to ramble — set them together.
+    # ─── Output budget per role (32k uniform cap) ───────────────────────
+    # Set generously across the board. max_tokens is a CAP not a TARGET
+    # — the model only generates what it needs and is billed only for
+    # what it generates. 32k gives reasoning_effort:high ample headroom
+    # (typical reasoning span is 1.5-5k tokens) without ever truncating
+    # mid-answer. Worst case per call at gpt-5.5 rates: ~$0.38 if the
+    # model actually fills the budget; for a 500-q bench bounded
+    # ~$190. In practice the median call uses well under 5k tokens.
     max_tokens:
-      answerer:    3000      # was 300 → 10×; fits effort:high
-      judge:       3000      # was 300 → 10×
-      extraction:  5000      # was 500 → 10×
-      distill:     5000      # was 500 → 10×
-      verifier:    2000      # was 200 → 10×
-      planner:     3000      # was 300 → 10×
-      benchmark_default: 3000
+      answerer:    32000
+      judge:       32000
+      extraction:  32000
+      distill:     32000
+      verifier:    32000
+      planner:     32000
+      benchmark_default: 32000
 
   # ─── Retrieval budget ────────────────────────────────────────────────
   # Token budget per recall (the orchestrator MMR-packs candidates
