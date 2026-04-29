@@ -75,6 +75,14 @@ class RetrievalOrchestrator:
         self.vector_top_k: int = VECTOR_TOP_K
         self.mmr_top_n: Optional[int] = None  # None = no cap
 
+        # Multi-query lane (Phase 3 PR-C). Defaults to None which means
+        # "single-query path" — the legacy behavior. AgentMemory wires
+        # the resolved MultiQueryCfg from configs/attestor.yaml after
+        # construction. When ``multi_query_cfg.enabled`` is True, Step 1
+        # runs N+1 vector searches (original + N rewrites) and merges
+        # them via RRF before the rest of the cascade.
+        self.multi_query_cfg = None  # type: ignore[assignment]
+
     # ── Helpers ──
 
     def _question_entities(self, query: str) -> List[str]:
@@ -238,26 +246,55 @@ class RetrievalOrchestrator:
                       time_window=str(time_window) if time_window else None)
 
         # ── Step 1: Vector top-K ──
+        # When multi_query is enabled, this step fans out: rewrite the
+        # question into N paraphrases via a small LLM call, run each
+        # through ``vector_store.search`` independently, and RRF-merge
+        # the N+1 ranked lists. The merged list flows into the rest
+        # of the cascade unchanged. Disabled (default) → single-query
+        # legacy path; behavior identical to before this change.
         vector_hits_raw: List[Dict] = []
         results: List[RetrievalResult] = []
-        if self.vector_store:
+        mq_used: Optional[List[str]] = None  # populated when multi_query fired
+
+        def _single_vector_search(q: str) -> List[Dict]:
+            """One vector_store.search call with v3/v4 signature
+            fallback. Returns [] on any exception so a degraded
+            backend can't crash the whole recall."""
+            if not self.vector_store:
+                return []
             try:
-                # Newer v4 backends accept as_of/time_window; v3 backends
-                # don't — fall back to the legacy signature on TypeError.
                 try:
-                    vector_hits_raw = self.vector_store.search(
-                        query, limit=self.vector_top_k, namespace=namespace,
+                    return list(self.vector_store.search(
+                        q, limit=self.vector_top_k, namespace=namespace,
                         as_of=as_of, time_window=time_window,
-                    )
+                    ))
                 except TypeError:
-                    vector_hits_raw = self.vector_store.search(
-                        query, limit=self.vector_top_k, namespace=namespace,
-                    )
+                    return list(self.vector_store.search(
+                        q, limit=self.vector_top_k, namespace=namespace,
+                    ))
             except Exception:
-                vector_hits_raw = []
+                return []
+
+        if self.vector_store:
+            mq_cfg = getattr(self, "multi_query_cfg", None)
+            mq_enabled = bool(getattr(mq_cfg, "enabled", False))
+            if mq_enabled:
+                from attestor.retrieval.multi_query import multi_query_search
+
+                mq_used, vector_hits_raw = multi_query_search(
+                    query,
+                    vector_search=_single_vector_search,
+                    n=int(getattr(mq_cfg, "n", 3)),
+                    merge=str(getattr(mq_cfg, "merge", "rrf")),
+                    rewriter_model=getattr(mq_cfg, "rewriter_model", None),
+                )
+            else:
+                vector_hits_raw = _single_vector_search(query)
         if _tr.is_enabled():
             _tr.event("recall.stage.vector",
                       top_k=self.vector_top_k, hit_count=len(vector_hits_raw),
+                      multi_query=bool(mq_used),
+                      n_queries=(len(mq_used) if mq_used else 1),
                       hits=[{"id": h.get("memory_id"),
                              "distance": round(float(h.get("distance", 1.0)), 4)}
                             for h in vector_hits_raw[:10]])
@@ -299,7 +336,18 @@ class RetrievalOrchestrator:
         seen_ids: set = set()
         _drop = {"missing": 0, "inactive": 0, "namespace": 0, "kept": 0,
                  "first_drop_status": None, "first_drop_namespace": None}
-        for vr in vector_hits_raw:
+        # When multi-query merged the lanes via RRF, the hit order
+        # encodes consensus signal that the per-hit ``distance`` field
+        # (carried over from one lane only) does NOT. Convert merged
+        # rank → similarity so a consensus hit at rank-3 outranks a
+        # lone-top hit at rank-1 even though its lane-0 distance was
+        # worse. Inactive when no rrf_score is present (legacy path).
+        _merged_via_rrf = (
+            bool(vector_hits_raw)
+            and "rrf_score" in vector_hits_raw[0]
+        )
+        _total_merged = max(1, len(vector_hits_raw))
+        for _idx, vr in enumerate(vector_hits_raw):
             mid = vr["memory_id"]
             if mid in seen_ids:
                 continue
@@ -318,7 +366,15 @@ class RetrievalOrchestrator:
                     _drop["first_drop_namespace"] = memory.namespace
                 continue
             distance = float(vr.get("distance", 1.0))
-            vector_sim = max(0.0, 1.0 - distance)
+            distance_sim = max(0.0, 1.0 - distance)
+            if _merged_via_rrf:
+                # Rank-derived sim from RRF order. Item at idx=0 →
+                # 1.0; last → near 0. Use max() so a consensus item
+                # also gets credit for any genuinely-good distance.
+                rank_sim = 1.0 - (_idx / _total_merged)
+                vector_sim = max(distance_sim, rank_sim)
+            else:
+                vector_sim = distance_sim
             candidates.append(
                 {"memory": memory, "distance": distance, "vector_sim": vector_sim}
             )

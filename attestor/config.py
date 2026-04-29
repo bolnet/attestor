@@ -164,6 +164,39 @@ class ModelsCfg:
 
 
 @dataclass(frozen=True)
+class MultiQueryCfg:
+    """Multi-query retrieval knobs (Phase 3 PR-C, RC1 — biggest +8%
+    accuracy lever).
+
+    When ``enabled`` is True, the orchestrator rewrites the user
+    question into ``n`` paraphrases via a single LLM call, runs each
+    paraphrase through the vector lane independently, and merges the
+    ``n+1`` ranked lists via reciprocal rank fusion before the rest
+    of the cascade runs.
+
+    Disabled by default — flip on per bench run via this YAML, or via
+    env var ``ATTESTOR_MULTI_QUERY_ENABLED=1`` for ad-hoc smokes.
+
+    Configuration:
+      enabled         — master switch
+      n               — number of paraphrases (3 is the sweet spot
+                        per the RCA)
+      rewriter_model  — null → falls back to ``models.extraction``
+      rewriter_reasoning_effort — gpt-5.x reasoning effort for the
+                        rewriter call; ``low`` is fine — paraphrasing
+                        is structurally simple
+      merge           — ``rrf`` (consensus-weighted, recommended) or
+                        ``union`` (cheaper, no rank fusion)
+    """
+
+    enabled: bool = False
+    n: int = 3
+    rewriter_model: Optional[str] = None
+    rewriter_reasoning_effort: str = "low"
+    merge: str = "rrf"
+
+
+@dataclass(frozen=True)
 class RetrievalCfg:
     """Knobs for the 6-step recall cascade.
 
@@ -189,10 +222,15 @@ class RetrievalCfg:
     These three knobs MUST be tuned together. Raising budget alone
     does nothing if MMR cuts to 10 first; raising vector_top_k alone
     just gives MMR more candidates to discard.
+
+    ``multi_query`` extends the cascade with a query-rewrite +
+    RRF-merge lane in front of the vector step. Disabled by default
+    so legacy callers see no behavior change.
     """
 
     vector_top_k: int = 50
     mmr_top_n: Optional[int] = None
+    multi_query: MultiQueryCfg = field(default_factory=MultiQueryCfg)
 
 
 @dataclass(frozen=True)
@@ -336,9 +374,20 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
     retrieval_blk = stack_blk.get("retrieval") or {}
 
     mmr_top_raw = retrieval_blk.get("mmr_top_n")
+    mq_blk = retrieval_blk.get("multi_query") or {}
+    mq_cfg = MultiQueryCfg(
+        enabled=bool(mq_blk.get("enabled", False)),
+        n=int(mq_blk.get("n", 3)),
+        rewriter_model=mq_blk.get("rewriter_model"),
+        rewriter_reasoning_effort=str(
+            mq_blk.get("rewriter_reasoning_effort", "low"),
+        ),
+        merge=str(mq_blk.get("merge", "rrf")),
+    )
     retrieval_cfg = RetrievalCfg(
         vector_top_k=int(retrieval_blk.get("vector_top_k", 50)),
         mmr_top_n=(int(mmr_top_raw) if mmr_top_raw is not None else None),
+        multi_query=mq_cfg,
     )
 
     llm_provider = str(llm_blk.get("provider", _FALLBACK_LLM_PROVIDER))
