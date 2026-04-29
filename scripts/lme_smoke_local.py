@@ -157,11 +157,15 @@ def _mem_factory(stack: StackConfig):
 async def _run(args: argparse.Namespace, stack: StackConfig) -> None:
     from attestor.longmemeval import load_or_download, run_async
 
-    if not (
-        os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
-    ):
+    # Pre-flight: the runtime LLM client picks its key env from the
+    # resolved llm.provider in the stack. Surface a clear error here
+    # rather than letting the first chat call fail with 401.
+    expected_key_env = stack.llm.api_key_env
+    if not os.environ.get(expected_key_env):
         sys.stderr.write(
-            f"[{RUN_LABEL}] error: neither OPENAI_API_KEY nor OPENROUTER_API_KEY is set.\n"
+            f"[{RUN_LABEL}] error: {expected_key_env} not set — required "
+            f"for llm.provider={stack.llm.provider!r}. Either export the "
+            f"env var or switch llm.provider in configs/attestor.yaml.\n"
         )
         raise SystemExit(2)
 

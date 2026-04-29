@@ -1120,11 +1120,20 @@ JUDGE_PROMPT = (
 def _get_client(api_key: Optional[str] = None) -> Any:
     """Instantiate an OpenAI-compatible client.
 
-    Default target is OpenRouter. Override with ``LME_LLM_BASE_URL`` to
-    point at any OpenAI-compatible endpoint — most importantly local
-    Ollama at ``http://localhost:11434/v1`` for offline / no-key runs.
-    When the base URL points at localhost, ``OPENROUTER_API_KEY`` is
-    optional (Ollama accepts any non-empty key).
+    Resolution order (top wins):
+      1. ``LME_LLM_BASE_URL`` env — explicit ad-hoc override; mostly
+         used to point at local Ollama (``http://localhost:11434/v1``).
+         When the URL points at localhost, the API key is optional.
+      2. ``configs/attestor.yaml`` ``stack.llm.provider`` — picks the
+         base URL and the env var name for the API key. Two providers
+         wired today: ``openrouter`` (default; multi-vendor model names
+         like ``anthropic/claude-sonnet-4-6``) and ``openai`` (no
+         OpenRouter markup, OpenAI models only).
+      3. Hardcoded fallback to OpenRouter — only if YAML is missing.
+
+    The chosen provider's API key env var is required unless the base
+    URL is local. A clear error names the env var that was missing
+    rather than the generic "OPENROUTER_API_KEY".
     """
     try:
         from openai import OpenAI
@@ -1134,19 +1143,46 @@ def _get_client(api_key: Optional[str] = None) -> Any:
             "`poetry add --group dev openai`."
         ) from e
 
-    base_url = os.environ.get("LME_LLM_BASE_URL", OPENROUTER_BASE_URL)
+    # 2 — resolve provider via stack
+    try:
+        from attestor.config import get_stack
+        llm_cfg = get_stack().llm
+    except Exception:
+        # Stack load can fail in stripped-checkout / no-YAML test scenarios;
+        # fall back to the legacy OpenRouter shape so existing callers
+        # don't crash before they even get to the API call.
+        llm_cfg = None
+
+    # 1 — explicit env override wins
+    env_base_url = os.environ.get("LME_LLM_BASE_URL")
+    if env_base_url:
+        base_url = env_base_url
+        # When user set the URL explicitly, default the key env to the
+        # configured provider's; the request itself will surface a 401
+        # if the key is mismatched.
+        key_env = (llm_cfg.api_key_env if llm_cfg else "OPENROUTER_API_KEY")
+    elif llm_cfg is not None:
+        base_url = llm_cfg.base_url
+        key_env = llm_cfg.api_key_env
+    else:
+        base_url = OPENROUTER_BASE_URL
+        key_env = "OPENROUTER_API_KEY"
+
     is_local = "localhost" in base_url or "127.0.0.1" in base_url
 
-    key = api_key or os.environ.get("OPENROUTER_API_KEY")
+    key = api_key or os.environ.get(key_env)
     if not key:
         if is_local:
             key = "ollama"  # placeholder; Ollama ignores the key
         else:
+            provider_name = (llm_cfg.provider if llm_cfg else "openrouter")
             raise RuntimeError(
-                "OPENROUTER_API_KEY not set — required for LongMemEval "
-                "answer/judge against a remote endpoint. Set "
-                "LME_LLM_BASE_URL=http://localhost:11434/v1 to run "
-                "against local Ollama instead."
+                f"{key_env} not set — required for LongMemEval "
+                f"answer/judge against {base_url} "
+                f"(llm.provider={provider_name!r}). Either export "
+                f"{key_env}, switch llm.provider in configs/attestor.yaml, "
+                f"or set LME_LLM_BASE_URL=http://localhost:11434/v1 to "
+                f"run against local Ollama instead."
             )
     return OpenAI(base_url=base_url, api_key=key)
 
