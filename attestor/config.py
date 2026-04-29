@@ -277,6 +277,34 @@ _MAX_CRITIQUE_REVISIONS = 1
 
 
 @dataclass(frozen=True)
+class HydeCfg:
+    """HyDE retrieval knobs (Phase 3 PR-D — +6-10% recall lever).
+
+    When ``enabled`` is True, the orchestrator generates a hypothetical
+    answer to the question via a small LLM, embeds it, and runs both
+    the original question AND the hypothetical answer through the
+    vector lane — RRF-merging the two ranked lists before the rest
+    of the cascade. Sibling of multi_query (PR #94); same RRF helpers,
+    different rewrite strategy.
+
+    Mutually exclusive with multi_query in this PR — if both flags are
+    on, the orchestrator prefers multi_query (logged warning).
+
+    Configuration:
+      enabled                       — master switch
+      generator_model               — null → ``models.extraction``
+      generator_reasoning_effort    — low | medium | high (gpt-5.x knob)
+      merge                         — ``rrf`` (default, consensus-weighted)
+                                      or ``union`` (cheaper, no fusion)
+    """
+
+    enabled: bool = False
+    generator_model: Optional[str] = None
+    generator_reasoning_effort: str = "low"
+    merge: str = "rrf"
+
+
+@dataclass(frozen=True)
 class TemporalPrefilterCfg:
     """Regex-only temporal pre-filter knobs (Phase 3 RC4 — +1.5% LME-S).
 
@@ -345,6 +373,7 @@ class RetrievalCfg:
     temporal_prefilter: TemporalPrefilterCfg = field(
         default_factory=TemporalPrefilterCfg,
     )
+    hyde: HydeCfg = field(default_factory=HydeCfg)
 
 
 @dataclass(frozen=True)
@@ -507,11 +536,21 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         enabled=bool(tp_blk.get("enabled", False)),
         tolerance_days=int(tp_blk.get("tolerance_days", 3)),
     )
+    hyde_blk = retrieval_blk.get("hyde") or {}
+    hyde_cfg = HydeCfg(
+        enabled=bool(hyde_blk.get("enabled", False)),
+        generator_model=hyde_blk.get("generator_model"),
+        generator_reasoning_effort=str(
+            hyde_blk.get("generator_reasoning_effort", "low"),
+        ),
+        merge=str(hyde_blk.get("merge", "rrf")),
+    )
     retrieval_cfg = RetrievalCfg(
         vector_top_k=int(retrieval_blk.get("vector_top_k", 50)),
         mmr_top_n=(int(mmr_top_raw) if mmr_top_raw is not None else None),
         multi_query=mq_cfg,
         temporal_prefilter=tp_cfg,
+        hyde=hyde_cfg,
     )
 
     sc_blk = stack_blk.get("self_consistency") or {}

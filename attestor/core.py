@@ -170,6 +170,7 @@ class AgentMemory:
             self._retrieval.temporal_prefilter_cfg = (
                 _retrieval_cfg.temporal_prefilter
             )
+            self._retrieval.hyde_cfg = _retrieval_cfg.hyde
         except Exception as _e:
             logger.debug("retrieval cfg not applied: %s", _e)
 

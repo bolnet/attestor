@@ -92,6 +92,14 @@ class RetrievalOrchestrator:
         # ``time_window`` kwarg before Step 1 runs.
         self.temporal_prefilter_cfg = None  # type: ignore[assignment]
 
+        # HyDE retrieval (Phase 3 PR-D). Sibling of multi_query.
+        # Defaults to None — no behavior change. AgentMemory wires
+        # the resolved HydeCfg post-construction. Mutually exclusive
+        # with multi_query in this PR — if both are enabled, the
+        # orchestrator prefers multi_query (it shipped first + has
+        # the longer track record) and logs a warning.
+        self.hyde_cfg = None  # type: ignore[assignment]
+
     # ── Helpers ──
 
     def _question_entities(self, query: str) -> List[str]:
@@ -316,9 +324,25 @@ class RetrievalOrchestrator:
             except Exception:
                 return []
 
+        # Path priority: multi_query > hyde > single. They are
+        # mutually exclusive in this PR — combining them is a future
+        # follow-up. If both flags are on, prefer multi_query (longer
+        # track record) and warn loudly so the operator notices.
+        path = "single"
         if self.vector_store:
             mq_cfg = getattr(self, "multi_query_cfg", None)
+            hyde_cfg = getattr(self, "hyde_cfg", None)
             mq_enabled = bool(getattr(mq_cfg, "enabled", False))
+            hyde_enabled = bool(getattr(hyde_cfg, "enabled", False))
+
+            if mq_enabled and hyde_enabled:
+                import logging as _log
+                _log.getLogger("attestor.retrieval.orchestrator").warning(
+                    "retrieval.multi_query and retrieval.hyde both enabled; "
+                    "preferring multi_query (HyDE skipped this run).",
+                )
+                hyde_enabled = False
+
             if mq_enabled:
                 from attestor.retrieval.multi_query import multi_query_search
 
@@ -329,6 +353,17 @@ class RetrievalOrchestrator:
                     merge=str(getattr(mq_cfg, "merge", "rrf")),
                     rewriter_model=getattr(mq_cfg, "rewriter_model", None),
                 )
+                path = "multi_query"
+            elif hyde_enabled:
+                from attestor.retrieval.hyde import hyde_search
+
+                mq_used, vector_hits_raw = hyde_search(
+                    query,
+                    vector_search=_single_vector_search,
+                    model=getattr(hyde_cfg, "generator_model", None),
+                    merge=str(getattr(hyde_cfg, "merge", "rrf")),
+                )
+                path = "hyde"
             else:
                 vector_hits_raw = _single_vector_search(query)
         if _tr.is_enabled():
@@ -336,6 +371,7 @@ class RetrievalOrchestrator:
                       top_k=self.vector_top_k, hit_count=len(vector_hits_raw),
                       multi_query=bool(mq_used),
                       n_queries=(len(mq_used) if mq_used else 1),
+                      path=path,
                       hits=[{"id": h.get("memory_id"),
                              "distance": round(float(h.get("distance", 1.0)), 4)}
                             for h in vector_hits_raw[:10]])
