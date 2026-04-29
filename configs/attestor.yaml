@@ -48,6 +48,23 @@ stack:
     dimensions: 1024
     api_key_env: VOYAGE_API_KEY        # resolved from environment
 
+  # ─── LLM client routing ───────────────────────────────────────────────
+  # Where chat-completion calls land. Two providers wired:
+  #
+  #   openrouter  — default. Multi-vendor catalog so cross-provider
+  #                 model strings like `anthropic/claude-sonnet-4-6`
+  #                 work in the same call shape. Requires OPENROUTER_API_KEY.
+  #   openai      — direct to api.openai.com. No OpenRouter per-call
+  #                 markup; only OpenAI models. Requires OPENAI_API_KEY.
+  #
+  # `base_url` and `api_key_env` are auto-defaulted from the provider —
+  # override them to point at local Ollama (base_url=http://localhost:11434/v1)
+  # or to swap the env-var name. The runtime helper `_get_client` honors
+  # `LME_LLM_BASE_URL` env first when set, so ad-hoc local runs still work
+  # without editing this file.
+  llm:
+    provider: openrouter
+
   # ─── Models (per-role assignment) ────────────────────────────────────
   # All four roles use distinct models tuned to their job. See
   # `project_lme_4models_20260428.md` for the benchmark numbers that

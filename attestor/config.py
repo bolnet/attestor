@@ -74,6 +74,25 @@ _FALLBACK_BENCHMARK = "openai/gpt-4.1-mini"
 _FALLBACK_BUDGET = 4000
 _FALLBACK_PARALLEL = 2
 
+# LLM client routing — which OpenAI-compatible endpoint we send chat
+# completion calls to. OpenRouter is the default (matches the canonical
+# benchmark stack); "openai" hits api.openai.com directly which avoids
+# OpenRouter's per-call markup when the model is an OpenAI one and you
+# already have an OpenAI key.
+_FALLBACK_LLM_PROVIDER = "openrouter"
+_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+_OPENAI_BASE_URL = "https://api.openai.com/v1"
+LLM_PROVIDER_DEFAULTS: Dict[str, Dict[str, str]] = {
+    "openrouter": {
+        "base_url": _OPENROUTER_BASE_URL,
+        "api_key_env": "OPENROUTER_API_KEY",
+    },
+    "openai": {
+        "base_url": _OPENAI_BASE_URL,
+        "api_key_env": "OPENAI_API_KEY",
+    },
+}
+
 
 # ─── Dataclasses ──────────────────────────────────────────────────────
 
@@ -130,6 +149,44 @@ class ModelsCfg:
 
 
 @dataclass(frozen=True)
+class LLMCfg:
+    """Where chat-completion calls are routed.
+
+    ``provider`` selects an OpenAI-compatible endpoint. Two are wired:
+
+      openrouter  — base_url=https://openrouter.ai/api/v1; key=OPENROUTER_API_KEY
+                    (default; matches the canonical benchmark stack so
+                    cross-provider models like anthropic/claude-sonnet-4-6
+                    work in the same call).
+      openai      — base_url=https://api.openai.com/v1; key=OPENAI_API_KEY
+                    (no per-call OpenRouter markup; only OpenAI models work).
+
+    ``base_url`` and ``api_key_env`` override the per-provider defaults
+    when set in YAML — useful for local Ollama (set base_url to
+    http://localhost:11434/v1) or for swapping the env var name.
+    """
+
+    provider: str
+    base_url: str
+    api_key_env: str
+
+    @classmethod
+    def for_provider(cls, provider: str) -> LLMCfg:
+        """Build with the canonical defaults for a known provider."""
+        defaults = LLM_PROVIDER_DEFAULTS.get(provider)
+        if defaults is None:
+            raise ValueError(
+                f"unknown LLM provider {provider!r}; "
+                f"expected one of {sorted(LLM_PROVIDER_DEFAULTS)}"
+            )
+        return cls(
+            provider=provider,
+            base_url=defaults["base_url"],
+            api_key_env=defaults["api_key_env"],
+        )
+
+
+@dataclass(frozen=True)
 class ImageCfg:
     ref: str
     api_ref_template: str
@@ -149,6 +206,7 @@ class StackConfig:
     neo4j: Neo4jCfg
     embedder: EmbedderCfg
     models: ModelsCfg
+    llm: LLMCfg
     image: ImageCfg
     budget: int
     parallel: int
@@ -207,6 +265,7 @@ def _build_fallback_stack() -> StackConfig:
             planner=_FALLBACK_PLANNER,
             benchmark_default=_FALLBACK_BENCHMARK,
         ),
+        llm=LLMCfg.for_provider(_FALLBACK_LLM_PROVIDER),
         image=ImageCfg(ref="", api_ref_template="", registries={}),
         budget=_FALLBACK_BUDGET,
         parallel=_FALLBACK_PARALLEL,
@@ -224,6 +283,20 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
     neo = stack_blk.get("neo4j") or {}
     emb = stack_blk.get("embedder") or {}
     models = stack_blk.get("models") or {}
+    llm_blk = stack_blk.get("llm") or {}
+
+    llm_provider = str(llm_blk.get("provider", _FALLBACK_LLM_PROVIDER))
+    if llm_provider not in LLM_PROVIDER_DEFAULTS:
+        raise SystemExit(
+            f"[attestor.config] unknown LLM provider {llm_provider!r}; "
+            f"expected one of {sorted(LLM_PROVIDER_DEFAULTS)}"
+        )
+    llm_defaults = LLM_PROVIDER_DEFAULTS[llm_provider]
+    llm_cfg = LLMCfg(
+        provider=llm_provider,
+        base_url=str(llm_blk.get("base_url", llm_defaults["base_url"])),
+        api_key_env=str(llm_blk.get("api_key_env", llm_defaults["api_key_env"])),
+    )
 
     return StackConfig(
         postgres=PostgresCfg(
@@ -251,6 +324,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
             planner=models.get("planner", _FALLBACK_PLANNER),
             benchmark_default=models.get("benchmark_default", _FALLBACK_BENCHMARK),
         ),
+        llm=llm_cfg,
         image=ImageCfg(
             ref=image_blk.get("ref", ""),
             api_ref_template=image_blk.get("api_ref_template", ""),
@@ -403,6 +477,8 @@ def print_stack_banner(stack: StackConfig, *, run_label: str) -> None:
     print(f"  graph            neo4j    @ {stack.neo4j.url} ({stack.neo4j.database})")
     print(f"  embedder         {stack.embedder.provider}:{stack.embedder.model}"
           f" @ {stack.embedder.dimensions}-D")
+    print(f"  llm              {stack.llm.provider} → {stack.llm.base_url}"
+          f" (key from ${stack.llm.api_key_env})")
     print(f"  models")
     print(f"    answerer            {stack.models.answerer}")
     print(f"    judge               {stack.models.judge}")
