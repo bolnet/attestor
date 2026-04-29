@@ -3,7 +3,7 @@
   "name": "io.github.bolnet/attestor",
   "title": "Attestor",
   "description": "Self-hosted memory for agent teams. Bi-temporal replay, deterministic retrieval, audit log.",
-  "version": "4.0.0a5",
+  "version": "4.0.0",
   "repository": {
     "url": "https://github.com/bolnet/attestor",
     "source": "github"
@@ -12,7 +12,7 @@
     {
       "registryType": "pypi",
       "identifier": "attestor",
-      "version": "4.0.0a5",
+      "version": "4.0.0",
       "runtimeHint": "python",
       "transport": {
         "type": "stdio"
