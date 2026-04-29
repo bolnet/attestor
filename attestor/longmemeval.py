@@ -710,7 +710,7 @@ def distill_turn(
     )
     try:
         client = _get_client(api_key)
-        raw = _chat(client, model, prompt, max_tokens=max_tokens)
+        raw = _chat(client, model, prompt, max_tokens=max_tokens, role="distill")
     except Exception as e:  # noqa: BLE001 — distillation is best-effort
         logger.warning("distill_turn failed (%s); falling back to raw turn", e)
         return [
@@ -1187,13 +1187,46 @@ def _get_client(api_key: Optional[str] = None) -> Any:
     return OpenAI(base_url=base_url, api_key=key)
 
 
-def _chat(client: Any, model: str, prompt: str, *, max_tokens: int = 300) -> str:
-    """One-shot chat completion; returns content text."""
-    response = client.chat.completions.create(
-        model=model,
-        max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}],
-    )
+def _chat(
+    client: Any,
+    model: str,
+    prompt: str,
+    *,
+    max_tokens: int = 300,
+    reasoning_effort: Optional[str] = None,
+    role: Optional[str] = None,
+) -> str:
+    """One-shot chat completion; returns content text.
+
+    When ``role`` is provided, look up per-role overrides for
+    ``reasoning_effort`` and ``max_tokens`` from the YAML stack
+    (``models.reasoning_effort[role]`` and ``models.max_tokens[role]``).
+    Explicit kwargs win over YAML; YAML wins over the legacy default.
+
+    ``reasoning_effort`` is a gpt-5.x param. Models that don't support
+    it ignore it silently via OpenRouter's API surface; no need to
+    filter client-side.
+    """
+    if role is not None:
+        from attestor.config import chat_kwargs_for_role
+        role_kwargs = chat_kwargs_for_role(role, fallback_max_tokens=max_tokens)
+        # Explicit caller args override YAML
+        if max_tokens != 300:  # legacy sentinel — caller passed an explicit value
+            role_kwargs["max_tokens"] = max_tokens
+        else:
+            max_tokens = role_kwargs["max_tokens"]
+        if reasoning_effort is None and "reasoning_effort" in role_kwargs:
+            reasoning_effort = role_kwargs["reasoning_effort"]
+
+    create_kwargs: Dict[str, Any] = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if reasoning_effort:
+        create_kwargs["reasoning_effort"] = reasoning_effort
+
+    response = client.chat.completions.create(**create_kwargs)
     return response.choices[0].message.content or ""
 
 
@@ -1361,7 +1394,7 @@ def answer_question(
         context=context,
     )
     client = _get_client(api_key)
-    raw = _chat(client, model, prompt, max_tokens=max_tokens).strip()
+    raw = _chat(client, model, prompt, max_tokens=max_tokens, role="answerer").strip()
     reasoning, first_answer = _strip_reasoning(raw)
 
     final_answer = first_answer
@@ -1375,7 +1408,8 @@ def answer_question(
             first_answer=first_answer,
         )
         verified_text = _chat(
-            client, verify_model or model, verify_prompt, max_tokens=150
+            client, verify_model or model, verify_prompt,
+            max_tokens=150, role="verifier",
         ).strip()
         # Only accept the verifier's output if it is a non-empty single line
         # that differs from the first answer. Preserve the verified=True flag
@@ -1516,7 +1550,7 @@ def judge_personalization(
         context=context,
     )
     client = _get_client(api_key)
-    raw = _chat(client, model, prompt, max_tokens=max_tokens)
+    raw = _chat(client, model, prompt, max_tokens=max_tokens, role="judge")
     label, reasoning = _parse_judge_response(raw)
     return JudgeResult(
         label=label,
@@ -1548,7 +1582,7 @@ def judge_answer(
         generated=generated,
     )
     client = _get_client(api_key)
-    raw = _chat(client, model, prompt, max_tokens=max_tokens)
+    raw = _chat(client, model, prompt, max_tokens=max_tokens, role="judge")
     label, reasoning = _parse_judge_response(raw)
     return JudgeResult(
         label=label,

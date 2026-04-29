@@ -140,6 +140,16 @@ class ModelsCfg:
                     (retrieval.planner)
       benchmark_default — generic fallback for ad-hoc bench commands
                           where no specific role applies
+
+    ``reasoning_effort`` (gpt-5.x reasoning models only): role → effort
+        level (none|minimal|low|medium|high|xhigh). Models that don't
+        support this param ignore it silently (Anthropic, older OpenAI).
+        Default empty dict = don't pass the param = legacy behavior.
+
+    ``max_tokens``: role → completion-token cap. Reasoning tokens count
+        against this, so high-effort roles need real headroom (3000 is
+        a typical target on the answerer; 1000 on judge). Default empty
+        dict = use a per-role legacy default (300 for most roles).
     """
     answerer: str
     judge: str
@@ -148,6 +158,8 @@ class ModelsCfg:
     verifier: str
     planner: str
     benchmark_default: str
+    reasoning_effort: Dict[str, str] = field(default_factory=dict)
+    max_tokens: Dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -366,6 +378,8 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
             verifier=models.get("verifier", _FALLBACK_VERIFIER),
             planner=models.get("planner", _FALLBACK_PLANNER),
             benchmark_default=models.get("benchmark_default", _FALLBACK_BENCHMARK),
+            reasoning_effort=dict(models.get("reasoning_effort") or {}),
+            max_tokens={k: int(v) for k, v in (models.get("max_tokens") or {}).items()},
         ),
         llm=llm_cfg,
         retrieval=retrieval_cfg,
@@ -512,6 +526,36 @@ def verify_neo4j_reachable(stack: StackConfig) -> None:
         )
 
 
+def chat_kwargs_for_role(
+    role: str,
+    *,
+    fallback_max_tokens: int = 300,
+) -> Dict[str, Any]:
+    """Build the kwargs dict to pass to OpenAI chat.completions.create()
+    for a given role, sourced from the resolved stack.
+
+    Returns at minimum ``{"max_tokens": int}``; adds ``reasoning_effort``
+    when the YAML configures one for this role. Models that don't support
+    reasoning_effort (Anthropic, older OpenAI) silently ignore it via
+    OpenRouter's API surface — no client-side filtering needed.
+
+    Stack load failures (no YAML, missing keys) fall back to safe
+    defaults: ``max_tokens=fallback_max_tokens``, no reasoning_effort.
+    Callers don't crash on stripped-checkout / test scenarios.
+    """
+    out: Dict[str, Any] = {"max_tokens": fallback_max_tokens}
+    try:
+        m = get_stack(strict=False).models
+    except Exception:
+        return out
+
+    if role in m.max_tokens:
+        out["max_tokens"] = m.max_tokens[role]
+    if role in m.reasoning_effort:
+        out["reasoning_effort"] = m.reasoning_effort[role]
+    return out
+
+
 def print_stack_banner(stack: StackConfig, *, run_label: str) -> None:
     """Print the resolved stack so users sanity-check before any
     expensive call."""
@@ -531,6 +575,12 @@ def print_stack_banner(stack: StackConfig, *, run_label: str) -> None:
     print(f"    verifier            {stack.models.verifier}")
     print(f"    planner             {stack.models.planner}")
     print(f"    benchmark_default   {stack.models.benchmark_default}")
+    if stack.models.reasoning_effort:
+        ef = ", ".join(f"{r}={v}" for r, v in stack.models.reasoning_effort.items())
+        print(f"  reasoning_effort {ef}")
+    if stack.models.max_tokens:
+        mt = ", ".join(f"{r}={v}" for r, v in stack.models.max_tokens.items())
+        print(f"  max_tokens       {mt}")
     mmr_cap = stack.retrieval.mmr_top_n if stack.retrieval.mmr_top_n is not None else "uncapped"
     print(f"  retrieval        vector_top_k={stack.retrieval.vector_top_k}"
           f" · mmr_top_n={mmr_cap}")
