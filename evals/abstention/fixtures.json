@@ -1,0 +1,262 @@
+{
+  "version": 1,
+  "description": "30 hand-curated abstention fixtures (15 answerable + 15 unanswerable). Plugs into the existing AbstentionBench harness via synthetic_loader.py — each fixture maps to one AbstentionSample with a category for per-slice F1.",
+  "samples": [
+    {
+      "sample_id": "abs_ans_001",
+      "category": "personal_attribute",
+      "answerable": true,
+      "context": "I told my doctor my A1C reading was 5.6 last quarter.",
+      "query": "What was my last A1C reading?",
+      "expected_answer": "5.6"
+    },
+    {
+      "sample_id": "abs_ans_002",
+      "category": "personal_attribute",
+      "answerable": true,
+      "context": "I bought my Tesla Model 3 in March 2024 for $42,000.",
+      "query": "How much did I pay for my Tesla?",
+      "expected_answer": "$42,000"
+    },
+    {
+      "sample_id": "abs_ans_003",
+      "category": "personal_attribute",
+      "answerable": true,
+      "context": "My current address is 123 Main Street, Austin TX.",
+      "query": "What's my home address?",
+      "expected_answer": "123 Main Street"
+    },
+    {
+      "sample_id": "abs_ans_004",
+      "category": "decision_record",
+      "answerable": true,
+      "context": "We decided to migrate the API to Postgres 16 next sprint after the latency review.",
+      "query": "What did we decide about Postgres?",
+      "expected_answer": "migrate"
+    },
+    {
+      "sample_id": "abs_ans_005",
+      "category": "decision_record",
+      "answerable": true,
+      "context": "Bob is taking over as CTO starting Monday after Alice stepped down.",
+      "query": "Who is the new CTO?",
+      "expected_answer": "Bob"
+    },
+    {
+      "sample_id": "abs_ans_006",
+      "category": "decision_record",
+      "answerable": true,
+      "context": "We agreed the launch is set for April 22nd, pushed back from March 15th.",
+      "query": "When is the launch scheduled?",
+      "expected_answer": "April 22"
+    },
+    {
+      "sample_id": "abs_ans_007",
+      "category": "preference",
+      "answerable": true,
+      "context": "I switched my morning drink from coffee to matcha after the anxiety started.",
+      "query": "What do I drink in the mornings now?",
+      "expected_answer": "matcha"
+    },
+    {
+      "sample_id": "abs_ans_008",
+      "category": "preference",
+      "answerable": true,
+      "context": "I prefer the aisle seat on flights — easier to get up.",
+      "query": "What seat do I prefer on planes?",
+      "expected_answer": "aisle"
+    },
+    {
+      "sample_id": "abs_ans_009",
+      "category": "relationship",
+      "answerable": true,
+      "context": "Sara and I have been dating for two years; we live together in Austin.",
+      "query": "What's my relationship with Sara?",
+      "expected_answer": "dating"
+    },
+    {
+      "sample_id": "abs_ans_010",
+      "category": "relationship",
+      "answerable": true,
+      "context": "Maya is my golden retriever; she's 7 years old.",
+      "query": "What kind of pet do I have?",
+      "expected_answer": "golden retriever"
+    },
+    {
+      "sample_id": "abs_ans_011",
+      "category": "count",
+      "answerable": true,
+      "context": "We have 5 engineers on the platform team after the two new hires last month.",
+      "query": "How many engineers are on the platform team?",
+      "expected_answer": "5"
+    },
+    {
+      "sample_id": "abs_ans_012",
+      "category": "count",
+      "answerable": true,
+      "context": "I have three kids: two boys and a girl.",
+      "query": "How many kids do I have?",
+      "expected_answer": "three"
+    },
+    {
+      "sample_id": "abs_ans_013",
+      "category": "professional",
+      "answerable": true,
+      "context": "I work at Acme Corp as a senior backend engineer; my manager is Priya.",
+      "query": "Who is my manager?",
+      "expected_answer": "Priya"
+    },
+    {
+      "sample_id": "abs_ans_014",
+      "category": "professional",
+      "answerable": true,
+      "context": "My team's standup is at 9am Pacific every weekday.",
+      "query": "When is my team standup?",
+      "expected_answer": "9am"
+    },
+    {
+      "sample_id": "abs_ans_015",
+      "category": "professional",
+      "answerable": true,
+      "context": "I just got promoted to staff engineer; my new salary is $185,000.",
+      "query": "What's my current title?",
+      "expected_answer": "staff engineer"
+    },
+
+    {
+      "sample_id": "abs_unans_001",
+      "category": "unknown_topic",
+      "answerable": false,
+      "context": "I told my doctor my A1C reading was 5.6 last quarter. The weather has been mild recently.",
+      "query": "What was my LDL cholesterol level?",
+      "expected_answer": null,
+      "metadata": {"why": "A1C is in context, but LDL was never mentioned"}
+    },
+    {
+      "sample_id": "abs_unans_002",
+      "category": "unknown_topic",
+      "answerable": false,
+      "context": "I bought my Tesla Model 3 in March 2024 for $42,000.",
+      "query": "What's my home address?",
+      "expected_answer": null,
+      "metadata": {"why": "context is about a car, not housing"}
+    },
+    {
+      "sample_id": "abs_unans_003",
+      "category": "unknown_topic",
+      "answerable": false,
+      "context": "We use Postgres 16 for the primary database.",
+      "query": "What's our marketing budget for Q3?",
+      "expected_answer": null,
+      "metadata": {"why": "engineering context, not financial"}
+    },
+    {
+      "sample_id": "abs_unans_004",
+      "category": "false_premise",
+      "answerable": false,
+      "context": "I'm an only child; we lived in Boston growing up.",
+      "query": "How many siblings do I have?",
+      "expected_answer": null,
+      "metadata": {"why": "user explicitly stated only-child; Q presumes siblings"}
+    },
+    {
+      "sample_id": "abs_unans_005",
+      "category": "false_premise",
+      "answerable": false,
+      "context": "We canceled the Acme project last quarter after the budget review.",
+      "query": "When is the Acme project shipping?",
+      "expected_answer": null,
+      "metadata": {"why": "Q presumes ongoing project; context says canceled"}
+    },
+    {
+      "sample_id": "abs_unans_006",
+      "category": "false_premise",
+      "answerable": false,
+      "context": "I don't drink coffee — never have.",
+      "query": "How many cups of coffee do I have per day?",
+      "expected_answer": null,
+      "metadata": {"why": "Q presumes regular consumption; context says zero"}
+    },
+    {
+      "sample_id": "abs_unans_007",
+      "category": "future_event",
+      "answerable": false,
+      "context": "Annual review process kicks off in March each year. I haven't had this year's yet.",
+      "query": "What was my performance rating in this year's review?",
+      "expected_answer": null,
+      "metadata": {"why": "future event; no review has happened yet"}
+    },
+    {
+      "sample_id": "abs_unans_008",
+      "category": "future_event",
+      "answerable": false,
+      "context": "I'm planning to start a Rust learning project at some point.",
+      "query": "What did I learn in my Rust project last week?",
+      "expected_answer": null,
+      "metadata": {"why": "project hasn't started yet"}
+    },
+    {
+      "sample_id": "abs_unans_009",
+      "category": "future_event",
+      "answerable": false,
+      "context": "We have a board meeting scheduled for next month.",
+      "query": "What did we decide at last month's board meeting?",
+      "expected_answer": null,
+      "metadata": {"why": "Q references past meeting; only future one in context"}
+    },
+    {
+      "sample_id": "abs_unans_010",
+      "category": "underspecified",
+      "answerable": false,
+      "context": "The quarterly review went well overall.",
+      "query": "What were the three biggest concerns raised?",
+      "expected_answer": null,
+      "metadata": {"why": "context is high-level; no specifics in haystack"}
+    },
+    {
+      "sample_id": "abs_unans_011",
+      "category": "underspecified",
+      "answerable": false,
+      "context": "I have a meeting tomorrow.",
+      "query": "What time and with whom is my meeting tomorrow?",
+      "expected_answer": null,
+      "metadata": {"why": "meeting mentioned, but no time/attendee specifics"}
+    },
+    {
+      "sample_id": "abs_unans_012",
+      "category": "underspecified",
+      "answerable": false,
+      "context": "I went to the doctor last week.",
+      "query": "What did the doctor diagnose?",
+      "expected_answer": null,
+      "metadata": {"why": "visit mentioned, no diagnosis recorded"}
+    },
+    {
+      "sample_id": "abs_unans_013",
+      "category": "subjective_opinion",
+      "answerable": false,
+      "context": "I work at Acme Corp as a senior backend engineer.",
+      "query": "Is Acme Corp a great company to work for?",
+      "expected_answer": null,
+      "metadata": {"why": "asks for subjective judgement not in context"}
+    },
+    {
+      "sample_id": "abs_unans_014",
+      "category": "subjective_opinion",
+      "answerable": false,
+      "context": "I bought a Tesla Model 3 last year.",
+      "query": "Are Teslas worth the price?",
+      "expected_answer": null,
+      "metadata": {"why": "subjective question; only fact-of-purchase in context"}
+    },
+    {
+      "sample_id": "abs_unans_015",
+      "category": "absent_relationship",
+      "answerable": false,
+      "context": "Bob is the new CTO; Maya is my dog.",
+      "query": "Has Bob ever met Maya?",
+      "expected_answer": null,
+      "metadata": {"why": "two unrelated entities in context; no connecting fact"}
+    }
+  ]
+}

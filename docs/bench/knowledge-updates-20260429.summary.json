@@ -1,0 +1,22 @@
+{
+  "benchmark": "knowledge_updates",
+  "primary_metric": 8.0,
+  "primary_metric_name": "supersession_top1_pct",
+  "total": 50,
+  "per_category": {
+    "numeric": 20.0,
+    "categorical": 20.0,
+    "temporal": 0.0,
+    "preference": 0.0,
+    "entity": 0.0,
+    "locational": 0.0,
+    "intent": 0.0,
+    "relational": 20.0,
+    "count": 0.0,
+    "status_binary": 20.0
+  },
+  "metadata": {
+    "target_score_pct": 92.0,
+    "passed_target": false
+  }
+}

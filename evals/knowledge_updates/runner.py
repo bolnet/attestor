@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -185,13 +186,38 @@ def _ingest_session(mem: Any, user_id: str, session: dict) -> int:
     return n
 
 
-def run_one_case(mem_factory: Any, case: dict) -> CaseResult:
+def run_one_case(
+    mem_factory: Any, case: dict, *, pg_url: Optional[str] = None,
+) -> CaseResult:
     """Hermetic single-case run.
 
-    Each call gets a fresh AgentMemory (and therefore a fresh user_id)
-    so prior cases can't leak into the recall surface.
+    Each call gets a fresh AgentMemory and a freshly-provisioned user
+    so prior cases can't leak into the recall surface. The v4 schema
+    requires the user row to exist before any memory write — we
+    bootstrap via ``UserRepo.create_or_get(external_id=...)`` and use
+    the returned UUID for ``mem.add`` / ``mem.recall``.
     """
-    user_id = f"ku-{uuid.uuid4().hex[:12]}"
+    import psycopg2
+
+    from attestor.identity.users import UserRepo
+
+    pg_url = pg_url or os.environ.get(
+        "POSTGRES_URL",
+        "postgresql://postgres:attestor@localhost:5432/attestor_v4_test",
+    )
+    external_id = f"ku-{uuid.uuid4().hex[:12]}"
+    boot = psycopg2.connect(pg_url)
+    boot.autocommit = True
+    try:
+        user = UserRepo(boot).create_or_get(
+            external_id=external_id,
+            display_name="knowledge_updates_eval",
+            metadata={"source": "knowledge_updates_suite"},
+        )
+        user_id = user.id
+    finally:
+        boot.close()
+
     mem = mem_factory()
     sessions = sorted(case["sessions"], key=lambda s: s.get("date", ""))
     for sess in sessions:
