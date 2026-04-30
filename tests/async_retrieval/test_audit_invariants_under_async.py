@@ -109,14 +109,64 @@ async def test_supersession_serial_per_memory_id():
 
 
 @pytest.mark.asyncio
-async def test_trace_reconstructable_under_async():
-    """Contract assertion (full impl in P3): 10 concurrent recalls
-    emit interleaved trace events; per-recall tree must reconstruct
-    via (recall_id, parent_event_id, seq)."""
-    pytest.skip(
-        "P3 scope — trace schema bump. "
-        "See docs/plans/async-retrieval/PLAN.md § 4 — Phase 3."
+async def test_trace_reconstructable_under_async(tmp_path, monkeypatch):
+    """A5 — under N concurrent recalls, every event must carry a
+    ``recall_id`` and a monotonic ``seq`` so the audit dashboard can
+    reconstruct each recall's event tree from the JSONL log even when
+    events from different recalls interleave in append-time order."""
+    import json
+    import attestor.trace as tr
+
+    log_path = tmp_path / "trace.jsonl"
+    monkeypatch.setenv("ATTESTOR_TRACE", "1")
+    monkeypatch.setenv("ATTESTOR_TRACE_FILE", str(log_path))
+    tr.reset_for_test()
+
+    N_RECALLS = 10
+    EVENTS_PER_RECALL = 4
+
+    async def one_recall(idx: int):
+        with tr.recall_scope() as rid:
+            tr.event("recall.start", q=f"q{idx}")
+            await asyncio.sleep(0.001)  # interleave with other tasks
+            tr.event("recall.vector")
+            await asyncio.sleep(0.001)
+            tr.event("recall.graph")
+            tr.event("recall.end")
+        return rid
+
+    rids = await asyncio.gather(
+        *[one_recall(i) for i in range(N_RECALLS)]
     )
+
+    # Read back the JSONL log.
+    events = [
+        json.loads(line) for line in log_path.read_text().splitlines() if line
+    ]
+
+    # Reconstruct per-recall.
+    by_rid: dict = {}
+    for e in events:
+        by_rid.setdefault(e.get("recall_id"), []).append(e)
+
+    assert set(rids) <= set(by_rid.keys()), "every recall_id must appear in the log"
+
+    for rid in rids:
+        rid_events = by_rid[rid]
+        assert len(rid_events) == EVENTS_PER_RECALL, (
+            f"recall {rid} should have {EVENTS_PER_RECALL} events, "
+            f"got {len(rid_events)}"
+        )
+        seqs = [e["seq"] for e in rid_events]
+        assert seqs == [1, 2, 3, 4], (
+            f"recall {rid} seqs must be monotonic 1..4, got {seqs}"
+        )
+        # All events from one recall share the same recall_id but have
+        # distinct event_ids.
+        eids = [e["event_id"] for e in rid_events]
+        assert len(set(eids)) == EVENTS_PER_RECALL, (
+            f"event_ids must be unique within a recall; got dup in {eids}"
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────
