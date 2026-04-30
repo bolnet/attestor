@@ -46,7 +46,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_multi_query_async_parallelizes_n_lanes():
     """With n=3 paraphrases (so 4 lanes total: original + 3) and each
     vector search sleeping 200ms, sequential would be 800ms+; parallel
@@ -83,7 +82,6 @@ async def test_multi_query_async_parallelizes_n_lanes():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_multi_query_async_preserves_RRF_order():
     """Async fan-out must produce the same RRF-ranked merged list as
     the sync version given identical inputs. Differences would mean
@@ -135,7 +133,6 @@ async def test_multi_query_async_preserves_RRF_order():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_multi_query_async_handles_partial_lane_failure():
     """If the second-lane vector search raises, the original-question
     lane must still produce a merged result — gather(return_exceptions=True)
