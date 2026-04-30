@@ -78,22 +78,35 @@ Same image is mirrored to:
 
 The image's default entrypoint is `attestor mcp` (MCP server over stdio). For full production use, point the container at an external Postgres + Neo4j via env vars (or compose them with `attestor/infra/local/docker-compose.yml`); override the entrypoint to run `attestor doctor`, `attestor api`, etc.
 
-### 2. Bring up local Postgres + Neo4j
+### 2. Bring up local Postgres + Pinecone + Neo4j
 
 ```bash
 attestor setup local                                       # writes attestor/infra/local/docker-compose.yml
 docker compose -f attestor/infra/local/docker-compose.yml up -d
 ```
 
-Postgres 16 ships with `pgvector` (document + vector roles). Neo4j 5 ships with GDS (graph role: PageRank, BFS, Leiden).
+The default stack ships **three containers** (one per storage role):
 
-### 3. Pull the default embedder
+| Container | Role | Port | Purpose |
+|---|---|---|---|
+| Postgres 16 | Document | `5432` | Source of truth — content, tags, entity, ts, provenance, RLS-isolated by `user_id` |
+| **Pinecone Local** | Vector | `5080-5089` | Dense embeddings, free per-namespace isolation, plain gRPC (no HTTPS) |
+| Neo4j 5 + GDS | Graph | `7687` | Entity nodes + typed edges, PageRank / BFS / Leiden |
+
+`pgvector` remains in the Postgres schema as an opt-in fallback for single-process / self-contained deploys, but the **default vector role is Pinecone** as of 2026-04-29 — it delivered the +10pp LME-S temporal-reasoning lift in the most recent bench-up.
+
+### 3. Configure the embedder
+
+The default embedder is **Pinecone Inference `llama-text-embed-v2`** (NVIDIA-hosted, 1024-D) — one vendor for embedder + storage, free Starter tier (5M tokens/month per organization, see [§ Cost & runtime guide](#cost--runtime-guide)). Set `PINECONE_API_KEY` in `.env` and the auto-detect chain in `attestor/store/embeddings.py` picks it up.
 
 ```bash
-ollama pull bge-m3                   # 1024-D, 8K context, local-first default
+echo "PINECONE_API_KEY=pcsk_…" >> .env       # cloud key for the embedder; storage can stay local
 ```
 
-The provider chain in `attestor/store/embeddings.py` checks `http://localhost:11434` first; cloud providers are fallbacks. Override via `ATTESTOR_EMBEDDING_PROVIDER` / `ATTESTOR_EMBEDDING_MODEL`.
+**Alternative providers** (override via `ATTESTOR_EMBEDDING_PROVIDER` / `ATTESTOR_EMBEDDING_MODEL`):
+- `voyage` — Voyage AI `voyage-4` (1024-D, paid)
+- `openai` — `text-embedding-3-small` (1024-D via Matryoshka)
+- `ollama` — `bge-m3` local-first (free, requires `ollama pull bge-m3`)
 
 ### 4. Verify (mandatory)
 
@@ -101,7 +114,7 @@ The provider chain in `attestor/store/embeddings.py` checks `http://localhost:11
 attestor doctor
 ```
 
-All four checks must be green for the default install: **Document Store**, **Vector Store**, **Graph Store**, **Retrieval Pipeline**. Graph (Neo4j) is required — the 6-step retrieval pipeline narrows on graph neighborhoods and the conversation ingest path writes typed edges (`uses`, `authored-by`, `supersedes`). The only hard dependency that *cannot* be down is the document store (Postgres); transient vector-probe failures are surfaced in the response trace rather than swallowed (`retrieval/orchestrator.py` — `vector_error` field).
+All four checks must be green for the default install: **Document Store** (Postgres), **Vector Store** (Pinecone Local or Cloud), **Graph Store** (Neo4j), **Retrieval Pipeline**. Graph (Neo4j) is required — the 6-step retrieval pipeline narrows on graph neighborhoods and the conversation ingest path writes typed edges (`uses`, `authored-by`, `supersedes`). The only hard dependency that *cannot* be down is the document store (Postgres); transient vector-probe failures are surfaced in the response trace rather than swallowed (`retrieval/orchestrator.py` — `vector_error` field).
 
 ### 5. Use it
 
@@ -132,10 +145,10 @@ for r in results:
 
 ### 6. Run a smoke benchmark (optional)
 
-Verify your install end-to-end against a tiny LongMemEval slice. Defaults come from `configs/attestor.yaml`: Voyage AI `voyage-4` (1024-D) embedder, `openai/gpt-5.4-mini` answerer, dual judges (`openai/gpt-5.5` + `anthropic/claude-sonnet-4-6`), `parallel=2`.
+Verify your install end-to-end against a tiny LongMemEval slice. Defaults come from `configs/attestor.yaml`: Pinecone Inference `llama-text-embed-v2` (1024-D) embedder + Pinecone vector store, `openai/gpt-5.5` answerer, dual judges (`openai/gpt-5.5` + `anthropic/claude-sonnet-4-6`), `parallel=2`.
 
 ```bash
-set -a && source .env && set +a   # OPENROUTER_API_KEY, VOYAGE_API_KEY, NEO4J_PASSWORD
+set -a && source .env && set +a   # OPENROUTER_API_KEY, PINECONE_API_KEY, NEO4J_PASSWORD
 .venv/bin/python scripts/lme_smoke_local.py --n 2 --yes
 ```
 
@@ -493,7 +506,7 @@ Every tenant table (`users`, `projects`, `sessions`, `episodes`, `memories`, `us
 
 `attestor/retrieval/orchestrator.py` runs the same six steps for every query:
 
-1. **Vector top-K** — pgvector cosine, k=50
+1. **Vector top-K** — Pinecone cosine, k=50 (pgvector remains as opt-in fallback for self-contained deploys)
 2. **Graph narrow** — Neo4j BFS depth ≤ 2 from each candidate's entity to the question entities; affinity bonus per hop (0-hop=+0.30, 1-hop=+0.20, 2-hop=+0.10; unreachable=−0.05). Discrete, not "soft".
 3. **Triples inject** — typed-edge facts (`uses`, `authored-by`, `supersedes`) injected as synthetic memories
 4. **MMR rerank** — λ=0.7
@@ -507,10 +520,10 @@ Every call writes a JSONL trace to `logs/attestor_trace.jsonl` (disable via `ATT
 | Role | Purpose | Default | Alternatives |
 |------|---------|---------|--------------|
 | **Document** | Source of truth (content, tags, entity, ts, provenance, confidence) | Postgres 16 | AlloyDB, ArangoDB, DynamoDB, Cosmos DB |
-| **Vector** | Dense embedding per memory | pgvector | AlloyDB ScaNN, ArangoDB, OpenSearch Serverless, Cosmos DiskANN |
+| **Vector** | Dense embedding per memory | **Pinecone** (Local Docker / Cloud) | pgvector, AlloyDB ScaNN, ArangoDB, OpenSearch Serverless, Cosmos DiskANN |
 | **Graph** | Entity nodes + typed edges | Neo4j 5 + GDS | Apache AGE on AlloyDB, ArangoDB, Neptune, NetworkX (Azure) |
 
-Postgres is the source of truth. Neo4j is **derived state, rebuildable from Postgres** — but it's required for the canonical install: graph expansion is step 2 of the retrieval pipeline and conversation ingest writes typed edges. The only role that cannot be down is the document store; the orchestrator records transient vector-probe failures in the response trace (`vector_error`) instead of swallowing them.
+Postgres is the source of truth. **Pinecone vectors and Neo4j graph are derived state, both rebuildable from Postgres** — but both are required for the canonical install: vector cosine is step 1 of the retrieval pipeline, graph expansion is step 2, and conversation ingest writes typed edges. The only role that cannot be down is the document store; the orchestrator records transient vector-probe failures in the response trace (`vector_error`) instead of swallowing them.
 
 ### Optional BM25 / FTS lane
 
