@@ -83,6 +83,7 @@ packages = [{ include = "attestor" }]
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.0"
 pytest-cov = ">=4.0"
+pytest-asyncio = ">=0.23"
 requests = ">=2.28.0"
 twine = "^6.2.0"
 
@@ -92,6 +93,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
 markers = [
     "docker: tests requiring Docker (deselect with '-m not docker')",
     "unit: fast, dependency-free unit tests",
