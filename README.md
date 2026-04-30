@@ -515,6 +515,26 @@ Every tenant table (`users`, `projects`, `sessions`, `episodes`, `memories`, `us
 
 Every call writes a JSONL trace to `logs/attestor_trace.jsonl` (disable via `ATTESTOR_TRACE=0`).
 
+### Async retrieval — lower latency without weakening audit
+
+Independent recall steps run concurrently via `asyncio.gather`, but **none of the eight audit invariants are relaxed.** You don't trade trust for speed — you get both.
+
+| Async step | Latency win | Audit invariant preserved |
+|---|---|---|
+| HyDE LLM call ‖ original-question vector embed | −33 % on HyDE-enabled recalls (~600 ms → ~400 ms in the simulated unit-test) | **A7** — generator pins `temperature=0.0`, same prompt + same model = same hypothetical = same RRF order. Async amplifies non-determinism risk if T > 0; we explicitly pin T=0. |
+| Per-lane vector searches in parallel (HyDE / multi-query) | proportional to N (≈ N × per-lane → max-per-lane) | RRF over the lanes is deterministic given identical inputs — gather order does **not** corrupt rank positions (`test_multi_query_async_preserves_RRF_order`). |
+| Self-consistency K-fanout (answerer side) | 5× on K=5 sampling | Vote consensus is order-independent; answerer-side change, doesn't touch the document store. |
+| Vector ‖ BM25 ‖ graph candidate-fetch | −20 % on baseline recalls | **A2** `recall_started_at` ceiling — every cross-store read carries the same monotonic timestamp captured at recall start. Concurrent writes that land mid-recall are simply not visible. |
+| Graph BFS ‖ Postgres doc-fetch | −50 ms typical | Same ceiling. |
+
+**Write-side stays sync.** All `add()`, `update()`, supersession writes are explicitly **non-goals** for the async refactor — the audit chain depends on serial write ordering and the bi-temporal `t_created` order must be linearizable per row. Async is read-side only.
+
+**Trace stays reconstructable.** Every event carries `recall_id` + monotonic `seq` + optional `parent_event_id`, so the audit dashboard renders concurrent recalls as a tree of events rather than a stream — `(recall_id, seq)` reconstructs causal order from the JSONL log.
+
+**Same `recall(as_of=X)` replay guarantee.** A past recall remains byte-for-byte reproducible from the bi-temporal columns + `deletion_audit` + the trace JSONL — async parallelism doesn't change what gets read, only when. The load-bearing test (`tests/test_as_of_replay.py`) is in the regression gate of every async PR.
+
+Full design + audit-invariant matrix: [`docs/plans/async-retrieval/PLAN.md`](docs/plans/async-retrieval/PLAN.md). Convention: every async PR ships with an audit-preservation argument and the matching invariant test (`tests/async_retrieval/test_audit_invariants_under_async.py`) GREEN before merge.
+
 ### Three storage roles
 
 | Role | Purpose | Default | Alternatives |
