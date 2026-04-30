@@ -253,40 +253,52 @@ class RetrievalOrchestrator:
         that don't support them ignore them silently. Behavior unchanged
         when both are None.
         """
-        t_total = time.monotonic()
+        # Audit invariants A2 + A5 are enforced via two scopes opened
+        # at the very top of the recall — recall_started_at_scope sets
+        # the t_created ceiling that flows into store WHERE clauses;
+        # trace.recall_scope tags every event below with a unique
+        # recall_id + monotonic seq so the audit dashboard can
+        # reconstruct the per-recall event tree from the JSONL log
+        # even when concurrent recalls interleave. ContextVar
+        # propagation makes both work for sync callers (here) and
+        # async callers (recall_async below).
         from attestor import trace as _tr
-        question_entities = self._question_entities(query)
-        if _tr.is_enabled():
-            _tr.event("recall.start", query=query[:200], namespace=namespace,
-                      token_budget=token_budget,
-                      question_entities=question_entities,
-                      as_of=str(as_of) if as_of else None,
-                      time_window=str(time_window) if time_window else None)
+        from attestor.recall_context import recall_started_at_scope
 
-        # ── Step 0: Temporal pre-filter (RC4) ──
-        time_window = self._step0_temporal_prefilter(query, time_window)
+        with recall_started_at_scope(), _tr.recall_scope():
+            t_total = time.monotonic()
+            question_entities = self._question_entities(query)
+            if _tr.is_enabled():
+                _tr.event("recall.start", query=query[:200], namespace=namespace,
+                          token_budget=token_budget,
+                          question_entities=question_entities,
+                          as_of=str(as_of) if as_of else None,
+                          time_window=str(time_window) if time_window else None)
 
-        # ── Step 1: Vector top-K (single | hyde | multi_query) ──
-        vector_hits_raw, mq_used, path = self._compute_lane_vector(
-            query, namespace, as_of, time_window,
-        )
+            # ── Step 0: Temporal pre-filter (RC4) ──
+            time_window = self._step0_temporal_prefilter(query, time_window)
 
-        # ── Step 1b: BM25 lane ──
-        bm25_hits_raw = self._compute_lane_bm25(query, as_of, time_window)
+            # ── Step 1: Vector top-K (single | hyde | multi_query) ──
+            vector_hits_raw, mq_used, path = self._compute_lane_vector(
+                query, namespace, as_of, time_window,
+            )
 
-        # ── Steps 2–6 — extracted into ``_post_process_candidates`` so
-        # the same logic is reused by both the sync ``recall()`` and
-        # the async ``recall_async()`` (Phase 6 of the async retrieval
-        # rollout, see docs/plans/async-retrieval/PLAN.md).
-        return self._post_process_candidates(
-            query=query, namespace=namespace, as_of=as_of,
-            time_window=time_window,
-            question_entities=question_entities,
-            vector_hits_raw=vector_hits_raw,
-            bm25_hits_raw=bm25_hits_raw,
-            mq_used=mq_used, path=path,
-            token_budget=token_budget, t_total=t_total,
-        )
+            # ── Step 1b: BM25 lane ──
+            bm25_hits_raw = self._compute_lane_bm25(query, as_of, time_window)
+
+            # ── Steps 2–6 — extracted into ``_post_process_candidates`` so
+            # the same logic is reused by both the sync ``recall()`` and
+            # the async ``recall_async()`` (Phase 6 of the async retrieval
+            # rollout, see docs/plans/async-retrieval/PLAN.md).
+            return self._post_process_candidates(
+                query=query, namespace=namespace, as_of=as_of,
+                time_window=time_window,
+                question_entities=question_entities,
+                vector_hits_raw=vector_hits_raw,
+                bm25_hits_raw=bm25_hits_raw,
+                mq_used=mq_used, path=path,
+                token_budget=token_budget, t_total=t_total,
+            )
 
     # ──────────────────────────────────────────────────────────────────
     # Phase 6 — async sibling. Vector lane and BM25 lane run in parallel
@@ -321,56 +333,58 @@ class RetrievalOrchestrator:
         """
         from attestor.recall_context import recall_started_at_scope_async
 
+        from attestor import trace as _tr
+        # Both audit scopes opened together — A2 ceiling + A5 trace tree.
         async with recall_started_at_scope_async():
-            t_total = time.monotonic()
-            from attestor import trace as _tr
-            question_entities = self._question_entities(query)
-            if _tr.is_enabled():
-                _tr.event(
-                    "recall.start", query=query[:200], namespace=namespace,
-                    token_budget=token_budget,
-                    question_entities=question_entities,
-                    as_of=str(as_of) if as_of else None,
-                    time_window=str(time_window) if time_window else None,
-                    mode="async",
+            with _tr.recall_scope():
+                t_total = time.monotonic()
+                question_entities = self._question_entities(query)
+                if _tr.is_enabled():
+                    _tr.event(
+                        "recall.start", query=query[:200], namespace=namespace,
+                        token_budget=token_budget,
+                        question_entities=question_entities,
+                        as_of=str(as_of) if as_of else None,
+                        time_window=str(time_window) if time_window else None,
+                        mode="async",
+                    )
+
+                # Step 0 (sync, regex — cheap).
+                time_window = self._step0_temporal_prefilter(query, time_window)
+
+                # Steps 1 + 1b — the P6 win: parallel via gather.
+                lane_results = await asyncio.gather(
+                    asyncio.to_thread(
+                        self._compute_lane_vector,
+                        query, namespace, as_of, time_window,
+                    ),
+                    asyncio.to_thread(
+                        self._compute_lane_bm25,
+                        query, as_of, time_window,
+                    ),
+                    return_exceptions=True,
                 )
 
-            # Step 0 (sync, regex — cheap).
-            time_window = self._step0_temporal_prefilter(query, time_window)
+                if isinstance(lane_results[0], Exception):
+                    vector_hits_raw, mq_used, path = [], None, "single"
+                else:
+                    vector_hits_raw, mq_used, path = lane_results[0]
 
-            # Steps 1 + 1b — the P6 win: parallel via gather.
-            lane_results = await asyncio.gather(
-                asyncio.to_thread(
-                    self._compute_lane_vector,
-                    query, namespace, as_of, time_window,
-                ),
-                asyncio.to_thread(
-                    self._compute_lane_bm25,
-                    query, as_of, time_window,
-                ),
-                return_exceptions=True,
-            )
+                if isinstance(lane_results[1], Exception):
+                    bm25_hits_raw = []
+                else:
+                    bm25_hits_raw = lane_results[1]
 
-            if isinstance(lane_results[0], Exception):
-                vector_hits_raw, mq_used, path = [], None, "single"
-            else:
-                vector_hits_raw, mq_used, path = lane_results[0]
-
-            if isinstance(lane_results[1], Exception):
-                bm25_hits_raw = []
-            else:
-                bm25_hits_raw = lane_results[1]
-
-            # Steps 2-6 — sync post-processing (no I/O parallelism inside).
-            return self._post_process_candidates(
-                query=query, namespace=namespace, as_of=as_of,
-                time_window=time_window,
-                question_entities=question_entities,
-                vector_hits_raw=vector_hits_raw,
-                bm25_hits_raw=bm25_hits_raw,
-                mq_used=mq_used, path=path,
-                token_budget=token_budget, t_total=t_total,
-            )
+                # Steps 2-6 — sync post-processing (no I/O parallelism inside).
+                return self._post_process_candidates(
+                    query=query, namespace=namespace, as_of=as_of,
+                    time_window=time_window,
+                    question_entities=question_entities,
+                    vector_hits_raw=vector_hits_raw,
+                    bm25_hits_raw=bm25_hits_raw,
+                    mq_used=mq_used, path=path,
+                    token_budget=token_budget, t_total=t_total,
+                )
 
     # ──────────────────────────────────────────────────────────────────
     # Step 0 helper — temporal pre-filter (RC4).
