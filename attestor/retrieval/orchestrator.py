@@ -15,8 +15,9 @@ Every call writes a JSONL trace to ``logs/attestor_trace.jsonl``
 
 from __future__ import annotations
 
+import asyncio
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from attestor.models import Memory, RetrievalResult
 from attestor.retrieval.scorer import (
@@ -263,10 +264,127 @@ class RetrievalOrchestrator:
                       time_window=str(time_window) if time_window else None)
 
         # ── Step 0: Temporal pre-filter (RC4) ──
-        # When enabled and the question contains a relative time phrase,
-        # tighten the event-time window passed to subsequent lanes. Caller-
-        # supplied time_window takes precedence — never override an explicit
-        # bound. Falls through silently when no phrase matches.
+        time_window = self._step0_temporal_prefilter(query, time_window)
+
+        # ── Step 1: Vector top-K (single | hyde | multi_query) ──
+        vector_hits_raw, mq_used, path = self._compute_lane_vector(
+            query, namespace, as_of, time_window,
+        )
+
+        # ── Step 1b: BM25 lane ──
+        bm25_hits_raw = self._compute_lane_bm25(query, as_of, time_window)
+
+        # ── Steps 2–6 — extracted into ``_post_process_candidates`` so
+        # the same logic is reused by both the sync ``recall()`` and
+        # the async ``recall_async()`` (Phase 6 of the async retrieval
+        # rollout, see docs/plans/async-retrieval/PLAN.md).
+        return self._post_process_candidates(
+            query=query, namespace=namespace, as_of=as_of,
+            time_window=time_window,
+            question_entities=question_entities,
+            vector_hits_raw=vector_hits_raw,
+            bm25_hits_raw=bm25_hits_raw,
+            mq_used=mq_used, path=path,
+            token_budget=token_budget, t_total=t_total,
+        )
+
+    # ──────────────────────────────────────────────────────────────────
+    # Phase 6 — async sibling. Vector lane and BM25 lane run in parallel
+    # via asyncio.gather + asyncio.to_thread. Steps 2-6 (CPU-bound) run
+    # serially after both lanes return; no parallelism opportunity there.
+    #
+    # Audit-preservation argument:
+    #   - Opens a recall_started_at_scope_async() so the Postgres ceiling
+    #     (audit invariant A2) is active for the entire recall.
+    #   - The recall_id contextvar from trace.recall_scope, if opened by
+    #     a caller, propagates through asyncio.to_thread (contextvars
+    #     are copied onto threads via ContextVar.run() semantics).
+    #   - Lane failures are isolated via gather(return_exceptions=True);
+    #     a failing lane degrades to an empty list rather than aborting
+    #     the recall.
+    # ──────────────────────────────────────────────────────────────────
+
+    async def recall_async(
+        self,
+        query: str,
+        token_budget: int = 2000,
+        namespace: Optional[str] = None,
+        as_of: Optional[Any] = None,
+        time_window: Optional[Any] = None,
+    ) -> List[RetrievalResult]:
+        """Async sibling of ``recall()``. Runs the vector lane and BM25
+        lane concurrently via ``asyncio.gather`` + ``asyncio.to_thread``.
+
+        Latency story (with vector ~80ms and BM25 ~50ms):
+            sync:  ~130ms (vector → BM25 sequential)
+            async:  ~80ms (vector ‖ BM25 under gather, max wins)
+        """
+        from attestor.recall_context import recall_started_at_scope_async
+
+        async with recall_started_at_scope_async():
+            t_total = time.monotonic()
+            from attestor import trace as _tr
+            question_entities = self._question_entities(query)
+            if _tr.is_enabled():
+                _tr.event(
+                    "recall.start", query=query[:200], namespace=namespace,
+                    token_budget=token_budget,
+                    question_entities=question_entities,
+                    as_of=str(as_of) if as_of else None,
+                    time_window=str(time_window) if time_window else None,
+                    mode="async",
+                )
+
+            # Step 0 (sync, regex — cheap).
+            time_window = self._step0_temporal_prefilter(query, time_window)
+
+            # Steps 1 + 1b — the P6 win: parallel via gather.
+            lane_results = await asyncio.gather(
+                asyncio.to_thread(
+                    self._compute_lane_vector,
+                    query, namespace, as_of, time_window,
+                ),
+                asyncio.to_thread(
+                    self._compute_lane_bm25,
+                    query, as_of, time_window,
+                ),
+                return_exceptions=True,
+            )
+
+            if isinstance(lane_results[0], Exception):
+                vector_hits_raw, mq_used, path = [], None, "single"
+            else:
+                vector_hits_raw, mq_used, path = lane_results[0]
+
+            if isinstance(lane_results[1], Exception):
+                bm25_hits_raw = []
+            else:
+                bm25_hits_raw = lane_results[1]
+
+            # Steps 2-6 — sync post-processing (no I/O parallelism inside).
+            return self._post_process_candidates(
+                query=query, namespace=namespace, as_of=as_of,
+                time_window=time_window,
+                question_entities=question_entities,
+                vector_hits_raw=vector_hits_raw,
+                bm25_hits_raw=bm25_hits_raw,
+                mq_used=mq_used, path=path,
+                token_budget=token_budget, t_total=t_total,
+            )
+
+    # ──────────────────────────────────────────────────────────────────
+    # Step 0 helper — temporal pre-filter (RC4).
+    # ──────────────────────────────────────────────────────────────────
+
+    def _step0_temporal_prefilter(
+        self, query: str, time_window: Optional[Any],
+    ) -> Optional[Any]:
+        """When enabled and the question contains a relative time phrase,
+        tighten the event-time window passed to subsequent lanes. Caller-
+        supplied ``time_window`` takes precedence — never override an
+        explicit bound. Falls through silently when no phrase matches.
+        """
+        from attestor import trace as _tr
         tp_cfg = getattr(self, "temporal_prefilter_cfg", None)
         if (
             tp_cfg is not None
@@ -293,17 +411,28 @@ class RetrievalOrchestrator:
                             if detected.window.end else None
                         ),
                     )
+        return time_window
 
-        # ── Step 1: Vector top-K ──
-        # When multi_query is enabled, this step fans out: rewrite the
-        # question into N paraphrases via a small LLM call, run each
-        # through ``vector_store.search`` independently, and RRF-merge
-        # the N+1 ranked lists. The merged list flows into the rest
-        # of the cascade unchanged. Disabled (default) → single-query
-        # legacy path; behavior identical to before this change.
+    # ──────────────────────────────────────────────────────────────────
+    # Step 1 helper — vector lane (single | hyde | multi_query).
+    # ──────────────────────────────────────────────────────────────────
+
+    def _compute_lane_vector(
+        self,
+        query: str,
+        namespace: Optional[str],
+        as_of: Optional[Any],
+        time_window: Optional[Any],
+    ) -> tuple:
+        """Returns ``(vector_hits_raw, mq_used, path)``.
+
+        Path priority: multi_query > hyde > single — mutually exclusive.
+        If both flags are on, prefers multi_query (longer track record)
+        and logs a warning.
+        """
+        from attestor import trace as _tr
         vector_hits_raw: List[Dict] = []
-        results: List[RetrievalResult] = []
-        mq_used: Optional[List[str]] = None  # populated when multi_query fired
+        mq_used: Optional[List[str]] = None
 
         def _single_vector_search(q: str) -> List[Dict]:
             """One vector_store.search call with v3/v4 signature
@@ -324,10 +453,6 @@ class RetrievalOrchestrator:
             except Exception:
                 return []
 
-        # Path priority: multi_query > hyde > single. They are
-        # mutually exclusive in this PR — combining them is a future
-        # follow-up. If both flags are on, prefer multi_query (longer
-        # track record) and warn loudly so the operator notices.
         path = "single"
         if self.vector_store:
             mq_cfg = getattr(self, "multi_query_cfg", None)
@@ -366,6 +491,7 @@ class RetrievalOrchestrator:
                 path = "hyde"
             else:
                 vector_hits_raw = _single_vector_search(query)
+
         if _tr.is_enabled():
             _tr.event("recall.stage.vector",
                       top_k=self.vector_top_k, hit_count=len(vector_hits_raw),
@@ -376,10 +502,22 @@ class RetrievalOrchestrator:
                              "distance": round(float(h.get("distance", 1.0)), 4)}
                             for h in vector_hits_raw[:10]])
 
-        # ── Step 1b: BM25 lane (Phase 4.3) ──
-        # Runs alongside the vector lane; fused via RRF below. When the
-        # bm25_lane isn't configured (v3 deployments, custom backends),
-        # this is a no-op and recall behaves exactly as before.
+        return vector_hits_raw, mq_used, path
+
+    # ──────────────────────────────────────────────────────────────────
+    # Step 1b helper — BM25 lane.
+    # ──────────────────────────────────────────────────────────────────
+
+    def _compute_lane_bm25(
+        self,
+        query: str,
+        as_of: Optional[Any],
+        time_window: Optional[Any],
+    ) -> List:
+        """BM25 lane (Postgres FTS or in-memory rank_bm25 in
+        experiments). Runs alongside the vector lane; fused via RRF
+        in step 2b. No-op when the lane isn't configured."""
+        from attestor import trace as _tr
         bm25_hits_raw: List = []
         if self.bm25_lane is not None:
             try:
@@ -401,24 +539,40 @@ class RetrievalOrchestrator:
                       hits=[{"id": h.memory_id,
                              "rank": getattr(h, "rank", None)}
                             for h in bm25_hits_raw[:10]])
+        return bm25_hits_raw
+
+    # ──────────────────────────────────────────────────────────────────
+    # Post-processing helper (Phase 6 — shared by sync recall + async
+    # recall_async). Pure CPU-bound work after the two I/O lanes return:
+    # candidate materialization, RRF blend, graph narrow, triples,
+    # MMR, confidence decay, budget fit. No parallelism opportunities
+    # inside; just deduplication of code between sync and async paths.
+    # ──────────────────────────────────────────────────────────────────
+
+    def _post_process_candidates(
+        self,
+        *,
+        query: str,
+        namespace: Optional[str],
+        as_of: Optional[Any],
+        time_window: Optional[Any],
+        question_entities: List[str],
+        vector_hits_raw: List[Dict],
+        bm25_hits_raw: List,
+        mq_used: Optional[List[str]],
+        path: str,
+        token_budget: int,
+        t_total: float,
+    ) -> List[RetrievalResult]:
+        from attestor import trace as _tr
+        results: List[RetrievalResult] = []
 
         # ── Step 2: Materialise vector candidates with preliminary vector_sim
-        # status='active' is current-state filtering. When as_of is set,
-        # the lane SQL has already restricted by t_created/t_expired so a
-        # row that's now 'superseded' but was active at as_of must pass.
-        # When time_window is set, the lane filtered by event-time overlap;
-        # a fact that was true during the window may now be superseded too.
         require_active = (as_of is None and time_window is None)
         candidates: List[Dict] = []
         seen_ids: set = set()
         _drop = {"missing": 0, "inactive": 0, "namespace": 0, "kept": 0,
                  "first_drop_status": None, "first_drop_namespace": None}
-        # When multi-query merged the lanes via RRF, the hit order
-        # encodes consensus signal that the per-hit ``distance`` field
-        # (carried over from one lane only) does NOT. Convert merged
-        # rank → similarity so a consensus hit at rank-3 outranks a
-        # lone-top hit at rank-1 even though its lane-0 distance was
-        # worse. Inactive when no rrf_score is present (legacy path).
         _merged_via_rrf = (
             bool(vector_hits_raw)
             and "rrf_score" in vector_hits_raw[0]
@@ -445,9 +599,6 @@ class RetrievalOrchestrator:
             distance = float(vr.get("distance", 1.0))
             distance_sim = max(0.0, 1.0 - distance)
             if _merged_via_rrf:
-                # Rank-derived sim from RRF order. Item at idx=0 →
-                # 1.0; last → near 0. Use max() so a consensus item
-                # also gets credit for any genuinely-good distance.
                 rank_sim = 1.0 - (_idx / _total_merged)
                 vector_sim = max(distance_sim, rank_sim)
             else:
@@ -469,8 +620,7 @@ class RetrievalOrchestrator:
                       require_active=require_active,
                       filter_namespace=namespace)
 
-        # Pull BM25-only hits into the candidate set (vector_sim=0 for those).
-        # The RRF-style boost below rewards them based on their BM25 rank.
+        # Pull BM25-only hits.
         for hit in bm25_hits_raw:
             if hit.memory_id in seen_ids:
                 continue
@@ -492,10 +642,7 @@ class RetrievalOrchestrator:
             vector_ranked = [vr["memory_id"] for vr in vector_hits_raw]
             bm25_ranked = [h.memory_id for h in bm25_hits_raw]
             fused = reciprocal_rank_fusion(vector_ranked, bm25_ranked)
-            # Map id → fused position (0-based)
             fused_rank = {mid: i for i, mid in enumerate(fused)}
-            # Convert fused position into a normalized [0, 1] bonus that we
-            # add to vector_sim. Top of fused list ≈ 1.0, tail decays slowly.
             n = max(1, len(fused))
             for c in candidates:
                 pos = fused_rank.get(c["memory"].id)
@@ -510,9 +657,6 @@ class RetrievalOrchestrator:
                                      for i, mid in enumerate(fused[:10])])
 
         # ── Step 2: Graph narrow ──
-        # Pass namespace through so the BFS can't pull affinity from
-        # entities written by another tenant. Pre-namespace nodes still
-        # recall under namespace="default" via coalesce in the backend.
         affinity_map = self._graph_affinity_map(
             question_entities, namespace=namespace,
         )
@@ -546,7 +690,6 @@ class RetrievalOrchestrator:
                 "content_preview": mem.content[:160],
             })
 
-        # Sort by blended score
         results.sort(key=lambda r: r.score, reverse=True)
         ranked_preview = [
             {"id": r.memory.id, "score": round(r.score, 4),
@@ -579,8 +722,6 @@ class RetrievalOrchestrator:
         if self.enable_mmr:
             _pre_mmr_count = len(results)
             results = mmr_rerank(results, lambda_param=self.mmr_lambda)
-            # Apply post-MMR cap if configured. None = legacy behavior
-            # (no cap; let mmr_rerank's own diversity trim decide).
             if self.mmr_top_n is not None and len(results) > self.mmr_top_n:
                 results = results[: self.mmr_top_n]
             if _tr.is_enabled():
