@@ -36,11 +36,12 @@ Trace events emitted (when ATTESTOR_TRACE=1):
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger("attestor.retrieval.multi_query")
 
@@ -148,6 +149,76 @@ def rewrite_query(
     if _tr.is_enabled():
         _tr.event(
             "recall.multi_query.rewrites",
+            original=question[:200],
+            n_requested=n,
+            n_produced=len(paraphrases),
+            paraphrases=paraphrases[:5],
+        )
+
+    return RewriteResult(
+        original=question.strip(),
+        paraphrases=paraphrases,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Async rewriter (Phase 2 — docs/plans/async-retrieval/PLAN.md).
+# Pins temperature=0.0 — same audit invariant A7 as HyDE: same prompt
+# + same model = same paraphrases = same RRF order. Async amplifies
+# non-determinism risk if T > 0.
+# ──────────────────────────────────────────────────────────────────────
+
+
+async def rewrite_query_async(
+    question: str,
+    *,
+    n: int = 3,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    timeout: float = 30.0,
+) -> RewriteResult:
+    """Async sibling of ``rewrite_query``. Same prompt, same parser,
+    same fallback semantics. Uses ``openai.AsyncOpenAI`` so the
+    rewriter call can run concurrently with vector lanes.
+    """
+    if n <= 0 or not question.strip():
+        return RewriteResult(original=question.strip())
+
+    api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        logger.debug("multi_query.rewrite_query_async: no API key; returning original only")
+        return RewriteResult(original=question.strip())
+
+    model = model or _resolve_rewriter_model()
+
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+            timeout=timeout,
+        )
+        response = await client.chat.completions.create(
+            model=model,
+            max_tokens=400,
+            temperature=0.0,
+            messages=[
+                {"role": "user", "content": _REWRITE_PROMPT.format(
+                    n=n, question=question,
+                )},
+            ],
+        )
+        text = (response.choices[0].message.content or "").strip()
+    except Exception as e:  # noqa: BLE001
+        logger.debug("multi_query.rewrite_query_async: LLM call failed: %s", e)
+        return RewriteResult(original=question.strip())
+
+    paraphrases = _parse_rewrites(text, n=n)
+
+    from attestor import trace as _tr
+    if _tr.is_enabled():
+        _tr.event(
+            "recall.multi_query.rewrites.async",
             original=question[:200],
             n_requested=n,
             n_produced=len(paraphrases),
@@ -334,3 +405,115 @@ def multi_query_search(
         )
 
     return queries, merged
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Async end-to-end lane (Phase 2 — docs/plans/async-retrieval/PLAN.md)
+#
+# Two concurrency levers:
+#   1. Rewriter LLM call runs concurrently with the original-question
+#      vector search (orig lane embeds while rewriter writes paraphrases).
+#   2. Once paraphrases are known, the N paraphrase lanes fan out
+#      simultaneously via asyncio.gather. Wallclock collapses from
+#      (N+1) × per-lane to ~max(per-lane).
+#
+# Audit invariants preserved:
+#   A7 — rewriter pins temperature=0.0 (same as HyDE generator).
+#   RRF merge is deterministic given identical lane inputs — gather
+#   order does NOT affect rank positions because ranks are assigned
+#   per-lane independently before merge (see test_multi_query_async
+#   _preserves_RRF_order).
+# ──────────────────────────────────────────────────────────────────────
+
+
+async def multi_query_search_async(
+    question: str,
+    *,
+    vector_search: Callable[[str], Awaitable[List[Dict[str, Any]]]],
+    n: int = 3,
+    merge: str = "rrf",
+    rewriter_model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    timeout: float = 30.0,
+) -> Tuple[List[str], List[Dict[str, Any]]]:
+    """Async sibling of ``multi_query_search``. ``vector_search`` MUST
+    be an async callable.
+
+    Latency story (with both LLM and vector ~200ms each, n=3 → 4 lanes):
+        sync:  ~1000ms (rewriter 200 + 4 lanes × 200 sequential)
+        async: ~400ms  (rewriter 200 ‖ orig lane 200, then 3 paraphrase
+                        lanes gathered ≈ 200) — ~60% reduction
+
+    Per-lane failures are isolated via gather(return_exceptions=True);
+    RRF degrades to surviving lanes. On rewriter failure, falls back
+    to single-lane (original-question) without raising.
+    """
+    # Phase A: rewriter + orig-lane in parallel. Orig lane is "free"
+    # on the wallclock — it runs while the LLM writes paraphrases.
+    rewriter_task = asyncio.create_task(
+        rewrite_query_async(
+            question, n=n, model=rewriter_model, api_key=api_key,
+            timeout=timeout,
+        )
+    )
+    orig_task = asyncio.create_task(_safe_async_call(vector_search, question))
+
+    try:
+        rewrite = await asyncio.wait_for(rewriter_task, timeout=timeout)
+    except asyncio.TimeoutError:
+        logger.debug("multi_query_async: rewriter exceeded timeout=%.2fs", timeout)
+        rewrite = RewriteResult(original=question.strip())
+    except Exception as e:  # noqa: BLE001
+        logger.debug("multi_query_async: rewriter failed: %s", e)
+        rewrite = RewriteResult(original=question.strip())
+
+    queries = rewrite.queries
+
+    # Phase B: fan out paraphrase lanes (all known after rewriter
+    # returns) gathered with the already-running orig task.
+    paraphrase_tasks = [
+        asyncio.create_task(_safe_async_call(vector_search, p))
+        for p in rewrite.paraphrases
+    ]
+    all_tasks = [orig_task] + paraphrase_tasks
+    lanes_results = await asyncio.gather(*all_tasks, return_exceptions=True)
+
+    # Coerce to lanes; exceptions become empty lanes (RRF handles).
+    lanes: List[List[Dict[str, Any]]] = []
+    for lr in lanes_results:
+        if isinstance(lr, Exception):
+            lanes.append([])
+        else:
+            lanes.append(lr or [])
+
+    if merge == "union":
+        merged = union_merge(lanes)
+    else:
+        merged = reciprocal_rank_fusion(lanes)
+
+    from attestor import trace as _tr
+    if _tr.is_enabled():
+        _tr.event(
+            "recall.multi_query.merged.async",
+            n_queries=len(queries),
+            per_lane_sizes=[len(l) for l in lanes],
+            merged_size=len(merged),
+            merge_strategy=merge,
+        )
+
+    return queries, merged
+
+
+async def _safe_async_call(
+    fn: Callable[[str], Awaitable[List[Dict[str, Any]]]],
+    arg: str,
+) -> List[Dict[str, Any]]:
+    """Await ``fn(arg)``; on exception, return ``[]`` so the lane
+    contributes empty to RRF rather than raising. Mirrors the helper
+    in ``attestor/retrieval/hyde.py`` — kept local to avoid a
+    circular import."""
+    try:
+        return list(await fn(arg))
+    except Exception as e:  # noqa: BLE001
+        logger.debug("multi_query_async: lane %r failed: %s", arg[:60], e)
+        return []
