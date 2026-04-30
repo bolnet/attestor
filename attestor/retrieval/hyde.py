@@ -81,22 +81,38 @@ class HydeResult:
 # ──────────────────────────────────────────────────────────────────────
 
 
-_GENERATOR_PROMPT = """You are answering a memory-recall question. Without \
-access to any specific memory, write a 1-2-sentence HYPOTHETICAL answer in \
-the same style and surface form as a real answer would take. Be specific \
-and concrete — invent plausible details (names, dates, numbers) so the \
-answer's embedding matches the corpus.
+_GENERATOR_PROMPT = """You are previewing a personal-memory search. The \
+user's question refers to an event, fact, or experience from their past \
+conversations. Write 1-2 sentences DESCRIBING that event in the form the \
+user would have ORIGINALLY MENTIONED it in conversation — not in the \
+form of an answer to the question.
+
+The goal is to generate a snippet whose embedding is close to the \
+original conversation turn containing the answer, NOT to the answer \
+itself. Question-shape and answer-shape don't embed close to source-shape.
+
+Examples:
+- Question: "How many weeks ago did I meet my aunt?"
+  Snippet: "Yesterday I drove out to visit my aunt Linda — she gave me \
+a gorgeous antique chandelier from her attic."
+- Question: "Which trip did I take first this year?"
+  Snippet: "Just got back from Tokyo last month, my first international \
+trip of the year. The cherry blossoms were already starting."
+- Question: "How many days ago did I buy a smoker?"
+  Snippet: "Picked up a Traeger pellet smoker over the weekend — finally \
+ready to do real low-and-slow brisket at home."
 
 Rules:
-- Answer in 1-2 sentences, declarative form.
-- Do NOT include hedging ("I think", "it might be", "perhaps").
-- Do NOT include the question itself.
-- Do NOT add caveats or refuse — generate plausible content even if you \
-can't know the real answer.
+- 1-2 sentences, first-person, declarative, conversational.
+- DESCRIBE the event directly; do NOT say "X weeks ago" or "first" or \
+counts — narrate the event itself.
+- Invent plausible specifics (names, places, objects, dates) — accuracy \
+doesn't matter, surface-form match to a likely chat turn does.
+- Do NOT echo the question, do NOT hedge, do NOT refuse.
 
 Question: {question}
 
-Hypothetical answer:"""
+Snippet:"""
 
 
 def _resolve_generator_model() -> str:
@@ -147,6 +163,7 @@ def generate_hypothetical_answer(
             role="hyde_generator",
             model=model,
             max_tokens=400,
+            temperature=0.0,
             messages=[
                 {"role": "user", "content": _GENERATOR_PROMPT.format(
                     question=question,
@@ -158,9 +175,11 @@ def generate_hypothetical_answer(
         logger.debug("hyde.generate: LLM call failed: %s", e)
         return HydeResult(original_question=question.strip())
 
-    # Strip any leading "Hypothetical answer:" label the model may echo.
-    if text.lower().startswith("hypothetical answer:"):
-        text = text[len("hypothetical answer:"):].strip()
+    # Strip any leading label the model may echo from the prompt frame.
+    for label in ("snippet:", "hypothetical answer:"):
+        if text.lower().startswith(label):
+            text = text[len(label):].strip()
+            break
 
     from attestor import trace as _tr
     if _tr.is_enabled():

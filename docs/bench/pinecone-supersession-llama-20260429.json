@@ -1,0 +1,525 @@
+{
+  "embedder": "pinecone:llama-text-embed-v2@1024d",
+  "store": "pinecone-local:attestor-bakeoff-llama",
+  "n_cases": 50,
+  "new_wins": 5,
+  "stale_wins": 37,
+  "miss": 8,
+  "ambiguous": 0,
+  "score_pct": 10.0,
+  "elapsed_sec": 39.230108976364136,
+  "by_category": {
+    "numeric": {
+      "new_wins": 1,
+      "stale_wins": 4,
+      "miss": 0,
+      "ambiguous": 0
+    },
+    "categorical": {
+      "new_wins": 1,
+      "stale_wins": 4,
+      "miss": 0,
+      "ambiguous": 0
+    },
+    "temporal": {
+      "new_wins": 1,
+      "stale_wins": 3,
+      "miss": 1,
+      "ambiguous": 0
+    },
+    "preference": {
+      "new_wins": 0,
+      "stale_wins": 4,
+      "miss": 1,
+      "ambiguous": 0
+    },
+    "entity": {
+      "new_wins": 0,
+      "stale_wins": 5,
+      "miss": 0,
+      "ambiguous": 0
+    },
+    "locational": {
+      "new_wins": 0,
+      "stale_wins": 5,
+      "miss": 0,
+      "ambiguous": 0
+    },
+    "intent": {
+      "new_wins": 0,
+      "stale_wins": 5,
+      "miss": 0,
+      "ambiguous": 0
+    },
+    "relational": {
+      "new_wins": 1,
+      "stale_wins": 2,
+      "miss": 2,
+      "ambiguous": 0
+    },
+    "count": {
+      "new_wins": 0,
+      "stale_wins": 5,
+      "miss": 0,
+      "ambiguous": 0
+    },
+    "status_binary": {
+      "new_wins": 1,
+      "stale_wins": 0,
+      "miss": 4,
+      "ambiguous": 0
+    }
+  },
+  "verdicts": [
+    {
+      "case_id": "ku_numeric_001",
+      "category": "numeric",
+      "verdict": "new_wins",
+      "top1_id": "ku_numeric_001:s5:0",
+      "top1_distance": 0.32525962591171265,
+      "top1_content": "Sold the Tesla last weekend for $38,500 \u2014 depreciation hit harder than I thought.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_numeric_002",
+      "category": "numeric",
+      "verdict": "stale_wins",
+      "top1_id": "ku_numeric_002:s1:0",
+      "top1_distance": 0.18747568130493164,
+      "top1_content": "My monthly rent is $2,400.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_numeric_003",
+      "category": "numeric",
+      "verdict": "stale_wins",
+      "top1_id": "ku_numeric_003:s1:0",
+      "top1_distance": 0.1674521565437317,
+      "top1_content": "I weigh 185 pounds.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_numeric_004",
+      "category": "numeric",
+      "verdict": "stale_wins",
+      "top1_id": "ku_numeric_004:s1:0",
+      "top1_distance": 0.17140358686447144,
+      "top1_content": "My salary is $145,000 base.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_numeric_005",
+      "category": "numeric",
+      "verdict": "stale_wins",
+      "top1_id": "ku_numeric_005:s1:0",
+      "top1_distance": 0.11118572950363159,
+      "top1_content": "We have 3 engineers on the platform team.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_categorical_001",
+      "category": "categorical",
+      "verdict": "stale_wins",
+      "top1_id": "ku_categorical_001:s1:0",
+      "top1_distance": 0.20999246835708618,
+      "top1_content": "Project Atlas is in 'Active' status.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_categorical_002",
+      "category": "categorical",
+      "verdict": "stale_wins",
+      "top1_id": "ku_categorical_002:s1:0",
+      "top1_distance": 0.32207202911376953,
+      "top1_content": "I'm a vegetarian.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_categorical_003",
+      "category": "categorical",
+      "verdict": "new_wins",
+      "top1_id": "ku_categorical_003:s5:0",
+      "top1_distance": 0.2228899598121643,
+      "top1_content": "Just upgraded to the Enterprise plan.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_categorical_004",
+      "category": "categorical",
+      "verdict": "stale_wins",
+      "top1_id": "ku_categorical_004:s1:0",
+      "top1_distance": 0.26999980211257935,
+      "top1_content": "My laptop is a MacBook Pro.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_categorical_005",
+      "category": "categorical",
+      "verdict": "stale_wins",
+      "top1_id": "ku_categorical_005:s1:0",
+      "top1_distance": 0.11520659923553467,
+      "top1_content": "Issue #443 is currently 'In Progress'.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_temporal_001",
+      "category": "temporal",
+      "verdict": "stale_wins",
+      "top1_id": "ku_temporal_001:s1:0",
+      "top1_distance": 0.1228020191192627,
+      "top1_content": "The launch is scheduled for March 15th.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_temporal_002",
+      "category": "temporal",
+      "verdict": "stale_wins",
+      "top1_id": "ku_temporal_002:s1:0",
+      "top1_distance": 0.18416446447372437,
+      "top1_content": "My flight to Tokyo leaves Tuesday.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_temporal_003",
+      "category": "temporal",
+      "verdict": "stale_wins",
+      "top1_id": "ku_temporal_003:s1:0",
+      "top1_distance": 0.27759408950805664,
+      "top1_content": "Annual review is on March 1st this year.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_temporal_004",
+      "category": "temporal",
+      "verdict": "new_wins",
+      "top1_id": "ku_temporal_004:s5:0",
+      "top1_distance": 0.23117494583129883,
+      "top1_content": "Postponed the birthday party to the following Sunday.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_temporal_005",
+      "category": "temporal",
+      "verdict": "miss",
+      "top1_id": "ku_temporal_005:s1:0",
+      "top1_distance": 0.28290945291519165,
+      "top1_content": "Lease ends June 30th.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_preference_001",
+      "category": "preference",
+      "verdict": "stale_wins",
+      "top1_id": "ku_preference_001:s1:0",
+      "top1_distance": 0.2803831100463867,
+      "top1_content": "Coffee in the morning is non-negotiable for me.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_preference_002",
+      "category": "preference",
+      "verdict": "stale_wins",
+      "top1_id": "ku_preference_002:s1:0",
+      "top1_distance": 0.20936787128448486,
+      "top1_content": "I prefer Vim for editing.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_preference_003",
+      "category": "preference",
+      "verdict": "stale_wins",
+      "top1_id": "ku_preference_003:s1:0",
+      "top1_distance": 0.14678692817687988,
+      "top1_content": "I always book aisle seats on flights.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_preference_004",
+      "category": "preference",
+      "verdict": "stale_wins",
+      "top1_id": "ku_preference_004:s1:0",
+      "top1_distance": 0.31457722187042236,
+      "top1_content": "Postgres is my default for any new project.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_preference_005",
+      "category": "preference",
+      "verdict": "miss",
+      "top1_id": "ku_preference_005:s1:0",
+      "top1_distance": 0.23777079582214355,
+      "top1_content": "I run 5K every morning before work.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_entity_001",
+      "category": "entity",
+      "verdict": "stale_wins",
+      "top1_id": "ku_entity_001:s1:0",
+      "top1_distance": 0.2847962975502014,
+      "top1_content": "Alice Chen is our CTO.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_entity_002",
+      "category": "entity",
+      "verdict": "stale_wins",
+      "top1_id": "ku_entity_002:s1:0",
+      "top1_distance": 0.211164653301239,
+      "top1_content": "My primary care doctor is Dr. Mendez.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_entity_003",
+      "category": "entity",
+      "verdict": "stale_wins",
+      "top1_id": "ku_entity_003:s1:0",
+      "top1_distance": 0.19786512851715088,
+      "top1_content": "Our AWS account manager is Jen Wu.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_entity_004",
+      "category": "entity",
+      "verdict": "stale_wins",
+      "top1_id": "ku_entity_004:s1:0",
+      "top1_distance": 0.21362674236297607,
+      "top1_content": "Maya is my dog.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_entity_005",
+      "category": "entity",
+      "verdict": "stale_wins",
+      "top1_id": "ku_entity_005:s1:0",
+      "top1_distance": 0.2788248062133789,
+      "top1_content": "Our agency of record is Wieden+Kennedy.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_locational_001",
+      "category": "locational",
+      "verdict": "stale_wins",
+      "top1_id": "ku_locational_001:s1:0",
+      "top1_distance": 0.3226824998855591,
+      "top1_content": "I live at 123 Main Street, Austin.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_locational_002",
+      "category": "locational",
+      "verdict": "stale_wins",
+      "top1_id": "ku_locational_002:s1:0",
+      "top1_distance": 0.220963716506958,
+      "top1_content": "Our HQ is in San Francisco.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_locational_003",
+      "category": "locational",
+      "verdict": "stale_wins",
+      "top1_id": "ku_locational_003:s1:0",
+      "top1_distance": 0.16427677869796753,
+      "top1_content": "Database is hosted in us-east-1.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_locational_004",
+      "category": "locational",
+      "verdict": "stale_wins",
+      "top1_id": "ku_locational_004:s1:0",
+      "top1_distance": 0.1774824857711792,
+      "top1_content": "My standing desk is in the home office.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_locational_005",
+      "category": "locational",
+      "verdict": "stale_wins",
+      "top1_id": "ku_locational_005:s1:0",
+      "top1_distance": 0.22287416458129883,
+      "top1_content": "I'm based in Seattle for the next year.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_intent_001",
+      "category": "intent",
+      "verdict": "stale_wins",
+      "top1_id": "ku_intent_001:s1:0",
+      "top1_distance": 0.2720603942871094,
+      "top1_content": "I'm planning to cancel the Acme project.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_intent_002",
+      "category": "intent",
+      "verdict": "stale_wins",
+      "top1_id": "ku_intent_002:s1:0",
+      "top1_distance": 0.38315045833587646,
+      "top1_content": "Goal this quarter: ship feature X by end of Q1.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_intent_003",
+      "category": "intent",
+      "verdict": "stale_wins",
+      "top1_id": "ku_intent_003:s1:0",
+      "top1_distance": 0.22143632173538208,
+      "top1_content": "I want to learn Rust this year.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_intent_004",
+      "category": "intent",
+      "verdict": "stale_wins",
+      "top1_id": "ku_intent_004:s1:0",
+      "top1_distance": 0.3066138029098511,
+      "top1_content": "Going to apply for Stanford MBA this fall.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_intent_005",
+      "category": "intent",
+      "verdict": "stale_wins",
+      "top1_id": "ku_intent_005:s1:0",
+      "top1_distance": 0.15333575010299683,
+      "top1_content": "Thinking about getting a Tesla as my next car.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_relational_001",
+      "category": "relational",
+      "verdict": "miss",
+      "top1_id": "ku_relational_001:s5:0",
+      "top1_distance": 0.2672464847564697,
+      "top1_content": "Sara and I broke up last month.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_relational_002",
+      "category": "relational",
+      "verdict": "stale_wins",
+      "top1_id": "ku_relational_002:s1:0",
+      "top1_distance": 0.35919177532196045,
+      "top1_content": "James reports to me on the data team.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_relational_003",
+      "category": "relational",
+      "verdict": "miss",
+      "top1_id": "ku_relational_003:s1:0",
+      "top1_distance": 0.2420021891593933,
+      "top1_content": "Acme Corp is a paying customer of ours.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_relational_004",
+      "category": "relational",
+      "verdict": "new_wins",
+      "top1_id": "ku_relational_004:s1:0",
+      "top1_distance": 0.11363720893859863,
+      "top1_content": "I'm on the board of NonProfit X.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_relational_005",
+      "category": "relational",
+      "verdict": "stale_wins",
+      "top1_id": "ku_relational_005:s1:0",
+      "top1_distance": 0.2164156436920166,
+      "top1_content": "Working closely with Acme as our top integration partner.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_count_001",
+      "category": "count",
+      "verdict": "stale_wins",
+      "top1_id": "ku_count_001:s1:0",
+      "top1_distance": 0.1631021499633789,
+      "top1_content": "We have 2 kids.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_count_002",
+      "category": "count",
+      "verdict": "stale_wins",
+      "top1_id": "ku_count_002:s1:0",
+      "top1_distance": 0.13009953498840332,
+      "top1_content": "Open positions on my team: 4.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_count_003",
+      "category": "count",
+      "verdict": "stale_wins",
+      "top1_id": "ku_count_003:s1:0",
+      "top1_distance": 0.12712043523788452,
+      "top1_content": "I own 5 properties total.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_count_004",
+      "category": "count",
+      "verdict": "stale_wins",
+      "top1_id": "ku_count_004:s1:0",
+      "top1_distance": 0.13617509603500366,
+      "top1_content": "I have 12 active GitHub repos.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_count_005",
+      "category": "count",
+      "verdict": "stale_wins",
+      "top1_id": "ku_count_005:s1:0",
+      "top1_distance": 0.17234939336776733,
+      "top1_content": "I'm tracking 8 deals in my pipeline.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_status_binary_001",
+      "category": "status_binary",
+      "verdict": "miss",
+      "top1_id": "ku_status_binary_001:s1:0",
+      "top1_distance": 0.10212075710296631,
+      "top1_content": "I'm subscribed to The Information.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_status_binary_002",
+      "category": "status_binary",
+      "verdict": "miss",
+      "top1_id": "ku_status_binary_002:s1:0",
+      "top1_distance": 0.12052386999130249,
+      "top1_content": "Two-factor auth is disabled on my main account.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_status_binary_003",
+      "category": "status_binary",
+      "verdict": "miss",
+      "top1_id": "ku_status_binary_003:s1:0",
+      "top1_distance": 0.25756770372390747,
+      "top1_content": "I'm vaccinated for the flu this season.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_status_binary_004",
+      "category": "status_binary",
+      "verdict": "miss",
+      "top1_id": "ku_status_binary_004:s1:0",
+      "top1_distance": 0.23933154344558716,
+      "top1_content": "Working from home full-time these days.",
+      "ingest_n": 2
+    },
+    {
+      "case_id": "ku_status_binary_005",
+      "category": "status_binary",
+      "verdict": "new_wins",
+      "top1_id": "ku_status_binary_005:s1:0",
+      "top1_distance": 0.4428201913833618,
+      "top1_content": "On a strict no-alcohol regimen for 90 days.",
+      "ingest_n": 2
+    }
+  ]
+}
