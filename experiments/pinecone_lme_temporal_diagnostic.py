@@ -339,8 +339,8 @@ def main(argv=None) -> int:
 
     print(f"[diag] loading LME-{args.variant!r}…")
     samples = load_or_download(variant=args.variant)
-    temporal = [s for s in samples if s.question_type == "temporal-reasoning"]
-    print(f"[diag] {len(temporal)} temporal-reasoning questions in variant={args.variant!r}")
+    temporal = [s for s in samples if s.question_type == args.category]
+    print(f"[diag] {len(temporal)} {args.category} questions in variant={args.variant!r}")
     if args.limit:
         temporal = temporal[: args.limit]
     print(f"[diag] running {len(temporal)} (smoke cap)")
@@ -349,7 +349,7 @@ def main(argv=None) -> int:
         model="llama-text-embed-v2", dimensions=1024,
     )
     pc = PineconeBackend(config={
-        "index_name": "attestor-lme-temporal",
+        "index_name": f"attestor-lme-{args.category[:30]}",
         "dimension": 1024,
         "embedder": embedder,
     })
@@ -458,14 +458,14 @@ def main(argv=None) -> int:
         mode = "tprefilter"
     out_path = (
         ROOT / "docs" / "bench"
-        / f"pinecone-lme-temporal-diagnostic-{mode}-{datetime.now().strftime('%Y%m%d')}.json"
+        / f"pinecone-lme-{args.category}-diagnostic-{mode}-{datetime.now().strftime('%Y%m%d')}.json"
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps({
         "embedder": embedder.provider_name,
         "store": "pinecone-local",
         "variant": args.variant,
-        "category": "temporal-reasoning",
+        "category": args.category,
         "n_total": len(temporal),
         "n_scored": total,
         "top_k": args.top_k,
