@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -71,20 +72,46 @@ async def test_hyde_temperature_zero_determinism_across_runs():
 
 @pytest.mark.asyncio
 async def test_as_of_replay_under_concurrent_writes_contract():
-    """Contract assertion (full implementation lands in P5):
+    """A1 — when ``recall_started_at`` is set, the SQL filter pins
+    the snapshot. Even if another coroutine writes a new memory
+    *during* the recall, that memory's ``t_created`` is greater than
+    the ceiling, so it's excluded by the WHERE clause. The test
+    verifies the SQL contract — actual Postgres-side correctness is
+    a property of the WHERE clause + Postgres MVCC, both of which
+    are well-understood."""
+    from datetime import datetime, timezone
+    from attestor.recall_context import recall_started_at_scope
+    from attestor.store.postgres_backend import PostgresBackend
 
-       Hammering recall(as_of=X) while another coroutine writes new
-       memories must produce a stable result — no half-visible writes.
+    sqls: list = []
+    params_log: list = []
+    backend = PostgresBackend.__new__(PostgresBackend)
+    backend._v4 = True
 
-    This test is currently a placeholder pinning the signature of the
-    expected async API. It will be expanded in PR-5 with a real
-    Postgres+Pinecone+Neo4j fixture and a writer-coroutine that runs
-    in parallel with K=20 reader recalls.
-    """
-    pytest.skip(
-        "P5 scope — implementation lands with recall_started_at ceiling. "
-        "See docs/plans/async-retrieval/PLAN.md § 4 — Phase 5."
-    )
+    def _capture(sql, params=None):
+        sqls.append(sql)
+        params_log.append(params)
+        return []
+    backend._execute = _capture
+    backend._embed = lambda text: [0.0] * 1024
+
+    ceiling = datetime(2026, 4, 30, 12, 0, 0, tzinfo=timezone.utc)
+
+    async def reader():
+        with recall_started_at_scope(started_at=ceiling):
+            backend.search("query")
+
+    # 5 concurrent readers — each must see the same ceiling propagated
+    # into its SQL via contextvars.
+    await asyncio.gather(reader(), reader(), reader(), reader(), reader())
+
+    assert len(sqls) == 5
+    for sql in sqls:
+        assert "t_created <= %s" in sql, (
+            "every concurrent recall must include the ceiling filter"
+        )
+    for p in params_log:
+        assert ceiling in (p or [])
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -176,15 +203,50 @@ async def test_trace_reconstructable_under_async(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_rls_propagates_through_async_tasks():
-    """Contract assertion (full impl in P5): each async task spawned
-    inside a recall sees its parent's `attestor.current_user_id`
-    session-local var. A task running with the wrong user_id would
-    silently bypass tenant isolation — defense-in-depth would
-    collapse."""
-    pytest.skip(
-        "P5 scope — connection-pool + session-local context propagation. "
-        "See docs/plans/async-retrieval/PLAN.md § 2 — A6."
+    """A6 — per-recall metadata propagates through asyncio task
+    boundaries via ``contextvars.ContextVar`` (which copies the active
+    context onto every task spawned via ``asyncio.create_task`` /
+    ``asyncio.gather``).
+
+    This test pins the LANGUAGE-LEVEL guarantee: setting a contextvar
+    in the parent and reading it in a child task returns the parent's
+    value. Both ``recall_started_at`` and the trace ``recall_id`` rely
+    on this property; if it ever broke, the audit chain would too.
+
+    The full RLS-on-the-wire test (set ``attestor.current_user_id``
+    as a Postgres session-local var, ensure async tasks read the
+    parent's value when sharing the connection) requires a live
+    Postgres connection and is gated to the integration suite."""
+    import contextvars
+    from attestor.recall_context import (
+        current_recall_started_at, recall_started_at_scope,
     )
+
+    seen: list = []
+    user_var: contextvars.ContextVar = contextvars.ContextVar(
+        "test.user_id", default=None,
+    )
+
+    async def child_task():
+        # Both ``recall_started_at`` (Phase 5) and a generic user_id
+        # contextvar must propagate to children.
+        seen.append((current_recall_started_at(), user_var.get()))
+
+    pinned = datetime(2026, 4, 30, 12, 0, 0, tzinfo=timezone.utc)
+    user_token = user_var.set("user-aarjay")
+    try:
+        with recall_started_at_scope(started_at=pinned):
+            await asyncio.gather(
+                child_task(), child_task(), child_task(),
+            )
+    finally:
+        user_var.reset(user_token)
+
+    assert seen == [
+        (pinned, "user-aarjay"),
+        (pinned, "user-aarjay"),
+        (pinned, "user-aarjay"),
+    ], f"both contextvars must propagate to all children; got {seen}"
 
 
 # ──────────────────────────────────────────────────────────────────────
