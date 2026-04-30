@@ -120,3 +120,142 @@ def test_v4_row_with_explicit_default_namespace_in_metadata():
     }
     mem = Memory.from_row(row)
     assert mem.namespace == "default"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Search-side filter: pin that v4 search filters on metadata->>'_namespace'
+#
+# Background — the missing companion to the read-side fix:
+#     PR #77 made namespace round-trip through metadata["_namespace"] on
+#     the WRITE path. But ``PostgresBackend.search()`` and
+#     ``list_memories()`` skipped the namespace filter entirely on v4
+#     ("replaced by RLS" — the comment was misleading; RLS at memories
+#     filters by user_id, NOT namespace). LME-S benchmarks (one bench
+#     user + many per-sample namespaces) returned cross-sample
+#     contaminated candidates, blowing up retrieval verdicts.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _build_v4_backend_stub(captured_sql: list, captured_params: list):
+    """Construct a PostgresBackend in v4 mode without going through
+    schema init. _execute is stubbed to capture (sql, params) so the
+    test can assert on the WHERE clause.
+    """
+    from attestor.store.postgres_backend import PostgresBackend
+
+    backend = PostgresBackend.__new__(PostgresBackend)
+    backend._v4 = True
+
+    def _capture(sql, params=None):
+        captured_sql.append(sql)
+        captured_params.append(params)
+        return []
+
+    backend._execute = _capture
+    backend._embed = lambda text: [0.0] * 1024  # deterministic stub
+    return backend
+
+
+def _build_v3_backend_stub(captured_sql: list, captured_params: list):
+    from attestor.store.postgres_backend import PostgresBackend
+
+    backend = PostgresBackend.__new__(PostgresBackend)
+    backend._v4 = False
+    backend._execute = lambda sql, params=None: (
+        captured_sql.append(sql) or captured_params.append(params) or []
+    )
+    backend._embed = lambda text: [0.0] * 1024
+    return backend
+
+
+@pytest.mark.unit
+def test_v4_search_filters_on_metadata_namespace():
+    """Vector search MUST add ``metadata->>'_namespace' = %s`` when v4
+    + namespace passed. Pre-fix, this filter was skipped → bench saw
+    cross-namespace contamination across 80+ samples."""
+    sqls: list = []
+    params_log: list = []
+    backend = _build_v4_backend_stub(sqls, params_log)
+
+    backend.search("any query", namespace="lme_sample_42")
+
+    assert sqls, "search did not call _execute"
+    sql = sqls[0]
+    assert "metadata->>'_namespace' = %s" in sql, (
+        f"v4 search must filter on metadata->>'_namespace', got SQL: {sql}"
+    )
+    # The namespace value is the second positional param (after the
+    # query vector embedded as %s::vector).
+    assert "lme_sample_42" in params_log[0], (
+        f"namespace must be passed as a param, got: {params_log[0]}"
+    )
+
+
+@pytest.mark.unit
+def test_v3_search_filters_on_namespace_column():
+    """v3 keeps the original ``namespace = %s`` filter (top-level
+    column). Regression guard for legacy v3 deployments."""
+    sqls: list = []
+    params_log: list = []
+    backend = _build_v3_backend_stub(sqls, params_log)
+
+    backend.search("any query", namespace="legacy-tenant")
+
+    sql = sqls[0]
+    assert "namespace = %s" in sql, (
+        f"v3 search must filter on top-level namespace, got SQL: {sql}"
+    )
+    assert "metadata->>" not in sql, (
+        f"v3 search must NOT use metadata jsonb path, got SQL: {sql}"
+    )
+
+
+@pytest.mark.unit
+def test_v4_search_no_namespace_filter_when_namespace_omitted():
+    """Calling search() without a namespace should produce NO namespace
+    filter on either schema — preserves the SOLO single-tenant happy
+    path where every namespace is "default" and an explicit filter
+    would be needless overhead."""
+    sqls: list = []
+    params_log: list = []
+    backend = _build_v4_backend_stub(sqls, params_log)
+
+    backend.search("any query", namespace=None)
+
+    sql = sqls[0]
+    assert "metadata->>'_namespace'" not in sql
+    assert "namespace = " not in sql
+
+
+@pytest.mark.unit
+def test_v4_list_memories_filters_on_metadata_namespace():
+    """Same fix applied to the list_memories() (temporal/category
+    filter path). Pre-fix, list_memories with namespace silently
+    returned ALL of the user's memories on v4."""
+    sqls: list = []
+    params_log: list = []
+    backend = _build_v4_backend_stub(sqls, params_log)
+
+    backend.list_memories(namespace="tenant-acme")
+
+    assert sqls
+    sql = sqls[0]
+    assert "metadata->>'_namespace' = %(namespace)s" in sql, (
+        f"v4 list_memories must filter on metadata->>'_namespace', "
+        f"got SQL: {sql}"
+    )
+    assert params_log[0].get("namespace") == "tenant-acme"
+
+
+@pytest.mark.unit
+def test_v3_list_memories_filters_on_namespace_column():
+    """v3 list_memories keeps namespace = %(namespace)s."""
+    sqls: list = []
+    params_log: list = []
+    backend = _build_v3_backend_stub(sqls, params_log)
+
+    backend.list_memories(namespace="legacy-tenant")
+
+    sql = sqls[0]
+    assert "namespace = %(namespace)s" in sql
+    assert "metadata->>" not in sql
