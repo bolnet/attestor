@@ -491,6 +491,17 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
             else:
                 filters.append("namespace = %(namespace)s")
             params["namespace"] = namespace
+
+        # Phase 5 — recall_started_at ceiling: when an active recall
+        # scope is open, no writes that landed after the recall began
+        # are visible. v4 only (uses TIMESTAMPTZ t_created).
+        if self._v4:
+            from attestor.recall_context import current_recall_started_at
+            _ceiling = current_recall_started_at()
+            if _ceiling is not None:
+                filters.append("t_created <= %(_recall_ceiling)s")
+                params["_recall_ceiling"] = _ceiling
+
         if after:
             filters.append(f"{time_col} >= %(after)s")
             params["after"] = after
@@ -716,7 +727,19 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
                 where.append("namespace = %s")
             params.append(namespace)
 
+        # Phase 5 — recall_started_at ceiling. Independent of explicit
+        # ``as_of``: ceiling captures "when this recall started" (audit
+        # invariant A2: no post-recall writes leak in), as_of captures
+        # "what did the system believe on date X" (audit invariant A1).
+        # Both filter on t_created; we apply them together when both
+        # are active.
         if self._v4:
+            from attestor.recall_context import current_recall_started_at
+            _ceiling = current_recall_started_at()
+            if _ceiling is not None:
+                where.append("t_created <= %s")
+                params.append(_ceiling)
+
             # Bi-temporal filters only meaningful on v4 schema
             if as_of is not None:
                 where.append(
