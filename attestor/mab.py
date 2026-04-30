@@ -647,11 +647,11 @@ def answer_question(
 
     prompt_template = MAB_EXACT_PROMPT if use_exact else MAB_ANSWER_PROMPT
     prompt = prompt_template.format(context=context, question=question)
-    client = OpenAI(base_url=OPENROUTER_BASE_URL, api_key=key)
+    client = make_client(base_url=OPENROUTER_BASE_URL, api_key=key)
 
     # Retry with exponential backoff on rate limits
     import time as _time
-    from attestor.llm_trace import traced_create
+    from attestor.llm_trace import traced_create, make_client
     for attempt in range(5):
         try:
             response = traced_create(

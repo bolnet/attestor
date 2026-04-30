@@ -103,7 +103,7 @@ def _get_client(api_key: Optional[str] = None):
     key = api_key or os.environ.get("OPENROUTER_API_KEY")
     if not key:
         raise ValueError("OPENROUTER_API_KEY not set")
-    return OpenAI(base_url=OPENROUTER_BASE_URL, api_key=key)
+    return make_client(base_url=OPENROUTER_BASE_URL, api_key=key)
 
 
 def _sanitize_plan(raw: Dict[str, Any]) -> QueryPlan:
@@ -153,7 +153,7 @@ def plan_query(
 
     prompt = _PLANNER_PROMPT.format(question=question)
     try:
-        from attestor.llm_trace import traced_create
+        from attestor.llm_trace import traced_create, make_client
         response = traced_create(
             client,
             role="planner",

@@ -161,7 +161,7 @@ class TemporalQueryExpander:
         if client is None:
             return None
         try:
-            from attestor.llm_trace import traced_create
+            from attestor.llm_trace import traced_create, make_client
             response = traced_create(
                 client,
                 role="temporal_query",
@@ -217,8 +217,8 @@ def _default_client() -> Optional[Any]:
         return None
     or_key = os.environ.get("OPENROUTER_API_KEY")
     if or_key:
-        return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=or_key)
+        return make_client(base_url="https://openrouter.ai/api/v1", api_key=or_key)
     oa_key = os.environ.get("OPENAI_API_KEY")
     if oa_key:
-        return OpenAI(api_key=oa_key)
+        return make_client(api_key=oa_key)
     return None

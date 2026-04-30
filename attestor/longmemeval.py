@@ -1212,7 +1212,7 @@ def _get_client(api_key: Optional[str] = None) -> Any:
                 f"or set LME_LLM_BASE_URL=http://localhost:11434/v1 to "
                 f"run against local Ollama instead."
             )
-    return OpenAI(base_url=base_url, api_key=key)
+    return make_client(base_url=base_url, api_key=key)
 
 
 def _chat(
@@ -1254,7 +1254,7 @@ def _chat(
     if reasoning_effort:
         create_kwargs["reasoning_effort"] = reasoning_effort
 
-    from attestor.llm_trace import traced_create
+    from attestor.llm_trace import traced_create, make_client
     response = traced_create(client, role=role or "lme.chat", **create_kwargs)
     return response.choices[0].message.content or ""
 
