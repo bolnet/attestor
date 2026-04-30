@@ -46,13 +46,13 @@ def _get_client(api_key: Optional[str] = None):
         raise ValueError(
             "OPENROUTER_API_KEY not set. Pass api_key or set the env var."
         )
-    return OpenAI(base_url=OPENROUTER_BASE_URL, api_key=key)
+    return make_client(base_url=OPENROUTER_BASE_URL, api_key=key)
 
 
 def _chat(client, model: str, prompt: str, max_tokens: int = 200,
           *, role: str = "locomo.chat") -> str:
     """Send a chat completion request and return the text."""
-    from attestor.llm_trace import traced_create
+    from attestor.llm_trace import traced_create, make_client
     response = traced_create(
         client,
         role=role,

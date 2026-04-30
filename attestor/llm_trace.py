@@ -44,6 +44,51 @@ import time
 from typing import Any, Optional
 
 
+def make_client(
+    *,
+    base_url: str,
+    api_key: str,
+    timeout: float = 60.0,
+    max_retries: int = 2,
+):
+    """Construct a default-configured OpenAI/OpenRouter client.
+
+    Centralizes the timeout + retry policy so a hung LLM call cannot
+    block the pipeline indefinitely (caught 2026-04-30 — a 133q LME-S
+    smoke hung for 5+ hours on a single distill call with no timeout;
+    process slept on socket recv with no deadline). 60s is well above
+    any healthy reasoning-effort=high call (observed median 2-9s);
+    2 retries cover transient transport errors. Callers can override
+    per-call via ``traced_create(client, ..., timeout=N)`` when a
+    longer-running role needs it.
+    """
+    from openai import OpenAI
+    return OpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        timeout=timeout,
+        max_retries=max_retries,
+    )
+
+
+def make_async_client(
+    *,
+    base_url: str,
+    api_key: str,
+    timeout: float = 60.0,
+    max_retries: int = 2,
+):
+    """Async sibling of ``make_client`` — used by the P1/P2 async
+    HyDE + multi-query rewriter paths."""
+    from openai import AsyncOpenAI
+    return AsyncOpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        timeout=timeout,
+        max_retries=max_retries,
+    )
+
+
 def traced_create(
     client: Any,
     *,

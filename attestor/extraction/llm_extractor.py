@@ -33,7 +33,7 @@ def _get_client(api_key: Optional[str] = None):
         raise ValueError(
             "OPENROUTER_API_KEY not set. Pass api_key or set the env var."
         )
-    return OpenAI(base_url=OPENROUTER_BASE_URL, api_key=key)
+    return make_client(base_url=OPENROUTER_BASE_URL, api_key=key)
 
 _EXTRACTION_PROMPT = """Extract atomic facts from this conversation that would be useful to remember across sessions.
 
@@ -166,7 +166,7 @@ def llm_extract(
         if msg.get("content")
     )
 
-    from attestor.llm_trace import traced_create
+    from attestor.llm_trace import traced_create, make_client
     response = traced_create(
         client,
         role="extraction",
