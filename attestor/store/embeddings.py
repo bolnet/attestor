@@ -363,6 +363,114 @@ class VoyageEmbeddingProvider:
         return result.embeddings
 
 
+class PineconeEmbeddingProvider:
+    """Pinecone Inference embeddings (cloud-only, NOT supported on Pinecone Local).
+
+    Default model is ``llama-text-embed-v2`` — Meta × Pinecone partnership,
+    English-strong, dim is configurable from {384, 512, 768, 1024, 2048}.
+    1024-D matches Attestor's canonical pgvector schema and the existing
+    Voyage configuration so the embedder swap is dim-compatible.
+
+    Other models accessible via the same provider (just change ``model``):
+
+      - ``multilingual-e5-large``        (1024-D, multilingual, free-tier eligible)
+      - ``llama-text-embed-v2``          (default; English-strong, configurable dim)
+      - ``pinecone-sparse-english-v0``   (sparse — not supported by this dense provider)
+
+    For Voyage / OpenAI / Cohere via Pinecone's proxy, use the
+    ``input_type``-aware vendor-specific provider names per Pinecone docs.
+
+    Environment:
+
+      ``PINECONE_API_KEY``  — required. Cloud key from app.pinecone.io.
+      ``PINECONE_EMBEDDING_MODEL``       — model override (optional).
+      ``PINECONE_EMBEDDING_DIMENSIONS``  — dim override (optional).
+    """
+
+    DEFAULT_MODEL = "llama-text-embed-v2"
+    DEFAULT_DIM = 1024
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        dimensions: Optional[int] = None,
+        input_type: str = "passage",
+    ) -> None:
+        try:
+            from pinecone import Pinecone
+        except ImportError:
+            raise RuntimeError(
+                "pinecone not installed. Run `pip install pinecone` "
+                "or `pip install attestor[pinecone]`."
+            )
+
+        api_key = api_key or os.environ.get("PINECONE_API_KEY")
+        if not api_key or api_key == "pclocal":
+            raise RuntimeError(
+                "PINECONE_API_KEY not set or set to the Pinecone-Local "
+                "stub 'pclocal'. Pinecone Inference is cloud-only — get "
+                "a real API key at app.pinecone.io.",
+            )
+
+        # Cloud only — no host override. Pinecone Local doesn't serve
+        # the inference API per its own docs.
+        self._client = Pinecone(api_key=api_key)
+        self._model = (
+            model
+            or os.environ.get("PINECONE_EMBEDDING_MODEL")
+            or self.DEFAULT_MODEL
+        )
+        self._input_type = input_type
+
+        dim_env = os.environ.get("PINECONE_EMBEDDING_DIMENSIONS")
+        if dimensions is not None:
+            self._dimensions = int(dimensions)
+        elif dim_env:
+            self._dimensions = int(dim_env)
+        else:
+            self._dimensions = self.DEFAULT_DIM
+
+        # Probe — confirms key + model + dim before any production call.
+        # llama-text-embed-v2 supports {384, 512, 768, 1024, 2048}; an
+        # unsupported dim raises here loudly rather than at runtime.
+        result = self._client.inference.embed(
+            model=self._model,
+            inputs=["dim"],
+            parameters={
+                "input_type": self._input_type,
+                "dimension": self._dimensions,
+            },
+        )
+        self._dimension = len(result.data[0].values)
+
+    @property
+    def dimension(self) -> int:
+        return self._dimension
+
+    @property
+    def provider_name(self) -> str:
+        return f"pinecone:{self._model}@{self._dimension}d"
+
+    def _params(self) -> Dict[str, Any]:
+        return {
+            "input_type": self._input_type,
+            "dimension": self._dimensions,
+        }
+
+    def embed(self, text: str) -> List[float]:
+        result = self._client.inference.embed(
+            model=self._model, inputs=[text], parameters=self._params(),
+        )
+        return list(result.data[0].values)
+
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        result = self._client.inference.embed(
+            model=self._model, inputs=texts, parameters=self._params(),
+        )
+        return [list(d.values) for d in result.data]
+
+
 class VertexAIEmbeddingProvider:
     """Google Vertex AI text-embedding-005 (768D)."""
 
