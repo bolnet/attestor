@@ -164,6 +164,24 @@ _RE_N_UNITS_FORWARD = re.compile(
     re.IGNORECASE,
 )
 
+# 8. Interrogative: "how many <unit>s ago" / "how many <unit>s have passed"
+#    / "how many <unit>s since" — found while diagnosing LME-S
+#    temporal-reasoning misses (project_pinecone_lme_temporal_10q_20260429.md).
+#    The question doesn't anchor a specific past date; we use a wide
+#    backward-looking window of ~6 units * unit-length to give the lane
+#    something useful to filter on.
+_RE_HOW_MANY_UNITS_AGO = re.compile(
+    rf"\bhow\s+many\s+({_UNIT_RE})\s+(?:ago|have\s+passed|has\s+passed|since)\b",
+    re.IGNORECASE,
+)
+_RE_HOW_LONG_AGO = re.compile(
+    r"\bhow\s+long\s+(?:ago|since)\b",
+    re.IGNORECASE,
+)
+# When "how many" matches, we look back ``_HOW_MANY_LOOKBACK_UNITS`` of
+# the matched unit to the target. Tolerance widens further on top.
+_HOW_MANY_LOOKBACK_UNITS = 6
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Public entry point
@@ -270,6 +288,23 @@ def _earliest_match(
         n = _word_to_int(m.group(1))
         days = _UNIT_DAYS[m.group(2).lower()]
         target = question_date + timedelta(days=n * days)
+        candidates.append((m.start(), m.group(0), target))
+
+    # Pattern 8a: "how many <unit>s ago / have passed / since"
+    # Anchors a backward window of _HOW_MANY_LOOKBACK_UNITS × unit-days.
+    # Target is the midpoint; the existing tolerance_days widens further.
+    for m in _RE_HOW_MANY_UNITS_AGO.finditer(question):
+        unit = m.group(1).lower().rstrip("s")
+        days = _UNIT_DAYS[unit]
+        target = question_date - timedelta(
+            days=(_HOW_MANY_LOOKBACK_UNITS * days) // 2,
+        )
+        candidates.append((m.start(), m.group(0), target))
+
+    # Pattern 8b: "how long ago / how long since" — unit unspecified;
+    # anchor a generic month-ish lookback.
+    for m in _RE_HOW_LONG_AGO.finditer(question):
+        target = question_date - timedelta(days=90)  # ~3 months back
         candidates.append((m.start(), m.group(0), target))
 
     if not candidates:
