@@ -39,10 +39,11 @@ and proven; HyDE is new). The combination is left for a follow-up.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger("attestor.retrieval.hyde")
 
@@ -197,6 +198,85 @@ def generate_hypothetical_answer(
 
 
 # ──────────────────────────────────────────────────────────────────────
+# Async generator (Phase 1 of the async retrieval rollout, see
+# docs/plans/async-retrieval/PLAN.md). Mirrors generate_hypothetical_answer
+# but awaits the LLM call so the caller can asyncio.gather it with the
+# original-question vector embed instead of waiting serially.
+#
+# Audit invariant A7 (temperature=0 determinism) — same temperature=0.0
+# pin as the sync path. Async amplifies non-determinism risk because
+# gathered lanes can observe different hypotheticals across runs if
+# T > 0; we explicitly pin T=0 here.
+# ──────────────────────────────────────────────────────────────────────
+
+
+async def generate_hypothetical_answer_async(
+    question: str,
+    *,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    timeout: float = 30.0,
+) -> HydeResult:
+    """Async sibling of ``generate_hypothetical_answer``.
+
+    Same prompt, same temperature=0, same fallback semantics. The only
+    difference: uses ``openai.AsyncOpenAI`` so the call can run
+    concurrently with the original-question vector embed via
+    ``asyncio.gather`` in ``hyde_search_async``.
+    """
+    if not question.strip():
+        return HydeResult(original_question=question.strip())
+
+    api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        logger.debug("hyde.generate_async: no API key; returning degraded result")
+        return HydeResult(original_question=question.strip())
+
+    model = model or _resolve_generator_model()
+
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+            timeout=timeout,
+        )
+        response = await client.chat.completions.create(
+            model=model,
+            max_tokens=400,
+            temperature=0.0,
+            messages=[
+                {"role": "user", "content": _GENERATOR_PROMPT.format(
+                    question=question,
+                )},
+            ],
+        )
+        text = (response.choices[0].message.content or "").strip()
+    except Exception as e:  # noqa: BLE001
+        logger.debug("hyde.generate_async: LLM call failed: %s", e)
+        return HydeResult(original_question=question.strip())
+
+    for label in ("snippet:", "hypothetical answer:"):
+        if text.lower().startswith(label):
+            text = text[len(label):].strip()
+            break
+
+    from attestor import trace as _tr
+    if _tr.is_enabled():
+        _tr.event(
+            "recall.hyde.generated.async",
+            original=question[:200],
+            hypothetical_length=len(text),
+            hypothetical_preview=text[:200],
+        )
+
+    return HydeResult(
+        original_question=question.strip(),
+        hypothetical_answer=text,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
 # End-to-end lane
 # ──────────────────────────────────────────────────────────────────────
 
@@ -252,3 +332,124 @@ def hyde_search(
         )
 
     return queries, merged
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Async end-to-end lane (Phase 1 — docs/plans/async-retrieval/PLAN.md)
+#
+# Two concurrency levers:
+#   1. Generator LLM call runs CONCURRENTLY with the original-question
+#      vector search (asyncio.gather). The LLM is the slowest step;
+#      overlapping it with the orig-question lane makes the orig lane
+#      "free" on the wallclock.
+#   2. Once the hypothetical is available, the hyde-lane vector search
+#      runs (cannot start earlier — it needs the LLM output). Per-lane
+#      failures are isolated via gather(..., return_exceptions=True);
+#      RRF degrades to remaining lanes.
+#
+# Audit invariants preserved:
+#   A7 — generator pins temperature=0.0 (same as sync).
+#   The merged ranking is the deterministic RRF over both lanes given
+#   identical inputs (verified in test_hyde_search_async_returns_same_result_as_sync).
+# ──────────────────────────────────────────────────────────────────────
+
+
+async def hyde_search_async(
+    question: str,
+    *,
+    vector_search: Callable[[str], Awaitable[List[Dict[str, Any]]]],
+    model: Optional[str] = None,
+    merge: str = "rrf",
+    api_key: Optional[str] = None,
+    timeout: float = 30.0,
+) -> Tuple[List[str], List[Dict[str, Any]]]:
+    """Async sibling of ``hyde_search``. ``vector_search`` MUST be an
+    async callable returning a list of hit dicts.
+
+    Latency story (with both LLM and vector search ~200ms each):
+        sync:  ~600ms (generator → orig → hyde)
+        async: ~400ms (generator ‖ orig, then hyde)
+
+    On generator timeout or exception, degrades to single-lane recall
+    (original-question only) without raising.
+    """
+    # Phase A: generator + orig-question vector search in parallel.
+    # The orig task can run independent of the LLM — saves ~LLM latency.
+    gen_task = asyncio.create_task(
+        generate_hypothetical_answer_async(
+            question, model=model, api_key=api_key, timeout=timeout,
+        )
+    )
+    orig_task = asyncio.create_task(_safe_async_call(vector_search, question))
+
+    # Wait for the generator with the same timeout. If it exceeds,
+    # gracefully degrade to single-lane.
+    try:
+        result = await asyncio.wait_for(gen_task, timeout=timeout)
+    except asyncio.TimeoutError:
+        logger.debug("hyde_async: generator exceeded timeout=%.2fs", timeout)
+        result = HydeResult(original_question=question.strip())
+    except Exception as e:  # noqa: BLE001
+        logger.debug("hyde_async: generator failed: %s", e)
+        result = HydeResult(original_question=question.strip())
+
+    queries = result.queries
+
+    # Phase B: hyde-lane search (only if we got a hypothetical) and
+    # await the original-lane task. Both use return_exceptions
+    # semantics to avoid one lane's failure cancelling the other.
+    if result.hypothetical_answer.strip():
+        hyde_task = asyncio.create_task(
+            _safe_async_call(vector_search, result.hypothetical_answer)
+        )
+        lanes_results = await asyncio.gather(
+            orig_task, hyde_task, return_exceptions=True,
+        )
+    else:
+        lanes_results = await asyncio.gather(orig_task, return_exceptions=True)
+
+    # Filter exceptions / coerce to lists. Each successful lane is a
+    # ``List[Dict]``. Exceptions become empty lanes (RRF handles).
+    lanes: List[List[Dict[str, Any]]] = []
+    for lr in lanes_results:
+        if isinstance(lr, Exception):
+            lanes.append([])
+        else:
+            lanes.append(lr or [])
+
+    # Reuse the sync RRF/union helpers — single source of truth for fusion.
+    from attestor.retrieval.multi_query import (
+        reciprocal_rank_fusion, union_merge,
+    )
+    if merge == "union":
+        merged = union_merge(lanes)
+    else:
+        merged = reciprocal_rank_fusion(lanes)
+
+    from attestor import trace as _tr
+    if _tr.is_enabled():
+        _tr.event(
+            "recall.hyde.merged.async",
+            n_queries=len(queries),
+            per_lane_sizes=[len(l) for l in lanes],
+            merged_size=len(merged),
+            merge_strategy=merge,
+        )
+
+    return queries, merged
+
+
+async def _safe_async_call(
+    fn: Callable[[str], Awaitable[List[Dict[str, Any]]]],
+    arg: str,
+) -> List[Dict[str, Any]]:
+    """Await ``fn(arg)``; on exception, return ``[]`` so the lane
+    contributes an empty list to RRF rather than failing the whole
+    recall. The exception is logged at DEBUG so audit traces capture
+    "what we tried" even when a lane crashes.
+    """
+    try:
+        return list(await fn(arg))
+    except Exception as e:  # noqa: BLE001
+        logger.debug("hyde_async: lane %r failed: %s", arg[:60], e)
+        return []

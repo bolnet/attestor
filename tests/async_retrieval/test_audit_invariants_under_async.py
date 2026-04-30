@@ -34,7 +34,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_hyde_temperature_zero_determinism_across_runs():
     """Same question → same hypothetical (temp=0) → same RRF order.
     Async amplifies non-determinism risk because gathered lanes can
@@ -71,7 +70,6 @@ async def test_hyde_temperature_zero_determinism_across_runs():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_as_of_replay_under_concurrent_writes_contract():
     """Contract assertion (full implementation lands in P5):
 
@@ -95,7 +93,6 @@ async def test_as_of_replay_under_concurrent_writes_contract():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_supersession_serial_per_memory_id():
     """Contract assertion (full impl in P5): two concurrent
     supersession attempts on the same memory_id must linearize —
@@ -112,7 +109,6 @@ async def test_supersession_serial_per_memory_id():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_trace_reconstructable_under_async():
     """Contract assertion (full impl in P3): 10 concurrent recalls
     emit interleaved trace events; per-recall tree must reconstruct
@@ -129,7 +125,6 @@ async def test_trace_reconstructable_under_async():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_rls_propagates_through_async_tasks():
     """Contract assertion (full impl in P5): each async task spawned
     inside a recall sees its parent's `attestor.current_user_id`
@@ -148,7 +143,6 @@ async def test_rls_propagates_through_async_tasks():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_deletion_audit_under_async():
     """Contract assertion: even if forget() runs async, the
     deletion_audit row gets INSERTed BEFORE the actual delete.
