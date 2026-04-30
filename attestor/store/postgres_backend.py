@@ -465,7 +465,12 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
     ) -> List[Memory]:
         # v4 schema replaces the v3 ``created_at`` text column with the
         # bi-temporal ``t_created`` (TIMESTAMPTZ). Use the right one per
-        # active schema; namespace is ignored on v4 (replaced by RLS).
+        # active schema. v4 has no ``namespace`` column — namespace is
+        # stored as ``metadata->>'_namespace'`` (PR #77 write-side fix);
+        # the RLS policy at memories filters by ``user_id`` only, NOT
+        # by namespace, so namespace must still be filtered here when
+        # the caller passes one (e.g. LME bench writes one user with
+        # many per-sample namespaces).
         time_col = "t_created" if self._v4 else "created_at"
 
         filters = []
@@ -480,8 +485,11 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         if entity:
             filters.append("entity = %(entity)s")
             params["entity"] = entity
-        if namespace and not self._v4:
-            filters.append("namespace = %(namespace)s")
+        if namespace:
+            if self._v4:
+                filters.append("metadata->>'_namespace' = %(namespace)s")
+            else:
+                filters.append("namespace = %(namespace)s")
             params["namespace"] = namespace
         if after:
             filters.append(f"{time_col} >= %(after)s")
@@ -701,8 +709,11 @@ class PostgresBackend(DocumentStore, VectorStore, GraphStore):
         params: List[Any] = [str(query_vec)]
         where: List[str] = ["embedding IS NOT NULL"]
 
-        if namespace is not None and not self._v4:
-            where.append("namespace = %s")
+        if namespace is not None:
+            if self._v4:
+                where.append("metadata->>'_namespace' = %s")
+            else:
+                where.append("namespace = %s")
             params.append(namespace)
 
         if self._v4:
