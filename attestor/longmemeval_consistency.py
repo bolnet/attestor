@@ -37,6 +37,7 @@ knob and flip per bench run only.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from dataclasses import dataclass, field
@@ -387,3 +388,141 @@ def _emit_elected_event(
         )
     except Exception:  # noqa: BLE001
         pass
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Async K-fanout (Phase 4 — docs/plans/async-retrieval/PLAN.md).
+#
+# K answerer samples run in parallel via asyncio.gather instead of the
+# sequential for-loop. With K=5 and per-call latency ~2s, wallclock
+# drops from ~10s to ~2s — roughly 5×.
+#
+# The voter logic (majority / judge_pick) is order-independent: counts
+# are bucketed by fingerprint and tiebreaks fall back to first-seen
+# (insertion order). Async gather order does NOT change which sample
+# wins because every sample is bucketed the same way regardless of
+# arrival order. Verified by test_self_consistency_consensus_order
+# _independent.
+#
+# Audit-preservation argument:
+#   - Voter determinism preserved (commutative bucketing).
+#   - Trace events still emit per-sample via _sample_once_async.
+#   - Per-sample failures isolated via gather(return_exceptions=True);
+#     surviving samples vote among themselves. K-1 failures still
+#     produce a result.
+# ──────────────────────────────────────────────────────────────────────
+
+
+async def _sample_once_async(
+    *,
+    client: Any,
+    model: str,
+    messages: List[Dict[str, Any]],
+    temperature: float,
+) -> str:
+    """Async sibling of ``_sample_once``. Awaits an async chat-completion
+    call. Returns the stripped content text, or ``""`` on any error
+    (errors swallowed by the caller via gather(return_exceptions=True))."""
+    response = await client.chat.completions.create(
+        model=model,
+        temperature=temperature,
+        messages=messages,
+    )
+    text = response.choices[0].message.content or ""
+    return text.strip()
+
+
+async def answer_with_self_consistency_async(
+    *,
+    client: Any,
+    model: str,
+    messages: List[Dict[str, Any]],
+    k: int = 5,
+    temperature: float = 0.7,
+    voter: str = "majority",
+    judge_client: Optional[Any] = None,
+    judge_model: Optional[str] = None,
+) -> ConsistencyResult:
+    """Async sibling of ``answer_with_self_consistency``. K answerer
+    samples are drawn CONCURRENTLY via ``asyncio.gather``; the voter
+    logic is identical (and provably order-independent — see test
+    ``test_self_consistency_consensus_order_independent``).
+
+    Latency story (with per-sample latency ~2s, K=5):
+        sync:  ~10s  (5 × 2s sequential)
+        async:  ~2s  (1 × max(per-sample) under gather) — roughly 5×
+
+    Per-sample failures are isolated via ``gather(return_exceptions=True)``;
+    K-1 sample failures still produce a result from the surviving sample.
+    """
+    if voter not in VALID_VOTERS:
+        raise ValueError(
+            f"unknown voter strategy {voter!r}; expected one of {VALID_VOTERS}"
+        )
+
+    if k <= 0:
+        return ConsistencyResult(samples=[], chosen="", voter=voter, vote_breakdown={})
+
+    # K samples in parallel.
+    tasks = [
+        asyncio.create_task(
+            _sample_once_async(
+                client=client,
+                model=model,
+                messages=messages,
+                temperature=temperature,
+            )
+        )
+        for _ in range(k)
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    samples: List[str] = []
+    for i, r in enumerate(results):
+        if isinstance(r, Exception):
+            logger.debug("self_consistency_async sample %d failed: %s", i, r)
+            continue
+        if r:
+            samples.append(r)
+
+    _emit_samples_event(
+        k=k, model=model, temperature=temperature, samples=samples,
+    )
+
+    if not samples:
+        return ConsistencyResult(samples=[], chosen="", voter=voter, vote_breakdown={})
+
+    if voter == "judge_pick" and judge_model:
+        try:
+            # Judge call stays sync today — the judge prompt is one
+            # call, no parallelism win to be had. P-future could swap
+            # this for an async sibling if the judge becomes a
+            # bottleneck.
+            idx = _judge_choice(
+                samples=samples,
+                question=_question_from_messages(messages),
+                judge_client=judge_client or client,
+                judge_model=judge_model,
+            )
+            chosen = samples[idx]
+            breakdown = {_fingerprint(s): 1 for s in samples}
+            _emit_elected_event(
+                voter="judge_pick", chosen=chosen, breakdown=breakdown,
+            )
+            return ConsistencyResult(
+                samples=samples, chosen=chosen,
+                voter="judge_pick", vote_breakdown=breakdown,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug(
+                "self_consistency_async judge_pick failed; falling back: %s", exc,
+            )
+
+    chosen, breakdown = _majority_choice(samples)
+    _emit_elected_event(
+        voter="majority", chosen=chosen, breakdown=breakdown,
+    )
+    return ConsistencyResult(
+        samples=samples, chosen=chosen,
+        voter="majority", vote_breakdown=breakdown,
+    )
