@@ -150,6 +150,12 @@ def event(name: str, **fields: Any) -> None:
         seq = counter[0]
     eid = str(uuid.uuid4())
 
+    # OTel correlation: when an OTel span is active, include its
+    # span_id in the JSONL payload so operators can join JSONL events
+    # to OTel spans by span_id.
+    from attestor import otel as _otel
+    otel_span_id = _otel.current_span_id()
+
     payload = {
         "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
         "event": name,
@@ -157,8 +163,12 @@ def event(name: str, **fields: Any) -> None:
         **({"recall_id": rid} if rid is not None else {}),
         **({"seq": seq} if seq is not None else {}),
         **({"parent_event_id": parent_eid} if parent_eid is not None else {}),
+        **({"otel_span_id": otel_span_id} if otel_span_id is not None else {}),
         **scrubbed,
     }
+
+    # Mirror to OTel: every JSONL event also becomes an OTel span event.
+    _otel.add_event(name, **scrubbed)
 
     pretty = " ".join(f"{k}={v!r}" if isinstance(v, str) else f"{k}={v}"
                       for k, v in scrubbed.items())
@@ -184,6 +194,11 @@ def recall_scope(recall_id: Optional[str] = None) -> Iterator[str]:
     monotonic ``seq`` counter. ``contextvars`` propagation makes this
     work for both sync and async callers — same API.
 
+    When OpenTelemetry is enabled (``OTEL_EXPORTER`` env), this also
+    opens an OTel span named ``recall`` with ``recall_id`` as an
+    attribute — so every event() call inside auto-bridges to the OTel
+    backend. Disabled by default; opt-in via env.
+
     Usage:
         with tr.recall_scope() as rid:
             tr.event("recall.start", query=q)
@@ -194,11 +209,16 @@ def recall_scope(recall_id: Optional[str] = None) -> Iterator[str]:
     counter: List[int] = [0]  # mutable list — shared across child tasks
     rid_token = _RECALL_ID.set(rid)
     seq_token = _SEQ_COUNTER.set(counter)
-    try:
-        yield rid
-    finally:
-        _RECALL_ID.reset(rid_token)
-        _SEQ_COUNTER.reset(seq_token)
+    # Bridge to OTel: open a span so every event() inside this scope
+    # also lands as an OTel event on the active span. Disabled by
+    # default; enabled when OTEL_EXPORTER env is set.
+    from attestor import otel as _otel
+    with _otel.start_span("recall", recall_id=rid):
+        try:
+            yield rid
+        finally:
+            _RECALL_ID.reset(rid_token)
+            _SEQ_COUNTER.reset(seq_token)
 
 
 @contextlib.contextmanager
