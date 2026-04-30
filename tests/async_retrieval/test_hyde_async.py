@@ -46,6 +46,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_hyde_search_async_runs_lanes_concurrently():
     """Two awaitables (HyDE LLM + per-lane vector searches) must run
     via ``asyncio.gather``. With both lanes sleeping 200ms, total
@@ -88,6 +89,7 @@ async def test_hyde_search_async_runs_lanes_concurrently():
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_hyde_search_async_returns_same_result_as_sync():
     """Async path is purely a latency optimization — given identical
     inputs (deterministic LLM, deterministic vector_search), the
@@ -140,6 +142,7 @@ async def test_hyde_search_async_returns_same_result_as_sync():
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_hyde_search_async_handles_lane_timeout():
     """If the HyDE LLM exceeds its timeout, the original-question lane
     must still produce hits — fall back to single-lane recall, do NOT
@@ -172,6 +175,7 @@ async def test_hyde_search_async_handles_lane_timeout():
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_hyde_search_async_handles_lane_exception():
     """If one of the gathered awaitables raises, the others must keep
     running — gather(..., return_exceptions=True) is the contract."""
@@ -202,6 +206,7 @@ async def test_hyde_search_async_handles_lane_exception():
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_hyde_async_preserves_temperature_zero():
     """The async generator MUST still pass temperature=0.0 to the LLM
     client. This is the determinism guarantee from HyDE v2 — without

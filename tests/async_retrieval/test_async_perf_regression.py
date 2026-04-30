@@ -31,6 +31,7 @@ pytestmark = [pytest.mark.unit]  # asyncio_mode=auto handles async tests; sync t
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(reason="RED — async impl lands in next PR; remove when GREEN", strict=False)
 async def test_async_overhead_under_50ms_no_op_recall():
     """``hyde_search_async`` with both lanes returning instantly must
     complete in < 50ms wallclock. Any regression here means the async
