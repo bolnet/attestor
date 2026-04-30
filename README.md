@@ -377,19 +377,23 @@ The `Features` column records exactly which retrieval/answerer flags were enable
 
 Five orthogonal features land via `configs/attestor.yaml` boolean flips. All disabled by default — pick one per bench run, measure the lift, decide which to ship enabled.
 
-| Flag | Section | Estimated lift (literature) | Cost overhead |
+| Flag | What it does | Lift | Cost overhead |
 |---|---|---|---|
-| `retrieval.multi_query` | rewrite question into N paraphrases, RRF-merge N+1 vector lanes | +6-10% | 1 small LLM call + N extra vector searches per recall |
-| `retrieval.hyde` | generate hypothetical answer, embed it as a parallel vector lane | +6-10% | 1 small LLM call + 1 extra vector search per recall |
-| `retrieval.temporal_prefilter` | regex-detect "two weeks ago" etc; narrow event-time window before vector | +1.5% | Free (regex-only, no LLM) |
-| `self_consistency` | answerer draws K=5 samples at temperature, elects consensus | +3-6% | 5× answerer cost |
-| `critique_revise` | answer → critique → conditional revise | +3-5% | ~3× answerer worst case |
+| `retrieval.multi_query` | rewrite question into N paraphrases, RRF-merge N+1 vector lanes | +6-10% (lit.); regressed −10pp on LME-S temporal smoke | 1 small LLM call + N extra vector searches per recall |
+| `retrieval.hyde` | event-descriptive hypothetical-document embedding (temperature=0) — embed it as a parallel vector lane | **+10pp measured** on LME-S temporal-reasoning (30q smoke, 70%→80%→96.7% with BM25 hybrid) | 1 small LLM call + 1 extra vector search per recall |
+| `retrieval.temporal_prefilter` | regex-detect "two weeks ago" etc; narrow event-time window before vector | +1.5% (lit.); 0pp on LME-S interrogative-anchor questions | Free (regex-only, no LLM) |
+| `self_consistency` | answerer draws K=5 samples at temperature, elects consensus | +3-6% (lit.) | 5× answerer cost |
+| `critique_revise` | answer → critique → conditional revise | +3-5% (lit.) | ~3× answerer worst case |
 
-`multi_query` and `hyde` are mutually exclusive in this release (multi_query wins if both flags are on with a logged warning). `self_consistency` and `critique_revise` are similarly mutually exclusive on the answerer side. Combinations across the two sides (e.g. `multi_query + self_consistency`) are fine.
+`multi_query` and `hyde` are mutually exclusive in this release (multi_query wins if both flags are on with a logged warning). `self_consistency` and `critique_revise` are similarly mutually exclusive on the answerer side. Combinations across the two sides (e.g. `hyde + self_consistency`) are fine.
+
+**HyDE v2 prompt** (`attestor/retrieval/hyde.py`) — generates an event-descriptive snippet rather than an answer-shape response, so the embedding lands close to source-shape conversation turns instead of question-shape queries. This is the lever that produced the +10pp measured lift on LME-S temporal-reasoning. `temperature=0` is pinned so re-runs are deterministic.
+
+**Honest negative results documented above** — `multi_query` and `temporal_prefilter` did NOT generalize from their literature numbers on the LME-S temporal-reasoning slice. `multi_query` paraphrases stay in question-shape and RRF dilutes marginal hits; `temporal_prefilter` heuristic anchors don't help interrogative-form questions ("how many days ago…"). HyDE was the right tool. Per-feature methodology + diagnostic artifacts in `docs/bench/pinecone-lme-temporal-diagnostic-{baseline,mq3,hyde,hyde-bm25}-20260429.json`.
+
+**Cross-vector-DB diagnostic harness** — `experiments/pinecone_lme_temporal_diagnostic.py` runs retrieval-only LME-S diagnostics against Pinecone Local with `--baseline` / `--multi-query` / `--hyde` / `--bm25-hybrid` / `--temporal-prefilter` / `--category` flags. No answerer, no judge — pure recall@K ceiling. `--skip-ingest` reuses populated namespaces for fast retrieval-flag iteration (~60s for 30q vs ~50min with fresh ingest).
 
 **To benchmark a single feature:** flip its `enabled: true` in `configs/attestor.yaml`, run the bench slice, compare against a same-day baseline run with everything off. The trend table will show the delta in the `Δ` column.
-
-**Estimated lifts above are from the published literature** — the numbers Attestor actually delivers on LME-S are produced by user-driven bench runs and surfaced via `lme_report.py --trend` once enough data points have accumulated.
 
 ### Synthetic supersession suite — `python -m evals.knowledge_updates`
 
