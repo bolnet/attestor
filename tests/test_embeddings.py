@@ -44,46 +44,61 @@ class TestGetEmbeddingProvider:
         # guard would otherwise fire against a leaked stub).
         clear_embedding_cache()
 
-    def test_raises_without_any_key(self):
-        """No local ollama, no cloud creds, no OpenAI key → explicit error."""
-        with patch.dict("os.environ", {}, clear=True):
-            with patch("attestor.store.embeddings._try_ollama", return_value=None):
-                with patch("attestor.store.embeddings._try_openai", return_value=None):
-                    with pytest.raises(RuntimeError, match="No embedding provider"):
-                        get_embedding_provider()
+    def test_strict_preferred_openai_raises_when_unavailable(self):
+        """preferred='openai' with no OPENAI_API_KEY → raises with config-pointing message.
 
-    def test_openai_tried_when_key_set(self):
-        """When OPENAI_API_KEY is set and Ollama unavailable, OpenAI is used."""
+        Strict mode: there's no auto-fallthrough. If YAML pins openai
+        and the helper can't initialize, attestor surfaces the config
+        problem rather than silently picking another backend.
+        """
+        # Patch the dispatch dict directly — it captures fn refs at module
+        # load, so monkeypatching _try_openai wouldn't affect it.
+        with patch.dict(
+            "attestor.store.embeddings._PROVIDER_DISPATCH",
+            {"openai": lambda: None},
+        ):
+            with pytest.raises(RuntimeError, match="failed to initialize"):
+                get_embedding_provider(preferred="openai")
+
+    def test_strict_preferred_openai_returns_when_available(self):
+        """preferred='openai' returns the openai provider when its
+        helper succeeds (no fallthrough involved)."""
         mock_provider = MagicMock()
         mock_provider.provider_name = "openai"
         mock_provider.dimension = 1536
 
-        with patch("attestor.store.embeddings._try_ollama", return_value=None):
-            with patch("attestor.store.embeddings._try_openai", return_value=mock_provider):
-                provider = get_embedding_provider()
-                assert provider.provider_name == "openai"
+        with patch.dict(
+            "attestor.store.embeddings._PROVIDER_DISPATCH",
+            {"openai": lambda: mock_provider},
+        ):
+            provider = get_embedding_provider(preferred="openai")
+            assert provider.provider_name == "openai"
 
-    def test_preferred_bedrock_tried_first(self):
-        """When preferred='bedrock', should try bedrock before openai."""
+    def test_preferred_bedrock_routes_to_bedrock(self):
+        """preferred='bedrock' dispatches to the bedrock helper."""
         mock_bedrock = MagicMock()
         mock_bedrock.provider_name = "bedrock"
         mock_bedrock.dimension = 1024
 
-        with patch("attestor.store.embeddings._CLOUD_PROVIDERS", {"bedrock": lambda: mock_bedrock}):
+        with patch.dict(
+            "attestor.store.embeddings._PROVIDER_DISPATCH",
+            {"bedrock": lambda: mock_bedrock},
+        ):
             provider = get_embedding_provider(preferred="bedrock")
             assert provider.provider_name == "bedrock"
 
-    def test_preferred_unavailable_falls_through_to_openai(self):
-        """Preferred cloud provider failing falls through to local→OpenAI path."""
-        mock_openai = MagicMock()
-        mock_openai.provider_name = "openai"
-        mock_openai.dimension = 1536
+    def test_preferred_unavailable_raises_no_fallthrough(self):
+        """Preferred provider failing must RAISE — no silent fallthrough.
 
-        with patch("attestor.store.embeddings._CLOUD_PROVIDERS", {"bedrock": lambda: None}):
-            with patch("attestor.store.embeddings._try_ollama", return_value=None):
-                with patch("attestor.store.embeddings._try_openai", return_value=mock_openai):
-                    provider = get_embedding_provider(preferred="bedrock")
-                    assert provider.provider_name == "openai"
+        This pins the strict-mode contract: YAML's stack.embedder.provider
+        is authoritative; failure is surfaced, not papered over.
+        """
+        with patch.dict(
+            "attestor.store.embeddings._PROVIDER_DISPATCH",
+            {"bedrock": lambda: None},
+        ):
+            with pytest.raises(RuntimeError, match="failed to initialize"):
+                get_embedding_provider(preferred="bedrock")
 
 
 class TestOpenAIEmbeddingProvider:

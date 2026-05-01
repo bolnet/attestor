@@ -1,19 +1,17 @@
 """Shared embedding providers — single source of truth for all backends.
 
-Fallback chain (each level tried only if the previous is unavailable):
-    1. Local Ollama (bge-m3 by default, 1024-D) — if Ollama is reachable
-    2. Cloud-native (Bedrock / Azure OpenAI / Vertex AI) — if credentials present
-    3. OpenAI / OpenRouter text-embedding-3-large — if API key set
-
-Local-first by design: Ollama on localhost:11434 is the default so attestor
-works offline / without API credits. Override with ATTESTOR_EMBEDDING_MODEL
-or ATTESTOR_EMBEDDING_PROVIDER env vars.
+YAML is authoritative. ``configs/attestor.yaml`` ``stack.embedder.provider``
+selects exactly one provider. There is **no Python-level fallback chain**:
+if the configured provider can't initialize, attestor raises loudly with a
+config-pointing message rather than silently picking a different backend.
+Silent fallthrough caused subtle index-dim drift in past runs and is
+deliberately removed.
 
 Usage:
-    provider = get_embedding_provider()          # auto-detect best available
-    provider = get_embedding_provider("bedrock") # prefer specific cloud provider
-    vec = provider.embed("hello world")          # -> List[float]
-    vecs = provider.embed_batch(["a", "b"])      # -> List[List[float]]
+    provider = get_embedding_provider()              # reads YAML's stack.embedder.provider
+    provider = get_embedding_provider("bedrock")     # explicit override (still strict)
+    vec = provider.embed("hello world")              # -> List[float]
+    vecs = provider.embed_batch(["a", "b"])          # -> List[List[float]]
 """
 
 from __future__ import annotations
@@ -630,14 +628,19 @@ def _try_vertex_ai() -> Optional[EmbeddingProvider]:
 
 
 def _try_openai() -> Optional[EmbeddingProvider]:
-    """Try OpenAI or OpenRouter.
+    """Try OpenAI (direct, no OpenRouter fallback).
 
     Controlled by env:
+        OPENAI_API_KEY              required
         OPENAI_EMBEDDING_MODEL      default ``text-embedding-3-large``
         OPENAI_EMBEDDING_DIMENSIONS default ``1536`` (Matryoshka reduction)
+
+    Returns ``None`` when ``OPENAI_API_KEY`` is unset; the strict dispatch
+    in ``get_embedding_provider`` then raises with a config-pointing message.
     """
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
+    if not openai_key:
+        return None
 
     model = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
     dim_env = os.environ.get("OPENAI_EMBEDDING_DIMENSIONS", "1536")
@@ -646,32 +649,17 @@ def _try_openai() -> Optional[EmbeddingProvider]:
     except ValueError:
         dimensions = None
 
-    if openrouter_key:
-        try:
-            provider = OpenAIEmbeddingProvider(
-                api_key=openrouter_key,
-                base_url="https://openrouter.ai/api/v1",
-                model=f"openai/{model}",
-                dimensions=dimensions,
-            )
-            logger.info("Using %s via OpenRouter (%dD)", model, provider.dimension)
-            return provider
-        except Exception as e:
-            logger.warning("OpenRouter embeddings failed: %s", e)
-
-    if openai_key:
-        try:
-            provider = OpenAIEmbeddingProvider(
-                api_key=openai_key,
-                model=model,
-                dimensions=dimensions,
-            )
-            logger.info("Using %s (%dD)", model, provider.dimension)
-            return provider
-        except Exception as e:
-            logger.warning("OpenAI embeddings failed: %s", e)
-
-    return None
+    try:
+        provider = OpenAIEmbeddingProvider(
+            api_key=openai_key,
+            model=model,
+            dimensions=dimensions,
+        )
+        logger.info("Using %s (%dD)", model, provider.dimension)
+        return provider
+    except Exception as e:
+        logger.warning("OpenAI embeddings failed: %s", e)
+        return None
 
 
 _CLOUD_PROVIDERS = {
@@ -693,80 +681,73 @@ def clear_embedding_cache() -> None:
     _cached_provider = None
 
 
+_PROVIDER_DISPATCH = {
+    "openai": _try_openai,
+    "voyage": _try_voyage,
+    "pinecone": _try_pinecone_inference,
+    "ollama": _try_ollama,
+    "bedrock": _try_bedrock,
+    "azure_openai": _try_azure_openai,
+    "vertex_ai": _try_vertex_ai,
+}
+
+
 def get_embedding_provider(
     preferred: Optional[str] = None,
 ) -> EmbeddingProvider:
-    """Get the best available embedding provider.
+    """Get the configured embedding provider.
 
-    Fallback chain (preferred wins if specified and available):
-        0. preferred ("voyage" / "ollama" / "openai" / "bedrock" / "azure_openai" / "vertex_ai")
-        1. Voyage AI (Anthropic's recommended partner) — if VOYAGE_API_KEY set
-        2. Local Ollama (bge-m3 default) — if daemon reachable + model pulled
-        3. Cloud-native (Bedrock / Azure OpenAI / Vertex AI) — credentials present
-        4. OpenAI / OpenRouter — API key set
-
-    Set ``ATTESTOR_DISABLE_LOCAL_EMBED=1`` to skip the Ollama probe (e.g.
-    on hosted deployments where Ollama isn't installed).
+    YAML's ``stack.embedder.provider`` is authoritative. There is no
+    auto-detect chain. Calling with no ``preferred`` reads from YAML;
+    calling with ``preferred=X`` is the explicit override path. Init
+    failure raises ``RuntimeError`` with a config-pointing message —
+    silent fallthrough to a different backend is deliberately gone
+    because it caused subtle index-dim drift in past runs.
 
     Args:
-        preferred: Provider hint — "ollama", "bedrock", "azure_openai",
-                   "vertex_ai". Tried first but falls through on failure.
+        preferred: Provider name — one of openai / voyage / pinecone /
+                   ollama / bedrock / azure_openai / vertex_ai. When
+                   ``None``, the value is read from
+                   ``configs/attestor.yaml`` ``stack.embedder.provider``.
 
     Returns:
-        An EmbeddingProvider instance (cached after first call).
+        An ``EmbeddingProvider`` instance (cached after first call).
+
+    Raises:
+        RuntimeError: if the configured provider name is unknown or the
+            matching ``_try_*`` helper fails to initialize (e.g. missing
+            API key).
     """
     global _cached_provider
 
     if _cached_provider is not None and preferred is None:
         return _cached_provider
 
-    # Explicit preference path (cloud or local)
-    if preferred:
-        if preferred == "ollama":
-            provider = _try_ollama()
-            if provider is not None:
-                _cached_provider = provider
-                return provider
-        elif preferred in _CLOUD_PROVIDERS:
-            provider = _CLOUD_PROVIDERS[preferred]()
-            if provider is not None:
-                logger.info(
-                    "Using %s embeddings (%dD)",
-                    provider.provider_name, provider.dimension,
-                )
-                _cached_provider = provider
-                return provider
-        logger.debug("Preferred provider %r unavailable, trying fallbacks", preferred)
+    # No preferred argument — read it from YAML.
+    if preferred is None:
+        from attestor.config import get_stack
 
-    # Auto-detect chain.
-    # Pinecone Inference is checked first when PINECONE_EMBEDDING_MODEL is
-    # explicitly set (configure_embedder pins this from stack.embedder),
-    # because that env var is the canonical opt-in. Otherwise the chain
-    # falls through to Voyage / Ollama / OpenAI as before.
-    if os.environ.get("PINECONE_EMBEDDING_MODEL"):
-        provider = _try_pinecone_inference()
-        if provider is not None:
-            _cached_provider = provider
-            return provider
+        cfg = get_stack().embedder
+        return get_embedding_provider(preferred=cfg.provider)
 
-    provider = _try_voyage()
-    if provider is not None:
-        _cached_provider = provider
-        return provider
-
-    provider = _try_ollama()
-    if provider is not None:
-        _cached_provider = provider
-        return provider
-
-    provider = _try_openai()
-    if provider is not None:
-        _cached_provider = provider
-        return provider
-
-    raise RuntimeError(
-        "No embedding provider available. Set one of: VOYAGE_API_KEY (Anthropic-"
-        "recommended partner), OPENAI_API_KEY / OPENROUTER_API_KEY, or start "
-        "Ollama (`ollama serve` + `ollama pull bge-m3`), or configure a cloud "
-        "provider (Bedrock / Azure OpenAI / Vertex AI)."
+    # Strict dispatch: only the named provider is tried. No fallthrough.
+    try_fn = _PROVIDER_DISPATCH.get(preferred)
+    if try_fn is None:
+        raise RuntimeError(
+            f"unknown embedder provider {preferred!r}; expected one of "
+            f"{sorted(_PROVIDER_DISPATCH)}. Check stack.embedder.provider "
+            f"in configs/attestor.yaml."
+        )
+    provider = try_fn()
+    if provider is None:
+        raise RuntimeError(
+            f"embedder provider {preferred!r} (set in configs/attestor.yaml "
+            f"under stack.embedder.provider) failed to initialize. Check "
+            f"that the matching API key / env vars are set for that provider."
+        )
+    logger.info(
+        "Using %s embeddings (%dD) [pinned by config]",
+        provider.provider_name, provider.dimension,
     )
+    _cached_provider = provider
+    return provider

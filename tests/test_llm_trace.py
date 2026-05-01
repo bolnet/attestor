@@ -59,6 +59,8 @@ def yaml_with_role(tmp_path, monkeypatch):
                     "max_tokens": max_tokens,
                     **({"reasoning_effort": reasoning_effort} if reasoning_effort else {}),
                 },
+                "budget": 4000,
+                "parallel": 2,
             },
         }
         p = tmp_path / "attestor.yaml"

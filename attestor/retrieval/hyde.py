@@ -140,29 +140,44 @@ def generate_hypothetical_answer(
     On any error (missing key, malformed response, network timeout),
     returns ``HydeResult(original_question=question, hypothetical_answer="")``
     — the caller naturally degrades to a single-query lane.
+
+    Provider URL + API key env are sourced from the YAML-configured LLM
+    pool (``stack.llm.providers``). The ``api_key`` parameter is kept
+    for back-compat: when set, it overrides the pool-resolved client by
+    building a fresh one against the resolved provider's ``base_url``.
     """
     if not question.strip():
-        return HydeResult(original_question=question.strip())
-
-    api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
-        logger.debug("hyde.generate: no API key; returning degraded result")
         return HydeResult(original_question=question.strip())
 
     model = model or _resolve_generator_model()
 
     try:
-        from openai import OpenAI
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
-            timeout=timeout,
+        from attestor.llm_trace import (
+            get_client_for_model,
+            _get_pool,
+            make_client,
+            traced_create,
         )
-        from attestor.llm_trace import traced_create
+        if api_key:
+            pool = _get_pool()
+            head, sep, tail = model.partition("/")
+            if sep and head in pool.providers:
+                strategy = pool._strategies[head]  # noqa: SLF001
+                clean_model = tail
+            else:
+                strategy = pool.default_strategy()
+                clean_model = model
+            client = make_client(
+                base_url=strategy.base_url,
+                api_key=api_key,
+                timeout=timeout,
+            )
+        else:
+            client, clean_model = get_client_for_model(model)
         response = traced_create(
             client,
             role="hyde_generator",
-            model=model,
+            model=clean_model,
             max_tokens=400,
             temperature=0.0,
             messages=[
@@ -219,30 +234,54 @@ async def generate_hypothetical_answer_async(
 ) -> HydeResult:
     """Async sibling of ``generate_hypothetical_answer``.
 
-    Same prompt, same temperature=0, same fallback semantics. The only
-    difference: uses ``openai.AsyncOpenAI`` so the call can run
-    concurrently with the original-question vector embed via
-    ``asyncio.gather`` in ``hyde_search_async``.
+    Same prompt, same temperature=0, same fallback semantics. Uses
+    ``openai.AsyncOpenAI`` so the call can run concurrently with the
+    original-question vector embed via ``asyncio.gather`` in
+    ``hyde_search_async``.
+
+    The pool itself is sync-only, so we resolve the
+    ``LLMProviderStrategy`` (base_url + api_key_env) from the YAML pool
+    and build the ``AsyncOpenAI`` client locally — YAML still drives
+    the URL/key. The optional ``api_key`` arg overrides the env-derived
+    key against the same resolved ``base_url``.
     """
     if not question.strip():
-        return HydeResult(original_question=question.strip())
-
-    api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
-        logger.debug("hyde.generate_async: no API key; returning degraded result")
         return HydeResult(original_question=question.strip())
 
     model = model or _resolve_generator_model()
 
     try:
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
+        from attestor.llm_trace import _get_pool, make_async_client
+        pool = _get_pool()
+        head, sep, tail = model.partition("/")
+        if sep and head in pool.providers:
+            strategy = pool._strategies[head]  # noqa: SLF001
+            clean_model = tail
+        elif sep:
+            logger.debug(
+                "hyde.generate_async: unknown provider %r in model %r",
+                head, model,
+            )
+            return HydeResult(original_question=question.strip())
+        else:
+            strategy = pool.default_strategy()
+            clean_model = model
+
+        key = api_key or os.environ.get(strategy.api_key_env)
+        if not key:
+            logger.debug(
+                "hyde.generate_async: %s not set; returning degraded result",
+                strategy.api_key_env,
+            )
+            return HydeResult(original_question=question.strip())
+
+        client = make_async_client(
+            base_url=strategy.base_url,
+            api_key=key,
             timeout=timeout,
         )
         response = await client.chat.completions.create(
-            model=model,
+            model=clean_model,
             max_tokens=400,
             temperature=0.0,
             messages=[

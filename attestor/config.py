@@ -51,47 +51,21 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "attestor.yaml"
 
 
-# ─── Hardcoded fallbacks (USED ONLY when YAML is missing) ──────────────
+# ─── LLM provider catalog ──────────────────────────────────────────────
 #
-# These are the canonical defaults captured at the time the YAML was
-# written. They exist so tests / CI can run in a stripped checkout
-# without `configs/attestor.yaml`. Production deployments must have
-# the YAML; the runtime emits a warning when these fallbacks fire.
-
-_FALLBACK_POSTGRES_URL = "postgresql://postgres:attestor@localhost:5432/attestor_v4_test"
-_FALLBACK_NEO4J_URL = "bolt://localhost:7687"
-_FALLBACK_NEO4J_DB = "neo4j"
-_FALLBACK_NEO4J_USER = "neo4j"
-_FALLBACK_EMBEDDER_PROVIDER = "voyage"
-_FALLBACK_EMBEDDER_MODEL = "voyage-4"
-_FALLBACK_EMBEDDER_DIM = 1024
-_FALLBACK_ANSWERER = "openai/gpt-5.4-mini"
-_FALLBACK_JUDGE = "openai/gpt-5.5"
-# Note: OpenRouter has no gpt-5.5-mini SKU; the -mini roles use 5.4-mini
-# (cheapest current 5.x mini) until a 5.5-mini variant ships.
-_FALLBACK_EXTRACTION = "openai/gpt-5.4-mini"
-_FALLBACK_DISTILL = "openai/gpt-5.4-mini"
-_FALLBACK_VERIFIER = "anthropic/claude-sonnet-4-6"
-_FALLBACK_PLANNER = "anthropic/claude-opus-4.7"
-_FALLBACK_BENCHMARK = "openai/gpt-5.4-mini"
-_FALLBACK_BUDGET = 4000
-_FALLBACK_PARALLEL = 2
-
-# LLM client routing — which OpenAI-compatible endpoint we send chat
-# completion calls to. OpenRouter is the default (matches the canonical
-# benchmark stack); "openai" hits api.openai.com directly which avoids
-# OpenRouter's per-call markup when the model is an OpenAI one and you
-# already have an OpenAI key.
-_FALLBACK_LLM_PROVIDER = "openrouter"
-_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-_OPENAI_BASE_URL = "https://api.openai.com/v1"
+# Known OpenAI-compatible endpoints, indexed by short name. These are
+# NOT fallback defaults for stack/model/embedder/budget — those MUST
+# come from `configs/attestor.yaml`. This dict only resolves the
+# `base_url` and `api_key_env` for a given provider name selected by
+# YAML (e.g. `stack.llm.provider: openrouter`). Adding a new provider
+# means adding an entry here.
 LLM_PROVIDER_DEFAULTS: Dict[str, Dict[str, str]] = {
     "openrouter": {
-        "base_url": _OPENROUTER_BASE_URL,
+        "base_url": "https://openrouter.ai/api/v1",
         "api_key_env": "OPENROUTER_API_KEY",
     },
     "openai": {
-        "base_url": _OPENAI_BASE_URL,
+        "base_url": "https://api.openai.com/v1",
         "api_key_env": "OPENAI_API_KEY",
     },
 }
@@ -503,43 +477,19 @@ def _resolve_env_password(node: Any, *, strict: bool) -> str:
     return ""
 
 
-def _build_fallback_stack() -> StackConfig:
-    """Hardcoded stack used when ``configs/attestor.yaml`` is absent."""
-    return StackConfig(
-        postgres=PostgresCfg(
-            url=os.environ.get("POSTGRES_URL", _FALLBACK_POSTGRES_URL),
-            v4=True,
-            skip_schema_init=True,
-        ),
-        neo4j=Neo4jCfg(
-            url=os.environ.get("NEO4J_URI", _FALLBACK_NEO4J_URL),
-            username=os.environ.get("NEO4J_USERNAME", _FALLBACK_NEO4J_USER),
-            password=os.environ.get("NEO4J_PASSWORD", ""),
-            database=os.environ.get("NEO4J_DATABASE", _FALLBACK_NEO4J_DB),
-        ),
-        embedder=EmbedderCfg(
-            provider=_FALLBACK_EMBEDDER_PROVIDER,
-            model=_FALLBACK_EMBEDDER_MODEL,
-            dimensions=_FALLBACK_EMBEDDER_DIM,
-        ),
-        models=ModelsCfg(
-            answerer=_FALLBACK_ANSWERER,
-            judge=_FALLBACK_JUDGE,
-            extraction=_FALLBACK_EXTRACTION,
-            distill=_FALLBACK_DISTILL,
-            verifier=_FALLBACK_VERIFIER,
-            planner=_FALLBACK_PLANNER,
-            benchmark_default=_FALLBACK_BENCHMARK,
-        ),
-        llm=LLMCfg.for_provider(_FALLBACK_LLM_PROVIDER),
-        retrieval=RetrievalCfg(),
-        image=ImageCfg(ref="", api_ref_template="", registries={}),
-        budget=_FALLBACK_BUDGET,
-        parallel=_FALLBACK_PARALLEL,
-        clouds={},
-        self_consistency=SelfConsistencyCfg(),
-        critique_revise=CritiqueReviseCfg(),
-    )
+def _require(block: Dict[str, Any], key: str, yaml_path: str) -> Any:
+    """Pull a required key out of a YAML block, raising with the dotted
+    path so the user knows exactly which key to add.
+
+    Fallback constants were removed in favor of fail-loud behavior:
+    every required key in ``configs/attestor.yaml`` must be present.
+    """
+    if key not in block:
+        raise ValueError(
+            f"{yaml_path} missing in configs/attestor.yaml — "
+            "required since fallback constants were removed"
+        )
+    return block[key]
 
 
 def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
@@ -625,7 +575,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         max_revisions=cr_max_revisions,
     )
 
-    llm_provider = str(llm_blk.get("provider", _FALLBACK_LLM_PROVIDER))
+    llm_provider = str(_require(llm_blk, "provider", "stack.llm.provider"))
     if llm_provider not in LLM_PROVIDER_DEFAULTS:
         raise SystemExit(
             f"[attestor.config] unknown LLM provider {llm_provider!r}; "
@@ -674,31 +624,37 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         default_provider=default_provider,
     )
 
+    neo_auth_blk = neo.get("auth") or {}
+
     return StackConfig(
         postgres=PostgresCfg(
-            url=pg.get("url", _FALLBACK_POSTGRES_URL),
+            url=str(_require(pg, "url", "stack.postgres.url")),
             v4=bool(pg.get("v4", True)),
             skip_schema_init=bool(pg.get("skip_schema_init", True)),
         ),
         neo4j=Neo4jCfg(
-            url=neo.get("url", _FALLBACK_NEO4J_URL),
-            username=(neo.get("auth") or {}).get("username", _FALLBACK_NEO4J_USER),
-            password=_resolve_env_password(neo.get("auth") or {}, strict=strict),
-            database=neo.get("database", _FALLBACK_NEO4J_DB),
+            url=str(_require(neo, "url", "stack.neo4j.url")),
+            username=str(_require(
+                neo_auth_blk, "username", "stack.neo4j.auth.username"
+            )),
+            password=_resolve_env_password(neo_auth_blk, strict=strict),
+            database=str(_require(neo, "database", "stack.neo4j.database")),
         ),
         embedder=EmbedderCfg(
-            provider=emb.get("provider", _FALLBACK_EMBEDDER_PROVIDER),
-            model=emb.get("model", _FALLBACK_EMBEDDER_MODEL),
-            dimensions=int(emb.get("dimensions", _FALLBACK_EMBEDDER_DIM)),
+            provider=str(_require(emb, "provider", "stack.embedder.provider")),
+            model=str(_require(emb, "model", "stack.embedder.model")),
+            dimensions=int(_require(emb, "dimensions", "stack.embedder.dimensions")),
         ),
         models=ModelsCfg(
-            answerer=models.get("answerer", _FALLBACK_ANSWERER),
-            judge=models.get("judge", _FALLBACK_JUDGE),
-            extraction=models.get("extraction", _FALLBACK_EXTRACTION),
-            distill=models.get("distill", _FALLBACK_DISTILL),
-            verifier=models.get("verifier", _FALLBACK_VERIFIER),
-            planner=models.get("planner", _FALLBACK_PLANNER),
-            benchmark_default=models.get("benchmark_default", _FALLBACK_BENCHMARK),
+            answerer=str(_require(models, "answerer", "stack.models.answerer")),
+            judge=str(_require(models, "judge", "stack.models.judge")),
+            extraction=str(_require(models, "extraction", "stack.models.extraction")),
+            distill=str(_require(models, "distill", "stack.models.distill")),
+            verifier=str(_require(models, "verifier", "stack.models.verifier")),
+            planner=str(_require(models, "planner", "stack.models.planner")),
+            benchmark_default=str(_require(
+                models, "benchmark_default", "stack.models.benchmark_default"
+            )),
             reasoning_effort=dict(models.get("reasoning_effort") or {}),
             max_tokens={k: int(v) for k, v in (models.get("max_tokens") or {}).items()},
         ),
@@ -709,8 +665,8 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
             api_ref_template=image_blk.get("api_ref_template", ""),
             registries=dict(image_blk.get("registries") or {}),
         ),
-        budget=int(stack_blk.get("budget", _FALLBACK_BUDGET)),
-        parallel=int(stack_blk.get("parallel", _FALLBACK_PARALLEL)),
+        budget=int(_require(stack_blk, "budget", "stack.budget")),
+        parallel=int(_require(stack_blk, "parallel", "stack.parallel")),
         clouds=dict(clouds_blk),
         self_consistency=sc_cfg,
         critique_revise=cr_cfg,
@@ -737,14 +693,20 @@ def load_stack(path: Path | str | None = None, *, strict: bool = False) -> Stack
     """Read ``configs/attestor.yaml`` (or override path) and resolve env refs.
 
     Bypasses the cache. Most callers should use ``get_stack()`` instead.
+
+    The YAML is the single source of truth for stack/model/embedder/
+    budget/parallel choices. If it's missing, this function raises —
+    there is no Python-level fallback any more.
     """
     if path is None:
         path = os.environ.get("ATTESTOR_CONFIG") or DEFAULT_CONFIG
     cfg_path = Path(path)
     if not cfg_path.exists():
-        if strict:
-            raise SystemExit(f"[attestor.config] config not found: {cfg_path}")
-        return _build_fallback_stack()
+        raise SystemExit(
+            f"[attestor.config] config not found: {cfg_path}\n"
+            "        configs/attestor.yaml is required — fallback "
+            "constants were removed; YAML is the only source of truth."
+        )
     return _parse_yaml(cfg_path, strict=strict)
 
 

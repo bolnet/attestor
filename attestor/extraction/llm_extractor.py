@@ -1,14 +1,13 @@
-"""LLM-based memory extraction (optional, requires openai + OPENROUTER_API_KEY)."""
+"""LLM-based memory extraction (optional; requires the ``openai`` package
+and the API key for whichever provider is configured under
+``stack.llm.providers`` in ``configs/attestor.yaml``)."""
 
 from __future__ import annotations
 
 import json
-import os
 from typing import Any, Dict, List, Optional, Tuple
 
 from attestor.models import Memory
-
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 def _default_extraction_model() -> str:
@@ -24,16 +23,29 @@ def _default_extraction_model() -> str:
 DEFAULT_EXTRACTION_MODEL = _default_extraction_model()
 
 
-def _get_client(api_key: Optional[str] = None):
-    """Get an OpenAI client configured for OpenRouter."""
-    from openai import OpenAI
+def _resolve_client(model: str, api_key: Optional[str] = None) -> Tuple[Any, str]:
+    """Resolve ``(client, clean_model)`` via the YAML-driven LLM pool.
 
-    key = api_key or os.environ.get("OPENROUTER_API_KEY")
-    if not key:
-        raise ValueError(
-            "OPENROUTER_API_KEY not set. Pass api_key or set the env var."
-        )
-    return make_client(base_url=OPENROUTER_BASE_URL, api_key=key)
+    YAML is the only source of truth for provider ``base_url`` /
+    ``api_key_env``. The ``api_key`` parameter is kept for back-compat:
+    when set, a fresh client is built against the pool-resolved
+    provider's ``base_url`` (no env fallback).
+    """
+    from attestor.llm_trace import get_client_for_model, _get_pool, make_client
+
+    if api_key:
+        pool = _get_pool()
+        head, sep, tail = model.partition("/")
+        if sep and head in pool.providers:
+            strategy = pool._strategies[head]  # noqa: SLF001 — explicit override path
+            clean_model = tail
+        else:
+            strategy = pool.default_strategy()
+            clean_model = model
+        client = make_client(base_url=strategy.base_url, api_key=api_key)
+        return client, clean_model
+
+    return get_client_for_model(model)
 
 _EXTRACTION_PROMPT = """Extract atomic facts from this conversation that would be useful to remember across sessions.
 
@@ -157,8 +169,8 @@ def llm_extract(
     model: str = DEFAULT_EXTRACTION_MODEL,
     api_key: Optional[str] = None,
 ) -> List[Memory]:
-    """Extract memories using LLM via OpenRouter."""
-    client = _get_client(api_key)
+    """Extract memories using the YAML-configured LLM provider."""
+    client, clean_model = _resolve_client(model, api_key)
 
     conversation_text = "\n".join(
         f"{msg.get('role', 'unknown')}: {msg.get('content', '')}"
@@ -166,11 +178,11 @@ def llm_extract(
         if msg.get("content")
     )
 
-    from attestor.llm_trace import traced_create, make_client
+    from attestor.llm_trace import traced_create
     response = traced_create(
         client,
         role="extraction",
-        model=model,
+        model=clean_model,
         max_tokens=2048,
         messages=[
             {
@@ -231,7 +243,7 @@ def llm_extract_session_full(
     - entity_profiles: {name, type, profile, tags}
     - concept_profiles: {title, description, entities, tags, event_date}
     """
-    client = _get_client(api_key)
+    client, clean_model = _resolve_client(model, api_key)
 
     conversation_lines = []
     for turn in turns:
@@ -257,7 +269,7 @@ def llm_extract_session_full(
     response = traced_create(
         client,
         role="extraction",
-        model=model,
+        model=clean_model,
         max_tokens=8192,
         messages=[{"role": "user", "content": prompt}],
     )

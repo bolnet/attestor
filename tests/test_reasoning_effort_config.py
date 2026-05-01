@@ -42,6 +42,8 @@ def _yaml_with_models(tmp_path, monkeypatch, **models_extra) -> Path:
                 "benchmark_default": "openai/gpt-5.4-mini",
                 **models_extra,
             },
+            "budget": 4000,
+            "parallel": 2,
         },
     }
     p = tmp_path / "attestor.yaml"
@@ -135,10 +137,14 @@ def test_chat_kwargs_for_role_handles_unknown_role(tmp_path, monkeypatch):
 
 
 @pytest.mark.unit
-def test_chat_kwargs_for_role_survives_no_yaml(monkeypatch):
-    """Stripped checkout / no YAML — return safe defaults, don't crash."""
+def test_chat_kwargs_for_role_no_yaml_raises(monkeypatch):
+    """Stripped checkout / no YAML — strict-mode must fail loudly.
+
+    Fallback constants were removed; YAML is the single source of truth.
+    This test guards against the silent-fallback path being reintroduced.
+    """
     monkeypatch.setenv("ATTESTOR_CONFIG", "/tmp/nonexistent.yaml")
     from attestor import config as _c
     _c.reset_stack()
-    out = _c.chat_kwargs_for_role("answerer", fallback_max_tokens=300)
-    assert out == {"max_tokens": 300}
+    with pytest.raises(SystemExit, match="config not found"):
+        _c.chat_kwargs_for_role("answerer", fallback_max_tokens=300)

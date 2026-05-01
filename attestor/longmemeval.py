@@ -1492,7 +1492,8 @@ def answer_question(
         sample: ``LMESample`` being answered.
         budget: Retrieval token budget for ``mem.recall``.
         model: OpenRouter model id for synthesis.
-        api_key: Optional override for ``OPENROUTER_API_KEY``.
+        api_key: Optional override for the configured provider's API
+            key (see ``configs/attestor.yaml`` ``llm.providers.*.api_key_env``).
         max_facts: Cap on facts injected into the prompt (guards prompt size).
         max_tokens: Answerer ``max_tokens``. Bumped to 600 to accommodate the
             chain-of-thought <reasoning> block.
@@ -2185,7 +2186,8 @@ async def run_async(
         answer_model: OpenRouter model id for the answerer.
         judge_models: List of OpenRouter model ids. Multiple judges are
             called in parallel per sample and scored independently.
-        api_key: Optional OPENROUTER_API_KEY override.
+        api_key: Optional override for the configured provider's API
+            key (see ``configs/attestor.yaml`` ``llm.providers.*.api_key_env``).
         budget: Recall token budget per question.
         use_extraction: Run the LLM extractor during ingest.
         max_facts: Cap on facts injected into the answerer prompt.

@@ -36,6 +36,8 @@ def _yaml_with_retrieval(tmp_path, monkeypatch, **retrieval) -> Path:
                 "planner": "anthropic/claude-opus-4.7",
                 "benchmark_default": "openai/gpt-5.4-mini",
             },
+            "budget": 4000,
+            "parallel": 2,
         },
     }
     if retrieval:

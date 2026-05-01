@@ -17,7 +17,9 @@ def extract_memories(
 
     Args:
         messages: List of message dicts with 'role' and 'content' keys.
-        use_llm: If True, use LLM-based extraction (requires openai + OPENROUTER_API_KEY).
+        use_llm: If True, use LLM-based extraction (requires the ``openai``
+            package + the API key for whichever provider is configured
+            under ``stack.llm.providers`` in ``configs/attestor.yaml``).
         model: LLM model to use if use_llm=True.
 
     Returns:
@@ -52,7 +54,9 @@ def _rule_extract(messages: List[Dict[str, Any]]) -> List[Memory]:
 
 
 def _llm_extract(messages: List[Dict[str, Any]], model: str) -> List[Memory]:
-    """Extract memories using LLM. Requires openai package + OPENROUTER_API_KEY."""
+    """Extract memories using LLM. Requires the ``openai`` package and
+    the API key for whichever provider is configured under
+    ``stack.llm.providers`` in ``configs/attestor.yaml``."""
     try:
         from attestor.extraction.llm_extractor import llm_extract
         return llm_extract(messages, model)

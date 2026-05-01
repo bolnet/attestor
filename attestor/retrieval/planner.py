@@ -24,8 +24,6 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-
 
 def _default_planner_model() -> str:
     """Resolve the planner model: env override > YAML > hardcoded fallback."""
@@ -97,13 +95,29 @@ Question: {question}
 JSON:"""
 
 
-def _get_client(api_key: Optional[str] = None):
-    from openai import OpenAI
+def _resolve_client(model: str, api_key: Optional[str] = None) -> tuple[Any, str]:
+    """Resolve ``(client, clean_model)`` for ``model`` via the YAML-driven pool.
 
-    key = api_key or os.environ.get("OPENROUTER_API_KEY")
-    if not key:
-        raise ValueError("OPENROUTER_API_KEY not set")
-    return make_client(base_url=OPENROUTER_BASE_URL, api_key=key)
+    YAML is the only source of truth for provider URL/key. ``api_key`` is
+    kept for back-compat: when set, it overrides the pool-resolved client
+    by building a fresh one against the resolved provider's ``base_url``
+    so callers can still inject a one-off key without an env-var read.
+    """
+    from attestor.llm_trace import get_client_for_model, _get_pool, make_client
+
+    if api_key:
+        pool = _get_pool()
+        head, sep, tail = model.partition("/")
+        if sep and head in pool.providers:
+            strategy = pool._strategies[head]  # noqa: SLF001 — explicit override path
+            clean_model = tail
+        else:
+            strategy = pool.default_strategy()
+            clean_model = model
+        client = make_client(base_url=strategy.base_url, api_key=api_key)
+        return client, clean_model
+
+    return get_client_for_model(model)
 
 
 def _sanitize_plan(raw: Dict[str, Any]) -> QueryPlan:
@@ -147,17 +161,17 @@ def plan_query(
     goes blind.
     """
     try:
-        client = _get_client(api_key)
-    except ValueError:
+        client, clean_model = _resolve_client(model, api_key)
+    except (ValueError, KeyError, RuntimeError):
         return QueryPlan(intent="FACTUAL_RECALL")
 
     prompt = _PLANNER_PROMPT.format(question=question)
     try:
-        from attestor.llm_trace import traced_create, make_client
+        from attestor.llm_trace import traced_create
         response = traced_create(
             client,
             role="planner",
-            model=model,
+            model=clean_model,
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
         )

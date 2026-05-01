@@ -4,7 +4,10 @@ LOCOMO (Long Conversation Memory) is the industry-standard benchmark
 for evaluating AI agent memory systems. Used by Mem0, Zep, Letta, etc.
 
 Usage:
-    attestor locomo                     # Run with defaults (needs OPENROUTER_API_KEY)
+    attestor locomo                     # Run with defaults — needs the API
+                                        # key for the provider configured in
+                                        # ``configs/attestor.yaml``
+                                        # (``llm.api_key_env``).
     attestor locomo --judge-model claude-haiku  # Cheaper judge
     attestor locomo --data ./locomo10.json       # Use local data file
 
@@ -14,17 +17,17 @@ Requires: poetry add "attestor[extraction]"  (for the LLM judge)
 from __future__ import annotations
 
 import json
-import os
 import statistics
 import tempfile
 import time
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from attestor.core import AgentMemory
 from attestor.mab import token_f1, _upgrade_embeddings_for_benchmark
 from attestor.retrieval.planner import QueryPlan, plan_query
+
 
 def _default_model() -> str:
     """Resolve the LoCoMo benchmark default model from
@@ -34,25 +37,31 @@ def _default_model() -> str:
 
 
 DEFAULT_MODEL = _default_model()
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
-def _get_client(api_key: Optional[str] = None):
-    """Get an OpenAI client configured for OpenRouter."""
-    from openai import OpenAI
+def _resolve_client(model: str) -> Tuple[Any, str]:
+    """Look up the provider client for ``model`` via the LLM pool.
 
-    key = api_key or os.environ.get("OPENROUTER_API_KEY")
-    if not key:
-        raise ValueError(
-            "OPENROUTER_API_KEY not set. Pass api_key or set the env var."
-        )
-    return make_client(base_url=OPENROUTER_BASE_URL, api_key=key)
+    YAML is the source of truth: ``configs/attestor.yaml`` declares the
+    provider map (base_url + api_key_env) and the ``provider/`` prefix
+    in ``model`` selects which one to use. Returns a ``(client,
+    clean_model)`` pair where ``clean_model`` has the prefix stripped —
+    pass that to the SDK.
+    """
+    from attestor.llm_trace import get_client_for_model
+    return get_client_for_model(model)
 
 
-def _chat(client, model: str, prompt: str, max_tokens: int = 200,
-          *, role: str = "locomo.chat") -> str:
+def _chat(
+    client: Any,
+    model: str,
+    prompt: str,
+    max_tokens: int = 200,
+    *,
+    role: str = "locomo.chat",
+) -> str:
     """Send a chat completion request and return the text."""
-    from attestor.llm_trace import traced_create, make_client
+    from attestor.llm_trace import traced_create
     response = traced_create(
         client,
         role=role,
@@ -186,8 +195,8 @@ def _resolve_coreferences(
         conversation=conversation_text,
     )
 
-    client = _get_client(api_key)
-    resolved_text = _chat(client, model, prompt, max_tokens=4096)
+    client, clean_model = _resolve_client(model)
+    resolved_text = _chat(client, clean_model, prompt, max_tokens=4096)
     resolved_lines = [l.strip() for l in resolved_text.split("\n") if l.strip()]
 
     resolved_turns = []
@@ -528,7 +537,7 @@ def answer_question(
 
     results.sort(key=lambda r: r.score, reverse=True)
 
-    client = _get_client(api_key)
+    client, clean_model = _resolve_client(model)
     context, graph_context = _build_context(results, mem, names, speaker_a, speaker_b)
 
     # Reflection loop: check if context is sufficient, do follow-up queries if not
@@ -538,7 +547,7 @@ def answer_question(
             answer="(not yet generated)",
             context=context[:2000],
         )
-        reflection_text = _chat(client, model, reflection_prompt, max_tokens=200)
+        reflection_text = _chat(client, clean_model, reflection_prompt, max_tokens=200)
 
         if "SUFFICIENT" not in reflection_text.upper():
             follow_up_queries = [q.strip() for q in reflection_text.split("\n") if q.strip()]
@@ -562,7 +571,7 @@ def answer_question(
         graph_context=graph_context,
     )
 
-    return _chat(client, model, prompt, max_tokens=100)
+    return _chat(client, clean_model, prompt, max_tokens=100)
 
 
 def judge_answer(
@@ -579,8 +588,8 @@ def judge_answer(
         ai_response=generated,
     )
 
-    client = _get_client(api_key)
-    response_text = _chat(client, model, prompt, max_tokens=300)
+    client, clean_model = _resolve_client(model)
+    response_text = _chat(client, clean_model, prompt, max_tokens=300)
 
     try:
         result = json.loads(response_text)

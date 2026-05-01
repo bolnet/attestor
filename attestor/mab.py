@@ -16,7 +16,6 @@ Requires: poetry add datasets openai  (not included in attestor base deps)
 from __future__ import annotations
 
 import logging
-import os
 import re
 import statistics
 import string
@@ -36,32 +35,24 @@ from attestor.utils.tokens import estimate_tokens
 
 
 def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
-    """Ensure benchmarks use OpenAI text-embedding-3-small via OpenRouter.
+    """Refresh the vector store's embedding function for a benchmark run.
 
-    Benchmarks always use OpenRouter for embeddings — no fallback to local models.
-    Works for all backends (Postgres/pgvector, ArangoDB, Azure, AWS, GCP).
+    Embedding-provider selection is owned by ``configs/attestor.yaml``
+    (see ``attestor/store/embeddings.py`` for auto-detect rules:
+    Pinecone Inference / Voyage / OpenAI / Azure / Bedrock / Vertex /
+    Ollama). This helper just nudges the active vector store to
+    re-initialize its embedder so any provider key set after store
+    construction (e.g. via ``--env-file``) is picked up. No provider key
+    is read here — the underlying embedder factory handles that.
 
-    Raises RuntimeError if OPENROUTER_API_KEY is not set.
+    Works for all backends (Postgres/pgvector, ArangoDB, Azure, AWS,
+    GCP).
     """
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-    if not openrouter_key:
-        raise RuntimeError(
-            "OPENROUTER_API_KEY required for benchmarks. "
-            "Set it in .env or environment."
-        )
-
     vector_store = mem._vector_store
     if vector_store and hasattr(vector_store, "_ensure_embedding_fn"):
-        # Reset so it re-initializes with OpenRouter key
         vector_store._embedding_fn = None
         vector_store._ensure_embedding_fn()
-        if hasattr(vector_store, "_openai_client") or hasattr(vector_store, "_embedder"):
-            logger.info("Benchmark: using upgraded embeddings via OpenRouter")
-        else:
-            raise RuntimeError(
-                "Backend failed to initialize OpenAI embeddings despite "
-                "OPENROUTER_API_KEY being set. Check openai package."
-            )
+        logger.info("Benchmark: re-initialized vector store embedder")
     elif vector_store:
         logger.warning("Benchmark: vector store has no known embedding upgrade path")
 
@@ -635,29 +626,29 @@ def answer_question(
 
     context = "\n".join(r.memory.content for r in results)
 
-    try:
-        from openai import OpenAI
-    except ImportError:
-        return context  # Fallback: raw context
+    # Route through the LLM pool — provider/base_url/api_key_env all come
+    # from ``configs/attestor.yaml`` via the ``provider/`` prefix on the
+    # model id. Any missing provider key surfaces as a RuntimeError from
+    # the pool; we let it propagate so misconfig fails loudly rather
+    # than silently returning raw context.
+    from attestor.llm_trace import get_client_for_model, traced_create
 
-    OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-    key = api_key or os.environ.get("OPENROUTER_API_KEY")
-    if not key:
-        return context  # No API key available
+    try:
+        client, clean_model = get_client_for_model(model)
+    except ImportError:
+        return context  # openai SDK not installed — degrade to raw context.
 
     prompt_template = MAB_EXACT_PROMPT if use_exact else MAB_ANSWER_PROMPT
     prompt = prompt_template.format(context=context, question=question)
-    client = make_client(base_url=OPENROUTER_BASE_URL, api_key=key)
 
     # Retry with exponential backoff on rate limits
     import time as _time
-    from attestor.llm_trace import traced_create, make_client
     for attempt in range(5):
         try:
             response = traced_create(
                 client,
                 role="mab.chat",
-                model=model,
+                model=clean_model,
                 max_tokens=300,
                 messages=[{"role": "user", "content": prompt}],
             )
@@ -825,7 +816,9 @@ def run_mab(
             # Fresh store per example
             with tempfile.TemporaryDirectory() as tmpdir:
                 mem = AgentMemory(tmpdir, config=backend_config)
-                # Use OpenAI embeddings for benchmarking if key available
+                # Refresh the embedder so any provider key set after
+                # store construction is picked up; provider selection
+                # itself is owned by configs/attestor.yaml.
                 _upgrade_embeddings_for_benchmark(mem)
                 mem._retrieval.enable_temporal_boost = False
 

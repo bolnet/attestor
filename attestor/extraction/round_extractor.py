@@ -16,15 +16,16 @@ Both share:
   - source_span citations clamped to the turn's content range
   - Confidence clamped to [0.0, 1.0]
 
-LLM client is injectable so tests can use a stub. By default, builds an
-OpenRouter-backed OpenAI client from OPENROUTER_API_KEY (or OPENAI_API_KEY).
+LLM client is injectable so tests can use a stub. By default, the client
+is resolved via ``attestor.llm_trace.get_client_for_model`` against the
+YAML-configured ``stack.llm.providers`` map — YAML is the sole source of
+truth for provider ``base_url`` / ``api_key_env``.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import os
 from dataclasses import dataclass, field
 from typing import Any, Callable, List, Optional
 
@@ -84,27 +85,19 @@ class ExtractedFact:
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def default_llm_client():
-    """Build an OpenRouter-backed OpenAI client. Raises if no key set.
+def default_llm_client(model: str = DEFAULT_MODEL) -> Any:
+    """Resolve the YAML-configured LLM client for ``model``.
 
-    Tests inject a stub via the `client` parameter on the extract_*
-    functions, so this is only invoked when a real call is needed.
+    Routes through ``attestor.llm_trace.get_client_for_model`` so the
+    provider URL/key come from ``stack.llm.providers`` in
+    ``configs/attestor.yaml`` — never from a hardcoded constant or env
+    fallback. Tests inject a stub via the ``client`` parameter on the
+    ``extract_*`` functions, so this is only invoked when a real call
+    is needed.
     """
-    from attestor.llm_trace import make_client
-
-    or_key = os.environ.get("OPENROUTER_API_KEY")
-    if or_key:
-        return make_client(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=or_key,
-        )
-    oa_key = os.environ.get("OPENAI_API_KEY")
-    if oa_key:
-        return make_client(base_url="https://api.openai.com/v1", api_key=oa_key)
-    raise RuntimeError(
-        "No LLM API key set. Provide OPENROUTER_API_KEY or OPENAI_API_KEY, "
-        "or pass client= explicitly."
-    )
+    from attestor.llm_trace import get_client_for_model
+    client, _clean_model = get_client_for_model(model)
+    return client
 
 
 def _call_llm(
@@ -114,12 +107,20 @@ def _call_llm(
     model: str,
     max_tokens: int,
 ) -> str:
-    """Invoke the LLM and return the raw response text."""
+    """Invoke the LLM and return the raw response text.
+
+    ``model`` may carry a ``provider/`` prefix; we strip it for the
+    request payload because the prefix is just a routing hint for the
+    pool. ``traced_create`` itself also tolerates a prefix, but stripping
+    here keeps trace events labelled with the actual served model id.
+    """
     from attestor.llm_trace import traced_create
+    _, sep, tail = model.partition("/")
+    clean_model = tail if sep else model
     response = traced_create(
         client,
         role="round_extractor",
-        model=model,
+        model=clean_model,
         max_tokens=max_tokens,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -248,7 +249,7 @@ def extract_user_facts(
         user_message=turn.content,
         recent_context_summary=recent_context or "(none)",
     )
-    cli = client or default_llm_client()
+    cli = client or default_llm_client(model)
     raw_text = _call_llm(prompt, client=cli, model=model, max_tokens=max_tokens)
     raw_facts = _parse_facts_payload(raw_text)
 
@@ -289,7 +290,7 @@ def extract_agent_facts(
         assistant_message=turn.content,
         recent_context_summary=recent_context or "(none)",
     )
-    cli = client or default_llm_client()
+    cli = client or default_llm_client(model)
     raw_text = _call_llm(prompt, client=cli, model=model, max_tokens=max_tokens)
     raw_facts = _parse_facts_payload(raw_text)
 

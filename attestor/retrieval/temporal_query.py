@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -157,15 +156,25 @@ class TemporalQueryExpander:
         prompt = TIME_EXTRACTION_PROMPT.format(
             now=ref_now.isoformat(), query=query,
         )
-        client = self._client or _default_client()
-        if client is None:
-            return None
+
+        if self._client is not None:
+            client = self._client
+            # Strip any provider/ prefix when an explicit client was
+            # injected — caller is responsible for picking the right one.
+            _, sep, tail = self._model.partition("/")
+            clean_model = tail if sep else self._model
+        else:
+            resolved = _default_client(self._model)
+            if resolved is None:
+                return None
+            client, clean_model = resolved
+
         try:
-            from attestor.llm_trace import traced_create, make_client
+            from attestor.llm_trace import traced_create
             response = traced_create(
                 client,
                 role="temporal_query",
-                model=self._model,
+                model=clean_model,
                 max_tokens=self._max_tokens,
                 messages=[{"role": "user", "content": prompt}],
             )
@@ -206,19 +215,22 @@ def _parse_window(raw: str) -> Optional[TimeWindow]:
         return None
 
 
-def _default_client() -> Optional[Any]:
-    """Build the same OpenAI/OpenRouter client the extractor uses.
+def _default_client(model: str) -> Optional[tuple[Any, str]]:
+    """Resolve ``(client, clean_model)`` via the YAML-driven LLM pool.
 
-    Returns None if no key set — the expander then no-ops gracefully.
+    YAML is the only source of truth for provider URL/key — no env
+    fallbacks. Returns ``None`` if the ``openai`` package is not
+    installed or the configured provider's API key env var is unset, so
+    the temporal expander degrades gracefully (the orchestrator just
+    skips the temporal pre-filter).
     """
     try:
-        from openai import OpenAI
+        import openai  # noqa: F401 — import-check only
     except ImportError:
         return None
-    or_key = os.environ.get("OPENROUTER_API_KEY")
-    if or_key:
-        return make_client(base_url="https://openrouter.ai/api/v1", api_key=or_key)
-    oa_key = os.environ.get("OPENAI_API_KEY")
-    if oa_key:
-        return make_client(api_key=oa_key)
-    return None
+    try:
+        from attestor.llm_trace import get_client_for_model
+        return get_client_for_model(model)
+    except (ValueError, KeyError, RuntimeError) as e:
+        logger.debug("temporal _default_client: pool resolve failed: %s", e)
+        return None
