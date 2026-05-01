@@ -522,9 +522,13 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         # Check for contradictions before insert
         contradictions = self._temporal.check_contradictions(memory)
 
-        # Insert new memory first (so FK reference is valid)
+        # Insert new memory first (so FK reference is valid).
+        # In v4 mode the document backend assigns a fresh UUID and returns
+        # a new (frozen) Memory; we MUST capture that return so the local
+        # `memory` variable carries the DB-generated id forward to vector
+        # add, graph extract, signing UPDATE, and the caller.
         t0 = time.monotonic()
-        self._store.insert(memory)
+        memory = self._store.insert(memory) or memory
         store_timings["document_ms"] = round((time.monotonic() - t0) * 1000, 2)
         from attestor import trace as _tr
         if _tr.is_enabled():
