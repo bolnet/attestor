@@ -1,15 +1,23 @@
-"""Scoring, deduplication, temporal boost, entity boost, token budget assembly."""
+"""Scoring, deduplication, temporal boost, entity boost, token budget assembly.
+
+All boost functions are PURE: each returns a new list of new RetrievalResult
+instances. The input list and its members are never mutated. This keeps
+chains of boosters reasoning-friendly — no hidden side effects.
+"""
 
 from __future__ import annotations
 
+import logging
+from dataclasses import replace
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
 
 from attestor.models import RetrievalResult
 from attestor.utils.tokens import estimate_tokens
 
+logger = logging.getLogger(__name__)
 
-def deduplicate(results: List[RetrievalResult]) -> List[RetrievalResult]:
+
+def deduplicate(results: list[RetrievalResult]) -> list[RetrievalResult]:
     """Remove duplicate memories, keeping the highest-scored entry."""
     seen: dict[str, RetrievalResult] = {}
     for r in results:
@@ -20,21 +28,22 @@ def deduplicate(results: List[RetrievalResult]) -> List[RetrievalResult]:
 
 
 def confidence_decay_boost(
-    results: List[RetrievalResult],
+    results: list[RetrievalResult],
     decay_rate: float = 0.001,
     boost_rate: float = 0.03,
     gate: float = 0.0,
-) -> List[RetrievalResult]:
+) -> list[RetrievalResult]:
     """Apply time-based decay and access-based boost to scores.
 
     - decay_rate: confidence lost per hour since last access (default 0.001 = floor in ~41 days)
     - boost_rate: confidence gained per access (default 0.03)
     - gate: minimum confidence to keep in results (0.0 = no filtering)
 
-    Modifies the RetrievalResult.score, not the stored Memory.confidence.
+    Returns a NEW list of NEW RetrievalResult instances; never raises on
+    malformed timestamps (logged at DEBUG level instead).
     """
     now = datetime.now(timezone.utc)
-    out: List[RetrievalResult] = []
+    out: list[RetrievalResult] = []
     for r in results:
         # Determine reference time for decay
         ref_time_str = r.memory.last_accessed or r.memory.created_at
@@ -43,7 +52,12 @@ def confidence_decay_boost(
             if ref_time.tzinfo is None:
                 ref_time = ref_time.replace(tzinfo=timezone.utc)
             hours_since = max(0.0, (now - ref_time).total_seconds() / 3600.0)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logger.debug(
+                "confidence_decay: malformed ref_time on memory %s: %s",
+                r.memory.id,
+                e,
+            )
             hours_since = 0.0
 
         access_count = r.memory.access_count or 0
@@ -58,29 +72,27 @@ def confidence_decay_boost(
             continue
 
         # Apply confidence as a multiplier on the existing score
-        out.append(
-            RetrievalResult(
-                memory=r.memory,
-                score=r.score * conf,
-                match_source=r.match_source,
-            )
-        )
+        out.append(replace(r, score=r.score * conf))
     return out
 
 
 def temporal_boost(
-    results: List[RetrievalResult],
+    results: list[RetrievalResult],
     decay_days: int = 90,
     enabled: bool = True,
-) -> List[RetrievalResult]:
+) -> list[RetrievalResult]:
     """Boost scores for more recent memories.
 
-    Can be disabled for benchmark data spanning long time periods.
+    Can be disabled for benchmark data spanning long time periods. Returns a
+    NEW list of NEW RetrievalResult instances (or the input list unchanged
+    when disabled — callers should still treat it as immutable).
     """
     if not enabled:
-        return results
+        return list(results)
     now = datetime.now(timezone.utc)
+    out: list[RetrievalResult] = []
     for r in results:
+        boost = 0.0
         try:
             created = datetime.fromisoformat(r.memory.created_at)
             if created.tzinfo is None:
@@ -88,59 +100,63 @@ def temporal_boost(
             age_days = (now - created).days
             # Linear decay: full boost at 0 days, no boost after decay_days
             boost = max(0.0, 1.0 - (age_days / decay_days)) * 0.2
-            r.score += boost
-        except (ValueError, TypeError):
-            pass
-    return results
+        except (ValueError, TypeError) as e:
+            logger.debug(
+                "temporal_boost: malformed created_at on memory %s: %s",
+                r.memory.id,
+                e,
+            )
+        out.append(replace(r, score=r.score + boost))
+    return out
 
 
 def entity_boost(
-    results: List[RetrievalResult], query_entities: Optional[List[str]] = None
-) -> List[RetrievalResult]:
+    results: list[RetrievalResult],
+    query_entities: list[str] | None = None,
+) -> list[RetrievalResult]:
     """Boost score if memory entity or content matches query entities.
 
-    Checks both the entity field (strong match) and content substring (weaker match).
+    Checks both the entity field (strong match) and content substring (weaker
+    match). Returns a NEW list of NEW RetrievalResult instances.
     """
     if not query_entities:
-        return results
+        return list(results)
     query_entities_lower = {e.lower() for e in query_entities}
+    out: list[RetrievalResult] = []
     for r in results:
+        delta = 0.0
         # Strong boost: entity field exact match
         if r.memory.entity and r.memory.entity.lower() in query_entities_lower:
-            r.score += 0.3
-        # Weaker boost: entity name appears in content
+            delta = 0.3
         else:
+            # Weaker boost: entity name appears in content
             content_lower = r.memory.content.lower()
             for ent in query_entities_lower:
                 if len(ent) >= 3 and ent in content_lower:
-                    r.score += 0.15
+                    delta = 0.15
                     break
-    return results
+        out.append(replace(r, score=r.score + delta))
+    return out
 
 
 def pagerank_boost(
-    results: List[RetrievalResult],
-    pagerank_scores: Dict[str, float],
+    results: list[RetrievalResult],
+    pagerank_scores: dict[str, float],
     weight: float = 0.3,
-) -> List[RetrievalResult]:
+) -> list[RetrievalResult]:
     """Boost scores based on PageRank centrality of memory entities.
 
     Memories about high-PageRank entities are more structurally important.
+    Returns a NEW list of NEW RetrievalResult instances.
     """
     if not pagerank_scores:
-        return results
-    out: List[RetrievalResult] = []
+        return list(results)
+    out: list[RetrievalResult] = []
     for r in results:
         pr = 0.0
         if r.memory.entity:
             pr = pagerank_scores.get(r.memory.entity.lower(), 0.0)
-        out.append(
-            RetrievalResult(
-                memory=r.memory,
-                score=r.score + weight * pr,
-                match_source=r.match_source,
-            )
-        )
+        out.append(replace(r, score=r.score + weight * pr))
     return out
 
 
@@ -156,21 +172,23 @@ def _jaccard_similarity(text_a: str, text_b: str) -> float:
 
 
 def mmr_rerank(
-    results: List[RetrievalResult],
+    results: list[RetrievalResult],
     lambda_param: float = 0.7,
     max_results: int = 10,
-) -> List[RetrievalResult]:
+) -> list[RetrievalResult]:
     """Maximal Marginal Relevance reranking for diverse retrieval.
 
-    Balances relevance (lambda) vs diversity (1 - lambda).
-    Uses Jaccard word-overlap similarity to penalize near-duplicates.
+    Balances relevance (lambda) vs diversity (1 - lambda). Uses Jaccard
+    word-overlap similarity to penalize near-duplicates. Returns a new list
+    (the existing RetrievalResult instances are reused — no score mutation,
+    so the original list's order is the only thing that changes).
     """
     if len(results) <= 1:
-        return results
+        return list(results)
 
     # Sort by score descending as candidates
     candidates = sorted(results, key=lambda r: r.score, reverse=True)
-    selected: List[RetrievalResult] = [candidates[0]]
+    selected: list[RetrievalResult] = [candidates[0]]
     remaining = candidates[1:]
 
     while remaining and len(selected) < max_results:
@@ -194,12 +212,12 @@ def mmr_rerank(
 
 
 def fit_to_budget(
-    results: List[RetrievalResult], token_budget: int
-) -> List[RetrievalResult]:
+    results: list[RetrievalResult], token_budget: int
+) -> list[RetrievalResult]:
     """Select highest-scored results that fit within token budget."""
     # Sort by score descending
     sorted_results = sorted(results, key=lambda r: r.score, reverse=True)
-    selected = []
+    selected: list[RetrievalResult] = []
     tokens_used = 0
     for r in sorted_results:
         t = estimate_tokens(r.memory.content)

@@ -11,10 +11,8 @@ This is the canonical regulator/audit case from the README:
 from __future__ import annotations
 
 import os
-import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlparse
 
 import pytest
 

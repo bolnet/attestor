@@ -45,7 +45,7 @@ import re
 import threading
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 
 # Patterns that flag a model as requiring `max_completion_tokens` instead of
@@ -58,7 +58,7 @@ from typing import Any, Dict, Optional, Tuple
 #
 # Any model NOT matching these (gpt-4o, gpt-4.1, claude-*, embedders, etc.)
 # falls through to the legacy ``max_tokens`` path.
-_MAX_COMPLETION_TOKENS_PATTERNS: Tuple[re.Pattern[str], ...] = (
+_MAX_COMPLETION_TOKENS_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^gpt-5\.5"),
     re.compile(r"^gpt-([6-9]|\d{2,})"),
     re.compile(r"^o[1-9]"),
@@ -144,7 +144,7 @@ class LLMClientPool:
 
     def __init__(
         self,
-        strategies: Dict[str, LLMProviderStrategy],
+        strategies: dict[str, LLMProviderStrategy],
         default: str,
     ) -> None:
         if not strategies:
@@ -154,9 +154,9 @@ class LLMClientPool:
                 f"default provider {default!r} not in strategies "
                 f"{sorted(strategies)}"
             )
-        self._strategies: Dict[str, LLMProviderStrategy] = dict(strategies)
+        self._strategies: dict[str, LLMProviderStrategy] = dict(strategies)
         self._default: str = default
-        self._clients: Dict[str, Any] = {}
+        self._clients: dict[str, Any] = {}
         self._lock = threading.RLock()
 
     def client_for(self, name: str) -> Any:
@@ -192,7 +192,7 @@ class LLMClientPool:
         return self._strategies[self._default]
 
     @property
-    def providers(self) -> Tuple[str, ...]:
+    def providers(self) -> tuple[str, ...]:
         """Sorted tuple of known provider names — handy for error
         messages and tests."""
         return tuple(sorted(self._strategies))
@@ -204,7 +204,7 @@ class LLMClientPool:
 # (the legacy single-provider path is the fallback). ``_reset_client_pool``
 # exists for tests that need to reload config between cases.
 
-_pool_singleton: Optional[LLMClientPool] = None
+_pool_singleton: LLMClientPool | None = None
 _singleton_lock = threading.RLock()
 
 
@@ -227,7 +227,7 @@ def _build_pool_from_config() -> LLMClientPool:
 
     providers_map = getattr(cfg, "providers", None)
     if providers_map:
-        strategies: Dict[str, LLMProviderStrategy] = {
+        strategies: dict[str, LLMProviderStrategy] = {
             name: LLMProviderStrategy(
                 name=name,
                 base_url=p.base_url,
@@ -266,7 +266,7 @@ def _reset_client_pool() -> None:
         _pool_singleton = None
 
 
-def get_client_for_model(model: str) -> Tuple[Any, str]:
+def get_client_for_model(model: str) -> tuple[Any, str]:
     """Resolve ``model`` to an ``(OpenAI client, clean_model)`` pair.
 
     Splits ``model`` on the first ``/``. If the prefix matches a known
@@ -321,6 +321,13 @@ def traced_create(
     edit lifts every site at once. Caller-provided values are used as
     fallbacks when the YAML doesn't have an entry for the role.
 
+    Defense-in-depth deadlines: callers may pass ``timeout=<seconds>``
+    and ``max_retries=<N>`` even when the underlying client already
+    has them — ``timeout`` flows through as a per-request override,
+    ``max_retries`` is applied via ``client.with_options(...)`` because
+    the OpenAI SDK exposes it at the client level, not per call. Either
+    kwarg may be omitted; defaults come from ``make_client``.
+
     Wraps the API call in a try/except so a tracing / config failure
     doesn't bring down the actual chat call — telemetry must never
     break the user-facing path.
@@ -356,8 +363,20 @@ def traced_create(
     except Exception:  # noqa: BLE001 — translation is best-effort
         pass
 
+    # Pull max_retries out of create_kwargs and apply at the client
+    # level via ``with_options`` (the OpenAI SDK doesn't accept it as a
+    # per-request kwarg). ``timeout`` is a valid per-request override
+    # and flows through unchanged.
+    max_retries = create_kwargs.pop("max_retries", None)
+    invocation_client = client
+    if max_retries is not None:
+        try:
+            invocation_client = client.with_options(max_retries=max_retries)
+        except Exception:  # noqa: BLE001 — older clients may lack with_options
+            pass
+
     t0 = time.monotonic()
-    response = client.chat.completions.create(**create_kwargs)
+    response = invocation_client.chat.completions.create(**create_kwargs)
     latency_ms = round((time.monotonic() - t0) * 1000, 2)
 
     try:

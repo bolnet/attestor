@@ -89,8 +89,10 @@ stack:
   # this file.
   llm:
     # Legacy single-provider mode — used when `providers:` is absent or
-    # empty. Kept for back-compat with older configs.
-    provider: openai
+    # empty. Kept for back-compat with older configs. Set to a provider
+    # whose api_key_env is populated; the multi-provider map below
+    # actually drives runtime routing.
+    provider: openrouter
 
     providers:
       openai:
@@ -123,15 +125,15 @@ stack:
   # ─── Models (per-role assignment) ────────────────────────────────────
   models:
     # Answerer — synthesises the final reply from retrieved context.
-    answerer: openai/gpt-5.5
+    answerer: openrouter/openai/gpt-5.5
 
     # Judge — single-judge accuracy verdict.
-    judge: openai/gpt-5.5
+    judge: openrouter/openai/gpt-5.5
 
     # Extraction / distillation — runs once per turn during ingest to
     # pull explicit facts out of the conversation.
-    extraction: openai/gpt-5.5
-    distill:    openai/gpt-5.5
+    extraction: openrouter/openai/gpt-5.5
+    distill:    openrouter/openai/gpt-5.5
 
     # Verifier — second-pass cross-check after Judge. Anthropic
     # complements OpenAI for cross-model validation.
@@ -144,7 +146,7 @@ stack:
     # Generic CLI default — used when an ad-hoc command (e.g.
     # `attestor locomo`) is invoked without an explicit `--model` flag
     # and no specific role applies.
-    benchmark_default: openai/gpt-5.5
+    benchmark_default: openrouter/openai/gpt-5.5
 
     # ─── Reasoning effort (gpt-5.x reasoning-model param) ──────────────
     # Higher effort = more internal CoT tokens spent before the visible
@@ -191,6 +193,26 @@ stack:
     vector_top_k: 50
     # mmr_top_n: 50    # uncomment to cap; default = no cap
 
+    # Score-blending — applied per candidate in the graph-narrow step.
+    # ``mmr_lambda`` controls the MMR rerank's diversity-vs-relevance
+    # trade-off (1.0 = pure relevance, 0.0 = pure diversity). The
+    # ``vector_weight`` / ``graph_weight`` pair are independent
+    # multipliers on the normalized vector similarity and the graph
+    # affinity bonus respectively — they don't have to sum to 1.
+    # The ``graph_affinity_bonus`` map is per-hop additive (hop 0 = the
+    # candidate IS a question entity); the ``unreachable_penalty``
+    # applies when a candidate's entity isn't reachable from any
+    # question entity within depth 2. All defaults match the historical
+    # literals in attestor/retrieval/orchestrator.py.
+    mmr_lambda: 0.7
+    vector_weight: 0.7
+    graph_weight: 0.3
+    graph_affinity_bonus:
+      0: 0.30
+      1: 0.20
+      2: 0.10
+    graph_unreachable_penalty: -0.05
+
     # Multi-query lane. When enabled, the orchestrator rewrites the
     # question into N paraphrases via a single LLM call and RRF-merges
     # N+1 vector searches before the rest of the cascade.
@@ -226,7 +248,11 @@ stack:
   budget: 4000   # tokens for the pack sent to the answerer
 
   # Concurrency for bulk operations across samples.
-  parallel: 16
+  # Set to 1 to serialize sample workers — Pinecone Local index creation
+  # has a race condition under concurrent init (409 ALREADY_EXISTS), and
+  # the degraded path then hangs. Bump back up once the backend's
+  # create-or-use logic is idempotent.
+  parallel: 1
 
   # Self-consistency answerer. When enabled, the answerer draws K
   # independent samples at non-zero temperature and elects the

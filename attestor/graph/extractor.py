@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # Patterns for extracting relationships from memory content
 _RELATION_PATTERNS = [
@@ -33,11 +33,11 @@ _CATEGORY_TYPE_MAP = {
 
 def extract_entities_and_relations(
     content: str,
-    tags: List[str],
-    entity: Optional[str],
+    tags: list[str],
+    entity: str | None,
     category: str,
-    namespace: Optional[str] = None,
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    namespace: str | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Extract entities and relations from a memory's content and metadata.
 
     Returns (nodes, edges) where:
@@ -49,19 +49,19 @@ def extract_entities_and_relations(
     ``namespace`` is ``None`` the field is omitted from each dict (the
     backend treats absent values as ``"default"`` via coalesce on read).
     """
-    nodes: List[Dict[str, Any]] = []
-    edges: List[Dict[str, Any]] = []
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
 
-    def _node(name: str, type_: str, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        out: Dict[str, Any] = {"name": name, "type": type_, "attributes": attributes}
+    def _node(name: str, type_: str, attributes: dict[str, Any]) -> dict[str, Any]:
+        out: dict[str, Any] = {"name": name, "type": type_, "attributes": attributes}
         if namespace is not None:
             out["namespace"] = namespace
         return out
 
     def _edge(
-        from_: str, to: str, type_: str, metadata: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        out: Dict[str, Any] = {
+        from_: str, to: str, type_: str, metadata: dict[str, Any],
+    ) -> dict[str, Any]:
+        out: dict[str, Any] = {
             "from": from_, "to": to, "type": type_, "metadata": metadata,
         }
         if namespace is not None:

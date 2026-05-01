@@ -17,10 +17,9 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("attestor.retrieval.temporal_query")
 
@@ -61,8 +60,8 @@ class TimeWindow:
     useful for debugging traces and audit logs.
     """
 
-    start: Optional[datetime]
-    end: Optional[datetime]
+    start: datetime | None
+    end: datetime | None
     interpretation: str = ""
 
     def __post_init__(self) -> None:
@@ -86,7 +85,7 @@ class TimeWindow:
         return self.start is None and self.end is None
 
 
-def _parse_iso(s: Optional[str]) -> Optional[datetime]:
+def _parse_iso(s: str | None) -> datetime | None:
     """Best-effort ISO 8601 → datetime. Returns None on failure or 'null'."""
     if s is None:
         return None
@@ -134,9 +133,9 @@ class TemporalQueryExpander:
 
     def __init__(
         self,
-        client: Optional[Any] = None,
+        client: Any | None = None,
         *,
-        model: Optional[str] = None,
+        model: str | None = None,
         max_tokens: int = 256,
     ) -> None:
         self._client = client
@@ -147,8 +146,8 @@ class TemporalQueryExpander:
         self._max_tokens = max_tokens
 
     def expand(
-        self, query: str, now: Optional[datetime] = None,
-    ) -> Optional[TimeWindow]:
+        self, query: str, now: datetime | None = None,
+    ) -> TimeWindow | None:
         """Return a TimeWindow if the query has a time constraint, else None."""
         if not query or not query.strip():
             return None
@@ -185,7 +184,7 @@ class TemporalQueryExpander:
         return _parse_window(raw)
 
 
-def _parse_window(raw: str) -> Optional[TimeWindow]:
+def _parse_window(raw: str) -> TimeWindow | None:
     """Parse a TIME_EXTRACTION_PROMPT response into a TimeWindow or None."""
     text = _strip_markdown_fences(raw)
     if not text:
@@ -215,7 +214,7 @@ def _parse_window(raw: str) -> Optional[TimeWindow]:
         return None
 
 
-def _default_client(model: str) -> Optional[tuple[Any, str]]:
+def _default_client(model: str) -> tuple[Any, str] | None:
     """Resolve ``(client, clean_model)`` via the YAML-driven LLM pool.
 
     YAML is the only source of truth for provider URL/key — no env

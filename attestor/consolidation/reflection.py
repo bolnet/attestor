@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from attestor.extraction.round_extractor import (
     DEFAULT_MAX_TOKENS,
@@ -72,7 +72,7 @@ Output:
 class StablePattern:
     """A stable preference or constraint backed by evidence."""
     text: str
-    evidence: List[str]
+    evidence: list[str]
     confidence: float
 
 
@@ -87,25 +87,25 @@ class ChangedBelief:
 @dataclass(frozen=True)
 class Contradiction:
     """Same predicate, conflicting values — for human review only."""
-    facts: List[str]
+    facts: list[str]
     rationale: str
 
 
 @dataclass(frozen=True)
 class ReflectionResult:
     """Output of one reflect() call. Empty lists on LLM failure."""
-    stable_preferences: List[StablePattern] = field(default_factory=list)
-    stable_constraints: List[StablePattern] = field(default_factory=list)
-    changed_beliefs: List[ChangedBelief] = field(default_factory=list)
-    contradictions_for_review: List[Contradiction] = field(default_factory=list)
-    error: Optional[str] = None
+    stable_preferences: list[StablePattern] = field(default_factory=list)
+    stable_constraints: list[StablePattern] = field(default_factory=list)
+    changed_beliefs: list[ChangedBelief] = field(default_factory=list)
+    contradictions_for_review: list[Contradiction] = field(default_factory=list)
+    error: str | None = None
 
     @property
     def total_patterns(self) -> int:
         return len(self.stable_preferences) + len(self.stable_constraints)
 
 
-def _fact_to_dict(m: Memory) -> Dict[str, Any]:
+def _fact_to_dict(m: Memory) -> dict[str, Any]:
     return {
         "id": m.id,
         "content": m.content,
@@ -117,8 +117,8 @@ def _fact_to_dict(m: Memory) -> Dict[str, Any]:
     }
 
 
-def _parse_pattern_list(raw: Any) -> List[StablePattern]:
-    out: List[StablePattern] = []
+def _parse_pattern_list(raw: Any) -> list[StablePattern]:
+    out: list[StablePattern] = []
     if not isinstance(raw, list):
         return out
     for entry in raw:
@@ -143,8 +143,8 @@ def _parse_pattern_list(raw: Any) -> List[StablePattern]:
     return out
 
 
-def _parse_changed_list(raw: Any) -> List[ChangedBelief]:
-    out: List[ChangedBelief] = []
+def _parse_changed_list(raw: Any) -> list[ChangedBelief]:
+    out: list[ChangedBelief] = []
     if not isinstance(raw, list):
         return out
     for entry in raw:
@@ -161,8 +161,8 @@ def _parse_changed_list(raw: Any) -> List[ChangedBelief]:
     return out
 
 
-def _parse_contradictions(raw: Any) -> List[Contradiction]:
-    out: List[Contradiction] = []
+def _parse_contradictions(raw: Any) -> list[Contradiction]:
+    out: list[Contradiction] = []
     if not isinstance(raw, list):
         return out
     for entry in raw:
@@ -188,7 +188,7 @@ class ReflectionEngine:
 
     def __init__(
         self,
-        client: Optional[Any] = None,
+        client: Any | None = None,
         *,
         model: str = DEFAULT_MODEL,
         max_tokens: int = DEFAULT_MAX_TOKENS,
@@ -198,7 +198,7 @@ class ReflectionEngine:
         self._max_tokens = max_tokens
 
     def reflect(
-        self, facts: List[Memory], *, user_id: str = "(unknown)",
+        self, facts: list[Memory], *, user_id: str = "(unknown)",
     ) -> ReflectionResult:
         """Synthesize patterns from a fact set. Empty/error → empty result."""
         if not facts:

@@ -7,7 +7,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import pytest
 
@@ -20,7 +20,6 @@ except ImportError:
 from attestor.consolidation.session_end import (
     SESSION_PROMOTION_PROMPT,
     VALID_PROMOTIONS,
-    AppliedPromotion,
     PromotionDecision,
     apply_promotions,
     decide_promotions,

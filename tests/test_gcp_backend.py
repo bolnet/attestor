@@ -102,7 +102,7 @@ class TestGCPBackendConnectorPath:
                     # Mock _init_schema and _init_age to avoid real DB calls
                     with patch.object(GCPBackend, "_init_schema"), \
                          patch.object(GCPBackend, "_init_age"):
-                        backend = GCPBackend({
+                        GCPBackend({
                             "project_id": "my-project",
                             "region": "us-central1",
                             "cluster": "my-cluster",
@@ -179,7 +179,7 @@ class TestGCPBackendPsycopgFallback:
                 "database": "testdb",
             }
             try:
-                backend = GCPBackend(config)
+                GCPBackend(config)
             except Exception:
                 pass
             # Parent __init__ should have been called

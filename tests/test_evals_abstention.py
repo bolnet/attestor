@@ -7,18 +7,17 @@ isolation.
 
 from __future__ import annotations
 
-from typing import Any, List
 
 import pytest
 
 from evals.abstention.detector import (
-    DEFAULT_ABSTENTION_PATTERNS, is_abstention, make_detector,
+    is_abstention, make_detector,
 )
 from evals.abstention.runner import (
     DefaultDatasetLoader, _run_one, run, summarize,
 )
 from evals.abstention.scorer import (
-    _answer_matches, _confusion, aggregate, score_prediction,
+    _answer_matches, aggregate, score_prediction,
 )
 from evals.abstention.types import (
     AbstentionMetrics, AbstentionPrediction, AbstentionRunReport,

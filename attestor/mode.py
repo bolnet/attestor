@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import os
 from enum import Enum
-from typing import Optional
 
 
 class AttestorMode(str, Enum):
@@ -36,7 +35,7 @@ class AttestorMode(str, Enum):
 _TRUE = {"1", "true", "True", "yes", "YES"}
 
 
-def detect_mode(env: Optional[dict] = None) -> AttestorMode:
+def detect_mode(env: dict | None = None) -> AttestorMode:
     """Determine the operating mode from environment variables.
 
     Args:

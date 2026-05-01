@@ -5,7 +5,6 @@ Mirrors `tests/test_self_consistency_config.py` (the closest sibling).
 
 from __future__ import annotations
 
-from pathlib import Path
 
 import pytest
 

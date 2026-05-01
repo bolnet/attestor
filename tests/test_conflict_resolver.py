@@ -14,14 +14,13 @@ Stub-LLM driven. Verifies:
 from __future__ import annotations
 
 import json
-from typing import Any, List
+from typing import Any
 
 import pytest
 
 from attestor.extraction.conflict_resolver import (
     VALID_OPERATIONS,
     Decision,
-    _bind_decisions,
     _coerce,
     _parse_decisions_payload,
     resolve_conflicts,

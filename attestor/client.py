@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import urllib.request
 import urllib.error
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from attestor.models import Memory, RetrievalResult
 
@@ -31,7 +31,7 @@ class MemoryClient:
         base_url: str,
         agent_id: str = "anonymous",
         timeout: float = 10.0,
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.agent_id = agent_id
@@ -42,7 +42,7 @@ class MemoryClient:
             **(headers or {}),
         }
 
-    def _post(self, path: str, body: Dict[str, Any]) -> Any:
+    def _post(self, path: str, body: dict[str, Any]) -> Any:
         """POST JSON to the API and return parsed response data."""
         url = f"{self.base_url}{path}"
         data = json.dumps(body).encode()
@@ -70,15 +70,15 @@ class MemoryClient:
     def add(
         self,
         content: str,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         category: str = "general",
-        entity: Optional[str] = None,
-        event_date: Optional[str] = None,
+        entity: str | None = None,
+        event_date: str | None = None,
         confidence: float = 1.0,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Memory:
         """Add a memory via the HTTP API."""
-        body: Dict[str, Any] = {
+        body: dict[str, Any] = {
             "content": content,
             "tags": tags or [],
             "category": category,
@@ -101,15 +101,15 @@ class MemoryClient:
     def recall(
         self,
         query: str,
-        budget: Optional[int] = None,
-        namespace: Optional[str] = None,
-    ) -> List[RetrievalResult]:
+        budget: int | None = None,
+        namespace: str | None = None,
+    ) -> list[RetrievalResult]:
         """Recall memories via the HTTP API.
 
         ``namespace`` is forwarded to the server so namespace-scoped recall
         works over HTTP (parity with the embedded ``AgentMemory.recall``).
         """
-        body: Dict[str, Any] = {"query": query}
+        body: dict[str, Any] = {"query": query}
         if budget:
             body["budget"] = budget
         if namespace is not None:
@@ -129,8 +129,8 @@ class MemoryClient:
     def recall_as_context(
         self,
         query: str,
-        budget: Optional[int] = None,
-        namespace: Optional[str] = None,
+        budget: int | None = None,
+        namespace: str | None = None,
     ) -> str:
         """Recall and format as context string."""
         results = self.recall(query, budget=budget, namespace=namespace)
@@ -141,12 +141,12 @@ class MemoryClient:
             lines.append(f"- [{r.match_source}:{r.score:.2f}] {r.memory.content}")
         return "\n".join(lines)
 
-    def search(self, **kwargs: Any) -> List[Memory]:
+    def search(self, **kwargs: Any) -> list[Memory]:
         """Search memories with filters."""
         data = self._post("/search", kwargs)
         return [Memory.from_row(item) for item in data]
 
-    def get(self, memory_id: str) -> Optional[Memory]:
+    def get(self, memory_id: str) -> Memory | None:
         """Get a specific memory by ID."""
         try:
             data = self._get(f"/memory/{memory_id}")
@@ -154,7 +154,7 @@ class MemoryClient:
         except (urllib.error.HTTPError, RuntimeError):
             return None
 
-    def timeline(self, entity: str) -> List[Memory]:
+    def timeline(self, entity: str) -> list[Memory]:
         """Get chronological history for an entity."""
         data = self._post("/timeline", {"entity": entity})
         return [Memory.from_row(item) for item in data]
@@ -164,11 +164,11 @@ class MemoryClient:
         data = self._post("/forget", {"memory_id": memory_id})
         return data.get("forgotten", False)
 
-    def health(self) -> Dict[str, Any]:
+    def health(self) -> dict[str, Any]:
         """Check backend health."""
         return self._get("/health")
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         """Get store statistics."""
         return self._get("/stats")
 

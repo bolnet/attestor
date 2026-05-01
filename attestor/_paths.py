@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from . import _branding as brand
 
@@ -23,7 +22,7 @@ def _default_store() -> Path:
     return Path.home() / brand.DEFAULT_STORE_DIRNAME
 
 
-def resolve_store_path(override: Optional[str] = None) -> str:
+def resolve_store_path(override: str | None = None) -> str:
     """Resolve the memory store path.
 
     Precedence: ``override`` → ``$ATTESTOR_PATH`` → ``~/.attestor``.
@@ -38,7 +37,7 @@ def resolve_store_path(override: Optional[str] = None) -> str:
     return str(_default_store())
 
 
-def resolve_data_dir(override: Optional[str] = None) -> str:
+def resolve_data_dir(override: str | None = None) -> str:
     """Resolve the deployed-service data dir (Docker, App Runner, API).
 
     Precedence: ``override`` → ``$ATTESTOR_DATA_DIR`` → ``~/.attestor``.

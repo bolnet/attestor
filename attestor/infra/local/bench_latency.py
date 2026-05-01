@@ -23,7 +23,8 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 
 DEFAULT_TARGET: str = "http://localhost:8080"

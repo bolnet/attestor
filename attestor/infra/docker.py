@@ -11,7 +11,6 @@ import logging
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import Dict
 
 from attestor import _branding as brand
 from attestor.store._extras import require_extra
@@ -55,7 +54,7 @@ class DockerManager:
         backend_name: str,
         image: str,
         port: int,
-        env: Dict[str, str],
+        env: dict[str, str],
     ) -> ContainerInfo:
         """Start the container if not running; return its :class:`ContainerInfo`."""
         if not self._is_running(backend_name):
@@ -94,7 +93,7 @@ class DockerManager:
         backend_name: str,
         image: str,
         port: int,
-        env: Dict[str, str],
+        env: dict[str, str],
     ) -> None:
         name = self.container_name(backend_name)
         client = self._get_client()

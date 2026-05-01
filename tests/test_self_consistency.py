@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -45,7 +45,7 @@ def _mk_response(text: str) -> Any:
     return response
 
 
-def _client_returning(answers: List[str]) -> MagicMock:
+def _client_returning(answers: list[str]) -> MagicMock:
     """Build a MagicMock OpenAI client whose chat.completions.create
     returns successive answers from ``answers`` on each call."""
     client = MagicMock()

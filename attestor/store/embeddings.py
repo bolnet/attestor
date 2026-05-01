@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 logger = logging.getLogger("attestor")
 
@@ -38,9 +38,9 @@ class EmbeddingProvider(Protocol):
     @property
     def provider_name(self) -> str: ...
 
-    def embed(self, text: str) -> List[float]: ...
+    def embed(self, text: str) -> list[float]: ...
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]: ...
+    def embed_batch(self, texts: list[str]) -> list[list[float]]: ...
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -59,23 +59,27 @@ class OpenAIEmbeddingProvider:
     def __init__(
         self,
         api_key: str,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         model: str = "text-embedding-3-large",
-        dimensions: Optional[int] = None,
+        dimensions: int | None = None,
     ) -> None:
         from openai import OpenAI
 
-        kwargs: Dict[str, Any] = {"api_key": api_key}
+        kwargs: dict[str, Any] = {"api_key": api_key}
         if base_url:
             kwargs["base_url"] = base_url
         self._client = OpenAI(**kwargs)
         self._model = model
         self._dimensions = dimensions
-        resp = self._client.embeddings.create(**self._create_kwargs(["dim"]))
+        # Send a single trivial token to probe the embedding dimension.
+        # We can't use the embed() public API because the cache key
+        # would pollute downstream stores; "x" is shorter than "dim"
+        # and conveys nothing about the codebase.
+        resp = self._client.embeddings.create(**self._create_kwargs(["x"]))
         self._dimension = len(resp.data[0].embedding)
 
-    def _create_kwargs(self, texts: List[str]) -> Dict[str, Any]:
-        kwargs: Dict[str, Any] = {"input": texts, "model": self._model}
+    def _create_kwargs(self, texts: list[str]) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {"input": texts, "model": self._model}
         if self._dimensions is not None:
             kwargs["dimensions"] = self._dimensions
         return kwargs
@@ -88,11 +92,11 @@ class OpenAIEmbeddingProvider:
     def provider_name(self) -> str:
         return "openai"
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         resp = self._client.embeddings.create(**self._create_kwargs([text]))
         return resp.data[0].embedding
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         resp = self._client.embeddings.create(**self._create_kwargs(texts))
         return [d.embedding for d in resp.data]
 
@@ -115,8 +119,8 @@ class OllamaEmbeddingProvider:
 
     def __init__(
         self,
-        model: Optional[str] = None,
-        host: Optional[str] = None,
+        model: str | None = None,
+        host: str | None = None,
         timeout: float = 30.0,
     ) -> None:
         import requests
@@ -139,7 +143,7 @@ class OllamaEmbeddingProvider:
     def provider_name(self) -> str:
         return f"ollama:{self._model}"
 
-    def _raw_embed(self, text: str) -> List[float]:
+    def _raw_embed(self, text: str) -> list[float]:
         # Ollama's /api/embeddings returns {"embedding": [...]}; the newer
         # /api/embed returns {"embeddings": [[...]]} for batch. Use the
         # singular endpoint for consistency across versions.
@@ -157,10 +161,10 @@ class OllamaEmbeddingProvider:
             )
         return emb
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         return self._raw_embed(text)
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         # Ollama doesn't batch on the /api/embeddings endpoint. Use the
         # newer /api/embed if available; fall back to per-text loop.
         try:
@@ -184,7 +188,7 @@ class BedrockEmbeddingProvider:
 
     def __init__(
         self,
-        region: Optional[str] = None,
+        region: str | None = None,
         model_id: str = "amazon.titan-embed-text-v2:0",
     ) -> None:
         import boto3
@@ -206,7 +210,7 @@ class BedrockEmbeddingProvider:
     def provider_name(self) -> str:
         return "bedrock"
 
-    def _raw_embed(self, text: str) -> List[float]:
+    def _raw_embed(self, text: str) -> list[float]:
         body = self._json.dumps({"inputText": text})
         resp = self._client.invoke_model(
             modelId=self._model_id,
@@ -217,10 +221,10 @@ class BedrockEmbeddingProvider:
         result = self._json.loads(resp["body"].read())
         return result["embedding"]
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         return self._raw_embed(text)
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         return [self._raw_embed(t) for t in texts]
 
 
@@ -229,8 +233,8 @@ class AzureOpenAIEmbeddingProvider:
 
     def __init__(
         self,
-        endpoint: Optional[str] = None,
-        api_key: Optional[str] = None,
+        endpoint: str | None = None,
+        api_key: str | None = None,
         deployment: str = "text-embedding-3-small",
     ) -> None:
         from openai import AzureOpenAI
@@ -239,7 +243,7 @@ class AzureOpenAIEmbeddingProvider:
         if not endpoint:
             raise ValueError("Azure OpenAI endpoint required")
 
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "azure_endpoint": endpoint,
             "api_version": "2024-02-01",
         }
@@ -274,11 +278,11 @@ class AzureOpenAIEmbeddingProvider:
     def provider_name(self) -> str:
         return "azure_openai"
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         resp = self._client.embeddings.create(input=[text], model=self._deployment)
         return resp.data[0].embedding
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         resp = self._client.embeddings.create(input=texts, model=self._deployment)
         return [d.embedding for d in resp.data]
 
@@ -302,9 +306,9 @@ class VoyageEmbeddingProvider:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        dimensions: Optional[int] = None,
+        api_key: str | None = None,
+        model: str | None = None,
+        dimensions: int | None = None,
         input_type: str = "document",
     ) -> None:
         try:
@@ -336,7 +340,7 @@ class VoyageEmbeddingProvider:
             self._dimensions = None  # let Voyage default (1024 for voyage-4 family)
 
         # Probe dimension
-        probe_kwargs: Dict[str, Any] = {"model": self._model, "input_type": self._input_type}
+        probe_kwargs: dict[str, Any] = {"model": self._model, "input_type": self._input_type}
         if self._dimensions is not None:
             probe_kwargs["output_dimension"] = self._dimensions
         result = self._client.embed(["dim"], **probe_kwargs)
@@ -350,17 +354,17 @@ class VoyageEmbeddingProvider:
     def provider_name(self) -> str:
         return f"voyage:{self._model}"
 
-    def _embed_kwargs(self) -> Dict[str, Any]:
-        kw: Dict[str, Any] = {"model": self._model, "input_type": self._input_type}
+    def _embed_kwargs(self) -> dict[str, Any]:
+        kw: dict[str, Any] = {"model": self._model, "input_type": self._input_type}
         if self._dimensions is not None:
             kw["output_dimension"] = self._dimensions
         return kw
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         result = self._client.embed([text], **self._embed_kwargs())
         return result.embeddings[0]
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         result = self._client.embed(texts, **self._embed_kwargs())
         return result.embeddings
 
@@ -394,9 +398,9 @@ class PineconeEmbeddingProvider:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        dimensions: Optional[int] = None,
+        api_key: str | None = None,
+        model: str | None = None,
+        dimensions: int | None = None,
         input_type: str = "passage",
     ) -> None:
         try:
@@ -454,19 +458,19 @@ class PineconeEmbeddingProvider:
     def provider_name(self) -> str:
         return f"pinecone:{self._model}@{self._dimension}d"
 
-    def _params(self) -> Dict[str, Any]:
+    def _params(self) -> dict[str, Any]:
         return {
             "input_type": self._input_type,
             "dimension": self._dimensions,
         }
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         result = self._client.inference.embed(
             model=self._model, inputs=[text], parameters=self._params(),
         )
         return list(result.data[0].values)
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         result = self._client.inference.embed(
             model=self._model, inputs=texts, parameters=self._params(),
         )
@@ -478,7 +482,7 @@ class VertexAIEmbeddingProvider:
 
     def __init__(
         self,
-        project: Optional[str] = None,
+        project: str | None = None,
         location: str = "us-central1",
         model: str = "text-embedding-005",
     ) -> None:
@@ -502,11 +506,11 @@ class VertexAIEmbeddingProvider:
     def provider_name(self) -> str:
         return "vertex_ai"
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         result = self._model.get_embeddings([text])
         return result[0].values
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         results = self._model.get_embeddings(texts)
         return [r.values for r in results]
 
@@ -516,7 +520,7 @@ class VertexAIEmbeddingProvider:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _try_voyage() -> Optional[EmbeddingProvider]:
+def _try_voyage() -> EmbeddingProvider | None:
     """Try Voyage AI (Anthropic's recommended embedder partner).
 
     Activated by VOYAGE_API_KEY. Configurable via:
@@ -543,7 +547,7 @@ def _try_voyage() -> Optional[EmbeddingProvider]:
         return None
 
 
-def _try_pinecone_inference() -> Optional[EmbeddingProvider]:
+def _try_pinecone_inference() -> EmbeddingProvider | None:
     """Try Pinecone Inference (cloud-only — Local Docker doesn't serve it).
 
     Activated by ATTESTOR_PREFER_EMBEDDER=pinecone OR by configure_embedder
@@ -572,7 +576,7 @@ def _try_pinecone_inference() -> Optional[EmbeddingProvider]:
         return None
 
 
-def _try_ollama() -> Optional[EmbeddingProvider]:
+def _try_ollama() -> EmbeddingProvider | None:
     """Probe local Ollama. Returns None if daemon unreachable or model
     missing — caller falls through to the next provider."""
     if os.environ.get("ATTESTOR_DISABLE_LOCAL_EMBED") in {"1", "true", "True"}:
@@ -589,7 +593,7 @@ def _try_ollama() -> Optional[EmbeddingProvider]:
         return None
 
 
-def _try_bedrock() -> Optional[EmbeddingProvider]:
+def _try_bedrock() -> EmbeddingProvider | None:
     """Try to create Bedrock provider."""
     try:
         import boto3  # noqa: F401
@@ -604,7 +608,7 @@ def _try_bedrock() -> Optional[EmbeddingProvider]:
         return None
 
 
-def _try_azure_openai() -> Optional[EmbeddingProvider]:
+def _try_azure_openai() -> EmbeddingProvider | None:
     """Try to create Azure OpenAI provider."""
     endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
     if not endpoint:
@@ -616,7 +620,7 @@ def _try_azure_openai() -> Optional[EmbeddingProvider]:
         return None
 
 
-def _try_vertex_ai() -> Optional[EmbeddingProvider]:
+def _try_vertex_ai() -> EmbeddingProvider | None:
     """Try to create Vertex AI provider."""
     try:
         import google.auth  # noqa: F401
@@ -627,7 +631,7 @@ def _try_vertex_ai() -> Optional[EmbeddingProvider]:
         return None
 
 
-def _try_openai() -> Optional[EmbeddingProvider]:
+def _try_openai() -> EmbeddingProvider | None:
     """Try OpenAI (direct, no OpenRouter fallback).
 
     Controlled by env:
@@ -645,7 +649,7 @@ def _try_openai() -> Optional[EmbeddingProvider]:
     model = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
     dim_env = os.environ.get("OPENAI_EMBEDDING_DIMENSIONS", "1536")
     try:
-        dimensions: Optional[int] = int(dim_env) if dim_env else None
+        dimensions: int | None = int(dim_env) if dim_env else None
     except ValueError:
         dimensions = None
 
@@ -672,7 +676,7 @@ _CLOUD_PROVIDERS = {
 
 # Module-level cache — prevents re-initialising the embedding provider
 # (e.g. boto3 clients, API sessions) on every call.
-_cached_provider: Optional[EmbeddingProvider] = None
+_cached_provider: EmbeddingProvider | None = None
 
 
 def clear_embedding_cache() -> None:
@@ -693,7 +697,7 @@ _PROVIDER_DISPATCH = {
 
 
 def get_embedding_provider(
-    preferred: Optional[str] = None,
+    preferred: str | None = None,
 ) -> EmbeddingProvider:
     """Get the configured embedding provider.
 

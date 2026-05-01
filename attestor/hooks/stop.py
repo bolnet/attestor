@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import json
-import os
-import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from typing import Any
 
-_EMPTY_RESPONSE = {}
+from attestor.hooks._base import run_hook
+
+_EMPTY_RESPONSE: dict[str, Any] = {}
 
 
-def handle(payload: dict) -> dict:
+def handle(payload: dict[str, Any]) -> dict[str, Any]:
     """Process a Stop event: summarize session observations and store as memory.
 
     Args:
@@ -25,11 +24,11 @@ def handle(payload: dict) -> dict:
         if not cwd:
             return _EMPTY_RESPONSE
 
+        # Lazy imports: see comment in session_start.handle.
         from attestor._paths import resolve_store_path
+        from attestor.core import AgentMemory
 
         store_path = resolve_store_path()
-
-        from attestor.core import AgentMemory
 
         mem = AgentMemory(store_path)
         try:
@@ -50,7 +49,7 @@ def handle(payload: dict) -> dict:
             return _EMPTY_RESPONSE
         finally:
             mem.close()
-    except Exception:
+    except Exception:  # noqa: BLE001 -- handler must never crash the host
         return _EMPTY_RESPONSE
 
 
@@ -59,8 +58,8 @@ def _build_summary(memories: list) -> str:
 
     Groups by category, counts file changes and commands.
     """
-    file_changes = []
-    commands = []
+    file_changes: list[str] = []
+    commands: list[str] = []
     categories: dict[str, int] = {}
 
     for m in memories:
@@ -79,7 +78,7 @@ def _build_summary(memories: list) -> str:
         if "command" in m.tags:
             commands.append(m.content)
 
-    parts = []
+    parts: list[str] = []
     if file_changes:
         file_list = ", ".join(file_changes[:10])
         if len(file_changes) > 10:
@@ -97,15 +96,9 @@ def _build_summary(memories: list) -> str:
     return summary
 
 
-def main():
+def main() -> None:
     """CLI entry point: reads JSON from stdin, writes JSON to stdout."""
-    try:
-        payload = json.loads(sys.stdin.read())
-        result = handle(payload)
-    except Exception:
-        result = _EMPTY_RESPONSE
-    sys.stdout.write(json.dumps(result))
-    sys.stdout.flush()
+    run_hook("stop", handle, empty_response=_EMPTY_RESPONSE)
 
 
 if __name__ == "__main__":

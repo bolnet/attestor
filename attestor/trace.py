@@ -44,11 +44,12 @@ import sys
 import threading
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Iterator, List, Optional, TextIO
+from typing import Any, TextIO
+from collections.abc import Iterator
 
 _ENABLED: bool = bool(os.environ.get("ATTESTOR_TRACE"))
-_FILE_PATH: Optional[str] = os.environ.get("ATTESTOR_TRACE_FILE") or None
-_FH: Optional[TextIO] = None
+_FILE_PATH: str | None = os.environ.get("ATTESTOR_TRACE_FILE") or None
+_FH: TextIO | None = None
 _LOCK = threading.Lock()
 
 
@@ -67,13 +68,13 @@ _LOCK = threading.Lock()
 # ──────────────────────────────────────────────────────────────────────
 
 
-_RECALL_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+_RECALL_ID: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "attestor.trace.recall_id", default=None,
 )
-_SEQ_COUNTER: contextvars.ContextVar[Optional[List[int]]] = contextvars.ContextVar(
+_SEQ_COUNTER: contextvars.ContextVar[list[int] | None] = contextvars.ContextVar(
     "attestor.trace.seq_counter", default=None,
 )
-_PARENT_EVENT_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+_PARENT_EVENT_ID: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "attestor.trace.parent_event_id", default=None,
 )
 
@@ -100,7 +101,7 @@ def _scrub(value: Any) -> Any:
     return out
 
 
-def _open_file() -> Optional[TextIO]:
+def _open_file() -> TextIO | None:
     global _FH
     if _FH is not None or not _FILE_PATH:
         return _FH
@@ -144,7 +145,7 @@ def event(name: str, **fields: Any) -> None:
     rid = _RECALL_ID.get()
     counter = _SEQ_COUNTER.get()
     parent_eid = _PARENT_EVENT_ID.get()
-    seq: Optional[int] = None
+    seq: int | None = None
     if counter is not None:
         counter[0] += 1
         seq = counter[0]
@@ -186,7 +187,7 @@ def event(name: str, **fields: Any) -> None:
 
 
 @contextlib.contextmanager
-def recall_scope(recall_id: Optional[str] = None) -> Iterator[str]:
+def recall_scope(recall_id: str | None = None) -> Iterator[str]:
     """Context manager that scopes trace events to a single recall.
 
     All ``event()`` calls inside (including across ``asyncio.create_task``
@@ -206,7 +207,7 @@ def recall_scope(recall_id: Optional[str] = None) -> Iterator[str]:
             tr.event("recall.end")
     """
     rid = recall_id or str(uuid.uuid4())
-    counter: List[int] = [0]  # mutable list — shared across child tasks
+    counter: list[int] = [0]  # mutable list — shared across child tasks
     rid_token = _RECALL_ID.set(rid)
     seq_token = _SEQ_COUNTER.set(counter)
     # Bridge to OTel: open a span so every event() inside this scope
@@ -222,7 +223,7 @@ def recall_scope(recall_id: Optional[str] = None) -> Iterator[str]:
 
 
 @contextlib.contextmanager
-def event_scope(event_id: Optional[str] = None) -> Iterator[str]:
+def event_scope(event_id: str | None = None) -> Iterator[str]:
     """Context manager that marks the enclosing event as the parent
     for any nested ``event()`` calls. Used when a recall step spawns
     child operations whose trace events should link back to it.

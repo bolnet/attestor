@@ -8,7 +8,6 @@ URL + API-key env on the OpenAI client. Two providers wired today:
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 

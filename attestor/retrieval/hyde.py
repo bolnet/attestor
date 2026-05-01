@@ -42,10 +42,45 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
+from dataclasses import dataclass
+from typing import Any
+from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger("attestor.retrieval.hyde")
+
+
+# Per-process AsyncOpenAI client cache, keyed by (base_url, api_key,
+# timeout). The HyDE generator was previously building a fresh client
+# per call, which leaks a TCP+TLS connection per question and pays the
+# handshake cost (~200ms on cold cloud paths) on every request. Sharing
+# a client lets the underlying httpx pool reuse connections across
+# gathered HyDE lanes and across consecutive questions in a bench.
+#
+# Tests can pass ``client=`` directly to bypass the cache and inject a
+# mock; production code uses the cache via the default arg.
+_async_client_cache: dict[tuple[str | None, str, float], Any] = {}
+
+
+def _get_async_client(
+    *, base_url: str | None, api_key: str, timeout: float,
+) -> Any:
+    """Return a process-wide cached ``AsyncOpenAI`` client for this
+    (base_url, api_key, timeout) tuple. Construction is delegated to
+    ``attestor.llm_trace.make_async_client`` so the trace wiring and
+    explicit-timeout policy stay in one place.
+    """
+    key = (base_url, api_key, timeout)
+    cached = _async_client_cache.get(key)
+    if cached is not None:
+        return cached
+    from attestor.llm_trace import make_async_client
+    client = make_async_client(
+        base_url=base_url,
+        api_key=api_key,
+        timeout=timeout,
+    )
+    _async_client_cache[key] = client
+    return client
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -65,7 +100,7 @@ class HydeResult:
     hypothetical_answer: str = ""
 
     @property
-    def queries(self) -> List[str]:
+    def queries(self) -> list[str]:
         """Queries to fan out, in lane-priority order. The original
         is always rank-0; the hypothetical comes second when present.
 
@@ -131,8 +166,8 @@ def _resolve_generator_model() -> str:
 def generate_hypothetical_answer(
     question: str,
     *,
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
+    model: str | None = None,
+    api_key: str | None = None,
     timeout: float = 30.0,
 ) -> HydeResult:
     """Single LLM call returning a hypothetical answer for ``question``.
@@ -228,9 +263,10 @@ def generate_hypothetical_answer(
 async def generate_hypothetical_answer_async(
     question: str,
     *,
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
+    model: str | None = None,
+    api_key: str | None = None,
     timeout: float = 30.0,
+    client: Any | None = None,
 ) -> HydeResult:
     """Async sibling of ``generate_hypothetical_answer``.
 
@@ -251,7 +287,7 @@ async def generate_hypothetical_answer_async(
     model = model or _resolve_generator_model()
 
     try:
-        from attestor.llm_trace import _get_pool, make_async_client
+        from attestor.llm_trace import _get_pool
         pool = _get_pool()
         head, sep, tail = model.partition("/")
         if sep and head in pool.providers:
@@ -275,12 +311,14 @@ async def generate_hypothetical_answer_async(
             )
             return HydeResult(original_question=question.strip())
 
-        client = make_async_client(
+        # DI seam: tests pass a mock ``client`` directly; production
+        # uses the process-wide cache so connections are pooled.
+        active_client = client or _get_async_client(
             base_url=strategy.base_url,
             api_key=key,
             timeout=timeout,
         )
-        response = await client.chat.completions.create(
+        response = await active_client.chat.completions.create(
             model=clean_model,
             max_tokens=400,
             temperature=0.0,
@@ -323,11 +361,11 @@ async def generate_hypothetical_answer_async(
 def hyde_search(
     question: str,
     *,
-    vector_search: Callable[[str], List[Dict[str, Any]]],
-    model: Optional[str] = None,
+    vector_search: Callable[[str], list[dict[str, Any]]],
+    model: str | None = None,
     merge: str = "rrf",
-    api_key: Optional[str] = None,
-) -> Tuple[List[str], List[Dict[str, Any]]]:
+    api_key: str | None = None,
+) -> tuple[list[str], list[dict[str, Any]]]:
     """Run the generator, fan out to ``vector_search`` for each query
     (original + hypothetical), merge the lanes, return
     ``(queries_used, merged_hits)``.
@@ -341,7 +379,7 @@ def hyde_search(
     )
     queries = result.queries
 
-    lanes: List[List[Dict[str, Any]]] = []
+    lanes: list[list[dict[str, Any]]] = []
     for q in queries:
         try:
             hits = list(vector_search(q))
@@ -396,12 +434,12 @@ def hyde_search(
 async def hyde_search_async(
     question: str,
     *,
-    vector_search: Callable[[str], Awaitable[List[Dict[str, Any]]]],
-    model: Optional[str] = None,
+    vector_search: Callable[[str], Awaitable[list[dict[str, Any]]]],
+    model: str | None = None,
     merge: str = "rrf",
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     timeout: float = 30.0,
-) -> Tuple[List[str], List[Dict[str, Any]]]:
+) -> tuple[list[str], list[dict[str, Any]]]:
     """Async sibling of ``hyde_search``. ``vector_search`` MUST be an
     async callable returning a list of hit dicts.
 
@@ -449,7 +487,7 @@ async def hyde_search_async(
 
     # Filter exceptions / coerce to lists. Each successful lane is a
     # ``List[Dict]``. Exceptions become empty lanes (RRF handles).
-    lanes: List[List[Dict[str, Any]]] = []
+    lanes: list[list[dict[str, Any]]] = []
     for lr in lanes_results:
         if isinstance(lr, Exception):
             lanes.append([])
@@ -479,9 +517,9 @@ async def hyde_search_async(
 
 
 async def _safe_async_call(
-    fn: Callable[[str], Awaitable[List[Dict[str, Any]]]],
+    fn: Callable[[str], Awaitable[list[dict[str, Any]]]],
     arg: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Await ``fn(arg)``; on exception, return ``[]`` so the lane
     contributes an empty list to RRF rather than failing the whole
     recall. The exception is logged at DEBUG so audit traces capture

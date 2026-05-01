@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import os
-import sys
-from pathlib import Path
-
-_EMPTY_RESPONSE = {"additionalContext": ""}
+from typing import Any
 
 from attestor import _branding as brand
+from attestor.hooks._base import run_hook
+
+_EMPTY_RESPONSE: dict[str, Any] = {"additionalContext": ""}
 
 # Budget for session context injection. Env override prevents context exhaustion.
 _SESSION_BUDGET = int(os.environ.get(brand.ENV_TOKEN_BUDGET, "20000"))
@@ -18,7 +17,7 @@ _SESSION_BUDGET = int(os.environ.get(brand.ENV_TOKEN_BUDGET, "20000"))
 _SESSION_QUERY = "session context project overview recent decisions"
 
 
-def handle(payload: dict) -> dict:
+def handle(payload: dict[str, Any]) -> dict[str, Any]:
     """Process a SessionStart event and return additionalContext.
 
     Args:
@@ -32,12 +31,14 @@ def handle(payload: dict) -> dict:
         if not cwd:
             return _EMPTY_RESPONSE
 
+        # Imports are kept lazy: AgentMemory pulls in heavy backends and we
+        # MUST NOT crash on import (a hook import error would take down the
+        # host session). Construct only after we know we have work to do.
         from attestor._paths import resolve_store_path
-
-        store_path = resolve_store_path()
-
         from attestor.core import AgentMemory
         from attestor.retrieval.scorer import pagerank_boost
+
+        store_path = resolve_store_path()
 
         mem = AgentMemory(store_path)
         try:
@@ -59,19 +60,13 @@ def handle(payload: dict) -> dict:
             return {"additionalContext": "\n".join(lines)}
         finally:
             mem.close()
-    except Exception:
+    except Exception:  # noqa: BLE001 -- handler must never crash the host
         return _EMPTY_RESPONSE
 
 
-def main():
+def main() -> None:
     """CLI entry point: reads JSON from stdin, writes JSON to stdout."""
-    try:
-        payload = json.loads(sys.stdin.read())
-        result = handle(payload)
-    except Exception:
-        result = _EMPTY_RESPONSE
-    sys.stdout.write(json.dumps(result))
-    sys.stdout.flush()
+    run_hook("session_start", handle, empty_response=_EMPTY_RESPONSE)
 
 
 if __name__ == "__main__":

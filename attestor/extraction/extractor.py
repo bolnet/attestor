@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from attestor.extraction.rule_based import extract_from_text
 from attestor.models import Memory
 
 
 def extract_memories(
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     use_llm: bool = False,
-    model: Optional[str] = None,
-) -> List[Memory]:
+    model: str | None = None,
+) -> list[Memory]:
     """Extract memories from conversation messages.
 
     Args:
@@ -33,7 +33,7 @@ def extract_memories(
     return _rule_extract(messages)
 
 
-def _rule_extract(messages: List[Dict[str, Any]]) -> List[Memory]:
+def _rule_extract(messages: list[dict[str, Any]]) -> list[Memory]:
     """Extract memories using rule-based patterns."""
     memories = []
     for msg in messages:
@@ -53,7 +53,7 @@ def _rule_extract(messages: List[Dict[str, Any]]) -> List[Memory]:
     return memories
 
 
-def _llm_extract(messages: List[Dict[str, Any]], model: str) -> List[Memory]:
+def _llm_extract(messages: list[dict[str, Any]], model: str) -> list[Memory]:
     """Extract memories using LLM. Requires the ``openai`` package and
     the API key for whichever provider is configured under
     ``stack.llm.providers`` in ``configs/attestor.yaml``."""
@@ -66,13 +66,13 @@ def _llm_extract(messages: List[Dict[str, Any]], model: str) -> List[Memory]:
 
 
 def extract_from_session(
-    turns: List[Dict[str, Any]],
+    turns: list[dict[str, Any]],
     speaker_a: str = "A",
     speaker_b: str = "B",
     session_date: str = "",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-) -> Tuple[List[Memory], List[Dict[str, Any]]]:
+    model: str | None = None,
+    api_key: str | None = None,
+) -> tuple[list[Memory], list[dict[str, Any]]]:
     """Extract memories and relation triples from a conversation session.
 
     Uses LLM extraction for conversational data (chatbots, companions).
@@ -101,17 +101,17 @@ def extract_from_session(
 
 
 def extract_from_session_full(
-    turns: List[Dict[str, Any]],
+    turns: list[dict[str, Any]],
     speaker_a: str = "A",
     speaker_b: str = "B",
     session_date: str = "",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-) -> Tuple[
-    List[Memory],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
+    model: str | None = None,
+    api_key: str | None = None,
+) -> tuple[
+    list[Memory],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
 ]:
     """Extract facts + triples + entity profiles + concept profiles.
 
@@ -138,11 +138,11 @@ def extract_from_session_full(
 
 
 def _turns_to_messages(
-    turns: List[Dict[str, Any]],
+    turns: list[dict[str, Any]],
     speaker_a: str,
     speaker_b: str,
-) -> List[Dict[str, str]]:
-    messages: List[Dict[str, str]] = []
+) -> list[dict[str, str]]:
+    messages: list[dict[str, str]] = []
     for turn in turns:
         speaker = turn.get("speaker", "Unknown")
         if speaker == "A":

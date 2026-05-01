@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from attestor.mcp.server import _handle_tool, create_server
+from attestor.mcp.server import _handle_tool
 from attestor.models import Memory, RetrievalResult
 
 

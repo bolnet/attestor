@@ -80,7 +80,7 @@ def test_mmr_top_n_overrides_via_yaml(tmp_path, monkeypatch):
 @pytest.mark.unit
 def test_explicit_null_mmr_top_n_is_uncapped(tmp_path, monkeypatch):
     """YAML `mmr_top_n: null` should land as None (uncapped)."""
-    p = _yaml_with_retrieval(tmp_path, monkeypatch, vector_top_k=100)
+    _yaml_with_retrieval(tmp_path, monkeypatch, vector_top_k=100)
     from attestor.config import get_stack
     s = get_stack(strict=False)
     assert s.retrieval.vector_top_k == 100

@@ -20,7 +20,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 import pytest
@@ -31,12 +31,8 @@ try:
 except ImportError:
     HAVE_PSYCOPG2 = False
 
-from attestor.conversation import (
-    ConversationIngest,
-    ConversationTurn,
-    IngestConfig,
-)
-from attestor.extraction.round_extractor import ExtractedFact
+from attestor.conversation.ingest import IngestConfig
+from attestor.conversation.turns import ConversationTurn
 
 PG_URL = os.environ.get(
     "PG_TEST_URL",
@@ -80,9 +76,9 @@ class _StubResponse:
 class _ScriptedChat:
     """Returns a different response per call, in order."""
 
-    def __init__(self, scripted: List[str]) -> None:
+    def __init__(self, scripted: list[str]) -> None:
         self._scripted = list(scripted)
-        self.calls: List[dict] = []
+        self.calls: list[dict] = []
 
     def create(self, **kwargs: Any) -> _StubResponse:
         self.calls.append(kwargs)
@@ -92,7 +88,7 @@ class _ScriptedChat:
 
 
 class ScriptedClient:
-    def __init__(self, scripted: List[str]) -> None:
+    def __init__(self, scripted: list[str]) -> None:
         self.chat = type("Chat", (), {"completions": _ScriptedChat(scripted)})()
 
     @property

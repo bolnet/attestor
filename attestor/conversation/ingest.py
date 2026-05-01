@@ -21,8 +21,8 @@ identity, then delegates here.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from attestor.conversation.apply import AppliedDecision, apply_decisions
 from attestor.conversation.episodes import Episode, EpisodeRepo
@@ -61,17 +61,17 @@ class RoundResult:
     """Output of one ingest_round call."""
 
     episode: Episode
-    user_facts: List[ExtractedFact]
-    agent_facts: List[ExtractedFact]
-    decisions: List[Decision]
-    applied: List[AppliedDecision]
+    user_facts: list[ExtractedFact]
+    agent_facts: list[ExtractedFact]
+    decisions: list[Decision]
+    applied: list[AppliedDecision]
 
     @property
     def episode_id(self) -> str:
         return self.episode.id
 
     @property
-    def written_memory_ids(self) -> List[str]:
+    def written_memory_ids(self) -> list[str]:
         return [a.memory_id for a in self.applied if a.memory_id and a.operation in {"ADD", "UPDATE", "INVALIDATE"}]
 
 
@@ -86,10 +86,10 @@ class ConversationIngest:
     def __init__(
         self,
         mem: Any,                              # AgentMemory
-        config: Optional[IngestConfig] = None,
+        config: IngestConfig | None = None,
         *,
-        extraction_client: Optional[Any] = None,
-        resolver_client: Optional[Any] = None,
+        extraction_client: Any | None = None,
+        resolver_client: Any | None = None,
     ) -> None:
         self._mem = mem
         self.config = config or IngestConfig()
@@ -105,9 +105,9 @@ class ConversationIngest:
         *,
         user_id: str,
         session_id: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         scope: str = "user",
-        agent_id: Optional[str] = None,
+        agent_id: str | None = None,
         recent_context: str = "(none)",
     ) -> RoundResult:
         """End-to-end ingest of one (user, assistant) round.
@@ -126,7 +126,7 @@ class ConversationIngest:
 
         user_facts = self._extract(user_turn, recent_context, kind="user")
         agent_facts = self._extract(assistant_turn, recent_context, kind="agent")
-        all_facts: List[ExtractedFact] = user_facts + agent_facts
+        all_facts: list[ExtractedFact] = user_facts + agent_facts
 
         decisions = self._resolve(
             new_facts=all_facts,
@@ -161,8 +161,8 @@ class ConversationIngest:
         assistant_turn: ConversationTurn,
         user_id: str,
         session_id: str,
-        project_id: Optional[str],
-        agent_id: Optional[str],
+        project_id: str | None,
+        agent_id: str | None,
     ) -> Episode:
         repo = EpisodeRepo(self._mem._store._conn)
         return repo.write_round(
@@ -176,7 +176,7 @@ class ConversationIngest:
 
     def _extract(
         self, turn: ConversationTurn, recent_context: str, *, kind: str,
-    ) -> List[ExtractedFact]:
+    ) -> list[ExtractedFact]:
         if kind == "user":
             if not self.config.extract_user:
                 return []
@@ -200,10 +200,10 @@ class ConversationIngest:
     def _resolve(
         self,
         *,
-        new_facts: List[ExtractedFact],
+        new_facts: list[ExtractedFact],
         evidence_episode_id: str,
         user_id: str,
-    ) -> List[Decision]:
+    ) -> list[Decision]:
         if not self.config.resolve_conflicts or not new_facts:
             return [
                 Decision(
@@ -224,8 +224,8 @@ class ConversationIngest:
         )
 
     def _retrieve_similar(
-        self, new_facts: List[ExtractedFact], *, user_id: str,
-    ) -> List[Memory]:
+        self, new_facts: list[ExtractedFact], *, user_id: str,
+    ) -> list[Memory]:
         """Top-k existing memories most similar to the new facts.
 
         Two-tier lookup:
@@ -253,8 +253,8 @@ class ConversationIngest:
         return self._fallback_doc_lookup(new_facts)
 
     def _fallback_doc_lookup(
-        self, new_facts: List[ExtractedFact],
-    ) -> List[Memory]:
+        self, new_facts: list[ExtractedFact],
+    ) -> list[Memory]:
         """Query the document store directly for memories that share a
         category or entity with any new fact. Best-effort; returns [] on
         failure or if the store doesn't support list_memories."""
@@ -262,7 +262,7 @@ class ConversationIngest:
         if not hasattr(store, "list_memories"):
             return []
         seen: set = set()
-        out: List[Memory] = []
+        out: list[Memory] = []
         for fact in new_facts:
             try:
                 # Prefer entity-scoped lookup when available
@@ -289,9 +289,9 @@ class ConversationIngest:
         return out
 
     @staticmethod
-    def _dedupe_top_k(memories: List[Memory], limit: int = 5) -> List[Memory]:
+    def _dedupe_top_k(memories: list[Memory], limit: int = 5) -> list[Memory]:
         seen: set = set()
-        out: List[Memory] = []
+        out: list[Memory] = []
         for m in memories:
             if m.id in seen:
                 continue

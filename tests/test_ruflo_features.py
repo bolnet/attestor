@@ -223,7 +223,7 @@ class TestContentHashDedup:
         with AgentMemory(tmp_path / "hash_test") as mem:
             m = mem.add("test content", tags=["test"])
             assert m.content_hash is not None
-            expected = hashlib.sha256("test content".encode()).hexdigest()
+            expected = hashlib.sha256(b"test content").hexdigest()
             assert m.content_hash == expected
 
 

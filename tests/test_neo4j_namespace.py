@@ -19,7 +19,7 @@ These checks close the cross-tenant graph affinity leak documented in
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import pytest
 
@@ -54,7 +54,7 @@ class _RecordingResult:
     issues its second (edge-fetching) Cypher call.
     """
 
-    def __init__(self, rows: Optional[List[Any]] = None) -> None:
+    def __init__(self, rows: list[Any] | None = None) -> None:
         self._rows = rows if rows is not None else [_PermissiveRow()]
 
     def __iter__(self):
@@ -67,10 +67,10 @@ class _RecordingResult:
 class _RecordingSession:
     """Captures every ``run(cypher, **params)`` call into a shared list."""
 
-    def __init__(self, sink: List[Tuple[str, Dict[str, Any]]]) -> None:
+    def __init__(self, sink: list[tuple[str, dict[str, Any]]]) -> None:
         self._sink = sink
 
-    def __enter__(self) -> "_RecordingSession":
+    def __enter__(self) -> _RecordingSession:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -85,9 +85,9 @@ class _RecordingDriver:
     """Stand-in for ``neo4j.Driver`` — opens recording sessions on demand."""
 
     def __init__(self) -> None:
-        self.calls: List[Tuple[str, Dict[str, Any]]] = []
+        self.calls: list[tuple[str, dict[str, Any]]] = []
 
-    def session(self, database: Optional[str] = None) -> _RecordingSession:
+    def session(self, database: str | None = None) -> _RecordingSession:
         return _RecordingSession(self.calls)
 
     def verify_connectivity(self) -> None:
@@ -119,7 +119,7 @@ def neo4j_backend(monkeypatch):
     return instance, driver
 
 
-def _last_call(driver: _RecordingDriver) -> Tuple[str, Dict[str, Any]]:
+def _last_call(driver: _RecordingDriver) -> tuple[str, dict[str, Any]]:
     assert driver.calls, "expected at least one Cypher call"
     return driver.calls[-1]
 
@@ -268,18 +268,18 @@ class _FakeGraph:
     """Captures namespace forwarded by the orchestrator's graph step."""
 
     def __init__(self) -> None:
-        self.related_calls: List[Dict[str, Any]] = []
-        self.edges_calls: List[Dict[str, Any]] = []
+        self.related_calls: list[dict[str, Any]] = []
+        self.edges_calls: list[dict[str, Any]] = []
 
     def get_related(self, entity: str, depth: int = 2,
-                    namespace: Optional[str] = None) -> List[str]:
+                    namespace: str | None = None) -> list[str]:
         self.related_calls.append(
             {"entity": entity, "depth": depth, "namespace": namespace}
         )
         return []
 
     def get_edges(self, entity: str,
-                  namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+                  namespace: str | None = None) -> list[dict[str, Any]]:
         self.edges_calls.append({"entity": entity, "namespace": namespace})
         return []
 

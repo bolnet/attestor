@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def _default_planner_model() -> str:
@@ -45,7 +45,7 @@ VALID_INTENTS = frozenset({
 VALID_NAMESPACES = frozenset({"document_chunks", "entities", "concepts"})
 
 # Fallback plan: whole index, all namespaces, no focus.
-_DEFAULT_NAMESPACES: List[str] = ["entities", "concepts", "document_chunks"]
+_DEFAULT_NAMESPACES: list[str] = ["entities", "concepts", "document_chunks"]
 
 
 @dataclass(frozen=True)
@@ -53,9 +53,9 @@ class QueryPlan:
     """Immutable retrieval plan for a single question."""
 
     intent: str
-    entities: List[str] = field(default_factory=list)
-    namespaces: List[str] = field(default_factory=lambda: list(_DEFAULT_NAMESPACES))
-    filters: Dict[str, Any] = field(default_factory=dict)
+    entities: list[str] = field(default_factory=list)
+    namespaces: list[str] = field(default_factory=lambda: list(_DEFAULT_NAMESPACES))
+    filters: dict[str, Any] = field(default_factory=dict)
 
     @property
     def primary_namespace(self) -> str:
@@ -95,7 +95,7 @@ Question: {question}
 JSON:"""
 
 
-def _resolve_client(model: str, api_key: Optional[str] = None) -> tuple[Any, str]:
+def _resolve_client(model: str, api_key: str | None = None) -> tuple[Any, str]:
     """Resolve ``(client, clean_model)`` for ``model`` via the YAML-driven pool.
 
     YAML is the only source of truth for provider URL/key. ``api_key`` is
@@ -120,7 +120,7 @@ def _resolve_client(model: str, api_key: Optional[str] = None) -> tuple[Any, str
     return get_client_for_model(model)
 
 
-def _sanitize_plan(raw: Dict[str, Any]) -> QueryPlan:
+def _sanitize_plan(raw: dict[str, Any]) -> QueryPlan:
     intent = str(raw.get("intent", "FACTUAL_RECALL")).upper().strip()
     if intent not in VALID_INTENTS:
         intent = "FACTUAL_RECALL"
@@ -129,7 +129,7 @@ def _sanitize_plan(raw: Dict[str, Any]) -> QueryPlan:
     entities = [str(e).strip() for e in entities_raw if str(e).strip()]
 
     ns_raw = raw.get("namespaces", []) or []
-    namespaces: List[str] = []
+    namespaces: list[str] = []
     for ns in ns_raw:
         ns_str = str(ns).strip()
         if ns_str in VALID_NAMESPACES and ns_str not in namespaces:
@@ -152,7 +152,7 @@ def plan_query(
     question: str,
     *,
     model: str = DEFAULT_PLANNER_MODEL,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
 ) -> QueryPlan:
     """Ask the planner LLM to classify `question` into a QueryPlan.
 

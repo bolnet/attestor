@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any, List, Optional
+from typing import Any
 
 import psycopg2.extras
 
@@ -33,9 +33,9 @@ class UserRepo:
     def create_or_get(
         self,
         external_id: str,
-        email: Optional[str] = None,
-        display_name: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        email: str | None = None,
+        display_name: str | None = None,
+        metadata: dict | None = None,
     ) -> User:
         """Race-safe first-time provisioning.
 
@@ -106,9 +106,9 @@ class UserRepo:
     def create(
         self,
         external_id: str,
-        email: Optional[str] = None,
-        display_name: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        email: str | None = None,
+        display_name: str | None = None,
+        metadata: dict | None = None,
     ) -> User:
         """Strict create — raises IntegrityError if external_id already exists.
 
@@ -135,13 +135,13 @@ class UserRepo:
 
     # ── Read ──────────────────────────────────────────────────────────────
 
-    def get(self, user_id: str) -> Optional[User]:
+    def get(self, user_id: str) -> User | None:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
             row = cur.fetchone()
         return User.from_row(dict(row)) if row else None
 
-    def find_by_external_id(self, external_id: str) -> Optional[User]:
+    def find_by_external_id(self, external_id: str) -> User | None:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "SELECT * FROM users WHERE external_id = %s AND status = 'active'",
@@ -150,7 +150,7 @@ class UserRepo:
             row = cur.fetchone()
         return User.from_row(dict(row)) if row else None
 
-    def list_active(self, limit: int = 100) -> List[User]:
+    def list_active(self, limit: int = 100) -> list[User]:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "SELECT * FROM users WHERE status = 'active' "

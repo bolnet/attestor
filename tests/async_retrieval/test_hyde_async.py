@@ -206,10 +206,16 @@ async def test_hyde_async_preserves_temperature_zero():
     """The async generator MUST still pass temperature=0.0 to the LLM
     client. This is the determinism guarantee from HyDE v2 — without
     it, async amplifies non-determinism risk because gathered lanes
-    could observe different hypothetical answers across runs."""
+    could observe different hypothetical answers across runs.
+
+    We patch the async-client factory rather than ``openai.AsyncOpenAI``
+    so the test is independent of which provider the YAML routes to
+    (openrouter / openai / anthropic) and bypasses the per-process
+    client cache in ``attestor.retrieval.hyde``.
+    """
     from attestor.retrieval.hyde import generate_hypothetical_answer_async  # RED
 
-    captured_kwargs = {}
+    captured_kwargs: dict = {}
 
     class _StubResponse:
         choices = [type("C", (), {"message": type("M", (), {"content": "snippet"})()})()]
@@ -218,10 +224,16 @@ async def test_hyde_async_preserves_temperature_zero():
         captured_kwargs.update(kwargs)
         return _StubResponse()
 
-    with patch.dict("os.environ", {"OPENAI_API_KEY": "stub"}):
-        with patch("openai.AsyncOpenAI") as mock_client_cls:
-            mock_client_cls.return_value.chat.completions.create = fake_create
-            await generate_hypothetical_answer_async("q")
+    fake_client = type(
+        "FakeAsyncClient",
+        (),
+        {"chat": type("Chat", (), {"completions": type("Comp", (), {"create": staticmethod(fake_create)})()})()},
+    )()
+
+    with patch(
+        "attestor.retrieval.hyde._get_async_client", return_value=fake_client,
+    ):
+        await generate_hypothetical_answer_async("q", api_key="stub")
 
     assert captured_kwargs.get("temperature") == 0.0, (
         f"async HyDE generator must pin temperature=0.0; "

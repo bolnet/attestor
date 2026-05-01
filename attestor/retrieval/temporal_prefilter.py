@@ -55,11 +55,30 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Tuple
 
 from attestor.retrieval.temporal_query import TimeWindow
 
 logger = logging.getLogger("attestor.retrieval.temporal_prefilter")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Internal dataclass — pattern match accumulator
+# ──────────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True, slots=True)
+class PatternMatch:
+    """One regex hit while scanning the question for relative time phrases.
+
+    Replaces a 3-tuple ``(offset, text, target)`` so consumers read
+    ``.offset`` / ``.text`` / ``.target`` instead of indexing. The
+    leftmost-wins sort key in ``_earliest_match`` keys on ``offset`` then
+    negative ``len(text)`` (longer phrase wins ties).
+    """
+
+    offset: int
+    text: str
+    target: datetime
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -191,9 +210,9 @@ _HOW_MANY_LOOKBACK_UNITS = 6
 def detect_window(
     question: str,
     *,
-    question_date: Optional[datetime] = None,
+    question_date: datetime | None = None,
     tolerance_days: int = 3,
-) -> Optional[DetectedPhrase]:
+) -> DetectedPhrase | None:
     """Return a ``DetectedPhrase`` when ``question`` contains a
     relative time phrase, else ``None``.
 
@@ -237,30 +256,32 @@ def detect_window(
 
 def _earliest_match(
     question: str, question_date: datetime,
-) -> Optional[Tuple[str, datetime]]:
+) -> tuple[str, datetime] | None:
     """Run every pattern, pick the leftmost hit, return (matched_text, target).
 
     Returns ``None`` when no pattern matches.
     """
-    candidates: List[Tuple[int, str, datetime]] = []
+    candidates: list[PatternMatch] = []
 
     # Pattern 1: N units ago
     for m in _RE_N_UNITS_AGO.finditer(question):
         n = _word_to_int(m.group(1))
         days = _UNIT_DAYS[m.group(2).lower()]
         target = question_date - timedelta(days=n * days)
-        candidates.append((m.start(), m.group(0), target))
+        candidates.append(PatternMatch(m.start(), m.group(0), target))
 
     # Pattern 2: the day before yesterday
     for m in _RE_DAY_BEFORE_YESTERDAY.finditer(question):
         candidates.append(
-            (m.start(), m.group(0), question_date - timedelta(days=2)),
+            PatternMatch(m.start(), m.group(0),
+                         question_date - timedelta(days=2)),
         )
 
     # Pattern 3: yesterday
     for m in _RE_YESTERDAY.finditer(question):
         candidates.append(
-            (m.start(), m.group(0), question_date - timedelta(days=1)),
+            PatternMatch(m.start(), m.group(0),
+                         question_date - timedelta(days=1)),
         )
 
     # Pattern 4: last <unit>
@@ -268,7 +289,8 @@ def _earliest_match(
         unit = m.group(1).lower()
         days = _UNIT_DAYS[unit]
         candidates.append(
-            (m.start(), m.group(0), question_date - timedelta(days=days)),
+            PatternMatch(m.start(), m.group(0),
+                         question_date - timedelta(days=days)),
         )
 
     # Pattern 5: last <weekday>
@@ -276,19 +298,20 @@ def _earliest_match(
         wd = _WEEKDAYS[m.group(1).lower()]
         delta = _days_back_to_previous_weekday(question_date.weekday(), wd)
         candidates.append(
-            (m.start(), m.group(0), question_date - timedelta(days=delta)),
+            PatternMatch(m.start(), m.group(0),
+                         question_date - timedelta(days=delta)),
         )
 
     # Pattern 6: this morning|afternoon|evening — same calendar day
     for m in _RE_THIS_PART_OF_DAY.finditer(question):
-        candidates.append((m.start(), m.group(0), question_date))
+        candidates.append(PatternMatch(m.start(), m.group(0), question_date))
 
     # Pattern 7: forward-looking N units later|after|hence
     for m in _RE_N_UNITS_FORWARD.finditer(question):
         n = _word_to_int(m.group(1))
         days = _UNIT_DAYS[m.group(2).lower()]
         target = question_date + timedelta(days=n * days)
-        candidates.append((m.start(), m.group(0), target))
+        candidates.append(PatternMatch(m.start(), m.group(0), target))
 
     # Pattern 8a: "how many <unit>s ago / have passed / since"
     # Anchors a backward window of _HOW_MANY_LOOKBACK_UNITS × unit-days.
@@ -299,13 +322,13 @@ def _earliest_match(
         target = question_date - timedelta(
             days=(_HOW_MANY_LOOKBACK_UNITS * days) // 2,
         )
-        candidates.append((m.start(), m.group(0), target))
+        candidates.append(PatternMatch(m.start(), m.group(0), target))
 
     # Pattern 8b: "how long ago / how long since" — unit unspecified;
     # anchor a generic month-ish lookback.
     for m in _RE_HOW_LONG_AGO.finditer(question):
         target = question_date - timedelta(days=90)  # ~3 months back
-        candidates.append((m.start(), m.group(0), target))
+        candidates.append(PatternMatch(m.start(), m.group(0), target))
 
     if not candidates:
         return None
@@ -313,9 +336,9 @@ def _earliest_match(
     # Leftmost wins; on tie (same start, e.g. "the day before
     # yesterday" overlaps "yesterday" if both patterns matched), prefer
     # the LONGER substring so we honor the more specific phrase.
-    candidates.sort(key=lambda c: (c[0], -len(c[1])))
-    _, matched_text, target = candidates[0]
-    return matched_text, target
+    candidates.sort(key=lambda c: (c.offset, -len(c.text)))
+    winner = candidates[0]
+    return winner.text, winner.target
 
 
 def _word_to_int(token: str) -> int:

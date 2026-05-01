@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
 
 import pytest
 
@@ -23,7 +22,7 @@ class FakeEntry:
 
 @dataclass
 class FakePack:
-    memories: List[FakeEntry]
+    memories: list[FakeEntry]
 
 
 def _pack(*contents: str) -> FakePack:

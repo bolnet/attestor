@@ -6,18 +6,15 @@ from attestor.models import Memory, RetrievalResult
 from attestor.retrieval.scorer import (
     deduplicate,
     entity_boost,
-    fit_to_budget,
     temporal_boost,
 )
 
 
 def _make_result(content, score, entity=None, memory_id=None):
-    m = Memory(
-        content=content,
-        entity=entity,
-    )
+    kwargs = {"content": content, "entity": entity}
     if memory_id:
-        m.id = memory_id
+        kwargs["id"] = memory_id
+    m = Memory(**kwargs)
     return RetrievalResult(memory=m, score=score, match_source="test")
 
 

@@ -19,7 +19,6 @@ the connection-management logic that AgentMemory already does.
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, Optional
 
 from attestor.identity.projects import ProjectRepo
 from attestor.identity.sessions import SessionRepo
@@ -43,8 +42,8 @@ def ensure_solo_user(user_repo: UserRepo) -> User:
 
 def resolve_project(
     user_id: str,
-    project_id: Optional[str],
-    session_id: Optional[str],
+    project_id: str | None,
+    session_id: str | None,
     project_repo: ProjectRepo,
     session_repo: SessionRepo,
 ) -> Project:
@@ -81,7 +80,7 @@ def get_or_create_daily_session(
     user_id: str,
     project_id: str,
     session_repo: SessionRepo,
-    day: Optional[str] = None,
+    day: str | None = None,
 ) -> Session:
     """SOLO autostart: one session per (user, ISO-date).
 
@@ -102,12 +101,12 @@ def get_or_create_daily_session(
 def resolve_session(
     user_id: str,
     project_id: str,
-    session_id: Optional[str],
+    session_id: str | None,
     session_repo: SessionRepo,
     *,
     autostart: bool,
     mode_is_solo: bool,
-) -> Optional[Session]:
+) -> Session | None:
     """Resolve a session for the call. Mirrors defaults.md §5 step 3.
 
     If session_id is explicit, look it up and authz-check.

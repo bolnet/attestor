@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from attestor.models import Memory
 from attestor.store.base import DocumentStore
@@ -16,8 +16,8 @@ class TemporalManager:
         self.store = store
 
     def timeline(
-        self, entity: str, namespace: Optional[str] = None
-    ) -> List[Memory]:
+        self, entity: str, namespace: str | None = None
+    ) -> list[Memory]:
         """Get all memories about an entity ordered by event_date/created_at."""
         memories = self.store.list_memories(
             entity=entity, namespace=namespace, limit=100_000
@@ -29,10 +29,10 @@ class TemporalManager:
 
     def current_facts(
         self,
-        category: Optional[str] = None,
-        entity: Optional[str] = None,
-        namespace: Optional[str] = None,
-    ) -> List[Memory]:
+        category: str | None = None,
+        entity: str | None = None,
+        namespace: str | None = None,
+    ) -> list[Memory]:
         """Return only active, non-superseded memories."""
         memories = self.store.list_memories(
             status="active", category=category, entity=entity,
@@ -40,7 +40,7 @@ class TemporalManager:
         )
         return [m for m in memories if m.valid_until is None]
 
-    def check_contradictions(self, new_memory: Memory) -> List[Memory]:
+    def check_contradictions(self, new_memory: Memory) -> list[Memory]:
         """Find active memories that potentially contradict the new one.
 
         Rule-based: same entity + same category + same namespace + different content.
@@ -67,7 +67,10 @@ class TemporalManager:
 
     def supersede(self, old_memory: Memory, new_memory_id: str) -> Memory:
         """Mark old memory as superseded by a new one."""
-        old_memory.status = "superseded"
-        old_memory.valid_until = datetime.now(timezone.utc).isoformat()
-        old_memory.superseded_by = new_memory_id
+        old_memory = replace(
+            old_memory,
+            status="superseded",
+            valid_until=datetime.now(timezone.utc).isoformat(),
+            superseded_by=new_memory_id,
+        )
         return self.store.update(old_memory)

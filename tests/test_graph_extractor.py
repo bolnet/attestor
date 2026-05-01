@@ -1,6 +1,5 @@
 """Tests for the graph entity/relation extractor."""
 
-import pytest
 
 from attestor.graph.extractor import extract_entities_and_relations
 

@@ -1,41 +1,51 @@
-"""Abstract base interfaces for storage backends."""
+"""Structural interfaces for storage backends.
+
+These are :class:`typing.Protocol` definitions, not :class:`abc.ABC`
+hierarchies — backends satisfy them via duck typing (matching method
+shapes) and are *not* required to inherit from them. The registry at
+``attestor/store/registry.py`` dispatches on each backend's ``ROLES``
+class attribute, never on ``isinstance`` against these protocols.
+
+``@runtime_checkable`` is applied so ``isinstance(obj, DocumentStore)``
+remains a valid (if discouraged) check; it is included defensively
+even though no caller in the tree currently relies on it.
+"""
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, ClassVar, Protocol, runtime_checkable
 
 from attestor.models import Memory
 
 
-class DocumentStore(ABC):
-    """Abstract document storage for Memory objects."""
+@runtime_checkable
+class DocumentStore(Protocol):
+    """Document role: source-of-truth for content, tags, entity, ts, provenance, confidence."""
 
-    ROLES: Set[str] = set()
+    # Subclasses MUST define ROLES (e.g., {"document"} or
+    # {"document", "vector", "graph"}). The empty default is removed so
+    # that a backend forgetting to declare its roles fails loudly at
+    # registry validation time rather than silently claiming nothing.
+    ROLES: ClassVar[set[str]]
 
-    @abstractmethod
     def insert(self, memory: Memory) -> Memory: ...
 
-    @abstractmethod
-    def get(self, memory_id: str) -> Optional[Memory]: ...
+    def get(self, memory_id: str) -> Memory | None: ...
 
-    @abstractmethod
     def update(self, memory: Memory) -> Memory: ...
 
-    @abstractmethod
     def delete(self, memory_id: str) -> bool: ...
 
-    @abstractmethod
     def list_memories(
         self,
-        status: Optional[str] = None,
-        category: Optional[str] = None,
-        entity: Optional[str] = None,
-        namespace: Optional[str] = None,
-        after: Optional[str] = None,
-        before: Optional[str] = None,
+        status: str | None = None,
+        category: str | None = None,
+        entity: str | None = None,
+        namespace: str | None = None,
+        after: str | None = None,
+        before: str | None = None,
         limit: int = 100,
-    ) -> List[Memory]: ...
+    ) -> list[Memory]: ...
 
     # NOTE: tag_search predates the semantic-first cascade and is no longer
     # called by the canonical recall pipeline (vector → BM25 → RRF → graph
@@ -43,99 +53,84 @@ class DocumentStore(ABC):
     # by tag-set on backends that have a cheap tag index, and for backwards
     # compat with v3 callers. New callers should prefer recall() / search()
     # — those are what the orchestrator routes through.
-    @abstractmethod
     def tag_search(
         self,
-        tags: List[str],
-        category: Optional[str] = None,
-        namespace: Optional[str] = None,
+        tags: list[str],
+        category: str | None = None,
+        namespace: str | None = None,
         limit: int = 20,
-    ) -> List[Memory]: ...
+    ) -> list[Memory]: ...
 
-    @abstractmethod
     def execute(
-        self, query: str, params: Optional[List[Any]] = None
-    ) -> List[Dict[str, Any]]: ...
+        self, query: str, params: list[Any] | None = None
+    ) -> list[dict[str, Any]]: ...
 
-    @abstractmethod
     def archive_before(self, date: str) -> int: ...
 
-    @abstractmethod
     def compact(self) -> int: ...
 
-    @abstractmethod
-    def stats(self) -> Dict[str, Any]: ...
+    def stats(self) -> dict[str, Any]: ...
 
-    @abstractmethod
     def close(self) -> None: ...
 
 
-class VectorStore(ABC):
-    """Abstract vector embedding storage and similarity search."""
+@runtime_checkable
+class VectorStore(Protocol):
+    """Vector role: dense embedding storage and similarity search."""
 
-    ROLES: Set[str] = set()
+    # Subclasses MUST define ROLES (e.g., {"vector"} or
+    # {"document", "vector", "graph"}).
+    ROLES: ClassVar[set[str]]
 
-    @abstractmethod
     def add(self, memory_id: str, content: str, namespace: str = "default") -> None: ...
 
-    @abstractmethod
     def search(
-        self, query_text: str, limit: int = 20, namespace: Optional[str] = None
-    ) -> List[Dict[str, Any]]: ...
+        self, query_text: str, limit: int = 20, namespace: str | None = None
+    ) -> list[dict[str, Any]]: ...
 
-    @abstractmethod
     def delete(self, memory_id: str) -> bool: ...
 
-    @abstractmethod
     def count(self) -> int: ...
 
-    @abstractmethod
     def close(self) -> None: ...
 
 
-class GraphStore(ABC):
-    """Abstract entity graph with traversal."""
+@runtime_checkable
+class GraphStore(Protocol):
+    """Graph role: entity nodes + typed edges with traversal."""
 
-    ROLES: Set[str] = set()
+    # Subclasses MUST define ROLES (e.g., {"graph"}).
+    ROLES: ClassVar[set[str]]
 
-    @abstractmethod
     def add_entity(
         self,
         name: str,
         entity_type: str = "general",
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> None: ...
 
-    @abstractmethod
     def add_relation(
         self,
         from_entity: str,
         to_entity: str,
         relation_type: str = "related_to",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None: ...
 
-    @abstractmethod
-    def get_related(self, entity: str, depth: int = 2) -> List[str]: ...
+    def get_related(self, entity: str, depth: int = 2) -> list[str]: ...
 
-    @abstractmethod
     def get_subgraph(
         self, entity: str, depth: int = 2
-    ) -> Dict[str, Any]: ...
+    ) -> dict[str, Any]: ...
 
-    @abstractmethod
     def get_entities(
-        self, entity_type: Optional[str] = None
-    ) -> List[Dict[str, Any]]: ...
+        self, entity_type: str | None = None
+    ) -> list[dict[str, Any]]: ...
 
-    @abstractmethod
-    def get_edges(self, entity: str) -> List[Dict[str, Any]]: ...
+    def get_edges(self, entity: str) -> list[dict[str, Any]]: ...
 
-    @abstractmethod
-    def graph_stats(self) -> Dict[str, Any]: ...
+    def graph_stats(self) -> dict[str, Any]: ...
 
-    @abstractmethod
     def save(self) -> None: ...
 
-    @abstractmethod
     def close(self) -> None: ...

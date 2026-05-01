@@ -20,7 +20,6 @@ required) and catches regressions where a future refactor removes the
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 import pytest
 
@@ -37,8 +36,8 @@ from attestor.models import Memory
 class _FakeMem:
     """Minimal stand-in for AgentMemory used to assert RBAC fires first."""
 
-    added: List[str] = field(default_factory=list)
-    forgotten: List[str] = field(default_factory=list)
+    added: list[str] = field(default_factory=list)
+    forgotten: list[str] = field(default_factory=list)
 
     def add(self, content: str, **kwargs) -> Memory:
         self.added.append(content)

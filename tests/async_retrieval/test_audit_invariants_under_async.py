@@ -19,9 +19,8 @@ The eight audit invariants:
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -40,10 +39,16 @@ async def test_hyde_temperature_zero_determinism_across_runs():
     Async amplifies non-determinism risk because gathered lanes can
     observe different hypotheticals across runs if T > 0. This test
     pins the contract: the async generator must call the LLM with
-    temperature=0.0 every time."""
+    temperature=0.0 every time.
+
+    We patch the async-client factory rather than ``openai.AsyncOpenAI``
+    so the test is independent of which provider the YAML routes to
+    (openrouter / openai / anthropic) and bypasses the per-process
+    client cache in ``attestor.retrieval.hyde``.
+    """
     from attestor.retrieval.hyde import generate_hypothetical_answer_async  # RED
 
-    captured_temps = []
+    captured_temps: list = []
 
     class _StubResp:
         choices = [type("C", (), {"message": type("M", (), {"content": "snippet"})()})()]
@@ -52,11 +57,17 @@ async def test_hyde_temperature_zero_determinism_across_runs():
         captured_temps.append(kwargs.get("temperature"))
         return _StubResp()
 
-    with patch.dict(os.environ, {"OPENAI_API_KEY": "stub"}):
-        with patch("openai.AsyncOpenAI") as mock_client_cls:
-            mock_client_cls.return_value.chat.completions.create = fake_create
-            for _ in range(3):
-                await generate_hypothetical_answer_async("same question")
+    fake_client = type(
+        "FakeAsyncClient",
+        (),
+        {"chat": type("Chat", (), {"completions": type("Comp", (), {"create": staticmethod(fake_create)})()})()},
+    )()
+
+    with patch(
+        "attestor.retrieval.hyde._get_async_client", return_value=fake_client,
+    ):
+        for _ in range(3):
+            await generate_hypothetical_answer_async("same question", api_key="stub")
 
     assert captured_temps == [0.0, 0.0, 0.0], (
         f"async generator must call with temperature=0.0 on every invocation; "

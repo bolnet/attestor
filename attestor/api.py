@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -18,7 +17,7 @@ logger = logging.getLogger("attestor.api")
 _mem = None
 
 
-def _build_config() -> Optional[Dict[str, Any]]:
+def _build_config() -> dict[str, Any] | None:
     """Build backend config. Returns None when no backend can be resolved.
 
     Resolution order (top wins):
@@ -32,7 +31,7 @@ def _build_config() -> Optional[Dict[str, Any]]:
     postgres_url = os.environ.get("POSTGRES_URL")
     neo4j_uri = os.environ.get("NEO4J_URI")
 
-    cfg: Dict[str, Any] = {}
+    cfg: dict[str, Any] = {}
     backends: list = []
 
     if postgres_url:
@@ -228,8 +227,8 @@ try:
     from attestor.ui.app import ui_routes
 
     routes.extend(ui_routes())
-except Exception:  # pragma: no cover - UI is optional
-    pass
+except ImportError as e:  # pragma: no cover - UI is optional
+    logger.warning("UI router unavailable: %s", e)
 
 
 def _build_middleware() -> list:
@@ -266,7 +265,7 @@ def _build_middleware() -> list:
         # Allow pointing at a .pem on disk for cloud deploys that
         # mount keys via a volume rather than env-encoding them.
         try:
-            with open(public_key, "r", encoding="utf-8") as fh:
+            with open(public_key, encoding="utf-8") as fh:
                 public_key = fh.read()
         except OSError as e:
             logger.error("could not read ATTESTOR_JWT_PUBLIC_KEY=%r: %s",

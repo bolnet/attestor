@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import pytest
@@ -262,8 +261,8 @@ def test_session_lifecycle(conn, fresh_user, fresh_inbox):
 def test_session_list_for_user(conn, fresh_user, fresh_inbox):
     from attestor.identity import SessionRepo
     repo = SessionRepo(conn)
-    s1 = repo.create(user_id=fresh_user.id, project_id=fresh_inbox.id, title="a")
-    s2 = repo.create(user_id=fresh_user.id, project_id=fresh_inbox.id, title="b")
+    repo.create(user_id=fresh_user.id, project_id=fresh_inbox.id, title="a")
+    repo.create(user_id=fresh_user.id, project_id=fresh_inbox.id, title="b")
     listed = repo.list_for_user(fresh_user.id, status="active")
     titles = {s.title for s in listed}
     assert {"a", "b"}.issubset(titles)

@@ -8,7 +8,6 @@ reachable — skipped otherwise.
 from __future__ import annotations
 
 import os
-from typing import Any, List
 
 import pytest
 
@@ -42,8 +41,8 @@ class _StubRequests:
     """Mocks the per-call functions of the `requests` module."""
 
     def __init__(self) -> None:
-        self.posts: List[dict] = []
-        self._responses: List[_StubResponse] = []
+        self.posts: list[dict] = []
+        self._responses: list[_StubResponse] = []
 
     def queue(self, *responses: _StubResponse) -> None:
         self._responses.extend(responses)

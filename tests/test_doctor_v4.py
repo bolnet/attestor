@@ -10,9 +10,8 @@ Two layers:
 from __future__ import annotations
 
 import os
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any
 
 import pytest
 
@@ -29,12 +28,12 @@ from attestor.doctor_v4 import (
 class _StubCursor:
     """psycopg2-style cursor returning canned rows per query."""
 
-    def __init__(self, responses: List[Tuple[str, List[Tuple]]]) -> None:
+    def __init__(self, responses: list[tuple[str, list[tuple]]]) -> None:
         # responses: list of (query_substring, rows) pairs, consumed in order.
         # Test asserts the calls happen in a known sequence.
         self._responses = list(responses)
-        self._last_rows: List[Tuple] = []
-        self.queries: List[Tuple[str, Any]] = []
+        self._last_rows: list[tuple] = []
+        self.queries: list[tuple[str, Any]] = []
 
     def execute(self, query: str, params=None) -> None:
         self.queries.append((query, params))
@@ -49,7 +48,7 @@ class _StubCursor:
         )
         self._last_rows = rows
 
-    def fetchall(self) -> List[Tuple]:
+    def fetchall(self) -> list[tuple]:
         return list(self._last_rows)
 
     def fetchone(self):
@@ -63,7 +62,7 @@ class _StubCursor:
 
 
 class _StubConn:
-    def __init__(self, responses: List[Tuple[str, List[Tuple]]]) -> None:
+    def __init__(self, responses: list[tuple[str, list[tuple]]]) -> None:
         self._responses = responses
 
     def cursor(self):

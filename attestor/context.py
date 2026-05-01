@@ -29,11 +29,12 @@ Usage:
 
 from __future__ import annotations
 
+import copy
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, FrozenSet, List, Optional, Union
+from typing import Any
 
 from attestor.models import Memory, MemoryScope, RetrievalResult
 
@@ -75,7 +76,7 @@ class RolePermission(str, Enum):
 # contaminates the evidence trail; a monitor that writes is a feedback
 # loop. PLANNER / EXECUTOR / RESEARCHER need write but not forget --
 # immutability is a feature, only the orchestrator can archive.
-ROLE_PERMISSIONS: Dict[AgentRole, FrozenSet[RolePermission]] = {
+ROLE_PERMISSIONS: dict[AgentRole, frozenset[RolePermission]] = {
     AgentRole.ORCHESTRATOR: frozenset(
         {RolePermission.READ, RolePermission.WRITE, RolePermission.FORGET}
     ),
@@ -103,15 +104,15 @@ class AgentContext:
     role: AgentRole = AgentRole.EXECUTOR
 
     # -- v4 tenancy (None when running in v3-compat / SOLO-bootstrap mode) --
-    user_id: Optional[str] = None
-    project_id: Optional[str] = None
+    user_id: str | None = None
+    project_id: str | None = None
     scope_default: MemoryScope = MemoryScope.USER
 
     # -- Memory access --
     # Either an AgentMemory instance (embedded) or an HTTP client (distributed).
     # Typed as Any to avoid circular import; runtime checks enforce the interface.
     memory: Any = None               # AgentMemory | MemoryClient
-    memory_url: Optional[str] = None  # HTTP endpoint for distributed mode
+    memory_url: str | None = None  # HTTP endpoint for distributed mode
 
     # -- Token budget --
     token_budget: int = 20000         # Total budget for this session
@@ -120,27 +121,27 @@ class AgentContext:
 
     # -- Agent tracking --
     current_agent: str = ""
-    agent_trail: List[str] = field(default_factory=list)
-    parent_agent_id: Optional[str] = None
+    agent_trail: list[str] = field(default_factory=list)
+    parent_agent_id: str | None = None
 
     # -- Accumulated state: memories written this session --
-    memories_written: List[str] = field(default_factory=list)      # memory IDs
-    memories_recalled: List[str] = field(default_factory=list)     # memory IDs
-    entities_discovered: List[str] = field(default_factory=list)   # entity names
+    memories_written: list[str] = field(default_factory=list)      # memory IDs
+    memories_recalled: list[str] = field(default_factory=list)     # memory IDs
+    entities_discovered: list[str] = field(default_factory=list)   # entity names
 
     # -- Recall cache (avoid redundant queries within a session) --
-    _recall_cache: Dict[str, List[RetrievalResult]] = field(
+    _recall_cache: dict[str, list[RetrievalResult]] = field(
         default_factory=dict, repr=False
     )
 
     # -- Scratchpad: structured data passed between agents --
     # Like PlannerContext's snapshot/analysis_results/recommendations,
     # but generic. Each agent writes to its own key.
-    scratchpad: Dict[str, Any] = field(default_factory=dict)
+    scratchpad: dict[str, Any] = field(default_factory=dict)
 
     # -- Governance --
     visibility: Visibility = Visibility.PUBLIC
-    compliance_tags: List[str] = field(default_factory=list)
+    compliance_tags: list[str] = field(default_factory=list)
     requires_human_review: bool = False
     read_only: bool = False           # If True, agent can recall but not write
 
@@ -158,53 +159,76 @@ class AgentContext:
         agent_id: str,
         role: AgentRole = AgentRole.EXECUTOR,
         read_only: bool = False,
-        token_budget: Optional[int] = None,
+        token_budget: int | None = None,
     ) -> AgentContext:
         """Create a child context for a sub-agent.
 
-        Preserves shared state (memory, session, scratchpad) but sets
-        new identity and appends to the agent trail. Immutable -- returns
-        a new context, never mutates the original.
+        Preserves shared *config* (memory backend, session id, namespace,
+        budget) but gives the child its own *mutable* state copies so
+        sibling agents don't stomp each other's scratchpad / recall cache /
+        accumulated id lists. Immutable contract: never mutates ``self``.
         """
-        trail = [*self.agent_trail, agent_id]
-        return AgentContext(
-            agent_id=agent_id,
-            session_id=self.session_id,
-            namespace=self.namespace,
-            role=role,
-            user_id=self.user_id,
-            project_id=self.project_id,
-            scope_default=self.scope_default,
-            memory=self.memory,
-            memory_url=self.memory_url,
-            token_budget=token_budget or self.token_budget,
-            token_budget_used=self.token_budget_used,
-            max_writes_per_agent=self.max_writes_per_agent,
-            current_agent=agent_id,
-            agent_trail=trail,
-            parent_agent_id=self.agent_id,
-            memories_written=self.memories_written,
-            memories_recalled=self.memories_recalled,
-            entities_discovered=self.entities_discovered,
-            _recall_cache=self._recall_cache,
-            scratchpad=self.scratchpad,
-            visibility=self.visibility,
-            compliance_tags=self.compliance_tags,
-            requires_human_review=self.requires_human_review,
-            read_only=read_only,
+        return replace(
+            self,
+            **self._derived_fields(
+                agent_id=agent_id,
+                role=role,
+                token_budget=token_budget or self.token_budget,
+                read_only=read_only,
+            ),
         )
+
+    def _derived_fields(
+        self,
+        *,
+        agent_id: str,
+        role: AgentRole,
+        token_budget: int,
+        read_only: bool,
+    ) -> dict[str, Any]:
+        """Compute the field overrides for a derived child context.
+
+        Centralizes the deep-copy / shallow-copy policy so any future
+        ``.as_<role>()`` factory uses the same isolation rules:
+
+        - ``scratchpad`` and ``_recall_cache`` carry arbitrary user values
+          (and lists of RetrievalResult); deep-copy so child writes can't
+          leak back into the parent or to siblings.
+        - ``agent_trail`` / ``memories_written`` / ``memories_recalled`` /
+          ``entities_discovered`` / ``compliance_tags`` are lists of
+          immutable ids/strings; a shallow copy is enough.
+        """
+        return {
+            "agent_id": agent_id,
+            "role": role,
+            "token_budget": token_budget,
+            "read_only": read_only,
+            "current_agent": agent_id,
+            "parent_agent_id": self.agent_id,
+            "agent_trail": [*self.agent_trail, agent_id],
+            "memories_written": list(self.memories_written),
+            "memories_recalled": list(self.memories_recalled),
+            "entities_discovered": list(self.entities_discovered),
+            "compliance_tags": list(self.compliance_tags),
+            "scratchpad": copy.deepcopy(self.scratchpad),
+            "_recall_cache": copy.deepcopy(self._recall_cache),
+            # The child is a fresh derivation; stamp its own creation time
+            # so audit trails reflect when the sub-agent started, not when
+            # the orchestrator did.
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     @classmethod
     def for_chat(
         cls,
         user_id: str,
-        project_id: Optional[str] = None,
-        session_id: Optional[str] = None,
+        project_id: str | None = None,
+        session_id: str | None = None,
         agent_id: str = "chat",
         role: AgentRole = AgentRole.EXECUTOR,
         scope_default: MemoryScope = MemoryScope.USER,
         memory: Any = None,
-        memory_url: Optional[str] = None,
+        memory_url: str | None = None,
         token_budget: int = 20000,
     ) -> AgentContext:
         """Build a v4 chat-flow context anchored to a real user.
@@ -232,8 +256,8 @@ class AgentContext:
     @staticmethod
     def _build_namespace(
         user_id: str,
-        project_id: Optional[str],
-        session_id: Optional[str],
+        project_id: str | None,
+        session_id: str | None,
     ) -> str:
         ns = f"user:{user_id}"
         if project_id:
@@ -318,13 +342,13 @@ class AgentContext:
     def add_memory(
         self,
         content: str,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         category: str = "general",
-        entity: Optional[str] = None,
-        event_date: Optional[str] = None,
+        entity: str | None = None,
+        event_date: str | None = None,
         confidence: float = 1.0,
-        visibility: Optional[Visibility] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        visibility: Visibility | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Memory:
         """Add a memory with full provenance tracking.
 
@@ -333,7 +357,7 @@ class AgentContext:
         """
         self._require_permission(RolePermission.WRITE)
 
-        writes_by_me = sum(
+        sum(
             1 for mid in self.memories_written
             # Count is approximate -- just length-based
         )
@@ -377,9 +401,9 @@ class AgentContext:
     def recall(
         self,
         query: str,
-        budget: Optional[int] = None,
+        budget: int | None = None,
         use_cache: bool = True,
-    ) -> List[RetrievalResult]:
+    ) -> list[RetrievalResult]:
         """Recall memories with budget tracking and caching.
 
         Caches results within a session to avoid redundant vector searches.
@@ -410,7 +434,7 @@ class AgentContext:
         return results
 
     def recall_as_context(
-        self, query: str, budget: Optional[int] = None
+        self, query: str, budget: int | None = None
     ) -> str:
         """Recall and format as injectable context string."""
         mem = self._get_memory()
@@ -420,13 +444,13 @@ class AgentContext:
             namespace=self.namespace,
         )
 
-    def search(self, **kwargs: Any) -> List[Memory]:
+    def search(self, **kwargs: Any) -> list[Memory]:
         """Search with filters, scoped to this context's namespace."""
         kwargs.setdefault("namespace", self.namespace)
         mem = self._get_memory()
         return mem.search(**kwargs)
 
-    def timeline(self, entity: str) -> List[Memory]:
+    def timeline(self, entity: str) -> list[Memory]:
         """Get chronological history for an entity, scoped to namespace."""
         mem = self._get_memory()
         return mem.timeline(entity, namespace=self.namespace)
@@ -467,12 +491,12 @@ class AgentContext:
     #  Health & introspection                                              #
     # ------------------------------------------------------------------ #
 
-    def health(self) -> Dict[str, Any]:
+    def health(self) -> dict[str, Any]:
         """Check memory backend health."""
         mem = self._get_memory()
         return mem.health()
 
-    def session_summary(self) -> Dict[str, Any]:
+    def session_summary(self) -> dict[str, Any]:
         """Summarize what happened in this session."""
         return {
             "session_id": self.session_id,

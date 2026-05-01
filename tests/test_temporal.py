@@ -1,12 +1,8 @@
 """Tests for temporal logic — contradictions, supersession, timeline."""
 
-import tempfile
 
-import pytest
 
-from attestor import AgentMemory
 
-from .conftest import TEST_CONFIG
 
 # mem fixture comes from conftest.py
 

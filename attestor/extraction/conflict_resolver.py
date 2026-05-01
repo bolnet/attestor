@@ -20,15 +20,14 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from attestor.extraction.prompts import format_memory_update_prompt
 from attestor.extraction.round_extractor import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL,
     ExtractedFact,
-    _parse_facts_payload,
     _strip_markdown_fences,
     default_llm_client,
 )
@@ -46,7 +45,7 @@ class Decision:
 
     operation: str  # one of VALID_OPERATIONS
     new_fact: ExtractedFact
-    existing_id: Optional[str]  # None for ADD/NOOP; the existing memory id otherwise
+    existing_id: str | None  # None for ADD/NOOP; the existing memory id otherwise
     rationale: str
     evidence_episode_id: str
 
@@ -96,14 +95,14 @@ def _memory_to_dict(m: Memory) -> dict:
 
 
 def resolve_conflicts(
-    new_facts: List[ExtractedFact],
-    existing: List[Memory],
+    new_facts: list[ExtractedFact],
+    existing: list[Memory],
     evidence_episode_id: str,
     *,
     model: str = DEFAULT_MODEL,
     max_tokens: int = DEFAULT_MAX_TOKENS,
-    client: Optional[Any] = None,
-) -> List[Decision]:
+    client: Any | None = None,
+) -> list[Decision]:
     """Decide ADD/UPDATE/INVALIDATE/NOOP for each new fact.
 
     Returns one Decision per new_fact (in order). On any LLM/parse
@@ -168,7 +167,7 @@ def resolve_conflicts(
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _parse_decisions_payload(raw: str) -> List[dict]:
+def _parse_decisions_payload(raw: str) -> list[dict]:
     """Parse the LLM response into a list of decision dicts."""
     text = _strip_markdown_fences(raw)
     if not text:
@@ -188,17 +187,17 @@ def _parse_decisions_payload(raw: str) -> List[dict]:
 
 
 def _bind_decisions(
-    raw_decisions: List[dict],
-    new_facts: List[ExtractedFact],
+    raw_decisions: list[dict],
+    new_facts: list[ExtractedFact],
     evidence_episode_id: str,
-) -> List[Decision]:
+) -> list[Decision]:
     """Match raw LLM decisions back to the input facts.
 
     Strategy: bind by index when lengths match (the LLM kept the order),
     otherwise by exact text match. Anything we can't bind falls back to
     ADD so no fact is silently dropped.
     """
-    decisions: List[Decision] = []
+    decisions: list[Decision] = []
 
     # Index-aligned fast path
     if len(raw_decisions) == len(new_facts):
@@ -281,8 +280,8 @@ def _default_add(
 
 
 def _fallback_all_add(
-    new_facts: List[ExtractedFact], evidence_episode_id: str,
-) -> List[Decision]:
+    new_facts: list[ExtractedFact], evidence_episode_id: str,
+) -> list[Decision]:
     return [
         _default_add(
             f, evidence_episode_id,

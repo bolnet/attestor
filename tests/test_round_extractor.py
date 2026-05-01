@@ -8,7 +8,7 @@ parsing, validation, clamping, and speaker-lock guards.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, List
+from typing import Any
 
 import pytest
 
@@ -16,7 +16,6 @@ from attestor.conversation.turns import ConversationTurn
 from attestor.extraction.round_extractor import (
     AGENT_FACT_CATEGORIES,
     USER_FACT_CATEGORIES,
-    ExtractedFact,
     _parse_facts_payload,
     _strip_markdown_fences,
     _validate_fact,

@@ -7,7 +7,6 @@ the orchestrator is wired.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -15,7 +14,6 @@ from attestor.retrieval.multi_query import (
     RRF_K,
     RewriteResult,
     _parse_rewrites,
-    multi_query_search,
     reciprocal_rank_fusion,
     union_merge,
 )

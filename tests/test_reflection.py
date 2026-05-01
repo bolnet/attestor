@@ -3,17 +3,13 @@
 from __future__ import annotations
 
 import json
-from typing import Any, List
+from typing import Any
 
 import pytest
 
 from attestor.consolidation.reflection import (
     REFLECTION_PROMPT,
-    ChangedBelief,
-    Contradiction,
     ReflectionEngine,
-    ReflectionResult,
-    StablePattern,
     _parse_response,
 )
 from attestor.models import Memory

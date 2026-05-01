@@ -41,7 +41,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("attestor.longmemeval_consistency")
 
@@ -66,10 +66,10 @@ class ConsistencyResult:
     in which case ``voter`` is reported as ``"majority"``.
     """
 
-    samples: List[str]                       # all K raw answers (post-strip)
+    samples: list[str]                       # all K raw answers (post-strip)
     chosen: str                              # the elected final answer
     voter: str                               # "majority" | "judge_pick"
-    vote_breakdown: Dict[str, int] = field(default_factory=dict)
+    vote_breakdown: dict[str, int] = field(default_factory=dict)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ def _sample_once(
     *,
     client: Any,
     model: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     temperature: float,
 ) -> str:
     """Draw a single answerer sample. Returns the stripped content text,
@@ -136,7 +136,7 @@ def _sample_once(
 # ──────────────────────────────────────────────────────────────────────
 
 
-def _majority_choice(samples: List[str]) -> tuple[str, Dict[str, int]]:
+def _majority_choice(samples: list[str]) -> tuple[str, dict[str, int]]:
     """Pick the most-frequent fingerprint; tiebreak by first-seen.
 
     Returns ``(chosen_surface_form, vote_breakdown)``. The chosen
@@ -148,8 +148,8 @@ def _majority_choice(samples: List[str]) -> tuple[str, Dict[str, int]]:
 
     # Count fingerprints in stable insertion order (first-seen wins
     # tiebreaks via dict ordering on Python 3.7+).
-    counts: Dict[str, int] = {}
-    first_surface: Dict[str, str] = {}
+    counts: dict[str, int] = {}
+    first_surface: dict[str, str] = {}
     for s in samples:
         fp = _fingerprint(s)
         if not fp:
@@ -180,7 +180,7 @@ _JUDGE_PROMPT = (
 
 def _judge_choice(
     *,
-    samples: List[str],
+    samples: list[str],
     question: str,
     judge_client: Any,
     judge_model: str,
@@ -217,7 +217,7 @@ def _judge_choice(
     return idx
 
 
-def _question_from_messages(messages: List[Dict[str, Any]]) -> str:
+def _question_from_messages(messages: list[dict[str, Any]]) -> str:
     """Best-effort extraction of the user's question from the chat
     messages — used only for the judge prompt context. Defensive: if
     the schema doesn't match, falls back to a generic placeholder."""
@@ -241,12 +241,12 @@ def answer_with_self_consistency(
     *,
     client: Any,
     model: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     k: int = 5,
     temperature: float = 0.7,
     voter: str = "majority",
-    judge_client: Optional[Any] = None,
-    judge_model: Optional[str] = None,
+    judge_client: Any | None = None,
+    judge_model: str | None = None,
 ) -> ConsistencyResult:
     """Run the answerer model K times and elect the consensus answer.
 
@@ -292,7 +292,7 @@ def answer_with_self_consistency(
     if k <= 0:
         return ConsistencyResult(samples=[], chosen="", voter=voter, vote_breakdown={})
 
-    samples: List[str] = []
+    samples: list[str] = []
     for i in range(k):
         try:
             text = _sample_once(
@@ -355,7 +355,7 @@ def answer_with_self_consistency(
 
 
 def _emit_samples_event(
-    *, k: int, model: str, temperature: float, samples: List[str],
+    *, k: int, model: str, temperature: float, samples: list[str],
 ) -> None:
     try:
         from attestor import trace as _tr
@@ -374,7 +374,7 @@ def _emit_samples_event(
 
 
 def _emit_elected_event(
-    *, voter: str, chosen: str, breakdown: Dict[str, int],
+    *, voter: str, chosen: str, breakdown: dict[str, int],
 ) -> None:
     try:
         from attestor import trace as _tr
@@ -417,7 +417,7 @@ async def _sample_once_async(
     *,
     client: Any,
     model: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     temperature: float,
 ) -> str:
     """Async sibling of ``_sample_once``. Awaits an async chat-completion
@@ -436,12 +436,13 @@ async def answer_with_self_consistency_async(
     *,
     client: Any,
     model: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     k: int = 5,
     temperature: float = 0.7,
     voter: str = "majority",
-    judge_client: Optional[Any] = None,
-    judge_model: Optional[str] = None,
+    judge_client: Any | None = None,
+    judge_model: str | None = None,
+    concurrency: int = 4,
 ) -> ConsistencyResult:
     """Async sibling of ``answer_with_self_consistency``. K answerer
     samples are drawn CONCURRENTLY via ``asyncio.gather``; the voter
@@ -463,21 +464,27 @@ async def answer_with_self_consistency_async(
     if k <= 0:
         return ConsistencyResult(samples=[], chosen="", voter=voter, vote_breakdown={})
 
-    # K samples in parallel.
-    tasks = [
-        asyncio.create_task(
-            _sample_once_async(
+    # K samples in parallel, BUT bounded by ``concurrency``. Unbounded
+    # K-fanout (e.g. K=20) would spike provider rate limits and cause
+    # 429s on Voyage / OpenRouter; the semaphore caps in-flight calls
+    # so larger K trades wallclock for cost stability rather than
+    # producing cascading retries.
+    bound = max(1, min(int(concurrency), int(k)))
+    sem = asyncio.Semaphore(bound)
+
+    async def _bounded_sample() -> str:
+        async with sem:
+            return await _sample_once_async(
                 client=client,
                 model=model,
                 messages=messages,
                 temperature=temperature,
             )
-        )
-        for _ in range(k)
-    ]
+
+    tasks = [asyncio.create_task(_bounded_sample()) for _ in range(k)]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    samples: List[str] = []
+    samples: list[str] = []
     for i, r in enumerate(results):
         if isinstance(r, Exception):
             logger.debug("self_consistency_async sample %d failed: %s", i, r)

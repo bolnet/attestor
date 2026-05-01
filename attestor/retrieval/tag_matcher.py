@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from typing import List
 
 # Common stop words to filter out during tag extraction
 _STOP_WORDS = frozenset({
@@ -25,7 +24,7 @@ _STOP_WORDS = frozenset({
 })
 
 
-def extract_tags(query: str) -> List[str]:
+def extract_tags(query: str) -> list[str]:
     """Extract potential tags from a natural language query.
 
     Uses simple keyword extraction: lowercase, strip punctuation,

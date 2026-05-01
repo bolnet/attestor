@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 
 import psycopg2.extras
 
@@ -30,9 +30,9 @@ class SessionRepo:
     def create(
         self,
         user_id: str,
-        project_id: Optional[str] = None,
-        title: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        project_id: str | None = None,
+        title: str | None = None,
+        metadata: dict | None = None,
     ) -> Session:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -70,7 +70,7 @@ class SessionRepo:
         # negligible at this volume (lock space is 2**31).
         import hashlib
         digest = hashlib.sha256(
-            f"daily:{user_id}:{day}".encode("utf-8"),
+            f"daily:{user_id}:{day}".encode(),
         ).digest()
         lock_id = int.from_bytes(digest[:4], "big") & 0x7FFFFFFF
 
@@ -118,7 +118,7 @@ class SessionRepo:
 
     # ── Read ──────────────────────────────────────────────────────────────
 
-    def get(self, session_id: str) -> Optional[Session]:
+    def get(self, session_id: str) -> Session | None:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT * FROM sessions WHERE id = %s", (session_id,))
             row = cur.fetchone()
@@ -127,11 +127,11 @@ class SessionRepo:
     def list_for_user(
         self,
         user_id: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         status: str = "active",
         limit: int = 20,
-        before: Optional[datetime] = None,
-    ) -> List[Session]:
+        before: datetime | None = None,
+    ) -> list[Session]:
         sql = "SELECT * FROM sessions WHERE user_id = %s AND status = %s "
         params: list = [user_id, status]
         if project_id is not None:
@@ -149,7 +149,7 @@ class SessionRepo:
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
-    def resume(self, session_id: str) -> Optional[Session]:
+    def resume(self, session_id: str) -> Session | None:
         """Bump last_active_at to now. Returns updated row, or None if missing."""
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -172,7 +172,7 @@ class SessionRepo:
             )
         self._conn.commit()
 
-    def end(self, session_id: str) -> Optional[Session]:
+    def end(self, session_id: str) -> Session | None:
         """Transition active/idle → ended AND enqueue the session's
         episodes for sleep-time consolidation (Phase 7.4).
 
@@ -212,7 +212,7 @@ class SessionRepo:
             pass
         return Session.from_row(dict(row))
 
-    def archive(self, session_id: str) -> Optional[Session]:
+    def archive(self, session_id: str) -> Session | None:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "UPDATE sessions SET status = 'archived' WHERE id = %s "

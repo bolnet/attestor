@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from attestor.store.connection import (
     BACKEND_DEFAULTS,
@@ -19,7 +19,7 @@ class BackendConflictError(Exception):
     """Raised when two backends claim the same role."""
 
 
-BACKEND_REGISTRY: Dict[str, Dict[str, Any]] = {
+BACKEND_REGISTRY: dict[str, dict[str, Any]] = {
     "arangodb": {
         "module": "attestor.store.arango_backend",
         "class": "ArangoBackend",
@@ -83,8 +83,8 @@ DEFAULT_BACKENDS = ["postgres", "pinecone", "neo4j"]
 
 
 def resolve_backends(
-    backends: Optional[List[str]] = None,
-) -> Dict[str, str]:
+    backends: list[str] | None = None,
+) -> dict[str, str]:
     """Resolve which backend fills each role.
 
     Args:
@@ -100,17 +100,28 @@ def resolve_backends(
     if backends is None:
         backends = DEFAULT_BACKENDS
 
-    role_assignments: Dict[str, str] = {}
+    role_assignments: dict[str, str] = {}
 
     for backend_name in backends:
         if backend_name not in BACKEND_REGISTRY:
-            raise ValueError(f"Unknown backend: {backend_name!r}. Known: {sorted(BACKEND_REGISTRY.keys())}")
+            raise ValueError(
+                f"Unknown backend: {backend_name!r}. "
+                f"Known: {sorted(BACKEND_REGISTRY.keys())}"
+            )
 
         entry = BACKEND_REGISTRY[backend_name]
-        for role in entry["roles"]:
+        roles = entry.get("roles") or set()
+        if not roles:
+            raise ValueError(
+                f"Backend {backend_name!r} has no roles declared in "
+                f"BACKEND_REGISTRY. Every backend must claim at least "
+                f"one of {{'document', 'vector', 'graph'}}."
+            )
+        for role in roles:
             if role in role_assignments:
                 raise BackendConflictError(
-                    f"Role {role!r} claimed by both {role_assignments[role]!r} and {backend_name!r}"
+                    f"Role {role!r} claimed by both "
+                    f"{role_assignments[role]!r} and {backend_name!r}"
                 )
             role_assignments[role] = backend_name
 
@@ -120,7 +131,7 @@ def resolve_backends(
 def instantiate_backend(
     backend_name: str,
     store_path: Any,
-    backend_config: Optional[Dict[str, Any]] = None,
+    backend_config: dict[str, Any] | None = None,
 ) -> Any:
     """Import and instantiate a backend class.
 
@@ -137,9 +148,23 @@ def instantiate_backend(
     Returns:
         Instantiated backend object.
     """
+    # Intentionally lets KeyError surface for unknown backend names —
+    # callers (CLI, registry tests) rely on this concrete type.
     entry = BACKEND_REGISTRY[backend_name]
-    module = importlib.import_module(entry["module"])
-    cls = getattr(module, entry["class"])
+    try:
+        module = importlib.import_module(entry["module"])
+    except ImportError as e:
+        raise ImportError(
+            f"Backend module {entry['module']!r} not installed; "
+            f"install with `pip install attestor[{backend_name}]`."
+        ) from e
+    try:
+        cls = getattr(module, entry["class"])
+    except AttributeError as e:
+        raise AttributeError(
+            f"Backend class {entry['class']!r} not found in "
+            f"module {entry['module']!r}; registry entry is stale."
+        ) from e
 
     merged = merge_config_layers(
         CLOUD_DEFAULTS,

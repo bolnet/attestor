@@ -8,7 +8,7 @@ import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 if sys.version_info >= (3, 11):
     import tomllib as _toml_reader
@@ -29,8 +29,8 @@ _DEFAULT_BACKENDS = ["postgres", "neo4j"]
 class MemoryConfig:
     default_token_budget: int = 16000
     min_results: int = 3
-    backends: List[str] = field(default_factory=lambda: list(_DEFAULT_BACKENDS))
-    backend_configs: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    backends: list[str] = field(default_factory=lambda: list(_DEFAULT_BACKENDS))
+    backend_configs: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     # Retrieval tuning
     enable_mmr: bool = True
@@ -41,10 +41,10 @@ class MemoryConfig:
     confidence_boost_rate: float = 0.03
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> MemoryConfig:
+    def from_dict(cls, data: dict[str, Any]) -> MemoryConfig:
         known_fields = {f.name for f in cls.__dataclass_fields__.values()}
         backends = data.get("backends", list(_DEFAULT_BACKENDS))
-        backend_configs: Dict[str, Dict[str, Any]] = {}
+        backend_configs: dict[str, dict[str, Any]] = {}
         for key, value in data.items():
             if key not in known_fields and isinstance(value, dict):
                 backend_configs[key] = value
@@ -53,8 +53,8 @@ class MemoryConfig:
         filtered["backend_configs"] = {**backend_configs, **filtered.get("backend_configs", {})}
         return cls(**filtered)
 
-    def to_dict(self) -> Dict[str, Any]:
-        result: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
             "default_token_budget": self.default_token_budget,
             "min_results": self.min_results,
             "backends": self.backends,

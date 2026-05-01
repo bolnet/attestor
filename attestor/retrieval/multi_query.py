@@ -41,7 +41,8 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any
+from collections.abc import Awaitable, Callable, Sequence
 
 logger = logging.getLogger("attestor.retrieval.multi_query")
 
@@ -74,10 +75,10 @@ class RewriteResult:
     list and recover both the original + paraphrases."""
 
     original: str
-    paraphrases: List[str] = field(default_factory=list)
+    paraphrases: list[str] = field(default_factory=list)
 
     @property
-    def queries(self) -> List[str]:
+    def queries(self) -> list[str]:
         # original first, then paraphrases — rank position matters for RRF
         return [self.original, *self.paraphrases]
 
@@ -99,8 +100,8 @@ def rewrite_query(
     question: str,
     *,
     n: int = 3,
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
+    model: str | None = None,
+    api_key: str | None = None,
     timeout: float = 30.0,
 ) -> RewriteResult:
     """Produce ``n`` paraphrases of ``question`` via a single LLM call.
@@ -183,8 +184,8 @@ async def rewrite_query_async(
     question: str,
     *,
     n: int = 3,
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
+    model: str | None = None,
+    api_key: str | None = None,
     timeout: float = 30.0,
 ) -> RewriteResult:
     """Async sibling of ``rewrite_query``. Same prompt, same parser,
@@ -259,7 +260,7 @@ async def rewrite_query_async(
     )
 
 
-def _parse_rewrites(text: str, *, n: int) -> List[str]:
+def _parse_rewrites(text: str, *, n: int) -> list[str]:
     """Extract a JSON array of strings from the rewriter response.
 
     Handles fenced code blocks (```json ... ```) and stray text around
@@ -291,7 +292,7 @@ def _parse_rewrites(text: str, *, n: int) -> List[str]:
     if not isinstance(parsed, list):
         return []
 
-    out: List[str] = []
+    out: list[str] = []
     for item in parsed:
         s = str(item).strip()
         if s and s not in out:
@@ -313,11 +314,11 @@ RRF_K = 60
 
 
 def reciprocal_rank_fusion(
-    lanes: Sequence[Sequence[Dict[str, Any]]],
+    lanes: Sequence[Sequence[dict[str, Any]]],
     *,
     key: str = "memory_id",
     k: int = RRF_K,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Merge N ranked lists into one via reciprocal rank fusion.
 
     Each ``lane`` is an ordered list of hit dicts (vector_store.search
@@ -335,9 +336,9 @@ def reciprocal_rank_fusion(
     # First-occurrence wins for the hit dict itself; we annotate it
     # with the merged score below. This preserves the lane ordering
     # for tie-breaking.
-    seen: Dict[Any, Dict[str, Any]] = {}
-    score: Dict[Any, float] = {}
-    per_lane_ranks: Dict[Any, List[int]] = {}
+    seen: dict[Any, dict[str, Any]] = {}
+    score: dict[Any, float] = {}
+    per_lane_ranks: dict[Any, list[int]] = {}
 
     for lane_idx, lane in enumerate(lanes):
         for rank, hit in enumerate(lane, start=1):
@@ -350,7 +351,7 @@ def reciprocal_rank_fusion(
                 # Copy so we don't mutate the caller's list elements.
                 seen[mid] = dict(hit)
 
-    merged: List[Dict[str, Any]] = []
+    merged: list[dict[str, Any]] = []
     for mid, hit in seen.items():
         hit = dict(hit)
         hit["rrf_score"] = round(score[mid], 6)
@@ -362,16 +363,16 @@ def reciprocal_rank_fusion(
 
 
 def union_merge(
-    lanes: Sequence[Sequence[Dict[str, Any]]],
+    lanes: Sequence[Sequence[dict[str, Any]]],
     *,
     key: str = "memory_id",
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Simple deduplicated union — preserves first-seen order across
     lanes, no rank fusion. Cheaper than RRF but loses cross-lane
     consistency signal. Used as a fallback when ``merge: union`` is
     set in YAML."""
     seen: set = set()
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for lane in lanes:
         for hit in lane:
             mid = hit.get(key)
@@ -390,12 +391,12 @@ def union_merge(
 def multi_query_search(
     question: str,
     *,
-    vector_search: Callable[[str], List[Dict[str, Any]]],
+    vector_search: Callable[[str], list[dict[str, Any]]],
     n: int = 3,
     merge: str = "rrf",
-    rewriter_model: Optional[str] = None,
-    api_key: Optional[str] = None,
-) -> Tuple[List[str], List[Dict[str, Any]]]:
+    rewriter_model: str | None = None,
+    api_key: str | None = None,
+) -> tuple[list[str], list[dict[str, Any]]]:
     """Run the rewriter, fan out to ``vector_search`` per query,
     merge the lanes, return ``(queries_used, merged_hits)``.
 
@@ -408,7 +409,7 @@ def multi_query_search(
     )
     queries = rewrite.queries
 
-    lanes: List[List[Dict[str, Any]]] = []
+    lanes: list[list[dict[str, Any]]] = []
     for q in queries:
         try:
             hits = list(vector_search(q))
@@ -457,13 +458,13 @@ def multi_query_search(
 async def multi_query_search_async(
     question: str,
     *,
-    vector_search: Callable[[str], Awaitable[List[Dict[str, Any]]]],
+    vector_search: Callable[[str], Awaitable[list[dict[str, Any]]]],
     n: int = 3,
     merge: str = "rrf",
-    rewriter_model: Optional[str] = None,
-    api_key: Optional[str] = None,
+    rewriter_model: str | None = None,
+    api_key: str | None = None,
     timeout: float = 30.0,
-) -> Tuple[List[str], List[Dict[str, Any]]]:
+) -> tuple[list[str], list[dict[str, Any]]]:
     """Async sibling of ``multi_query_search``. ``vector_search`` MUST
     be an async callable.
 
@@ -478,6 +479,13 @@ async def multi_query_search_async(
     """
     # Phase A: rewriter + orig-lane in parallel. Orig lane is "free"
     # on the wallclock — it runs while the LLM writes paraphrases.
+    #
+    # Task lifecycle invariant: every task created here MUST be either
+    # awaited or cancelled before this function returns. A leaked task
+    # would keep an HTTP connection live past the caller's deadline,
+    # which surfaces in long-running benches as memory growth and
+    # spurious 429s. The ``try/finally`` below enforces that even on
+    # ``CancelledError`` / ``KeyboardInterrupt`` propagation.
     rewriter_task = asyncio.create_task(
         rewrite_query_async(
             question, n=n, model=rewriter_model, api_key=api_key,
@@ -485,29 +493,41 @@ async def multi_query_search_async(
         )
     )
     orig_task = asyncio.create_task(_safe_async_call(vector_search, question))
+    paraphrase_tasks: list[asyncio.Task[list[dict[str, Any]]]] = []
 
     try:
-        rewrite = await asyncio.wait_for(rewriter_task, timeout=timeout)
-    except asyncio.TimeoutError:
-        logger.debug("multi_query_async: rewriter exceeded timeout=%.2fs", timeout)
-        rewrite = RewriteResult(original=question.strip())
-    except Exception as e:  # noqa: BLE001
-        logger.debug("multi_query_async: rewriter failed: %s", e)
-        rewrite = RewriteResult(original=question.strip())
+        try:
+            rewrite = await asyncio.wait_for(rewriter_task, timeout=timeout)
+        except asyncio.TimeoutError:
+            logger.debug("multi_query_async: rewriter exceeded timeout=%.2fs", timeout)
+            rewrite = RewriteResult(original=question.strip())
+        except Exception as e:  # noqa: BLE001
+            logger.debug("multi_query_async: rewriter failed: %s", e)
+            rewrite = RewriteResult(original=question.strip())
 
-    queries = rewrite.queries
+        queries = rewrite.queries
 
-    # Phase B: fan out paraphrase lanes (all known after rewriter
-    # returns) gathered with the already-running orig task.
-    paraphrase_tasks = [
-        asyncio.create_task(_safe_async_call(vector_search, p))
-        for p in rewrite.paraphrases
-    ]
-    all_tasks = [orig_task] + paraphrase_tasks
-    lanes_results = await asyncio.gather(*all_tasks, return_exceptions=True)
+        # Phase B: fan out paraphrase lanes (all known after rewriter
+        # returns) gathered with the already-running orig task.
+        paraphrase_tasks = [
+            asyncio.create_task(_safe_async_call(vector_search, p))
+            for p in rewrite.paraphrases
+        ]
+        all_tasks: list[asyncio.Task[list[dict[str, Any]]]] = (
+            [orig_task] + paraphrase_tasks
+        )
+        lanes_results = await asyncio.gather(*all_tasks, return_exceptions=True)
+    except BaseException:
+        # Cancellation, KeyboardInterrupt, or any other propagating
+        # exception: cancel every task we spawned so its underlying
+        # network call shuts down promptly.
+        for t in (rewriter_task, orig_task, *paraphrase_tasks):
+            if not t.done():
+                t.cancel()
+        raise
 
     # Coerce to lanes; exceptions become empty lanes (RRF handles).
-    lanes: List[List[Dict[str, Any]]] = []
+    lanes: list[list[dict[str, Any]]] = []
     for lr in lanes_results:
         if isinstance(lr, Exception):
             lanes.append([])
@@ -533,9 +553,9 @@ async def multi_query_search_async(
 
 
 async def _safe_async_call(
-    fn: Callable[[str], Awaitable[List[Dict[str, Any]]]],
+    fn: Callable[[str], Awaitable[list[dict[str, Any]]]],
     arg: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Await ``fn(arg)``; on exception, return ``[]`` so the lane
     contributes empty to RRF rather than raising. Mirrors the helper
     in ``attestor/retrieval/hyde.py`` — kept local to avoid a

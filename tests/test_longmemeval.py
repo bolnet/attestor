@@ -13,7 +13,6 @@ from attestor.longmemeval import (
     CATEGORY_NAMES,
     DATASET_VARIANTS,
     DEFAULT_JUDGES,
-    DEFAULT_MODEL,
     IngestStats,
     JUDGE_PROMPT,
     JudgeResult,
@@ -22,8 +21,6 @@ from attestor.longmemeval import (
     TEMPORAL_CATEGORY,
     VERIFY_PROMPT,
     DISTILL_PROMPT,
-    LMERunReport,
-    PERSONALIZATION_PROMPT,
     PERSONALIZATION_JUDGE_PROMPT,
     RunProvenance,
     SampleReport,
@@ -46,7 +43,6 @@ from attestor.longmemeval import (
     load_longmemeval,
     namespace_for,
     parse_lme_date,
-    run,
     run_async,
 )
 
@@ -807,7 +803,6 @@ def test_run_async_emits_provenance(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     .sha256 next to it matching the JSON's content hash.
     """
     import asyncio
-    from dataclasses import asdict
     import attestor.longmemeval as lme
 
     samples = load_longmemeval(FIXTURE)[:2]

@@ -15,8 +15,8 @@ doctor`` so operators can verify a deployment from the CLI.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger("attestor.doctor")
 
@@ -62,7 +62,7 @@ class CheckResult:
     found: tuple = ()     # things observed (e.g., extensions present)
     missing: tuple = ()   # things required but absent
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "status": self.status,
@@ -78,7 +78,7 @@ class V4DoctorReport:
     healthy: bool
     checks: tuple = ()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "healthy": self.healthy,
             "checks": [c.to_dict() for c in self.checks],
@@ -243,7 +243,7 @@ def run_v4_doctor(conn: Any) -> V4DoctorReport:
     Each check is wrapped — a single broken check (e.g., insufficient
     privileges to read pg_trigger) doesn't kill the rest of the report.
     """
-    results: List[CheckResult] = []
+    results: list[CheckResult] = []
     for check_fn in _ALL_CHECKS:
         name = check_fn.__name__.removeprefix("_check_")
         try:
@@ -260,7 +260,7 @@ def run_v4_doctor(conn: Any) -> V4DoctorReport:
 
 def format_v4_report(report: V4DoctorReport) -> str:
     """Pretty-print the v4 report for the CLI."""
-    lines: List[str] = []
+    lines: list[str] = []
     verdict = "HEALTHY" if report.healthy else "ISSUES DETECTED"
     lines.append(f"Attestor v4 schema doctor: {verdict}")
     lines.append("-" * 60)

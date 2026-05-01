@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from attestor.consolidation.queue import ConsolidationQueue, QueuedEpisode
 from attestor.conversation.apply import AppliedDecision, apply_decisions
@@ -27,7 +27,6 @@ from attestor.conversation.turns import ConversationTurn
 from attestor.extraction.conflict_resolver import resolve_conflicts
 from attestor.extraction.round_extractor import (
     DEFAULT_MAX_TOKENS,
-    DEFAULT_MODEL,
     ExtractedFact,
     extract_agent_facts,
     extract_user_facts,
@@ -54,17 +53,17 @@ DEFAULT_CONSOLIDATION_MODEL = _default_consolidation_model()
 class ConsolidationResult:
     """One episode consolidation outcome."""
     episode_id: str
-    user_facts: List[ExtractedFact]
-    agent_facts: List[ExtractedFact]
-    applied: List[AppliedDecision]
-    error: Optional[str] = None
+    user_facts: list[ExtractedFact]
+    agent_facts: list[ExtractedFact]
+    applied: list[AppliedDecision]
+    error: str | None = None
 
     @property
     def ok(self) -> bool:
         return self.error is None
 
     @property
-    def written_memory_ids(self) -> List[str]:
+    def written_memory_ids(self) -> list[str]:
         return [a.memory_id for a in self.applied
                 if a.memory_id and a.operation in {"ADD", "UPDATE", "INVALIDATE"}]
 
@@ -89,9 +88,9 @@ class SleepTimeConsolidator:
         max_tokens: int = DEFAULT_MAX_TOKENS,
         cadence_seconds: int = 300,
         batch_size: int = 20,
-        extraction_client: Optional[Any] = None,
-        resolver_client: Optional[Any] = None,
-        queue: Optional[ConsolidationQueue] = None,
+        extraction_client: Any | None = None,
+        resolver_client: Any | None = None,
+        queue: ConsolidationQueue | None = None,
     ) -> None:
         self._mem = mem
         self._model = model
@@ -105,7 +104,7 @@ class SleepTimeConsolidator:
 
     # ── Public ──────────────────────────────────────────────────────────
 
-    def run_once(self, *, limit: Optional[int] = None) -> List[ConsolidationResult]:
+    def run_once(self, *, limit: int | None = None) -> list[ConsolidationResult]:
         """Drain one batch and return per-episode results."""
         n = limit or self._batch_size
         batch = self._queue.dequeue_batch(limit=n)
@@ -200,8 +199,8 @@ class SleepTimeConsolidator:
     # ── Helpers ────────────────────────────────────────────────────────
 
     def _retrieve_similar(
-        self, new_facts: List[ExtractedFact],
-    ) -> List[Memory]:
+        self, new_facts: list[ExtractedFact],
+    ) -> list[Memory]:
         """Reuse the same fallback logic as ConversationIngest — but
         without going through mem.recall (which would require resolving
         identity again). We just hit the doc store directly.
@@ -212,7 +211,7 @@ class SleepTimeConsolidator:
         if store is None or not hasattr(store, "list_memories"):
             return []
         seen: set = set()
-        out: List[Memory] = []
+        out: list[Memory] = []
         for fact in new_facts:
             try:
                 if fact.entity:

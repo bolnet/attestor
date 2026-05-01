@@ -45,19 +45,19 @@ from __future__ import annotations
 import contextlib
 import contextvars
 from datetime import datetime, timezone
-from typing import Iterator, Optional
+from collections.abc import Iterator
 
 # UTC monotonic-anchored timestamp captured at recall start. Set by
 # ``recall_started_at_scope``; read by store backends when constructing
 # their WHERE clauses. Must use ``datetime.now(timezone.utc)`` (NOT
 # ``time.monotonic``) because Postgres ``NOW()`` returns wall-clock UTC
 # and the ceiling needs to be comparable across the wire.
-_RECALL_STARTED_AT: contextvars.ContextVar[Optional[datetime]] = (
+_RECALL_STARTED_AT: contextvars.ContextVar[datetime | None] = (
     contextvars.ContextVar("attestor.recall.started_at", default=None)
 )
 
 
-def current_recall_started_at() -> Optional[datetime]:
+def current_recall_started_at() -> datetime | None:
     """Return the active ``recall_started_at`` ceiling, or ``None``
     when no recall scope is open. Stores call this from their
     ``search()`` / ``list_memories()`` paths to AND a ``t_created
@@ -72,7 +72,7 @@ def current_recall_started_at() -> Optional[datetime]:
 
 @contextlib.contextmanager
 def recall_started_at_scope(
-    started_at: Optional[datetime] = None,
+    started_at: datetime | None = None,
 ) -> Iterator[datetime]:
     """Enter a recall scope. All store reads inside (sync or async,
     on this coroutine or any spawned tasks) see the same ``started_at``
@@ -101,7 +101,7 @@ def recall_started_at_scope(
 # below is only useful when callers want ``async with``.
 @contextlib.asynccontextmanager
 async def recall_started_at_scope_async(
-    started_at: Optional[datetime] = None,
+    started_at: datetime | None = None,
 ) -> Iterator[datetime]:
     """Async-flavored ``recall_started_at_scope``. Identical semantics;
     contextvars propagate the same way. Provided so ``async with`` reads

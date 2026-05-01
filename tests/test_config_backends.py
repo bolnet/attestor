@@ -1,11 +1,9 @@
 """Tests for config with backend settings."""
 
-import json
 import os
 import tempfile
 from pathlib import Path
 
-import pytest
 from attestor.utils.config import MemoryConfig, load_config, save_config
 
 

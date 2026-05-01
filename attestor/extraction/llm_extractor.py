@@ -1,13 +1,31 @@
 """LLM-based memory extraction (optional; requires the ``openai`` package
 and the API key for whichever provider is configured under
-``stack.llm.providers`` in ``configs/attestor.yaml``)."""
+``stack.llm.providers`` in ``configs/attestor.yaml``).
+
+The two LLM prompts used here live as versioned ``.md`` files under
+``attestor/extraction/prompts/`` (``simple_extraction_v1.md`` and
+``session_extraction_v1.md``). Each extracted ``Memory`` records the
+prompt template version in its metadata so audit replay can correlate a
+fact back to the exact template that produced it.
+"""
 
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional, Tuple
+import logging
+from typing import Any
 
+from attestor.extraction.prompt_loader import load_prompt, prompt_version
 from attestor.models import Memory
+
+logger = logging.getLogger("attestor.extraction.llm_extractor")
+
+# Prompt template names (stems of the .md files under prompts/). Bump
+# the suffix when the .md content changes — `prompt_version()` reads
+# the suffix and we record it in extracted-fact metadata so audit replay
+# can correlate a fact back to the exact template that produced it.
+SIMPLE_EXTRACTION_PROMPT_NAME = "simple_extraction_v1"
+SESSION_EXTRACTION_PROMPT_NAME = "session_extraction_v1"
 
 
 def _default_extraction_model() -> str:
@@ -23,7 +41,7 @@ def _default_extraction_model() -> str:
 DEFAULT_EXTRACTION_MODEL = _default_extraction_model()
 
 
-def _resolve_client(model: str, api_key: Optional[str] = None) -> Tuple[Any, str]:
+def _resolve_client(model: str, api_key: str | None = None) -> tuple[Any, str]:
     """Resolve ``(client, clean_model)`` via the YAML-driven LLM pool.
 
     YAML is the only source of truth for provider ``base_url`` /
@@ -47,128 +65,22 @@ def _resolve_client(model: str, api_key: Optional[str] = None) -> Tuple[Any, str
 
     return get_client_for_model(model)
 
-_EXTRACTION_PROMPT = """Extract atomic facts from this conversation that would be useful to remember across sessions.
 
-For each fact, provide:
-- content: A single, self-contained factual statement
-- tags: List of relevant tags
-- category: One of "career", "project", "preference", "personal", "technical", "general"
-- entity: The primary entity this fact is about (company, person, tool, etc.), or null
-
-Return a JSON array of objects. Only include facts that are clearly stated, not speculative.
-
-Conversation:
-{conversation}
-
-Return ONLY valid JSON array, no other text."""
-
-_SESSION_EXTRACTION_PROMPT = """Extract ALL factual information from this conversation between {speaker_a} and {speaker_b}.
-
-Return a JSON object with FOUR keys: "facts", "relations", "entities", "concepts".
-
-## Facts (atomic statements)
-For each fact, provide:
-- content: A single, atomic, self-contained factual statement. Always include the person's name (never use "she", "he", or "they").
-  Examples: "Caroline is single", "Melanie has two children", "Caroline's dog is named Max"
-- entity: The primary person or thing this fact is about (e.g., "Caroline", "Melanie")
-- category: One of: "personal", "career", "preference", "event", "plan", "location", "health", "general"
-- tags: Relevant keywords for search (e.g., ["marital_status", "relationship", "single"])
-- event_date: The date this fact refers to if mentioned or inferrable (ISO format YYYY-MM-DD), or null
-- confidence: 0.0-1.0 how explicitly stated (1.0 = directly said, 0.7 = strongly implied)
-- source_quote: Short verbatim quote (<=150 chars) from the conversation that supports this fact, or null
-- kind: "list_item" when this fact is one element of an enumerated list from the source (shared source_quote across siblings); otherwise "atomic"
-
-### List decomposition (CRITICAL)
-If the source sentence enumerates N items for the SAME predicate
-("I loved A, B, and C"; "She visited X, Y, Z"; "books I read: A, B, C"),
-emit N SEPARATE facts — one per item — NOT a single compound fact.
-The siblings share the same source_quote, event_date, entity, and tags,
-and each has kind="list_item".
-
-WRONG (one compound fact):
-  {{"content": "Melanie read Charlotte's Web and Nothing is Impossible",
-    "entity": "Melanie", "tags": ["books"], "kind": "atomic"}}
-
-CORRECT (two atomic facts, same source_quote, kind=list_item):
-  {{"content": "Melanie read Charlotte's Web",
-    "entity": "Melanie", "tags": ["books", "reading"],
-    "source_quote": "I loved Charlotte's Web and Nothing is Impossible",
-    "kind": "list_item"}}
-  {{"content": "Melanie read Nothing is Impossible",
-    "entity": "Melanie", "tags": ["books", "reading"],
-    "source_quote": "I loved Charlotte's Web and Nothing is Impossible",
-    "kind": "list_item"}}
-
-## Relations (entity-relationship triples)
-For each relation:
-- subject: The source entity (person, place, or thing)
-- predicate: One of: knows, works_at, lives_in, has, owns, is, likes, dislikes, visited, studies_at, member_of, related_to, married_to, sibling_of, parent_of, child_of, friend_of, colleague_of, born_in, moved_to, traveled_to, started, ended, plans_to, wants_to
-- object: The target entity
-- event_date: ISO date (YYYY-MM-DD) if the relation has a temporal aspect, or null
-- source_quote: Short verbatim quote from the conversation that supports this triple (<=150 chars), or null
-- attributes: Optional JSON object of extra structured fields (e.g. {{"percentage": 0.9}}, {{"duration_years": 5}}), or null
-
-Examples:
-  {{"subject": "Caroline", "predicate": "works_at", "object": "Google", "event_date": "2024-01-15", "source_quote": "I started at Google last January", "attributes": null}}
-  {{"subject": "Caroline", "predicate": "friend_of", "object": "Melanie", "event_date": null, "source_quote": "my friend Melanie and I", "attributes": null}}
-
-### List decomposition for relations (CRITICAL)
-When the source enumerates multiple objects for the same (subject, predicate),
-emit ONE triple per object. Siblings share source_quote.
-
-WRONG (collapsed object list):
-  {{"subject": "Melanie", "predicate": "read",
-    "object": "Charlotte's Web and Nothing is Impossible",
-    "source_quote": "I loved Charlotte's Web and Nothing is Impossible"}}
-
-CORRECT (one triple per book):
-  {{"subject": "Melanie", "predicate": "read", "object": "Charlotte's Web",
-    "source_quote": "I loved Charlotte's Web and Nothing is Impossible"}}
-  {{"subject": "Melanie", "predicate": "read", "object": "Nothing is Impossible",
-    "source_quote": "I loved Charlotte's Web and Nothing is Impossible"}}
-
-## Entities (synthesized profile per person/thing)
-For each distinct person, organization, or place mentioned, produce ONE profile aggregating everything known about them in this session:
-- name: Canonical name (e.g. "Caroline", "Melanie", "TSMC")
-- type: One of: "person", "organization", "place", "animal", "thing"
-- profile: A paragraph (2-5 sentences) synthesizing who/what the entity is, based ONLY on this conversation. Include role, key traits, relationships, and recent activities. Always refer to the entity by name.
-  Example: "Caroline is a transgender woman and LGBTQ activist working as a counselor. She is single, owns a dog named Max, and is close friends with Melanie. She is studying psychology and pursuing a counseling certification."
-- tags: Keywords summarizing the entity (e.g. ["lgbtq", "counselor", "activist"])
-
-## Concepts (synthesized themes / activity clusters / events)
-For each recurring theme, activity cluster, or notable event in the conversation, produce ONE concept describing it:
-- title: Short descriptive title (e.g. "Caroline's LGBTQ community participation", "Melanie's career transition to product management", "Joint trip to Barcelona 2023")
-- description: A paragraph (2-5 sentences) synthesizing what this theme/activity/event is, who is involved, what happened, and when. Use names, not pronouns. Include specific dates, numbers, and places when stated.
-  Example: "Caroline actively participates in the LGBTQ community through pride parades, a weekly support group she joined in March 2023, and an annual LGBTQ+ counseling conference. She attended pride events in May 2023 and serves as peer counselor in the support group."
-- entities: List of entity names involved (e.g. ["Caroline", "Melanie"])
-- tags: Keywords (e.g. ["lgbtq", "community", "activism"])
-- event_date: ISO date for point-in-time events, or null for ongoing themes
-
-Session date: {session_date}
-
-Rules:
-- Extract EVERY factual detail, no matter how small (names, dates, places, numbers, opinions, plans, activities)
-- Each fact must be self-contained and readable without the conversation
-- Include the person's name in every fact (never "she", "he", "they")
-- Separate compound facts into individual atomic statements
-- NEVER compound list items into one fact or triple — emit one fact AND one triple per list element (see "List decomposition" above)
-- For temporal references like "next week" or "last month", resolve to dates relative to the session date
-- Extract ALL relationships between people, places, organizations, and things mentioned
-- Entity profiles and concepts must be SYNTHESIZED from the conversation, not copied verbatim
-- A concept groups multiple related facts under one theme (e.g. "books Caroline is reading" rather than one concept per book) — concepts are a summary layer, they do NOT replace per-item facts and triples
-- Do NOT include greetings, conversational filler, or meta-commentary
-
-Conversation:
-{conversation}
-
-Return ONLY a valid JSON object with "facts", "relations", "entities", and "concepts" keys."""
+# Prompt templates are loaded once at import from the externalized .md
+# files. Bumping a prompt is a content edit + a v1 → v2 rename in
+# ``attestor/extraction/prompts/`` and a single-line constant update
+# above — no code change in the extraction pipeline.
+_EXTRACTION_PROMPT = load_prompt(SIMPLE_EXTRACTION_PROMPT_NAME)
+_SESSION_EXTRACTION_PROMPT = load_prompt(SESSION_EXTRACTION_PROMPT_NAME)
+_SIMPLE_EXTRACTION_PROMPT_VERSION = prompt_version(SIMPLE_EXTRACTION_PROMPT_NAME)
+_SESSION_EXTRACTION_PROMPT_VERSION = prompt_version(SESSION_EXTRACTION_PROMPT_NAME)
 
 
 def llm_extract(
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     model: str = DEFAULT_EXTRACTION_MODEL,
-    api_key: Optional[str] = None,
-) -> List[Memory]:
+    api_key: str | None = None,
+) -> list[Memory]:
     """Extract memories using the YAML-configured LLM provider."""
     client, clean_model = _resolve_client(model, api_key)
 
@@ -184,6 +96,8 @@ def llm_extract(
         role="extraction",
         model=clean_model,
         max_tokens=2048,
+        timeout=30,
+        max_retries=0,
         messages=[
             {
                 "role": "user",
@@ -192,18 +106,26 @@ def llm_extract(
         ],
     )
 
-    facts = _parse_json_response(response.choices[0].message.content)
-    return _facts_to_memories(facts)
+    if not response.choices or not response.choices[0].message:
+        logger.warning("LLM returned empty response; skipping extraction")
+        return []
+    content = response.choices[0].message.content or ""
+    facts = _parse_json_response(content)
+    return _facts_to_memories(
+        facts,
+        prompt_template=SIMPLE_EXTRACTION_PROMPT_NAME,
+        prompt_template_version=_SIMPLE_EXTRACTION_PROMPT_VERSION,
+    )
 
 
 def llm_extract_session(
-    turns: List[Dict[str, Any]],
+    turns: list[dict[str, Any]],
     speaker_a: str = "A",
     speaker_b: str = "B",
     session_date: str = "",
     model: str = DEFAULT_EXTRACTION_MODEL,
-    api_key: Optional[str] = None,
-) -> Tuple[List[Memory], List[Dict[str, Any]]]:
+    api_key: str | None = None,
+) -> tuple[list[Memory], list[dict[str, Any]]]:
     """Extract memories and relation triples from a conversation session.
 
     Returns (memories, triples) where triples are dicts with
@@ -224,17 +146,17 @@ def llm_extract_session(
 
 
 def llm_extract_session_full(
-    turns: List[Dict[str, Any]],
+    turns: list[dict[str, Any]],
     speaker_a: str = "A",
     speaker_b: str = "B",
     session_date: str = "",
     model: str = DEFAULT_EXTRACTION_MODEL,
-    api_key: Optional[str] = None,
-) -> Tuple[
-    List[Memory],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
+    api_key: str | None = None,
+) -> tuple[
+    list[Memory],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
 ]:
     """Extract facts + triples + entity profiles + concepts from a session.
 
@@ -271,18 +193,29 @@ def llm_extract_session_full(
         role="extraction",
         model=clean_model,
         max_tokens=8192,
+        timeout=30,
+        max_retries=0,
         messages=[{"role": "user", "content": prompt}],
     )
 
-    parsed = _parse_extraction_response(response.choices[0].message.content)
+    if not response.choices or not response.choices[0].message:
+        logger.warning("LLM returned empty response; skipping extraction")
+        return [], [], [], []
+    content = response.choices[0].message.content or ""
+    parsed = _parse_extraction_response(content)
     facts = parsed.get("facts", [])
     triples_raw = parsed.get("relations", [])
     entities_raw = parsed.get("entities", [])
     concepts_raw = parsed.get("concepts", [])
 
-    memories = _facts_to_memories(facts, default_event_date=session_date)
+    memories = _facts_to_memories(
+        facts,
+        default_event_date=session_date,
+        prompt_template=SESSION_EXTRACTION_PROMPT_NAME,
+        prompt_template_version=_SESSION_EXTRACTION_PROMPT_VERSION,
+    )
 
-    valid_triples: List[Dict[str, Any]] = []
+    valid_triples: list[dict[str, Any]] = []
     for t in triples_raw:
         if not (
             isinstance(t, dict)
@@ -300,7 +233,7 @@ def llm_extract_session_full(
             "attributes": t.get("attributes"),
         })
 
-    valid_entities: List[Dict[str, Any]] = []
+    valid_entities: list[dict[str, Any]] = []
     for e in entities_raw:
         if not (isinstance(e, dict) and e.get("name") and e.get("profile")):
             continue
@@ -311,7 +244,7 @@ def llm_extract_session_full(
             "tags": list(e.get("tags", [])),
         })
 
-    valid_concepts: List[Dict[str, Any]] = []
+    valid_concepts: list[dict[str, Any]] = []
     for c in concepts_raw:
         if not (isinstance(c, dict) and c.get("title") and c.get("description")):
             continue
@@ -336,7 +269,7 @@ def _strip_markdown_fences(text: str) -> str:
     return text
 
 
-def _parse_json_response(text: str) -> List[Dict[str, Any]]:
+def _parse_json_response(text: str) -> list[dict[str, Any]]:
     """Parse JSON array from LLM response, stripping markdown fences if present.
 
     Handles both plain arrays and objects with a "facts" key (for backward compat).
@@ -354,7 +287,7 @@ def _parse_json_response(text: str) -> List[Dict[str, Any]]:
         return []
 
 
-def _parse_extraction_response(text: str) -> Dict[str, Any]:
+def _parse_extraction_response(text: str) -> dict[str, Any]:
     """Parse the full extraction response with facts, relations, entities, concepts.
 
     Returns {"facts": [...], "relations": [...], "entities": [...], "concepts": [...]}.
@@ -379,20 +312,34 @@ def _parse_extraction_response(text: str) -> Dict[str, Any]:
 
 
 def _facts_to_memories(
-    facts: List[Dict[str, Any]],
-    default_event_date: Optional[str] = None,
-) -> List[Memory]:
-    """Convert extracted fact dicts to Memory objects."""
+    facts: list[dict[str, Any]],
+    default_event_date: str | None = None,
+    *,
+    prompt_template: str | None = None,
+    prompt_template_version: str | None = None,
+) -> list[Memory]:
+    """Convert extracted fact dicts to Memory objects.
+
+    When ``prompt_template`` / ``prompt_template_version`` are supplied,
+    they're stamped into ``Memory.metadata`` so audit replay can correlate
+    each fact back to the exact externalized prompt template that produced
+    it. Backwards-compatible: legacy callers that omit them get the same
+    metadata shape they always did.
+    """
     memories = []
     for fact in facts:
         if not (isinstance(fact, dict) and "content" in fact):
             continue
-        metadata: Dict[str, Any] = {}
+        metadata: dict[str, Any] = {}
         if fact.get("source_quote"):
             metadata["source_quote"] = fact["source_quote"]
         kind = fact.get("kind")
         if kind in {"list_item", "atomic"}:
             metadata["kind"] = kind
+        if prompt_template:
+            metadata["prompt_template"] = prompt_template
+        if prompt_template_version:
+            metadata["prompt_version"] = prompt_template_version
         memories.append(
             Memory(
                 content=fact["content"],

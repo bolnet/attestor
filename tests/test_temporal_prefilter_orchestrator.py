@@ -10,8 +10,8 @@ always wins.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any
 
 import pytest
 
@@ -27,20 +27,20 @@ from attestor.retrieval.temporal_query import TimeWindow
 class FakeVectorStore:
     """Records the time_window kwarg passed on each search call."""
 
-    def __init__(self, hits_per_query: Optional[Dict[str, List[Dict]]] = None):
+    def __init__(self, hits_per_query: dict[str, list[dict]] | None = None):
         self.hits_per_query = hits_per_query or {}
-        self.calls: List[Dict[str, Any]] = []
+        self.calls: list[dict[str, Any]] = []
 
     def search(
         self,
         query: str,
         *,
         limit: int = 50,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
         as_of: Any = None,
         time_window: Any = None,
         **kwargs: Any,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         self.calls.append({
             "query": query,
             "limit": limit,
@@ -55,7 +55,7 @@ class FakeStore:
     """Minimal DocumentStore stub returning real Memory objects."""
 
     def __init__(self) -> None:
-        self._mems: Dict[str, Any] = {}
+        self._mems: dict[str, Any] = {}
 
     def add_memory(self, memory_id: str, content: str = "x") -> None:
         from attestor.models import Memory
