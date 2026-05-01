@@ -74,11 +74,13 @@ stack:
 
   # ─── LLM client routing ───────────────────────────────────────────────
   # Where chat-completion calls land. Multi-provider mode: route by
-  # model prefix.
+  # model prefix (split on the first `/`).
   #
-  #   model: openai/gpt-5.5              → openai provider
-  #   model: anthropic/claude-sonnet-4-6 → anthropic provider
-  #   model: gpt-5.5                     → default_provider
+  #   model: openai/gpt-5.5                → openai provider (direct)
+  #   model: openrouter/anthropic/claude-… → openrouter provider
+  #                                          (suffix becomes the OR model id)
+  #   model: anthropic/claude-sonnet-4-6   → anthropic provider (org proxy)
+  #   model: gpt-5.5                       → default_provider
   #
   # Each provider entry sets `base_url` (an OpenAI-compatible endpoint)
   # and `api_key_env` (the env var holding the API key). The runtime
@@ -95,15 +97,26 @@ stack:
         base_url: https://api.openai.com/v1
         api_key_env: OPENAI_API_KEY
 
-      # Anthropic via your organization's LiteLLM-compatible proxy.
-      # Replace the placeholders below with your org's values, OR delete
-      # this entry to fall back to the openai provider for everything.
-      # Direct anthropic.com is NOT OpenAI-API-compatible, so a proxy
-      # like LiteLLM is the standard way to route Anthropic models
-      # through this client.
+      # OpenRouter — multi-vendor catalog. Useful when an OpenAI key
+      # isn't available, or to mix OpenAI / Anthropic / Mistral / etc.
+      # in one credit pool. Uses `vendor/model` ids on the wire (e.g.
+      # `anthropic/claude-sonnet-4-6`), which means the YAML model
+      # string here is `openrouter/<vendor>/<model>` — the pool strips
+      # the `openrouter/` prefix and passes the rest to the API.
+      openrouter:
+        base_url: https://openrouter.ai/api/v1
+        api_key_env: OPENROUTER_API_KEY
+
+      # Anthropic direct via the OpenAI-compatibility endpoint. Anthropic
+      # ships an `/v1/chat/completions` shim at api.anthropic.com that
+      # accepts OpenAI-style payloads; the pool's OpenAI client speaks
+      # to it without an intermediate proxy. Caveats: a few advanced
+      # params (e.g. some reasoning_effort settings, prompt-caching
+      # cache_control blocks) aren't supported on the compat shim — if
+      # you need those, swap this entry to a local LiteLLM proxy.
       anthropic:
-        base_url: https://XXX-litellm-proxy.example.com/v1
-        api_key_env: XXX_LITELLM_API_KEY
+        base_url: https://api.anthropic.com/v1/
+        api_key_env: ANTHROPIC_API_KEY
 
     default_provider: openai
 
