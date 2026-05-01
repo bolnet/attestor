@@ -26,11 +26,11 @@ import os
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
-from attestor.config import StackConfig, get_stack
+from attestor.config import StackConfig
 
 # ──────────────────────────────────────────────────────────────────────
 # Errors
@@ -58,10 +58,10 @@ class LMECfg:
     variant: str = "s"
     cache_dir: str = "~/.cache/attestor/lme"
     output_dir: str = "docs/bench"
-    sample_limit: Optional[int] = None
-    category: Optional[str] = None
-    categories: List[str] = field(default_factory=list)
-    variants_to_run: List[str] = field(default_factory=list)
+    sample_limit: int | None = None
+    category: str | None = None
+    categories: list[str] = field(default_factory=list)
+    variants_to_run: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -71,7 +71,7 @@ class KnowledgeUpdatesCfg:
     fixtures_path: str = "evals/knowledge_updates/fixtures.json"
     n_cases: int = 50
     target_score: float = 0.92
-    categories: List[str] = field(default_factory=list)
+    categories: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -166,7 +166,7 @@ def _parse_bench_yaml(path: Path) -> dict:
 
 def _build_bench_cfg(stack: StackConfig, bench_raw: dict) -> BenchCfg:
     """Map a raw bench dict + StackConfig into a frozen BenchCfg."""
-    bench_section: Dict[str, Any] = bench_raw.get("bench", {}) or {}
+    bench_section: dict[str, Any] = bench_raw.get("bench", {}) or {}
 
     lme_raw = bench_section.get("lme", {}) or {}
     ku_raw = bench_section.get("knowledge_updates", {}) or {}
@@ -240,7 +240,7 @@ def load_bench(
     return _build_bench_cfg(stack, bench_raw)
 
 
-_cached_bench: Optional[BenchCfg] = None
+_cached_bench: BenchCfg | None = None
 _CACHE_LOCK = threading.Lock()
 
 

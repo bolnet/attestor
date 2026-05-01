@@ -1,495 +1,44 @@
-"""Single source of truth for Attestor configuration.
-
-Every model name, DB URL, embedder choice, retrieval budget, registry
-address and per-cloud deploy plan in this codebase comes from one
-file: ``configs/attestor.yaml``. This module is the loader.
-
-Public surface
---------------
-
-    get_stack(*, strict=False) -> StackConfig
-        Lazy-loads, parses, and caches the YAML. Subsequent calls
-        return the same object. Pass ``strict=True`` to fail loudly
-        when required env refs are missing (the loader otherwise
-        substitutes safe placeholders so tests/CI work without a
-        full secrets set).
-
-    set_stack(stack)
-        Replace the cached stack. For tests + benchmark harnesses that
-        want to swap configs at runtime.
-
-    reset_stack()
-        Drop the cache so the next ``get_stack()`` re-reads the YAML.
-
-    StackConfig (frozen dataclass)
-        Resolved values. See class for fields.
-
-Resolution order (highest to lowest priority):
-
-    1. Explicit CLI flag passed by the user
-    2. Explicit env var (e.g. POSTGRES_URL, VOYAGE_API_KEY, ANSWER_MODEL)
-    3. ``configs/attestor.yaml`` value
-    4. Hardcoded fallback (only when YAML is absent AND env unset)
-
-Env override:
-    ATTESTOR_CONFIG=/path/to/different.yaml
-        Use a non-default config file. Useful for one-off A/B runs.
-"""
+"""YAML loader, cache, and runtime helpers for the Attestor stack config."""
 
 from __future__ import annotations
 
 import os
 import sys
 import threading
-from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from attestor.config.models import (
+    LLM_PROVIDER_DEFAULTS,
+    CloudTarget,
+    CritiqueReviseCfg,
+    EmbedderCfg,
+    HydeCfg,
+    ImageCfg,
+    LLMCfg,
+    ModelsCfg,
+    MultiQueryCfg,
+    Neo4jCfg,
+    PineconeCfg,
+    PostgresCfg,
+    ProviderCfg,
+    RetrievalCfg,
+    SelfConsistencyCfg,
+    StackConfig,
+    TemporalPrefilterCfg,
+    _MAX_CRITIQUE_REVISIONS,
+    _VALID_SC_VOTERS,
+)
+from attestor.config.resolver import _require, _resolve_env_password
+
+# Project root = ``attestor/`` package's parent. This module lives at
+# ``attestor/config/loader.py``; three ``parent`` hops to reach the
+# repo root preserves the historical semantics of the pre-split
+# ``attestor/config.py`` (which used two hops).
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "attestor.yaml"
-
-
-# ─── LLM provider catalog ──────────────────────────────────────────────
-#
-# Known OpenAI-compatible endpoints, indexed by short name. These are
-# NOT fallback defaults for stack/model/embedder/budget — those MUST
-# come from `configs/attestor.yaml`. This dict only resolves the
-# `base_url` and `api_key_env` for a given provider name selected by
-# YAML (e.g. `stack.llm.provider: openrouter`). Adding a new provider
-# means adding an entry here.
-LLM_PROVIDER_DEFAULTS: Dict[str, Dict[str, str]] = {
-    "openrouter": {
-        "base_url": "https://openrouter.ai/api/v1",
-        "api_key_env": "OPENROUTER_API_KEY",
-    },
-    "openai": {
-        "base_url": "https://api.openai.com/v1",
-        "api_key_env": "OPENAI_API_KEY",
-    },
-}
-
-
-# ─── Dataclasses ──────────────────────────────────────────────────────
-
-@dataclass(frozen=True)
-class PostgresCfg:
-    url: str
-    v4: bool
-    skip_schema_init: bool
-
-
-@dataclass(frozen=True)
-class Neo4jCfg:
-    url: str
-    username: str
-    password: str
-    database: str
-
-
-@dataclass(frozen=True)
-class PineconeCfg:
-    """Pinecone vector backend.
-
-    Two deployment modes (auto-detected from ``host``):
-      - **Pinecone Local Docker**: ``host=http://localhost:5080`` — no
-        cloud round-trip, free, no rate limit. Matches development.
-      - **Pinecone Cloud**: ``host=None`` (or omit) — uses the SDK's
-        default routing via ``api_key``. Pair with a serverless index.
-    """
-    host: Optional[str]
-    api_key_env: str
-    index_name: str
-    metric: str
-    cloud: str
-    region: str
-
-
-@dataclass(frozen=True)
-class EmbedderCfg:
-    provider: str
-    model: str
-    dimensions: int
-
-
-@dataclass(frozen=True)
-class ModelsCfg:
-    """Per-role model assignment.
-
-    All seven roles are required. Roles map to actual call sites:
-
-      answerer    — final answer synthesis from retrieved context
-                    (attestor.locomo.answer_question, longmemeval.run_async)
-      judge       — single-judge correctness verdict on benchmark answers
-                    (locomo.judge_answer, longmemeval.judge_*)
-      extraction  — fact extraction during ingest
-                    (extraction.llm_extractor, extraction.round_extractor)
-      distill     — Mem0-style distillation during ingest
-                    (longmemeval.run_async distill_model)
-      verifier    — second-pass cross-check after judge
-                    (mab.run_*, longmemeval verifier role)
-      planner     — query rewriting / multi-step planning
-                    (retrieval.planner)
-      benchmark_default — generic fallback for ad-hoc bench commands
-                          where no specific role applies
-
-    ``reasoning_effort`` (gpt-5.x reasoning models only): role → effort
-        level (none|minimal|low|medium|high|xhigh). Models that don't
-        support this param ignore it silently (Anthropic, older OpenAI).
-        Default empty dict = don't pass the param = legacy behavior.
-
-    ``max_tokens``: role → completion-token cap. Reasoning tokens count
-        against this, so high-effort roles need real headroom (3000 is
-        a typical target on the answerer; 1000 on judge). Default empty
-        dict = use a per-role legacy default (300 for most roles).
-    """
-    answerer: str
-    judge: str
-    extraction: str
-    distill: str
-    verifier: str
-    planner: str
-    benchmark_default: str
-    reasoning_effort: Dict[str, str] = field(default_factory=dict)
-    max_tokens: Dict[str, int] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class MultiQueryCfg:
-    """Multi-query retrieval knobs (Phase 3 PR-C, RC1 — biggest +8%
-    accuracy lever).
-
-    When ``enabled`` is True, the orchestrator rewrites the user
-    question into ``n`` paraphrases via a single LLM call, runs each
-    paraphrase through the vector lane independently, and merges the
-    ``n+1`` ranked lists via reciprocal rank fusion before the rest
-    of the cascade runs.
-
-    Disabled by default — flip on per bench run via this YAML, or via
-    env var ``ATTESTOR_MULTI_QUERY_ENABLED=1`` for ad-hoc smokes.
-
-    Configuration:
-      enabled         — master switch
-      n               — number of paraphrases (3 is the sweet spot
-                        per the RCA)
-      rewriter_model  — null → falls back to ``models.extraction``
-      rewriter_reasoning_effort — gpt-5.x reasoning effort for the
-                        rewriter call; ``low`` is fine — paraphrasing
-                        is structurally simple
-      merge           — ``rrf`` (consensus-weighted, recommended) or
-                        ``union`` (cheaper, no rank fusion)
-    """
-
-    enabled: bool = False
-    n: int = 3
-    rewriter_model: Optional[str] = None
-    rewriter_reasoning_effort: str = "low"
-    merge: str = "rrf"
-
-
-@dataclass(frozen=True)
-class SelfConsistencyCfg:
-    """Answerer-side self-consistency knobs (Phase 3 PR-B, +3-6%).
-
-    When ``enabled`` is True, the LME answerer draws K independent
-    samples at non-zero temperature and elects the consensus answer
-    via majority vote (default) or a judge LLM. Lives on
-    ``StackConfig`` directly because this is answerer behavior, NOT
-    retrieval behavior — peer of ``stack.retrieval``, not nested
-    inside it.
-
-    Disabled by default — flip per bench run via this YAML, or via
-    ``ATTESTOR_SELF_CONSISTENCY_ENABLED=1`` for ad-hoc smokes if
-    callers want to add an env override later.
-
-    Cost: K × answerer cost per sample. K=5 means 5x answerer spend;
-    gate carefully.
-
-    Configuration:
-      enabled       — master switch
-      k             — number of samples (5 is the sweet spot per
-                      Wang et al. 2022; diminishing returns past ~10)
-      temperature   — per-sample temperature; 0.7 is the standard
-                      value from the paper
-      voter         — ``majority`` (normalized-fingerprint vote) or
-                      ``judge_pick`` (LLM picks best of K)
-      judge_model   — model id for ``judge_pick``; null falls back
-                      to ``models.judge``
-    """
-
-    enabled: bool = False
-    k: int = 5
-    temperature: float = 0.7
-    voter: str = "majority"
-    judge_model: Optional[str] = None
-
-
-_VALID_SC_VOTERS = ("majority", "judge_pick")
-
-
-@dataclass(frozen=True)
-class CritiqueReviseCfg:
-    """Answerer-side critique-and-revise knobs (Phase 3 PR-E, +3-5%).
-
-    When ``enabled`` is True, the LME answerer runs a three-step
-    pipeline: initial answer → critic checks against retrieved
-    context → conditional revise. Lives on ``StackConfig`` directly
-    because this is answerer behavior, NOT retrieval behavior — peer
-    of ``stack.self_consistency``, not nested inside ``stack.retrieval``.
-
-    Disabled by default — flip via ``configs/attestor.yaml``'s
-    ``stack.critique_revise`` per bench run.
-
-    Cost: ~3x answerer in the worst case (one critique + one revise
-    on top of the initial). In the common case where the critic says
-    ``pass`` it's ~2x answerer (one critique, no revise).
-
-    Configuration:
-      enabled        — master switch
-      critic_model   — model id for the critique step; null falls back
-                       to ``models.verifier``
-      revise_model   — model id for the revise step; null falls back
-                       to ``models.answerer``
-      max_revisions  — hard-capped at 1 in this PR (literature shows
-                       diminishing returns past one revision and rapidly-
-                       rising cost). Loader rejects values > 1.
-    """
-
-    enabled: bool = False
-    critic_model: Optional[str] = None
-    revise_model: Optional[str] = None
-    max_revisions: int = 1
-
-
-# Hard cap enforced by the YAML loader. This PR caps critique-revise
-# at one revision; future PRs can lift this when we validate the
-# cost / benefit curve past one round.
-_MAX_CRITIQUE_REVISIONS = 1
-
-
-@dataclass(frozen=True)
-class HydeCfg:
-    """HyDE retrieval knobs (Phase 3 PR-D — +6-10% recall lever).
-
-    When ``enabled`` is True, the orchestrator generates a hypothetical
-    answer to the question via a small LLM, embeds it, and runs both
-    the original question AND the hypothetical answer through the
-    vector lane — RRF-merging the two ranked lists before the rest
-    of the cascade. Sibling of multi_query (PR #94); same RRF helpers,
-    different rewrite strategy.
-
-    Mutually exclusive with multi_query in this PR — if both flags are
-    on, the orchestrator prefers multi_query (logged warning).
-
-    Configuration:
-      enabled                       — master switch
-      generator_model               — null → ``models.extraction``
-      generator_reasoning_effort    — low | medium | high (gpt-5.x knob)
-      merge                         — ``rrf`` (default, consensus-weighted)
-                                      or ``union`` (cheaper, no fusion)
-    """
-
-    enabled: bool = False
-    generator_model: Optional[str] = None
-    generator_reasoning_effort: str = "low"
-    merge: str = "rrf"
-
-
-@dataclass(frozen=True)
-class TemporalPrefilterCfg:
-    """Regex-only temporal pre-filter knobs (Phase 3 RC4 — +1.5% LME-S).
-
-    When ``enabled`` is True and the question contains a relative
-    time phrase ("two weeks ago", "yesterday", "last Monday"), the
-    orchestrator builds a ``TimeWindow`` around the implied event date
-    and passes it through the existing ``time_window`` kwarg to the
-    vector + BM25 lanes — narrowing recall to memories that are
-    plausibly contemporaneous with the question.
-
-    Caller-supplied ``time_window`` always wins; this only fires when
-    no explicit bound was passed. Disabled by default so legacy
-    callers see no behavior change.
-
-    Configuration:
-      enabled         — master switch
-      tolerance_days  — half-width of the window in days. People say
-                        "last week" when they mean 8 days ago; the
-                        tolerance absorbs that drift so the filter
-                        doesn't false-negative.
-    """
-
-    enabled: bool = False
-    tolerance_days: int = 3
-
-
-@dataclass(frozen=True)
-class RetrievalCfg:
-    """Knobs for the 6-step recall cascade.
-
-    The recall pipeline (vector → BM25 → RRF → graph → MMR → fit) is
-    bounded by three quantities that interact:
-
-      vector_top_k  — pgvector's ``LIMIT`` on the cosine-similarity
-                      lane. More candidates = more raw material for
-                      MMR + graph affinity to choose from. Default 50.
-
-      mmr_top_n     — cap on what MMR emits; the diversity rerank
-                      drops redundant memories. Default ``None``
-                      preserves ``mmr_rerank``'s legacy behavior
-                      (no explicit cap; it returns whatever survives
-                      the diversity trim).
-
-      budget        — token cap on the final pack sent to the
-                      answerer. Lives on StackConfig directly (legacy
-                      placement); keeping it there for back-compat.
-                      Models support 200k-1M context; ``budget`` is
-                      what we choose to actually use.
-
-    These three knobs MUST be tuned together. Raising budget alone
-    does nothing if MMR cuts to 10 first; raising vector_top_k alone
-    just gives MMR more candidates to discard.
-
-    ``multi_query`` extends the cascade with a query-rewrite +
-    RRF-merge lane in front of the vector step. Disabled by default
-    so legacy callers see no behavior change.
-
-    ``temporal_prefilter`` (RC4) detects relative time phrases in the
-    question and tightens the event-time window passed to the vector
-    + BM25 lanes. Disabled by default; flip per bench run.
-    """
-
-    vector_top_k: int = 50
-    mmr_top_n: Optional[int] = None
-    multi_query: MultiQueryCfg = field(default_factory=MultiQueryCfg)
-    temporal_prefilter: TemporalPrefilterCfg = field(
-        default_factory=TemporalPrefilterCfg,
-    )
-    hyde: HydeCfg = field(default_factory=HydeCfg)
-
-
-@dataclass(frozen=True)
-class ProviderCfg:
-    """One entry in the LLMCfg.providers map."""
-
-    name: str
-    base_url: str
-    api_key_env: str
-
-
-@dataclass(frozen=True)
-class LLMCfg:
-    """Where chat-completion calls are routed.
-
-    ``provider`` selects an OpenAI-compatible endpoint. Two are wired:
-
-      openrouter  — base_url=https://openrouter.ai/api/v1; key=OPENROUTER_API_KEY
-                    (default; matches the canonical benchmark stack so
-                    cross-provider models like anthropic/claude-sonnet-4-6
-                    work in the same call).
-      openai      — base_url=https://api.openai.com/v1; key=OPENAI_API_KEY
-                    (no per-call OpenRouter markup; only OpenAI models work).
-
-    ``base_url`` and ``api_key_env`` override the per-provider defaults
-    when set in YAML — useful for local Ollama (set base_url to
-    http://localhost:11434/v1) or for swapping the env var name.
-
-    Multi-provider mode: when ``providers`` is set, it overrides the
-    single-provider ``provider``/``base_url``/``api_key_env`` fields,
-    and ``default_provider`` selects which one is used for unprefixed
-    model names. When unset, the legacy single-provider mode applies.
-    """
-
-    provider: str
-    base_url: str
-    api_key_env: str
-    providers: Optional[Dict[str, ProviderCfg]] = None
-    default_provider: Optional[str] = None
-
-    @classmethod
-    def for_provider(cls, provider: str) -> LLMCfg:
-        """Build with the canonical defaults for a known provider."""
-        defaults = LLM_PROVIDER_DEFAULTS.get(provider)
-        if defaults is None:
-            raise ValueError(
-                f"unknown LLM provider {provider!r}; "
-                f"expected one of {sorted(LLM_PROVIDER_DEFAULTS)}"
-            )
-        return cls(
-            provider=provider,
-            base_url=defaults["base_url"],
-            api_key_env=defaults["api_key_env"],
-        )
-
-
-@dataclass(frozen=True)
-class ImageCfg:
-    ref: str
-    api_ref_template: str
-    registries: Dict[str, str] = field(default_factory=dict)
-
-    def native_ref(self, key: str, *, version: Optional[str] = None) -> str:
-        if key not in self.registries:
-            raise KeyError(f"unknown registry key {key!r}")
-        base = self.registries[key]
-        tag = f"api-{version}" if version else "latest"
-        return f"{base}:{tag}"
-
-
-@dataclass(frozen=True)
-class StackConfig:
-    postgres: PostgresCfg
-    neo4j: Neo4jCfg
-    embedder: EmbedderCfg
-    models: ModelsCfg
-    llm: LLMCfg
-    retrieval: RetrievalCfg
-    image: ImageCfg
-    budget: int
-    parallel: int
-    clouds: Dict[str, Dict[str, Any]]
-    self_consistency: SelfConsistencyCfg = field(default_factory=SelfConsistencyCfg)
-    critique_revise: CritiqueReviseCfg = field(default_factory=CritiqueReviseCfg)
-    pinecone: Optional[PineconeCfg] = None
-
-
-# ─── YAML helpers ─────────────────────────────────────────────────────
-
-def _resolve_env_password(node: Any, *, strict: bool) -> str:
-    """Resolve a password from ``password`` (literal) or ``password_env``."""
-    if isinstance(node, dict):
-        if node.get("password"):
-            return str(node["password"])
-        env_name = node.get("password_env")
-        if env_name:
-            value = os.environ.get(env_name)
-            if value:
-                return value
-            if strict:
-                raise SystemExit(
-                    f"[attestor.config] required env {env_name!r} not set"
-                )
-            return ""  # placeholder for non-strict (tests / CI without secrets)
-    if strict:
-        raise SystemExit(
-            f"[attestor.config] could not resolve password from {node!r}"
-        )
-    return ""
-
-
-def _require(block: Dict[str, Any], key: str, yaml_path: str) -> Any:
-    """Pull a required key out of a YAML block, raising with the dotted
-    path so the user knows exactly which key to add.
-
-    Fallback constants were removed in favor of fail-loud behavior:
-    every required key in ``configs/attestor.yaml`` must be present.
-    """
-    if key not in block:
-        raise ValueError(
-            f"{yaml_path} missing in configs/attestor.yaml — "
-            "required since fallback constants were removed"
-        )
-    return block[key]
 
 
 def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
@@ -531,9 +80,25 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         ),
         merge=str(hyde_blk.get("merge", "rrf")),
     )
+    # Score-blending knobs — the recall hot path reads these every call.
+    # Coerce types defensively so YAML int/float duck-typing doesn't
+    # surface surprises downstream (e.g. ``0.3`` parsed as int).
+    affinity_blk = retrieval_blk.get("graph_affinity_bonus")
+    if affinity_blk is None:
+        affinity_map: dict[int, float] = {0: 0.30, 1: 0.20, 2: 0.10}
+    else:
+        affinity_map = {int(k): float(v) for k, v in affinity_blk.items()}
+
     retrieval_cfg = RetrievalCfg(
         vector_top_k=int(retrieval_blk.get("vector_top_k", 50)),
         mmr_top_n=(int(mmr_top_raw) if mmr_top_raw is not None else None),
+        mmr_lambda=float(retrieval_blk.get("mmr_lambda", 0.7)),
+        vector_weight=float(retrieval_blk.get("vector_weight", 0.7)),
+        graph_weight=float(retrieval_blk.get("graph_weight", 0.3)),
+        graph_affinity_bonus=affinity_map,
+        graph_unreachable_penalty=float(
+            retrieval_blk.get("graph_unreachable_penalty", -0.05),
+        ),
         multi_query=mq_cfg,
         temporal_prefilter=tp_cfg,
         hyde=hyde_cfg,
@@ -584,10 +149,10 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
     llm_defaults = LLM_PROVIDER_DEFAULTS[llm_provider]
 
     providers_blk = llm_blk.get("providers") or {}
-    providers_map: Optional[Dict[str, ProviderCfg]]
-    default_provider: Optional[str]
+    providers_map: dict[str, ProviderCfg] | None
+    default_provider: str | None
     if providers_blk:
-        built: Dict[str, ProviderCfg] = {}
+        built: dict[str, ProviderCfg] = {}
         for name, entry in providers_blk.items():
             entry = entry or {}
             base_url = entry.get("base_url")
@@ -686,7 +251,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
 
 # ─── Public surface ────────────────────────────────────────────────────
 
-_cached_stack: Optional[StackConfig] = None
+_cached_stack: StackConfig | None = None
 
 
 def load_stack(path: Path | str | None = None, *, strict: bool = False) -> StackConfig:
@@ -787,7 +352,7 @@ def configure_embedder(stack: StackConfig) -> None:
 
 def build_backend_config(
     stack: StackConfig, *, no_graph: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """``AgentMemory`` ``backend_configs`` payload for the canonical
     PG+Neo4j stack. When ``no_graph`` is set, drops Neo4j (graph role)
     so a Postgres-only run is possible."""
@@ -807,8 +372,8 @@ def build_backend_config(
         "skip_schema_init": stack.postgres.skip_schema_init,
     }
 
-    backend_configs: Dict[str, Dict[str, Any]] = {}
-    backends: List[str] = []
+    backend_configs: dict[str, dict[str, Any]] = {}
+    backends: list[str] = []
 
     # Document role: postgres always; if pinecone is also configured the
     # postgres backend stays document-only (vector role goes to pinecone).
@@ -817,7 +382,7 @@ def build_backend_config(
     if stack.pinecone is not None:
         backend_configs["postgres"] = pg_cfg
         backends.append("postgres")
-        pcn_cfg: Dict[str, Any] = {
+        pcn_cfg: dict[str, Any] = {
             "index_name": stack.pinecone.index_name,
             "metric": stack.pinecone.metric,
             "cloud": stack.pinecone.cloud,
@@ -878,7 +443,7 @@ def chat_kwargs_for_role(
     role: str,
     *,
     fallback_max_tokens: int = 300,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build the kwargs dict to pass to OpenAI chat.completions.create()
     for a given role, sourced from the resolved stack.
 
@@ -891,7 +456,7 @@ def chat_kwargs_for_role(
     defaults: ``max_tokens=fallback_max_tokens``, no reasoning_effort.
     Callers don't crash on stripped-checkout / test scenarios.
     """
-    out: Dict[str, Any] = {"max_tokens": fallback_max_tokens}
+    out: dict[str, Any] = {"max_tokens": fallback_max_tokens}
     try:
         m = get_stack(strict=False).models
     except Exception:
@@ -915,7 +480,7 @@ def print_stack_banner(stack: StackConfig, *, run_label: str) -> None:
           f" @ {stack.embedder.dimensions}-D")
     print(f"  llm              {stack.llm.provider} → {stack.llm.base_url}"
           f" (key from ${stack.llm.api_key_env})")
-    print(f"  models")
+    print("  models")
     print(f"    answerer            {stack.models.answerer}")
     print(f"    judge               {stack.models.judge}")
     print(f"    extraction          {stack.models.extraction}")
@@ -951,18 +516,8 @@ def confirm_or_exit(stack: StackConfig, *, run_label: str, yes: bool) -> None:
         raise SystemExit(f"[{run_label}] aborted by user")
 
 
-@dataclass(frozen=True)
-class CloudTarget:
-    name: str
-    region: str
-    compute: str
-    postgres: str
-    neo4j: str
-    image_ref: str
-
-
 def cloud_target(
-    stack: StackConfig, name: str, *, version: Optional[str] = None
+    stack: StackConfig, name: str, *, version: str | None = None
 ) -> CloudTarget:
     """Resolve the deploy plan for ``gcp`` / ``azure`` / ``aws`` with the
     native-registry image ref already substituted."""

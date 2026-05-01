@@ -10,13 +10,12 @@ sibling, shipped in PR #97).
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
 from attestor.longmemeval_critique import (
-    CritiqueResult,
     _parse_fix,
     _parse_reason,
     _parse_verdict,
@@ -30,7 +29,7 @@ from attestor.longmemeval_critique import (
 # ──────────────────────────────────────────────────────────────────────
 
 
-def _make_client(responses: List[str]) -> Any:
+def _make_client(responses: list[str]) -> Any:
     """Build a stub OpenAI-compatible client whose chat.completions.create
     returns each response string in order. Records every call for
     introspection."""
@@ -63,7 +62,7 @@ def _make_client(responses: List[str]) -> Any:
     return client
 
 
-def _msg(role: str, content: str) -> Dict[str, Any]:
+def _msg(role: str, content: str) -> dict[str, Any]:
     return {"role": role, "content": content}
 
 
@@ -345,7 +344,7 @@ def test_critique_max_revisions_capped_at_one() -> None:
 @pytest.mark.unit
 def test_critique_uses_distinct_critic_and_revise_models() -> None:
     """Verify the model arg actually flows through to each call."""
-    seen_models: List[str] = []
+    seen_models: list[str] = []
 
     def _create(**kwargs):
         seen_models.append(kwargs["model"])

@@ -85,8 +85,11 @@ def test_verify_token_rejects_wrong_issuer() -> None:
 @pytest.mark.unit
 def test_verify_token_rejects_wrong_signature() -> None:
     tok = _make_token()
+    # 32+ byte key — meets RFC 7518 §3.2 minimum for HS256, avoids
+    # PyJWT InsecureKeyLengthWarning. Distinct from SECRET so signature fails.
+    wrong_secret = "wrong-secret-32-bytes-min-padding-to-silence-pyjwt-warning"
     with pytest.raises(AuthError, match="invalid token"):
-        verify_token(tok, public_key="wrong-secret", audience="attestor")
+        verify_token(tok, public_key=wrong_secret, audience="attestor")
 
 
 @pytest.mark.unit

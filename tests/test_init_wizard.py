@@ -97,7 +97,6 @@ class TestInitStore:
 
     def test_verify_rollback_removes_side_effect_artifacts(self, tmp_store: Path):
         """_verify_store side-effects (memory.db) must be cleaned up on rollback."""
-        from attestor.init_wizard import _verify_store
 
         def fake_verify(path: Path):
             (path / "memory.db").write_bytes(b"fake")

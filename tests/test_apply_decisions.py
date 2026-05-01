@@ -7,11 +7,11 @@ errors as ERROR outcomes without raising.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from dataclasses import replace
 
 import pytest
 
-from attestor.conversation.apply import AppliedDecision, apply_decisions
+from attestor.conversation.apply import apply_decisions
 from attestor.extraction.conflict_resolver import Decision
 from attestor.extraction.round_extractor import ExtractedFact
 from attestor.models import Memory
@@ -29,19 +29,19 @@ def _fact(text: str, category: str = "preference") -> ExtractedFact:
 
 class StubDocStore:
     def __init__(self) -> None:
-        self.rows: Dict[str, Memory] = {}
+        self.rows: dict[str, Memory] = {}
         self.insert_calls: int = 0
         self.update_calls: int = 0
 
     def insert(self, m: Memory) -> Memory:
         # Echo back with a synthetic id when missing
         if not m.id or len(m.id) < 12:
-            m.id = f"mem-{len(self.rows) + 1}"
+            m = replace(m, id=f"mem-{len(self.rows) + 1}")
         self.rows[m.id] = m
         self.insert_calls += 1
         return m
 
-    def get(self, mid: str) -> Optional[Memory]:
+    def get(self, mid: str) -> Memory | None:
         return self.rows.get(mid)
 
     def update(self, m: Memory) -> Memory:
@@ -52,7 +52,7 @@ class StubDocStore:
 
 class StubVectorStore:
     def __init__(self, *, fail: bool = False) -> None:
-        self.adds: List[tuple] = []
+        self.adds: list[tuple] = []
         self._fail = fail
 
     def add(self, mid: str, content: str) -> None:
@@ -64,11 +64,10 @@ class StubVectorStore:
 class StubTemporal:
     def __init__(self, store: StubDocStore) -> None:
         self.store = store
-        self.supersede_calls: List[tuple] = []
+        self.supersede_calls: list[tuple] = []
 
     def supersede(self, old: Memory, new_id: str) -> Memory:
-        old.status = "superseded"
-        old.superseded_by = new_id
+        old = replace(old, status="superseded", superseded_by=new_id)
         self.store.update(old)
         self.supersede_calls.append((old.id, new_id))
         return old

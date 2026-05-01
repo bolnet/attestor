@@ -6,12 +6,10 @@ stubs so the tests are deterministic + don't burn local Ollama time.
 
 from __future__ import annotations
 
-import json
 import os
-import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import pytest
 
@@ -58,9 +56,9 @@ class _Resp:
 
 
 class _Chat:
-    def __init__(self, scripts: List[str]) -> None:
+    def __init__(self, scripts: list[str]) -> None:
         self._scripts = list(scripts)
-        self.calls: List[dict] = []
+        self.calls: list[dict] = []
 
     def create(self, **kw: Any) -> _Resp:
         self.calls.append(kw)
@@ -70,7 +68,7 @@ class _Chat:
 
 
 class ScriptedClient:
-    def __init__(self, scripts: List[str]) -> None:
+    def __init__(self, scripts: list[str]) -> None:
         self.chat = type("Chat", (), {"completions": _Chat(scripts)})()
 
     @property
@@ -268,7 +266,6 @@ def test_consolidator_marks_failed_on_extraction_error(mem_with_episodes):
 @pytest.mark.live
 def test_run_once_returns_empty_when_queue_drained(mem_with_episodes):
     from attestor.consolidation import (
-        ConsolidationQueue,
         SleepTimeConsolidator,
     )
 

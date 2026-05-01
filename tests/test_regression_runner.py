@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 
 import pytest
 
@@ -30,17 +30,17 @@ class FakeEntry:
 
 @dataclass
 class FakePack:
-    memories: List[FakeEntry]
+    memories: list[FakeEntry]
 
 
 @dataclass
 class FakeMem:
     """Records every ingest, returns a pre-canned pack on recall."""
     pack_to_return: FakePack = field(default_factory=lambda: FakePack([]))
-    ingested: List[tuple] = field(default_factory=list)
-    recall_calls: List[tuple] = field(default_factory=list)
-    raise_on_recall: Optional[Exception] = None
-    raise_on_ingest: Optional[Exception] = None
+    ingested: list[tuple] = field(default_factory=list)
+    recall_calls: list[tuple] = field(default_factory=list)
+    raise_on_recall: Exception | None = None
+    raise_on_ingest: Exception | None = None
 
     def ingest_round(self, user_turn: Any, assistant_turn: Any,
                      **kwargs: Any) -> None:
@@ -179,7 +179,7 @@ def test_run_regression_aggregates_results() -> None:
 @pytest.mark.unit
 def test_run_regression_invokes_isolate_between_cases() -> None:
     mem = FakeMem(pack_to_return=FakePack([FakeEntry("foo")]))
-    calls: List[int] = []
+    calls: list[int] = []
 
     def isolate() -> None:
         calls.append(len(mem.ingested))

@@ -7,9 +7,7 @@ that the embedded stack is gone. Skipped when POSTGRES_URL is unset.
 from __future__ import annotations
 
 import json
-import logging
 import os
-from datetime import datetime, timezone
 
 import pytest
 
@@ -43,7 +41,7 @@ class TestSessionStartHook:
     def test_empty_store_returns_empty_context(self, tmp_path):
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        attestor_path = store_path / ".attestor"
+        store_path / ".attestor"
         payload = {"event": "SessionStart", "session_id": "s1", "cwd": str(store_path)}
         result = session_start_handle(payload)
         assert "additionalContext" in result
@@ -71,12 +69,11 @@ class TestSessionStartHook:
         """Verify the 20000 token budget is passed to recall."""
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        attestor_path = store_path / ".attestor"
+        store_path / ".attestor"
 
         captured_budgets = []
 
         from attestor.core import AgentMemory
-        original_recall = AgentMemory.recall
 
         def mock_recall(self, query, budget=None):
             captured_budgets.append(budget)
@@ -320,7 +317,7 @@ class TestMcpSubcommand:
 
         # Mock asyncio.run to avoid actually starting the server
         with patch("attestor.cli.asyncio") as mock_asyncio, \
-             patch("attestor.mcp.server.run_server") as mock_run:
+             patch("attestor.mcp.server.run_server"):
             mock_asyncio.run = MagicMock()
             # This should not raise
             try:
@@ -330,11 +327,10 @@ class TestMcpSubcommand:
 
     def test_mcp_default_path_resolution(self, monkeypatch):
         """Verify default path uses ATTESTOR_PATH or ~/.attestor."""
-        import os
         monkeypatch.delenv("ATTESTOR_PATH", raising=False)
 
         from attestor.cli import main
-        from unittest.mock import patch, MagicMock, call
+        from unittest.mock import patch, MagicMock
 
         with patch("attestor.cli.asyncio") as mock_asyncio:
             mock_asyncio.run = MagicMock()
@@ -353,13 +349,12 @@ class TestMcpSubcommand:
 
         captured_paths = []
 
-        original_run_server = None
         def capture_run_server(path):
             captured_paths.append(path)
 
         with patch("attestor.cli.asyncio") as mock_asyncio:
             mock_asyncio.run = MagicMock(side_effect=lambda coro: None)
-            with patch("attestor.mcp.server.run_server", side_effect=capture_run_server) as mock_srv:
+            with patch("attestor.mcp.server.run_server", side_effect=capture_run_server):
                 try:
                     main(["mcp"])
                 except (SystemExit, Exception):
@@ -380,7 +375,7 @@ class TestHookSubcommand:
         # Provide JSON on stdin so the hook can process it
         stdin_data = json.dumps({"event": "SessionStart", "session_id": "s1", "cwd": "/tmp/nonexistent"})
         with patch("sys.stdin", io.StringIO(stdin_data)), \
-             patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+             patch("sys.stdout", new_callable=io.StringIO):
             try:
                 main(["hook", "session-start"])
             except SystemExit:
@@ -394,7 +389,7 @@ class TestHookSubcommand:
 
         stdin_data = json.dumps({"event": "Stop", "session_id": "s1", "cwd": "/tmp/nonexistent"})
         with patch("sys.stdin", io.StringIO(stdin_data)), \
-             patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+             patch("sys.stdout", new_callable=io.StringIO):
             try:
                 main(["hook", "stop"])
             except SystemExit:

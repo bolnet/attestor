@@ -17,7 +17,6 @@ See ``docs/plans/async-retrieval/PLAN.md`` § 4 — Phase 6.
 
 from __future__ import annotations
 
-import asyncio
 import time
 from unittest.mock import MagicMock
 

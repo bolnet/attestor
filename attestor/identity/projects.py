@@ -8,7 +8,7 @@ NULL/sentinel case). Inbox cannot be deleted or archived.
 from __future__ import annotations
 
 import json
-from typing import Any, List, Optional
+from typing import Any
 
 import psycopg2.extras
 
@@ -32,8 +32,8 @@ class ProjectRepo:
         self,
         user_id: str,
         name: str,
-        description: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        description: str | None = None,
+        metadata: dict | None = None,
     ) -> Project:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -100,13 +100,13 @@ class ProjectRepo:
 
     # ── Read ──────────────────────────────────────────────────────────────
 
-    def get(self, project_id: str) -> Optional[Project]:
+    def get(self, project_id: str) -> Project | None:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT * FROM projects WHERE id = %s", (project_id,))
             row = cur.fetchone()
         return Project.from_row(dict(row)) if row else None
 
-    def find_by_name(self, user_id: str, name: str) -> Optional[Project]:
+    def find_by_name(self, user_id: str, name: str) -> Project | None:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "SELECT * FROM projects WHERE user_id = %s AND name = %s",
@@ -117,7 +117,7 @@ class ProjectRepo:
 
     def list_for_user(
         self, user_id: str, include_inbox: bool = False, limit: int = 100,
-    ) -> List[Project]:
+    ) -> list[Project]:
         sql = (
             "SELECT * FROM projects "
             "WHERE user_id = %s AND status = 'active' "

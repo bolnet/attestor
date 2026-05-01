@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, replace
+from typing import Any
 
 from attestor.extraction.round_extractor import (
     DEFAULT_MAX_TOKENS,
@@ -89,12 +89,12 @@ class AppliedPromotion:
     """The outcome of one PromotionDecision."""
     memory_id: str
     operation: str
-    new_scope: Optional[str] = None  # set on PROMOTE_PROJECT/PROMOTE_USER
+    new_scope: str | None = None  # set on PROMOTE_PROJECT/PROMOTE_USER
     superseded: bool = False         # set on DISCARD
-    error: Optional[str] = None
+    error: str | None = None
 
 
-def _memory_to_dict(m: Memory) -> Dict[str, Any]:
+def _memory_to_dict(m: Memory) -> dict[str, Any]:
     return {
         "id": m.id,
         "content": m.content,
@@ -111,12 +111,12 @@ def _memory_to_dict(m: Memory) -> Dict[str, Any]:
 
 
 def decide_promotions(
-    memories: List[Memory],
+    memories: list[Memory],
     *,
-    client: Optional[Any] = None,
+    client: Any | None = None,
     model: str = DEFAULT_MODEL,
     max_tokens: int = DEFAULT_MAX_TOKENS,
-) -> List[PromotionDecision]:
+) -> list[PromotionDecision]:
     """Run SESSION_PROMOTION_PROMPT to classify each memory.
 
     Empty memories → []. LLM error → all-KEEP_SESSION (safe default:
@@ -148,7 +148,7 @@ def decide_promotions(
     return _parse_decisions(raw, memories)
 
 
-def _all_keep(memories: List[Memory], reason: str) -> List[PromotionDecision]:
+def _all_keep(memories: list[Memory], reason: str) -> list[PromotionDecision]:
     """Safe default — no scope change. Used when the LLM is unavailable."""
     return [
         PromotionDecision(
@@ -159,8 +159,8 @@ def _all_keep(memories: List[Memory], reason: str) -> List[PromotionDecision]:
 
 
 def _parse_decisions(
-    raw: str, memories: List[Memory],
-) -> List[PromotionDecision]:
+    raw: str, memories: list[Memory],
+) -> list[PromotionDecision]:
     text = _strip_markdown_fences(raw)
     if not text:
         return _all_keep(memories, "empty llm response")
@@ -170,13 +170,13 @@ def _parse_decisions(
         logger.warning("promotion JSON parse failed: %s; raw=%r", e, raw[:200])
         return _all_keep(memories, "bad json")
 
-    raw_decs: List = []
+    raw_decs: list = []
     if isinstance(parsed, dict):
         raw_decs = parsed.get("decisions", [])
     elif isinstance(parsed, list):
         raw_decs = parsed
 
-    by_id: Dict[str, dict] = {}
+    by_id: dict[str, dict] = {}
     for d in raw_decs:
         if not isinstance(d, dict):
             continue
@@ -184,7 +184,7 @@ def _parse_decisions(
         if isinstance(mid, str):
             by_id[mid] = d
 
-    out: List[PromotionDecision] = []
+    out: list[PromotionDecision] = []
     for m in memories:
         d = by_id.get(m.id)
         if d is None:
@@ -215,16 +215,16 @@ def _parse_decisions(
 
 
 def apply_promotions(
-    decisions: List[PromotionDecision],
+    decisions: list[PromotionDecision],
     *,
     mem: Any,                # AgentMemory (uses _store + _temporal)
-) -> List[AppliedPromotion]:
+) -> list[AppliedPromotion]:
     """Mutate memories.scope (promotions) or mark superseded (discard).
 
     KEEP_SESSION is a no-op outcome; included in the result list for
     audit symmetry.
     """
-    out: List[AppliedPromotion] = []
+    out: list[AppliedPromotion] = []
     for d in decisions:
         try:
             if d.operation == "KEEP_SESSION":
@@ -241,7 +241,7 @@ def apply_promotions(
                 continue
             if d.operation in {"PROMOTE_PROJECT", "PROMOTE_USER"}:
                 new_scope = "project" if d.operation == "PROMOTE_PROJECT" else "user"
-                row.scope = new_scope
+                row = replace(row, scope=new_scope)
                 mem._store.update(row)
                 out.append(AppliedPromotion(
                     memory_id=d.memory_id, operation=d.operation,
@@ -250,9 +250,12 @@ def apply_promotions(
             elif d.operation == "DISCARD":
                 # Mark superseded (timeline preserved). No replacement
                 # row — nothing to point to via superseded_by.
-                row.status = "superseded"
                 from datetime import datetime, timezone
-                row.valid_until = datetime.now(timezone.utc).isoformat()
+                row = replace(
+                    row,
+                    status="superseded",
+                    valid_until=datetime.now(timezone.utc).isoformat(),
+                )
                 mem._store.update(row)
                 out.append(AppliedPromotion(
                     memory_id=d.memory_id, operation="DISCARD",

@@ -12,8 +12,7 @@ not real model output.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from typing import Any
 
 import pytest
 
@@ -24,18 +23,18 @@ from attestor.retrieval.multi_query import RewriteResult
 class FakeVectorStore:
     """Records calls so tests can assert fan-out behavior."""
 
-    def __init__(self, hits_per_query: Dict[str, List[Dict]]):
+    def __init__(self, hits_per_query: dict[str, list[dict]]):
         self.hits_per_query = hits_per_query
-        self.calls: List[str] = []
+        self.calls: list[str] = []
 
     def search(
         self,
         query: str,
         *,
         limit: int = 50,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
         **kwargs: Any,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         self.calls.append(query)
         return list(self.hits_per_query.get(query, []))
 
@@ -47,7 +46,7 @@ class FakeStore:
     and MagicMock fields fail those operations."""
 
     def __init__(self):
-        self._mems: Dict[str, Any] = {}
+        self._mems: dict[str, Any] = {}
 
     def add_memory(self, memory_id: str, content: str = "x") -> None:
         from attestor.models import Memory

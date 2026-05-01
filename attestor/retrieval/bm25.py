@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("attestor.retrieval.bm25")
 
@@ -54,9 +54,9 @@ class BM25Lane:
         limit: int = 20,
         min_rank: float = 0.0,
         active_only: bool = True,
-        as_of: Optional[datetime] = None,
-        time_window: Optional[Any] = None,
-    ) -> List[BM25Hit]:
+        as_of: datetime | None = None,
+        time_window: Any | None = None,
+    ) -> list[BM25Hit]:
         """Return the top BM25-ranked memory ids for ``query``.
 
         RLS scopes the search automatically — the caller must already
@@ -72,8 +72,8 @@ class BM25Lane:
         """
         if not query or not query.strip():
             return []
-        params: Dict[str, Any] = {"q": query, "lim": limit}
-        where: List[str] = ["content_tsv @@ websearch_to_tsquery('english', %(q)s)"]
+        params: dict[str, Any] = {"q": query, "lim": limit}
+        where: list[str] = ["content_tsv @@ websearch_to_tsquery('english', %(q)s)"]
         if active_only:
             where.append("status = 'active'")
         if as_of is not None:
@@ -111,7 +111,7 @@ class BM25Lane:
             logger.debug("BM25 search failed (%s); returning no hits", e)
             return []
 
-        hits: List[BM25Hit] = []
+        hits: list[BM25Hit] = []
         for row in rows:
             mid, rank = row[0], float(row[1])
             if rank < min_rank:
@@ -121,10 +121,10 @@ class BM25Lane:
 
 
 def reciprocal_rank_fusion(
-    *ranked_lists: List[str],
+    *ranked_lists: list[str],
     k: int = 60,
-    limit: Optional[int] = None,
-) -> List[str]:
+    limit: int | None = None,
+) -> list[str]:
     """Fuse multiple ranked id lists into one via RRF (Cormack '09).
 
     score(d) = sum over lanes of 1 / (k + rank_in_lane(d))
@@ -134,7 +134,7 @@ def reciprocal_rank_fusion(
 
     Returns memory ids ordered by descending fused score.
     """
-    scores: Dict[str, float] = {}
+    scores: dict[str, float] = {}
     for lane in ranked_lists:
         for rank, mid in enumerate(lane):
             scores[mid] = scores.get(mid, 0.0) + 1.0 / (k + rank + 1)

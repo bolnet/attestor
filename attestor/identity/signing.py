@@ -38,7 +38,7 @@ import base64
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("attestor.identity.signing")
 
@@ -96,9 +96,9 @@ class SignatureKeypair:
 def canonical_payload(
     *,
     memory_id: str,
-    agent_id: Optional[str],
-    t_created: Optional[Any],          # str | datetime | None
-    content_hash: Optional[str],
+    agent_id: str | None,
+    t_created: Any | None,          # str | datetime | None
+    content_hash: str | None,
 ) -> bytes:
     """Build the byte string that gets signed.
 
@@ -207,7 +207,7 @@ class Signer:
     enabled: bool = True
 
     @classmethod
-    def from_config(cls, cfg: Optional[dict]) -> Optional[Signer]:
+    def from_config(cls, cfg: dict | None) -> Signer | None:
         if not cfg or not cfg.get("enabled"):
             return None
         sk_b64 = cfg.get("secret_key")

@@ -12,8 +12,8 @@ landed (and what was a no-op).
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, List, Optional
+from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING, Any
 
 from attestor.models import Memory
 
@@ -35,9 +35,9 @@ class AppliedDecision:
     """The outcome of applying one Decision."""
 
     operation: str       # mirrors Decision.operation
-    memory_id: Optional[str]   # the affected memory (new for ADD/UPDATE,
+    memory_id: str | None   # the affected memory (new for ADD/UPDATE,
                                # the superseded one for INVALIDATE, None for NOOP)
-    new_memory_id: Optional[str] = None  # only set on INVALIDATE — the
+    new_memory_id: str | None = None  # only set on INVALIDATE — the
                                           # replacement memory's id
 
 
@@ -45,12 +45,12 @@ def _fact_to_memory(
     fact: ExtractedFact,
     *,
     user_id: str,
-    project_id: Optional[str],
-    session_id: Optional[str],
+    project_id: str | None,
+    session_id: str | None,
     scope: str,
     source_episode_id: str,
     extraction_model: str,
-    parent_agent_id: Optional[str] = None,
+    parent_agent_id: str | None = None,
 ) -> Memory:
     """Build a Memory dataclass from an ExtractedFact + tenancy context."""
     return Memory(
@@ -71,16 +71,16 @@ def _fact_to_memory(
 
 
 def apply_decisions(
-    decisions: List[Decision],
+    decisions: list[Decision],
     *,
     mem: Any,                      # AgentMemory; typed Any to avoid cycle
     user_id: str,
-    project_id: Optional[str],
-    session_id: Optional[str],
+    project_id: str | None,
+    session_id: str | None,
     scope: str,
     extraction_model: str,
-    parent_agent_id: Optional[str] = None,
-) -> List[AppliedDecision]:
+    parent_agent_id: str | None = None,
+) -> list[AppliedDecision]:
     """Apply each Decision through ``mem``'s document + vector stores.
 
     ADD         → store.insert(new_memory)
@@ -93,7 +93,7 @@ def apply_decisions(
     decision. The pipeline does not raise — partial application is the
     contract (write what we can; report the rest).
     """
-    out: List[AppliedDecision] = []
+    out: list[AppliedDecision] = []
 
     for d in decisions:
         try:
@@ -133,11 +133,11 @@ def _apply_add(
     *,
     mem: Any,
     user_id: str,
-    project_id: Optional[str],
-    session_id: Optional[str],
+    project_id: str | None,
+    session_id: str | None,
     scope: str,
     extraction_model: str,
-    parent_agent_id: Optional[str],
+    parent_agent_id: str | None,
 ) -> AppliedDecision:
     new_mem = _fact_to_memory(
         d.new_fact, user_id=user_id, project_id=project_id,
@@ -164,13 +164,14 @@ def _apply_update(d: Decision, *, mem: Any) -> AppliedDecision:
         )
         return AppliedDecision(operation="ERROR", memory_id=d.existing_id)
 
-    existing.content = d.new_fact.text
+    updates: dict = {"content": d.new_fact.text}
     if d.new_fact.category and d.new_fact.category != "general":
-        existing.category = d.new_fact.category
+        updates["category"] = d.new_fact.category
     if d.new_fact.entity:
-        existing.entity = d.new_fact.entity
+        updates["entity"] = d.new_fact.entity
     # Confidence: take the higher of old vs new (don't downgrade audit trail)
-    existing.confidence = max(existing.confidence, d.new_fact.confidence)
+    updates["confidence"] = max(existing.confidence, d.new_fact.confidence)
+    existing = replace(existing, **updates)
     mem._store.update(existing)
 
     if mem._vector_store is not None:
@@ -186,11 +187,11 @@ def _apply_invalidate(
     *,
     mem: Any,
     user_id: str,
-    project_id: Optional[str],
-    session_id: Optional[str],
+    project_id: str | None,
+    session_id: str | None,
     scope: str,
     extraction_model: str,
-    parent_agent_id: Optional[str],
+    parent_agent_id: str | None,
 ) -> AppliedDecision:
     """Insert the new memory, then mark the old one superseded by it.
 

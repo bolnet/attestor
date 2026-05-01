@@ -23,7 +23,6 @@ real Postgres / embedding provider is required.
 
 from __future__ import annotations
 
-from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -47,10 +46,10 @@ class _StubCursor:
         # rows_per_call is a queue: each execute() pops the next row.
         # Use None for "no row" (empty result).
         self._queue = list(rows_per_call)
-        self._last_row: Optional[tuple] = None
+        self._last_row: tuple | None = None
         self.executed: list[str] = []
 
-    def __enter__(self) -> "_StubCursor":
+    def __enter__(self) -> _StubCursor:
         return self
 
     def __exit__(self, *exc) -> None:
@@ -77,7 +76,7 @@ class _StubConn:
         return _StubCursor(self._rows)
 
 
-def _make_backend(schema_dim: Optional[int], embedder_dim: int):
+def _make_backend(schema_dim: int | None, embedder_dim: int):
     """Construct a PostgresBackend-shaped stub.
 
     schema_dim:

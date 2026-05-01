@@ -6,7 +6,6 @@ touching integration tests live in ``test_docker_live.py`` (not created here).
 """
 from __future__ import annotations
 
-import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest

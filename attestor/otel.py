@@ -27,7 +27,7 @@ Audit-preservation:
 from __future__ import annotations
 
 import os
-from typing import Any, Optional
+from typing import Any
 
 
 _ENABLED: bool = bool(os.environ.get("OTEL_EXPORTER"))
@@ -138,7 +138,7 @@ def add_event(name: str, **attributes: Any) -> None:
         pass
 
 
-def current_span_id() -> Optional[str]:
+def current_span_id() -> str | None:
     """Return the current span's span_id as a hex string, or None when
     no span is active. Used by ``trace.event`` to add a ``span_id``
     field to the JSONL payload so operators can correlate the two
@@ -159,7 +159,7 @@ def current_span_id() -> Optional[str]:
 
 
 class _NoopSpan:
-    def __enter__(self) -> "_NoopSpan":
+    def __enter__(self) -> _NoopSpan:
         return self
 
     def __exit__(self, *exc: Any) -> None:
@@ -176,7 +176,7 @@ class _SpanWrapper:
         self._initial_attrs = initial_attrs
         self._span: Any = None
 
-    def __enter__(self) -> "_SpanWrapper":
+    def __enter__(self) -> _SpanWrapper:
         self._span = self._span_ctx.__enter__()
         for k, v in self._initial_attrs.items():
             if v is None:

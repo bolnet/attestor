@@ -24,7 +24,7 @@ This guard runs once at ``AgentMemory.__init__``:
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("attestor")
 
@@ -52,7 +52,7 @@ class EmbedderDimMismatchError(RuntimeError):
     clauses around init still see the failure as fatal."""
 
 
-def get_schema_embedding_dim(conn: Any) -> Optional[int]:
+def get_schema_embedding_dim(conn: Any) -> int | None:
     """Return the declared dim of ``memories.embedding`` in the active DB.
 
     Returns:

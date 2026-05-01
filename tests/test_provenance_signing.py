@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import base64
 import os
-import uuid
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -165,7 +165,7 @@ def _mem(content="hi", agent_id="planner", t_created="t-1", chash="h"):
 def test_sign_memory_attaches_to_signature_field() -> None:
     kp = SignatureKeypair.generate()
     m = _mem()
-    m.signature = sign_memory(m, secret_key_bytes=kp.secret_key_bytes())
+    m = replace(m, signature=sign_memory(m, secret_key_bytes=kp.secret_key_bytes()))
     assert m.signature
     assert verify_memory(m, public_key_bytes=kp.public_key_bytes())
 
@@ -182,8 +182,8 @@ def test_verify_memory_rejects_tampered_content() -> None:
     """Modifying content_hash post-signing must fail verification."""
     kp = SignatureKeypair.generate()
     m = _mem()
-    m.signature = sign_memory(m, secret_key_bytes=kp.secret_key_bytes())
-    m.content_hash = "tampered-hash"  # attacker swaps content
+    m = replace(m, signature=sign_memory(m, secret_key_bytes=kp.secret_key_bytes()))
+    m = replace(m, content_hash="tampered-hash")  # attacker swaps content
     assert not verify_memory(m, public_key_bytes=kp.public_key_bytes())
 
 
@@ -192,8 +192,8 @@ def test_verify_memory_rejects_swapped_agent_id() -> None:
     """Forging agent_id (claiming a different writer) must fail verification."""
     kp = SignatureKeypair.generate()
     m = _mem()
-    m.signature = sign_memory(m, secret_key_bytes=kp.secret_key_bytes())
-    m.agent_id = "evil-agent"
+    m = replace(m, signature=sign_memory(m, secret_key_bytes=kp.secret_key_bytes()))
+    m = replace(m, agent_id="evil-agent")
     assert not verify_memory(m, public_key_bytes=kp.public_key_bytes())
 
 
@@ -228,7 +228,7 @@ def test_signer_ephemeral_when_keys_absent_but_enabled() -> None:
     assert s is not None
     # Round-trips with itself
     m = _mem()
-    m.signature = s.sign(m)
+    m = replace(m, signature=s.sign(m))
     assert s.verify(m) is True
 
 
@@ -240,7 +240,7 @@ def test_signer_round_trip_via_class_methods() -> None:
         public_key_bytes=kp.public_key_bytes(),
     )
     m = _mem()
-    m.signature = s.sign(m)
+    m = replace(m, signature=s.sign(m))
     assert s.verify(m)
 
 

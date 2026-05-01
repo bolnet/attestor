@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-import os
 import re
-import sys
-from pathlib import Path
+from typing import Any
 
-_EMPTY_RESPONSE = {}
+from attestor.hooks._base import run_hook
+
+_EMPTY_RESPONSE: dict[str, Any] = {}
 
 # Read-only Bash command prefixes that should not be captured.
 _READ_ONLY_PREFIXES = (
@@ -58,7 +58,7 @@ def _redact_secrets(text: str) -> str:
     return text
 
 
-def handle(payload: dict) -> dict:
+def handle(payload: dict[str, Any]) -> dict[str, Any]:
     """Process a PostToolUse event and store observations as memories.
 
     Args:
@@ -85,7 +85,7 @@ def handle(payload: dict) -> dict:
             return _EMPTY_RESPONSE
 
         content = None
-        tags = []
+        tags: list[str] = []
         category = "project"
 
         if tool_name == "Write":
@@ -125,11 +125,11 @@ def handle(payload: dict) -> dict:
             return _EMPTY_RESPONSE
 
         if content:
+            # Lazy imports: see comment in session_start.handle.
             from attestor._paths import resolve_store_path
+            from attestor.core import AgentMemory
 
             store_path = resolve_store_path()
-
-            from attestor.core import AgentMemory
 
             mem = AgentMemory(store_path)
             try:
@@ -138,19 +138,13 @@ def handle(payload: dict) -> dict:
                 mem.close()
 
         return _EMPTY_RESPONSE
-    except Exception:
+    except Exception:  # noqa: BLE001 -- handler must never crash the host
         return _EMPTY_RESPONSE
 
 
-def main():
+def main() -> None:
     """CLI entry point: reads JSON from stdin, writes JSON to stdout."""
-    try:
-        payload = json.loads(sys.stdin.read())
-        result = handle(payload)
-    except Exception:
-        result = _EMPTY_RESPONSE
-    sys.stdout.write(json.dumps(result))
-    sys.stdout.flush()
+    run_hook("post_tool_use", handle, empty_response=_EMPTY_RESPONSE)
 
 
 if __name__ == "__main__":

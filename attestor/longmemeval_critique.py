@@ -40,7 +40,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("attestor.longmemeval_critique")
 
@@ -178,7 +178,7 @@ def _parse_fix(text: str) -> str:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def _question_from_messages(messages: List[Dict[str, Any]]) -> str:
+def _question_from_messages(messages: list[dict[str, Any]]) -> str:
     """Best-effort extraction of the user's question from the chat
     messages — used to fill the critique/revise prompt's ``{question}``
     placeholder. If the schema doesn't match, falls back to a generic
@@ -202,7 +202,7 @@ def _initial_answer(
     *,
     client: Any,
     model: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
 ) -> str:
     """Greedy initial answer — same shape as the legacy single-sample
     path. Returns the stripped content text, or ``""`` on any error."""
@@ -283,13 +283,13 @@ def answer_with_critique_revise(
     *,
     client: Any,
     model: str,
-    messages: List[Dict[str, Any]],
-    question: Optional[str] = None,
+    messages: list[dict[str, Any]],
+    question: str | None = None,
     context: str = "",
-    critic_client: Optional[Any] = None,
-    critic_model: Optional[str] = None,
-    revise_client: Optional[Any] = None,
-    revise_model: Optional[str] = None,
+    critic_client: Any | None = None,
+    critic_model: str | None = None,
+    revise_client: Any | None = None,
+    revise_model: str | None = None,
     max_revisions: int = 1,
 ) -> CritiqueResult:
     """Three-step critique-and-revise pipeline.

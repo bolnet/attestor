@@ -7,7 +7,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 # ── v4 Identity primitives ────────────────────────────────────────────────
@@ -29,19 +29,19 @@ def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class User:
     id: str
     external_id: str
-    email: Optional[str] = None
-    display_name: Optional[str] = None
+    email: str | None = None
+    display_name: str | None = None
     status: str = "active"
     created_at: datetime = field(default_factory=_now_utc)
-    deleted_at: Optional[datetime] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    deleted_at: datetime | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_row(cls, row: Dict[str, Any]) -> User:
+    def from_row(cls, row: dict[str, Any]) -> User:
         meta = row.get("metadata") or {}
         if isinstance(meta, str):
             meta = json.loads(meta)
@@ -57,23 +57,23 @@ class User:
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Project:
     id: str
     user_id: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     status: str = "active"
     created_at: datetime = field(default_factory=_now_utc)
-    archived_at: Optional[datetime] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    archived_at: datetime | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_inbox(self) -> bool:
         return bool(self.metadata.get("is_inbox"))
 
     @classmethod
-    def from_row(cls, row: Dict[str, Any]) -> Project:
+    def from_row(cls, row: dict[str, Any]) -> Project:
         meta = row.get("metadata") or {}
         if isinstance(meta, str):
             meta = json.loads(meta)
@@ -89,22 +89,22 @@ class Project:
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Session:
     id: str
     user_id: str
-    project_id: Optional[str] = None
-    title: Optional[str] = None
+    project_id: str | None = None
+    title: str | None = None
     status: str = "active"
     created_at: datetime = field(default_factory=_now_utc)
     last_active_at: datetime = field(default_factory=_now_utc)
-    ended_at: Optional[datetime] = None
+    ended_at: datetime | None = None
     message_count: int = 0
     consolidation_state: str = "pending"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_row(cls, row: Dict[str, Any]) -> Session:
+    def from_row(cls, row: dict[str, Any]) -> Session:
         meta = row.get("metadata") or {}
         if isinstance(meta, str):
             meta = json.loads(meta)
@@ -130,49 +130,49 @@ class Session:
 # caller working until Phase 1 lands.
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Memory:
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     content: str = ""
 
     # Classification
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     category: str = "general"
-    entity: Optional[str] = None
+    entity: str | None = None
     namespace: str = "default"   # legacy v3; derived from user/project/session in v4
 
     # v4 tenancy (Optional → backward-compat with v3 callers)
-    user_id: Optional[str] = None
-    project_id: Optional[str] = None
-    session_id: Optional[str] = None
+    user_id: str | None = None
+    project_id: str | None = None
+    session_id: str | None = None
     scope: str = "user"          # one of: user | project | session
 
     # Temporal — event time
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
-    event_date: Optional[str] = None
+    event_date: str | None = None
     valid_from: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
-    valid_until: Optional[str] = None
-    superseded_by: Optional[str] = None
+    valid_until: str | None = None
+    superseded_by: str | None = None
 
     # v4 bi-temporal — transaction time (when system knew it)
-    t_created: Optional[str] = None
-    t_expired: Optional[str] = None
+    t_created: str | None = None
+    t_expired: str | None = None
 
     # v4 provenance — links back to source episode + extraction context
-    source_episode_id: Optional[str] = None
-    source_span: Optional[List[int]] = None   # [start_char, end_char]
-    extraction_model: Optional[str] = None
-    agent_id: Optional[str] = None
-    parent_agent_id: Optional[str] = None
+    source_episode_id: str | None = None
+    source_span: list[int] | None = None   # [start_char, end_char]
+    extraction_model: str | None = None
+    agent_id: str | None = None
+    parent_agent_id: str | None = None
     visibility: str = "team"
-    signature: Optional[str] = None           # opt-in Ed25519 sig
+    signature: str | None = None           # opt-in Ed25519 sig
 
     # Vector (optional)
-    embedding: Optional[List[float]] = None
+    embedding: list[float] | None = None
 
     # Provenance
     confidence: float = 1.0
@@ -182,22 +182,16 @@ class Memory:
 
     # Access tracking
     access_count: int = 0
-    last_accessed: Optional[str] = None
+    last_accessed: str | None = None
 
     # Content dedup
-    content_hash: Optional[str] = None
+    content_hash: str | None = None
 
     # Extensible
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-    def tags_json(self) -> str:
-        return json.dumps(self.tags)
-
-    def metadata_json(self) -> str:
-        return json.dumps(self.metadata)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_row(cls, row: Dict[str, Any]) -> Memory:
+    def from_row(cls, row: dict[str, Any]) -> Memory:
         """Create a Memory from a document-store row dict.
 
         Backward-compatible with both v3 (TEXT id, namespace, no bi-temporal)
@@ -210,10 +204,10 @@ class Memory:
             json.loads(metadata_raw) if isinstance(metadata_raw, str) else metadata_raw
         )
 
-        def _maybe_str(v: Any) -> Optional[str]:
+        def _maybe_str(v: Any) -> str | None:
             return str(v) if v is not None else None
 
-        def _maybe_iso(v: Any) -> Optional[str]:
+        def _maybe_iso(v: Any) -> str | None:
             if v is None:
                 return None
             if isinstance(v, datetime):
@@ -282,7 +276,7 @@ class Memory:
             metadata=metadata,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to a plain dict for JSON export.
 
         Includes both v3 and v4 fields. v4 fields are present but None when
@@ -326,7 +320,7 @@ class Memory:
         return self.user_id is not None
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class RetrievalResult:
     memory: Memory
     score: float
@@ -340,7 +334,7 @@ class RetrievalResult:
 # ── ContextPack (Phase 6.1, roadmap §D.1) ────────────────────────────────
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ContextPackEntry:
     """One memory inside a ContextPack — citation-friendly view.
 
@@ -351,14 +345,14 @@ class ContextPackEntry:
     id: str
     content: str
     category: str
-    entity: Optional[str]
-    valid_from: Optional[str]
-    valid_until: Optional[str]
+    entity: str | None
+    valid_from: str | None
+    valid_until: str | None
     confidence: float
-    source_episode_id: Optional[str]
+    source_episode_id: str | None
     score: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "content": self.content,
@@ -372,7 +366,7 @@ class ContextPackEntry:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ContextPack:
     """Structured retrieval envelope for Chain-of-Note consumption.
 
@@ -386,8 +380,8 @@ class ContextPack:
     impossible if recall_as_context returns plain text.
     """
     query: str
-    memories: List[ContextPackEntry]
-    as_of: Optional[str]
+    memories: list[ContextPackEntry]
+    as_of: str | None
     token_count: int
     chain_of_note_prompt: str
 
@@ -395,7 +389,7 @@ class ContextPack:
     def memory_count(self) -> int:
         return len(self.memories)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "query": self.query,
             "memories": [m.to_dict() for m in self.memories],

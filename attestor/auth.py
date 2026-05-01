@@ -23,7 +23,8 @@ Threat model:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from types import ModuleType
+from typing import Any
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -33,31 +34,36 @@ from attestor.mode import AttestorMode
 
 logger = logging.getLogger("attestor.auth")
 
+try:
+    import jwt as _jwt  # PyJWT
+    _JWT_IMPORT_ERROR: Exception | None = None
+except ImportError as e:  # PyJWT not installed
+    _jwt = None  # type: ignore[assignment]
+    _JWT_IMPORT_ERROR = e
+
 
 class AuthError(Exception):
     """Raised by the verifier for any reason a token is rejected."""
 
 
-def _ensure_jwt():
-    try:
-        import jwt
-    except ImportError as e:
+def _ensure_jwt() -> ModuleType:
+    if _jwt is None:
         raise RuntimeError(
             "JWT auth requires the `pyjwt` package. "
             "Install via `pip install attestor[hosted]` or `pip install pyjwt`."
-        ) from e
-    return jwt
+        ) from _JWT_IMPORT_ERROR
+    return _jwt
 
 
 def verify_token(
     token: str,
     *,
     public_key: str,
-    audience: Optional[str] = None,
-    issuer: Optional[str] = None,
-    algorithms: Optional[list[str]] = None,
+    audience: str | None = None,
+    issuer: str | None = None,
+    algorithms: list[str] | None = None,
     leeway_seconds: int = 0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Decode + verify a JWT. Returns the claims dict.
 
     Raises AuthError on any verification failure with the reason string.
@@ -96,7 +102,7 @@ def verify_token(
     return claims
 
 
-def _extract_bearer(request: Request) -> Optional[str]:
+def _extract_bearer(request: Request) -> str | None:
     """Pull the bearer token from the Authorization header."""
     header = request.headers.get("authorization", "")
     if not header.lower().startswith("bearer "):
@@ -119,13 +125,13 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         app: Any,
         *,
         mode: AttestorMode,
-        public_key: Optional[str] = None,
-        audience: Optional[str] = None,
-        issuer: Optional[str] = None,
-        algorithms: Optional[list[str]] = None,
+        public_key: str | None = None,
+        audience: str | None = None,
+        issuer: str | None = None,
+        algorithms: list[str] | None = None,
         leeway_seconds: int = 0,
-        unauthenticated_paths: Optional[set[str]] = None,
-        ensure_user_fn: Optional[Any] = None,
+        unauthenticated_paths: set[str] | None = None,
+        ensure_user_fn: Any | None = None,
     ) -> None:
         super().__init__(app)
         self._mode = mode

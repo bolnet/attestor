@@ -130,7 +130,6 @@ class StubDocStore:
 @pytest.mark.live
 def test_orchestrator_without_bm25_unchanged(seeded) -> None:
     """No bm25_lane → behaves exactly like the pre-Phase-4 vector path."""
-    import psycopg2.extras  # for RealDictCursor in StubDocStore.get
     uid, ids, conn = seeded
     from attestor.retrieval.orchestrator import RetrievalOrchestrator
 
@@ -149,7 +148,6 @@ def test_orchestrator_without_bm25_unchanged(seeded) -> None:
 @pytest.mark.live
 def test_orchestrator_bm25_only_returns_keyword_hits(seeded) -> None:
     """vector_store=None + bm25_lane wired → keyword hits flow through."""
-    import psycopg2.extras
     uid, ids, conn = seeded
     from attestor.retrieval.bm25 import BM25Lane
     from attestor.retrieval.orchestrator import RetrievalOrchestrator
@@ -166,7 +164,6 @@ def test_orchestrator_bm25_only_returns_keyword_hits(seeded) -> None:
 @pytest.mark.live
 def test_orchestrator_fusion_surfaces_bm25_only_match(seeded) -> None:
     """Vector lane misses 'lucky number 7919' but BM25 finds it."""
-    import psycopg2.extras
     uid, ids, conn = seeded
     from attestor.retrieval.bm25 import BM25Lane
     from attestor.retrieval.orchestrator import RetrievalOrchestrator
@@ -190,7 +187,6 @@ def test_orchestrator_fusion_surfaces_bm25_only_match(seeded) -> None:
 @pytest.mark.live
 def test_orchestrator_bm25_failure_does_not_break_recall(seeded) -> None:
     """BM25 lane raising → recall still returns vector hits."""
-    import psycopg2.extras
     uid, ids, conn = seeded
     from attestor.retrieval.orchestrator import RetrievalOrchestrator
 

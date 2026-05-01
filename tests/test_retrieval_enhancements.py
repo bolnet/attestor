@@ -22,14 +22,19 @@ def _make_result(
     created_at=None,
     confidence=1.0,
 ):
-    m = Memory(content=content, entity=entity, confidence=confidence)
+    kwargs = {
+        "content": content,
+        "entity": entity,
+        "confidence": confidence,
+        "access_count": access_count,
+    }
     if memory_id:
-        m.id = memory_id
-    m.access_count = access_count
+        kwargs["id"] = memory_id
     if last_accessed:
-        m.last_accessed = last_accessed
+        kwargs["last_accessed"] = last_accessed
     if created_at:
-        m.created_at = created_at
+        kwargs["created_at"] = created_at
+    m = Memory(**kwargs)
     return RetrievalResult(memory=m, score=score, match_source="test")
 
 

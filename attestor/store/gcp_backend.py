@@ -7,7 +7,7 @@ Only connection setup, index strategy, and embedding preference differ.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Set
+from typing import Any, ClassVar
 
 from attestor.store.postgres_backend import PostgresBackend
 
@@ -38,9 +38,9 @@ class GCPBackend(PostgresBackend):
         database: Database name (default: attestor)
     """
 
-    ROLES: Set[str] = {"document", "vector", "graph"}
+    ROLES: ClassVar[set[str]] = {"document", "vector", "graph"}
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         gcp_fields = self._extract_gcp_fields(config)
 
         if self._should_use_connector(gcp_fields):
@@ -49,7 +49,7 @@ class GCPBackend(PostgresBackend):
             # Fall back to standard psycopg2 connection (same as PostgresBackend)
             super().__init__(config)
 
-    def _extract_gcp_fields(self, config: Dict[str, Any]) -> Dict[str, str]:
+    def _extract_gcp_fields(self, config: dict[str, Any]) -> dict[str, str]:
         """Extract GCP-specific fields from config."""
         return {
             "project_id": config.get("project_id", ""),
@@ -59,7 +59,7 @@ class GCPBackend(PostgresBackend):
             "database": config.get("database", "attestor"),
         }
 
-    def _should_use_connector(self, gcp_fields: Dict[str, str]) -> bool:
+    def _should_use_connector(self, gcp_fields: dict[str, str]) -> bool:
         """Use AlloyDB Connector if project_id, cluster, and instance are all set."""
         return bool(
             gcp_fields["project_id"]
@@ -69,7 +69,7 @@ class GCPBackend(PostgresBackend):
         )
 
     def _init_via_connector(
-        self, config: Dict[str, Any], gcp_fields: Dict[str, str]
+        self, config: dict[str, Any], gcp_fields: dict[str, str]
     ) -> None:
         """Connect via AlloyDB Connector with IAM auth (ADC)."""
         from google.cloud.alloydb.connector import Connector

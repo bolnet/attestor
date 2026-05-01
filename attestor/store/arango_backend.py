@@ -8,25 +8,18 @@ collections, named graphs, AQL, and the COSINE_SIMILARITY function.
 from __future__ import annotations
 
 import logging
-import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, ClassVar
 
 from arango import ArangoClient
 
 from attestor.models import Memory
-from attestor.store.base import DocumentStore, GraphStore, VectorStore
+from attestor.store._graph_utils import sanitize_rel_type as _sanitize_rel_type
 from attestor.store.connection import CloudConnection
 
 logger = logging.getLogger("attestor")
 
 
-def _sanitize_rel_type(rel_type: str) -> str:
-    """Normalize relation type: uppercase, safe characters only."""
-    sanitized = re.sub(r"[^A-Za-z0-9_]", "_", rel_type)
-    return sanitized.upper()
-
-
-class ArangoBackend(DocumentStore, VectorStore, GraphStore):
+class ArangoBackend:
     """Multi-role ArangoDB backend: document + vector + graph in one DB.
 
     Talks to ArangoDB Community Edition via python-arango. Uses only CE
@@ -40,9 +33,9 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         - Self-hosted cloud (AWS/Azure/GCP): standard TLS
     """
 
-    ROLES: Set[str] = {"document", "vector", "graph"}
+    ROLES: ClassVar[set[str]] = {"document", "vector", "graph"}
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         self._config = config
         conn = CloudConnection.from_config(config, backend_name="arangodb")
         self._conn = conn
@@ -101,7 +94,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
     # ── DocumentStore ──
 
     @staticmethod
-    def _memory_to_doc(memory: Memory) -> Dict[str, Any]:
+    def _memory_to_doc(memory: Memory) -> dict[str, Any]:
         return {
             "_key": memory.id,
             "memory_id": memory.id,
@@ -125,7 +118,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         col.insert(self._memory_to_doc(memory))
         return memory
 
-    def get(self, memory_id: str) -> Optional[Memory]:
+    def get(self, memory_id: str) -> Memory | None:
         col = self._db.collection("memories")
         doc = col.get(memory_id)
         if doc is None:
@@ -146,16 +139,16 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
 
     def list_memories(
         self,
-        status: Optional[str] = None,
-        category: Optional[str] = None,
-        entity: Optional[str] = None,
-        namespace: Optional[str] = None,
-        after: Optional[str] = None,
-        before: Optional[str] = None,
+        status: str | None = None,
+        category: str | None = None,
+        entity: str | None = None,
+        namespace: str | None = None,
+        after: str | None = None,
+        before: str | None = None,
         limit: int = 100,
-    ) -> List[Memory]:
+    ) -> list[Memory]:
         filters = []
-        bind_vars: Dict[str, Any] = {"@col": "memories", "lim": limit}
+        bind_vars: dict[str, Any] = {"@col": "memories", "lim": limit}
 
         if status:
             filters.append("doc.status == @status")
@@ -183,12 +176,12 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
 
     def tag_search(
         self,
-        tags: List[str],
-        category: Optional[str] = None,
-        namespace: Optional[str] = None,
+        tags: list[str],
+        category: str | None = None,
+        namespace: str | None = None,
         limit: int = 20,
-    ) -> List[Memory]:
-        bind_vars: Dict[str, Any] = {"@col": "memories", "lim": limit, "tags": tags}
+    ) -> list[Memory]:
+        bind_vars: dict[str, Any] = {"@col": "memories", "lim": limit, "tags": tags}
         filters = [
             "doc.status == 'active'",
             "doc.valid_until == null",
@@ -207,8 +200,8 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         return [self._doc_to_memory(doc) for doc in cursor]
 
     def execute(
-        self, query: str, params: Optional[Any] = None
-    ) -> List[Dict[str, Any]]:
+        self, query: str, params: Any | None = None
+    ) -> list[dict[str, Any]]:
         """Execute raw AQL query."""
         bind_vars = params if isinstance(params, dict) else {}
         cursor = self._db.aql.execute(query, bind_vars=bind_vars)
@@ -234,18 +227,18 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         cursor = self._db.aql.execute(aql, bind_vars={})
         return sum(1 for _ in cursor)
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         total_cursor = self._db.aql.execute("RETURN LENGTH(memories)")
         total = next(total_cursor)
 
-        by_status: Dict[str, int] = {}
+        by_status: dict[str, int] = {}
         status_cursor = self._db.aql.execute(
             "FOR doc IN memories COLLECT s = doc.status WITH COUNT INTO c RETURN {status: s, count: c}"
         )
         for row in status_cursor:
             by_status[row["status"]] = row["count"]
 
-        by_category: Dict[str, int] = {}
+        by_category: dict[str, int] = {}
         cat_cursor = self._db.aql.execute(
             "FOR doc IN memories COLLECT c = doc.category WITH COUNT INTO cnt RETURN {category: c, count: cnt}"
         )
@@ -259,7 +252,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         }
 
     @staticmethod
-    def _doc_to_memory(doc: Dict[str, Any]) -> Memory:
+    def _doc_to_memory(doc: dict[str, Any]) -> Memory:
         """Convert raw AQL document → Attestor Memory."""
         return Memory(
             id=doc["_key"],
@@ -293,7 +286,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
             self._openai_client = getattr(self._embedder, "_client", True)
         self._embedding_fn = self._embedder  # backward compat marker (non-None = initialized)
 
-    def _embed(self, text: str) -> List[float]:
+    def _embed(self, text: str) -> list[float]:
         """Generate embedding using the shared provider."""
         self._ensure_embedding_fn()
         return self._embedder.embed(text)
@@ -305,11 +298,11 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         if col.has(memory_id):
             col.update({"_key": memory_id, "vector_data": embedding, "namespace": namespace})
 
-    def search(self, query_text: str, limit: int = 20, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+    def search(self, query_text: str, limit: int = 20, namespace: str | None = None) -> list[dict[str, Any]]:
         """Vector similarity search using cosine similarity."""
         query_vec = self._embed(query_text)
 
-        bind_vars: Dict[str, Any] = {"query_vec": query_vec, "lim": limit}
+        bind_vars: dict[str, Any] = {"query_vec": query_vec, "lim": limit}
         namespace_filter = ""
         if namespace:
             namespace_filter = "FILTER doc.namespace == @namespace"
@@ -341,7 +334,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         self,
         name: str,
         entity_type: str = "general",
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> None:
         key = name.lower()
         attrs = dict(attributes) if attributes else {}
@@ -350,7 +343,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
 
         if entities.has(key):
             existing = entities.get(key)
-            update_doc: Dict[str, Any] = {"_key": key, "display_name": name}
+            update_doc: dict[str, Any] = {"_key": key, "display_name": name}
             for k, v in attrs.items():
                 update_doc[k] = v
             if existing.get("entity_type", "general") == "general" and entity_type != "general":
@@ -366,7 +359,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         from_entity: str,
         to_entity: str,
         relation_type: str = "related_to",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         from_key = from_entity.lower()
         to_key = to_entity.lower()
@@ -390,7 +383,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
             edge_doc.update(metadata)
         relations.insert(edge_doc)
 
-    def get_related(self, entity: str, depth: int = 2) -> List[str]:
+    def get_related(self, entity: str, depth: int = 2) -> list[str]:
         start = entity.lower()
         entities = self._db.collection("entities")
         if not entities.has(start):
@@ -406,7 +399,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
         )
         return [name for name in cursor if name]
 
-    def get_subgraph(self, entity: str, depth: int = 2) -> Dict[str, Any]:
+    def get_subgraph(self, entity: str, depth: int = 2) -> dict[str, Any]:
         start = entity.lower()
         entities = self._db.collection("entities")
         if not entities.has(start):
@@ -454,7 +447,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
 
         return {"entity": entity, "nodes": nodes, "edges": edges}
 
-    def get_entities(self, entity_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_entities(self, entity_type: str | None = None) -> list[dict[str, Any]]:
         if entity_type:
             aql = "FOR doc IN entities FILTER doc.entity_type == @et RETURN doc"
             cursor = self._db.aql.execute(aql, bind_vars={"et": entity_type})
@@ -475,7 +468,7 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
             })
         return result
 
-    def get_edges(self, entity: str) -> List[Dict[str, Any]]:
+    def get_edges(self, entity: str) -> list[dict[str, Any]]:
         key = entity.lower()
         entities_col = self._db.collection("entities")
         if not entities_col.has(key):
@@ -513,14 +506,14 @@ class ArangoBackend(DocumentStore, VectorStore, GraphStore):
                 result.append(edge)
         return result
 
-    def graph_stats(self) -> Dict[str, Any]:
+    def graph_stats(self) -> dict[str, Any]:
         """Graph-specific stats (separate from DocumentStore.stats)."""
         nodes_cursor = self._db.aql.execute("RETURN LENGTH(entities)")
         edges_cursor = self._db.aql.execute("RETURN LENGTH(relations)")
         nodes = next(nodes_cursor)
         edges = next(edges_cursor)
 
-        types: Dict[str, int] = {}
+        types: dict[str, int] = {}
         type_cursor = self._db.aql.execute(
             "FOR doc IN entities COLLECT t = doc.entity_type WITH COUNT INTO c RETURN {type: t, count: c}"
         )

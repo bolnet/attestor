@@ -26,16 +26,25 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Callable, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from attestor.conversation.turns import ConversationTurn
 from attestor.extraction.prompts import (
+    AGENT_FACT_PROMPT_NAME,
+    USER_FACT_PROMPT_NAME,
     format_agent_fact_prompt,
     format_user_fact_prompt,
 )
+from attestor.extraction.prompt_loader import prompt_version
 
 logger = logging.getLogger("attestor.extraction.round")
+
+# Prompt-template version each extractor stamps onto every ExtractedFact
+# it returns. Bumping the version is a content edit + suffix bump in
+# attestor/extraction/prompts/ — no signature change here.
+USER_FACT_PROMPT_VERSION = prompt_version(USER_FACT_PROMPT_NAME)
+AGENT_FACT_PROMPT_VERSION = prompt_version(AGENT_FACT_PROMPT_NAME)
 
 def _default_model() -> str:
     """Resolve the extraction model from ``configs/attestor.yaml``."""
@@ -62,14 +71,22 @@ class ExtractedFact:
 
     Bound to a single source turn; the (start, end) span lets the audit
     pipeline highlight which portion of the turn produced this fact.
+
+    ``prompt_template`` / ``prompt_version`` (optional) record which
+    externalized ``.md`` prompt produced this fact, so audit replay can
+    correlate per-fact behavior changes back to a specific prompt edit.
+    Defaults are ``None`` so legacy callers / tests that construct facts
+    by hand continue to work without modification.
     """
 
     text: str
     category: str
-    entity: Optional[str]
+    entity: str | None
     confidence: float
-    source_span: List[int]
+    source_span: list[int]
     speaker: str  # "user" | "assistant" | "<agent_id>"
+    prompt_template: str | None = None
+    prompt_version: str | None = None
 
     @property
     def source_start(self) -> int:
@@ -122,8 +139,13 @@ def _call_llm(
         role="round_extractor",
         model=clean_model,
         max_tokens=max_tokens,
+        timeout=30,
+        max_retries=0,
         messages=[{"role": "user", "content": prompt}],
     )
+    if not response.choices or not response.choices[0].message:
+        logger.warning("LLM returned empty response; skipping extraction")
+        return ""
     return response.choices[0].message.content or ""
 
 
@@ -140,7 +162,7 @@ def _strip_markdown_fences(text: str) -> str:
     return text
 
 
-def _parse_facts_payload(raw: str) -> List[dict]:
+def _parse_facts_payload(raw: str) -> list[dict]:
     """Parse the LLM response into a list of fact dicts.
 
     Tolerates: markdown fences, pure-array shape, the documented
@@ -170,7 +192,9 @@ def _validate_fact(
     speaker: str,
     content_len: int,
     allowed_categories: set,
-) -> Optional[ExtractedFact]:
+    prompt_template: str | None = None,
+    prompt_version_str: str | None = None,
+) -> ExtractedFact | None:
     """Coerce a raw fact dict into an ExtractedFact, or return None.
 
     Validates:
@@ -179,6 +203,10 @@ def _validate_fact(
       - confidence is a float in [0, 1] (else 0.5)
       - source_span is [start, end] both ints, clamped to [0, content_len]
         and start <= end (else [0, 0])
+
+    When ``prompt_template`` / ``prompt_version_str`` are supplied, they
+    are stamped onto the resulting ``ExtractedFact`` so audit replay can
+    correlate the fact back to the externalized prompt that produced it.
     """
     text = raw.get("text")
     if not isinstance(text, str) or not text.strip():
@@ -215,6 +243,8 @@ def _validate_fact(
         confidence=confidence,
         source_span=[start, end],
         speaker=speaker,
+        prompt_template=prompt_template,
+        prompt_version=prompt_version_str,
     )
 
 
@@ -229,8 +259,8 @@ def extract_user_facts(
     *,
     model: str = DEFAULT_MODEL,
     max_tokens: int = DEFAULT_MAX_TOKENS,
-    client: Optional[Any] = None,
-) -> List[ExtractedFact]:
+    client: Any | None = None,
+) -> list[ExtractedFact]:
     """Extract durable facts from a USER turn.
 
     Speaker-locked: refuses to extract from anything but the user message
@@ -253,12 +283,14 @@ def extract_user_facts(
     raw_text = _call_llm(prompt, client=cli, model=model, max_tokens=max_tokens)
     raw_facts = _parse_facts_payload(raw_text)
 
-    facts: List[ExtractedFact] = []
+    facts: list[ExtractedFact] = []
     for rf in raw_facts:
         f = _validate_fact(
             rf, speaker=turn.speaker,
             content_len=len(turn.content),
             allowed_categories=USER_FACT_CATEGORIES,
+            prompt_template=USER_FACT_PROMPT_NAME,
+            prompt_version_str=USER_FACT_PROMPT_VERSION,
         )
         if f is not None:
             facts.append(f)
@@ -271,8 +303,8 @@ def extract_agent_facts(
     *,
     model: str = DEFAULT_MODEL,
     max_tokens: int = DEFAULT_MAX_TOKENS,
-    client: Optional[Any] = None,
-) -> List[ExtractedFact]:
+    client: Any | None = None,
+) -> list[ExtractedFact]:
     """Extract durable statements from an ASSISTANT turn.
 
     Speaker-locked to the assistant message. Categories are
@@ -294,12 +326,14 @@ def extract_agent_facts(
     raw_text = _call_llm(prompt, client=cli, model=model, max_tokens=max_tokens)
     raw_facts = _parse_facts_payload(raw_text)
 
-    facts: List[ExtractedFact] = []
+    facts: list[ExtractedFact] = []
     for rf in raw_facts:
         f = _validate_fact(
             rf, speaker=turn.speaker,
             content_len=len(turn.content),
             allowed_categories=AGENT_FACT_CATEGORIES,
+            prompt_template=AGENT_FACT_PROMPT_NAME,
+            prompt_version_str=AGENT_FACT_PROMPT_VERSION,
         )
         if f is not None:
             facts.append(f)

@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from evals.baseline import (
-    DEFAULT_THRESHOLD, GateReport, compare_summary,
+    GateReport, compare_summary,
     compare_to_baseline, load_baseline, write_baseline,
 )
 from evals.summary import BenchmarkSummary

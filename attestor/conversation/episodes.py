@@ -15,7 +15,7 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import psycopg2.extras
 
@@ -38,13 +38,13 @@ class Episode:
     assistant_turn_text: str
     user_ts: datetime
     assistant_ts: datetime
-    project_id: Optional[str] = None
-    agent_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    project_id: str | None = None
+    agent_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=_now_utc)
 
     @classmethod
-    def from_row(cls, row: Dict[str, Any]) -> Episode:
+    def from_row(cls, row: dict[str, Any]) -> Episode:
         meta = row.get("metadata") or {}
         if isinstance(meta, str):
             meta = json.loads(meta)
@@ -82,9 +82,9 @@ class EpisodeRepo:
         session_id: str,
         user_turn: ConversationTurn,
         assistant_turn: ConversationTurn,
-        project_id: Optional[str] = None,
-        agent_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        project_id: str | None = None,
+        agent_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Episode:
         """Persist one verbatim round. Returns the created Episode.
 
@@ -138,7 +138,7 @@ class EpisodeRepo:
 
     # ── Read ──────────────────────────────────────────────────────────────
 
-    def get(self, episode_id: str) -> Optional[Episode]:
+    def get(self, episode_id: str) -> Episode | None:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT * FROM episodes WHERE id = %s", (episode_id,))
             row = cur.fetchone()
@@ -146,7 +146,7 @@ class EpisodeRepo:
 
     def list_for_thread(
         self, thread_id: str, limit: int = 50,
-    ) -> List[Episode]:
+    ) -> list[Episode]:
         """Chronological history for a thread (RLS scoped to the caller)."""
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -159,7 +159,7 @@ class EpisodeRepo:
 
     def list_for_session(
         self, session_id: str, limit: int = 100,
-    ) -> List[Episode]:
+    ) -> list[Episode]:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "SELECT * FROM episodes WHERE session_id = %s "

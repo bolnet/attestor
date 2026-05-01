@@ -25,7 +25,6 @@ See ``docs/plans/async-retrieval/PLAN.md`` § 4 — Phase 2 row.
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import patch
 
 import pytest

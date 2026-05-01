@@ -22,8 +22,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
 
 import psycopg2.extras
 
@@ -42,12 +42,12 @@ class QueuedEpisode:
     assistant_turn_text: str
     user_ts: datetime
     assistant_ts: datetime
-    project_id: Optional[str] = None
-    agent_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    project_id: str | None = None
+    agent_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_row(cls, row: Dict[str, Any]) -> QueuedEpisode:
+    def from_row(cls, row: dict[str, Any]) -> QueuedEpisode:
         meta = row.get("metadata") or {}
         if isinstance(meta, str):
             import json
@@ -110,7 +110,7 @@ class ConsolidationQueue:
 
     # ── Dequeue ──────────────────────────────────────────────────────────
 
-    def dequeue_batch(self, limit: int = 20) -> List[QueuedEpisode]:
+    def dequeue_batch(self, limit: int = 20) -> list[QueuedEpisode]:
         """Atomically claim up to ``limit`` pending rows. Other workers
         skip locked rows so this is safe under concurrency.
 
@@ -180,7 +180,7 @@ class ConsolidationQueue:
 
     # ── Introspection ────────────────────────────────────────────────────
 
-    def stats(self) -> Dict[str, int]:
+    def stats(self) -> dict[str, int]:
         """Count rows by consolidation_state. Useful for dashboards."""
         with self._conn.cursor() as cur:
             cur.execute(
@@ -188,7 +188,7 @@ class ConsolidationQueue:
                 "GROUP BY consolidation_state"
             )
             rows = cur.fetchall()
-        out: Dict[str, int] = {
+        out: dict[str, int] = {
             "pending": 0, "processing": 0, "done": 0, "failed": 0,
         }
         for state, n in rows:

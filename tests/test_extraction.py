@@ -1,6 +1,5 @@
 """Tests for memory extraction."""
 
-import pytest
 
 from attestor.extraction.rule_based import extract_from_text
 from attestor.extraction.extractor import extract_memories

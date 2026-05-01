@@ -5,9 +5,8 @@ Run with: .venv/bin/pytest tests/test_azure_backend.py -v
 
 from __future__ import annotations
 
-import hashlib
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch, PropertyMock
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -35,20 +34,20 @@ class MockContainer:
     def __init__(self, id: str, partition_key_path: str = "/id") -> None:
         self.id = id
         self._pk_path = partition_key_path
-        self._items: Dict[str, Dict[str, Any]] = {}
+        self._items: dict[str, dict[str, Any]] = {}
 
-    def create_item(self, body: Dict[str, Any]) -> Dict[str, Any]:
+    def create_item(self, body: dict[str, Any]) -> dict[str, Any]:
         item_id = body["id"]
         if item_id in self._items:
             raise Exception(f"Item {item_id} already exists")
         self._items[item_id] = dict(body)
         return body
 
-    def upsert_item(self, body: Dict[str, Any]) -> Dict[str, Any]:
+    def upsert_item(self, body: dict[str, Any]) -> dict[str, Any]:
         self._items[body["id"]] = dict(body)
         return body
 
-    def read_item(self, item: str, partition_key: Any) -> Dict[str, Any]:
+    def read_item(self, item: str, partition_key: Any) -> dict[str, Any]:
         if item not in self._items:
             raise Exception(f"Item {item} not found")
         return dict(self._items[item])
@@ -61,9 +60,9 @@ class MockContainer:
     def query_items(
         self,
         query: str,
-        parameters: Optional[List[Dict[str, Any]]] = None,
+        parameters: list[dict[str, Any]] | None = None,
         enable_cross_partition_query: bool = False,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Simple query engine for testing — handles basic WHERE clauses."""
         params = {p["name"]: p["value"] for p in (parameters or [])}
         items = list(self._items.values())
@@ -104,8 +103,8 @@ class MockContainer:
         return [dict(item) for item in filtered]
 
     def _apply_where(
-        self, items: List[Dict[str, Any]], query: str, params: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, items: list[dict[str, Any]], query: str, params: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Apply WHERE clause filters."""
         result = list(items)
 
@@ -125,7 +124,7 @@ class MockContainer:
         return filtered
 
     def _matches_where(
-        self, item: Dict[str, Any], query: str, params: Dict[str, Any]
+        self, item: dict[str, Any], query: str, params: dict[str, Any]
     ) -> bool:
         """Check if an item matches WHERE conditions."""
         # Extract the WHERE clause
@@ -219,14 +218,14 @@ class MockContainer:
         return True
 
     def _handle_group_by(
-        self, items: List[Dict[str, Any]], query: str, params: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, items: list[dict[str, Any]], query: str, params: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Handle simple GROUP BY queries."""
         # Extract group field
         group_part = query.upper().split("GROUP BY")[1].strip()
         group_field = group_part.split()[0].replace("C.", "").strip()
 
-        groups: Dict[str, int] = {}
+        groups: dict[str, int] = {}
         for item in items:
             key = item.get(group_field, "unknown")
             groups[key] = groups.get(key, 0) + 1
@@ -236,7 +235,7 @@ class MockContainer:
             for k, v in groups.items()
         ]
 
-    def _parse_select_fields(self, query: str) -> List[str]:
+    def _parse_select_fields(self, query: str) -> list[str]:
         """Parse field names from SELECT clause."""
         select_part = query.split("FROM")[0].replace("SELECT", "").strip()
         fields = []
@@ -252,7 +251,7 @@ class MockDatabase:
 
     def __init__(self, id: str) -> None:
         self.id = id
-        self._containers: Dict[str, MockContainer] = {}
+        self._containers: dict[str, MockContainer] = {}
 
     def create_container_if_not_exists(
         self,
@@ -274,7 +273,7 @@ class MockCosmosClient:
 
     def __init__(self, endpoint: str, credential: Any = None) -> None:
         self.endpoint = endpoint
-        self._databases: Dict[str, MockDatabase] = {}
+        self._databases: dict[str, MockDatabase] = {}
 
     def create_database_if_not_exists(self, id: str) -> MockDatabase:
         if id not in self._databases:
@@ -637,7 +636,7 @@ class TestAzureAuth:
 
         with patch("azure.identity.DefaultAzureCredential") as mock_cred:
             mock_cred.return_value = MagicMock()
-            backend = AzureBackend({
+            AzureBackend({
                 "cosmos_endpoint": "https://test.documents.azure.com:443",
             })
             mock_cred.assert_called_once()

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from evals.regression.cases import (
-    RegressionCase, Round, load_cases,
+    RegressionCase, load_cases,
 )
 
 

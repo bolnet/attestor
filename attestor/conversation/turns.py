@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def _now_utc() -> datetime:
@@ -51,9 +51,9 @@ class ConversationTurn:
     role: str
     content: str
     ts: datetime = field(default_factory=_now_utc)
-    parent_turn_id: Optional[str] = None
-    tool_calls: Optional[List[Dict[str, Any]]] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    parent_turn_id: str | None = None
+    tool_calls: list[dict[str, Any]] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.thread_id:

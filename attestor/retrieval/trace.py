@@ -11,13 +11,13 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 _DEFAULT_PATH = "logs/attestor_trace.jsonl"
 _lock = threading.Lock()
 _fh = None
-_resolved_path: Optional[Path] = None
+_resolved_path: Path | None = None
 
 
 def _enabled() -> bool:
@@ -36,7 +36,7 @@ def _get_fh():
     return _fh
 
 
-def write(record: Dict[str, Any]) -> None:
+def write(record: dict[str, Any]) -> None:
     """Append one trace record as a JSON line."""
     if not _enabled():
         return
@@ -48,5 +48,5 @@ def write(record: Dict[str, Any]) -> None:
         fh.flush()
 
 
-def trace_path() -> Optional[Path]:
+def trace_path() -> Path | None:
     return _resolved_path

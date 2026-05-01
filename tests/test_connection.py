@@ -4,7 +4,6 @@ import os
 from unittest.mock import patch
 
 from attestor.store.connection import (
-    ENGINE_DEFAULTS,
     AuthConfig,
     CloudConnection,
     TLSConfig,

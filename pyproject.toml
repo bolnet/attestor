@@ -79,6 +79,13 @@ attestor = "attestor.cli:main"
 
 [tool.poetry]
 packages = [{ include = "attestor" }]
+# Externalized prompt templates ship as .md files next to the loader.
+# Poetry includes data files inside packages by default once an
+# __init__.py exists, but listing them here makes the contract explicit
+# and survives any future packaging-format changes.
+include = [
+    { path = "attestor/extraction/prompts/*.md", format = ["sdist", "wheel"] },
+]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.0"
@@ -86,6 +93,53 @@ pytest-cov = ">=4.0"
 pytest-asyncio = ">=0.23"
 requests = ">=2.28.0"
 twine = "^6.2.0"
+ruff = ">=0.6"
+mypy = ">=1.10"
+hypothesis = ">=6.100"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF", "ANN", "ASYNC", "S", "PT", "RET", "TCH", "FA"]
+ignore = [
+    "ANN101",  # missing type for self
+    "ANN102",  # missing type for cls
+    "ANN401",  # Any in signatures (legitimate at boundaries)
+    "S101",    # assert (allowed in tests)
+    "S603",    # subprocess (we control inputs)
+    "S607",    # subprocess partial-path
+    "B008",    # function call in default arg (FastAPI/Starlette pattern)
+    "RET504",  # unnecessary assign-then-return (often clearer)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN", "S", "PLR2004", "RUF"]
+"attestor/longmemeval*.py" = ["BLE001"]   # eval harness intentionally swallows
+"attestor/locomo.py" = ["BLE001"]
+"attestor/cli.py" = ["T201"]              # CLI prints
+"attestor/doctor_v4.py" = ["T201"]        # doctor prints diagnostics
+"attestor/init_wizard.py" = ["T201"]      # interactive wizard prints
+"attestor/_branding.py" = ["T201"]
+"experiments/*" = ["ANN", "T201", "BLE001"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unreachable = true
+warn_redundant_casts = true
+files = [
+    "attestor/__init__.py",
+    "attestor/context.py",
+    "attestor/models.py",
+    "attestor/client.py",
+]
+# expand `files` module-by-module as the codebase tightens
+
+[[tool.mypy.overrides]]
+module = ["psycopg2.*", "neo4j.*", "pinecone.*", "voyageai.*", "boto3.*", "azure.*", "google.*", "mcp.*", "starlette.*", "uvicorn.*", "tomlkit.*", "networkx.*"]
+ignore_missing_imports = true
 
 [build-system]
 requires = ["poetry-core"]

@@ -15,7 +15,7 @@ try:
 except ImportError:
     HAS_ARANGO = False
 
-from attestor import AgentMemory, Memory
+from attestor import AgentMemory
 from attestor.infra.docker import DockerManager
 
 docker_required = pytest.mark.skipif(
@@ -241,11 +241,11 @@ class TestMultiTurnConversation:
                       entity="Alex")
 
         # Turn 3: Contradicting fact (Alex changed jobs)
-        m2 = mem.add("Alex works at Stripe", tags=["career"], category="career",
+        mem.add("Alex works at Stripe", tags=["career"], category="career",
                       entity="Alex")
 
         # The old fact should be superseded
-        old = mem.get(m1.id)
+        mem.get(m1.id)
         current = mem.current_facts(category="career", entity="Alex")
 
         # At minimum, the new fact should be in current facts

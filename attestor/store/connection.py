@@ -25,10 +25,13 @@ Adding a new engine = add an entry to ENGINE_DEFAULTS. No code changes.
 
 from __future__ import annotations
 
+import atexit
 import os
 import re
+import tempfile
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 
@@ -36,7 +39,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 # Layer 1: Engine defaults (per database type)
 # ═══════════════════════════════════════════════════════════════════════
 
-ENGINE_DEFAULTS: Dict[str, Dict[str, Any]] = {
+ENGINE_DEFAULTS: dict[str, dict[str, Any]] = {
     "arangodb": {
         "url": "http://localhost:8529",
         "port": 8529,
@@ -96,7 +99,7 @@ ENGINE_DEFAULTS: Dict[str, Dict[str, Any]] = {
 
 # Backward-compat aliases
 BACKEND_DEFAULTS = ENGINE_DEFAULTS
-CLOUD_DEFAULTS: Dict[str, Any] = {
+CLOUD_DEFAULTS: dict[str, Any] = {
     "mode": "cloud",
     "database": "attestor",
     "auth": {"username": "", "password": "", "token": "", "api_key": ""},
@@ -108,7 +111,7 @@ CLOUD_DEFAULTS: Dict[str, Any] = {
 # Deep merge
 # ═══════════════════════════════════════════════════════════════════════
 
-def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Deep-merge two dicts. override wins on conflicts. Returns new dict."""
     merged = dict(base)
     for key, val in override.items():
@@ -123,12 +126,12 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
     return merged
 
 
-def merge_config_layers(*layers: Dict[str, Any]) -> Dict[str, Any]:
+def merge_config_layers(*layers: dict[str, Any]) -> dict[str, Any]:
     """Merge config layers in precedence order (last wins).
 
     None and empty layers are skipped.
     """
-    result: Dict[str, Any] = {}
+    result: dict[str, Any] = {}
     for layer in layers:
         if layer:
             result = _deep_merge(result, layer)
@@ -140,7 +143,7 @@ def merge_config_layers(*layers: Dict[str, Any]) -> Dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════════════
 
 # Map URL schemes to engine names
-_SCHEME_MAP: Dict[str, str] = {
+_SCHEME_MAP: dict[str, str] = {
     "arangodb": "arangodb",
     "arangodb+https": "arangodb",
     "arango": "arangodb",
@@ -154,7 +157,7 @@ _SCHEME_MAP: Dict[str, str] = {
 }
 
 
-def parse_url(url: str) -> Dict[str, Any]:
+def parse_url(url: str) -> dict[str, Any]:
     """Parse a connection URL into a structured config dict.
 
     Follows the SQLAlchemy dialect://user:pass@host:port/database convention.
@@ -167,7 +170,7 @@ def parse_url(url: str) -> Dict[str, Any]:
     parsed = urlparse(url)
     scheme = parsed.scheme.lower()
 
-    config: Dict[str, Any] = {}
+    config: dict[str, Any] = {}
 
     # Detect TLS from scheme suffix
     use_tls = scheme.endswith("+s") or scheme.endswith("+https") or parsed.scheme == "https"
@@ -192,7 +195,7 @@ def parse_url(url: str) -> Dict[str, Any]:
         config["database"] = parsed.path.lstrip("/")
 
     # Auth
-    auth: Dict[str, str] = {}
+    auth: dict[str, str] = {}
     if parsed.username:
         auth["username"] = unquote(parsed.username)
     if parsed.password:
@@ -236,7 +239,7 @@ def resolve_env(value: Any) -> Any:
     return value
 
 
-def resolve_env_recursive(data: Dict[str, Any]) -> Dict[str, Any]:
+def resolve_env_recursive(data: dict[str, Any]) -> dict[str, Any]:
     """Resolve all $ENV_VAR references in a nested config dict."""
     resolved = {}
     for key, val in data.items():
@@ -255,9 +258,9 @@ def resolve_env_recursive(data: Dict[str, Any]) -> Dict[str, Any]:
 
 def build_config(
     engine: str,
-    user_config: Dict[str, Any],
-    cli_overrides: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    user_config: dict[str, Any],
+    cli_overrides: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build a fully-resolved config by stacking all 3 layers.
 
     Args:
@@ -296,7 +299,7 @@ def _looks_like_connection_uri(url: str) -> bool:
 # Dataclasses
 # ═══════════════════════════════════════════════════════════════════════
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class AuthConfig:
     """Authentication credentials for a cloud backend.
 
@@ -304,6 +307,9 @@ class AuthConfig:
         - username/password (ArangoDB, PostgreSQL, Neo4j)
         - token (bearer/JWT — managed cloud services)
         - api_key (SaaS providers)
+
+    ``__repr__`` masks every secret-bearing field so credentials never
+    leak through logs, exception traces, or debug prints.
     """
     username: str = ""
     password: str = ""
@@ -311,7 +317,7 @@ class AuthConfig:
     api_key: str = ""
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> AuthConfig:
+    def from_dict(cls, data: dict[str, Any]) -> AuthConfig:
         return cls(
             username=resolve_env(data.get("username", "")),
             password=resolve_env(data.get("password", "")),
@@ -323,8 +329,19 @@ class AuthConfig:
     def has_credentials(self) -> bool:
         return bool(self.username or self.token or self.api_key)
 
+    def __repr__(self) -> str:
+        def mask(v: str | None) -> str:
+            return "***" if v else "None"
 
-@dataclass(frozen=True)
+        return (
+            f"AuthConfig(username={self.username!r}, "
+            f"password={mask(self.password)}, "
+            f"token={mask(self.token)}, "
+            f"api_key={mask(self.api_key)})"
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class TLSConfig:
     """TLS/SSL settings for cloud connections.
 
@@ -332,26 +349,26 @@ class TLSConfig:
              If base64, it will be decoded and written to a temp file.
     """
     verify: bool = True
-    ca_cert: Optional[str] = None
-    ca_cert_base64: Optional[str] = None
+    ca_cert: str | None = None
+    ca_cert_base64: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> TLSConfig:
+    def from_dict(cls, data: dict[str, Any]) -> TLSConfig:
         return cls(
             verify=data.get("verify", True),
             ca_cert=data.get("ca_cert"),
             ca_cert_base64=data.get("ca_cert_base64"),
         )
 
-    def resolve_ca_cert_path(self, store_path: Optional[str] = None) -> Optional[str]:
+    def resolve_ca_cert_path(self, store_path: str | None = None) -> str | None:
         """Return path to CA cert file, decoding base64 if needed.
 
         If ca_cert_base64 is set, writes decoded cert to store_path/ca.crt
-        (or a temp file if no store_path). Returns the file path.
+        (or a temp file if no store_path). Temp files are deleted at
+        interpreter exit via ``atexit`` so we don't leak credentials on
+        disk after the process dies.
         """
         import base64
-        import tempfile
-        from pathlib import Path
 
         if self.ca_cert:
             return self.ca_cert
@@ -365,14 +382,35 @@ class TLSConfig:
             cert_path.write_bytes(cert_bytes)
             return str(cert_path)
 
-        # Fallback: temp file (not ideal, but works)
-        fd, path = tempfile.mkstemp(suffix=".crt", prefix="attestor_")
+        return _materialize_temp_cert(cert_bytes)
+
+
+def _materialize_temp_cert(cert_bytes: bytes) -> str:
+    """Write CA cert bytes to a temp file and register cleanup at exit.
+
+    Cleanup is best-effort — atexit handlers do not run on hard kills
+    (SIGKILL, OOM, segfault), but they cover normal interpreter exit
+    which is the dominant case.
+    """
+    fd, path = tempfile.mkstemp(suffix=".crt", prefix="attestor_ca_")
+    try:
         os.write(fd, cert_bytes)
+    finally:
         os.close(fd)
-        return path
+
+    def _cleanup(p: str = path) -> None:
+        try:
+            if os.path.exists(p):
+                os.unlink(p)
+        except OSError:
+            # Best-effort — don't crash interpreter exit on cleanup races.
+            pass
+
+    atexit.register(_cleanup)
+    return path
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class CloudConnection:
     """Parsed, env-resolved connection config for any cloud backend.
 
@@ -388,13 +426,13 @@ class CloudConnection:
     port: int = 8529
     auth: AuthConfig = field(default_factory=AuthConfig)
     tls: TLSConfig = field(default_factory=TLSConfig)
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_config(
         cls,
-        config: Dict[str, Any],
-        backend_name: Optional[str] = None,
+        config: dict[str, Any],
+        backend_name: str | None = None,
     ) -> CloudConnection:
         """Parse a config dict into a CloudConnection.
 
@@ -438,7 +476,7 @@ class CloudConnection:
         )
 
 
-def _normalize_flat_auth(config: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_flat_auth(config: dict[str, Any]) -> dict[str, Any]:
     """Move flat-level auth fields into nested 'auth' block.
 
     Supports backward-compat: {"username": "root"} → {"auth": {"username": "root"}}

@@ -7,7 +7,6 @@ runner's per-sample error isolation.
 
 from __future__ import annotations
 
-from typing import Any, List
 
 import pytest
 
@@ -19,7 +18,7 @@ from evals.beam.scorer import (
     score_prediction, substring_match,
 )
 from evals.beam.types import (
-    DEFAULT_BUCKETS, BeamPrediction, BeamRunReport, BeamSample,
+    BeamPrediction, BeamRunReport, BeamSample,
     bucket_for,
 )
 

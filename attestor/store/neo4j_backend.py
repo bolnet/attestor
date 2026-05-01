@@ -18,16 +18,15 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, ClassVar
 
 from neo4j import GraphDatabase
 
-from attestor.store.base import GraphStore
+from attestor.store._graph_utils import sanitize_rel_type as _sanitize_rel_type
 from attestor.store.connection import CloudConnection
 
 logger = logging.getLogger("attestor")
 
-_REL_TYPE_RE = re.compile(r"[^A-Za-z0-9_]")
 _NAME_PUNCT_RE = re.compile(r"[^\w\s-]", re.UNICODE)
 _WS_RE = re.compile(r"\s+")
 
@@ -36,14 +35,9 @@ _WS_RE = re.compile(r"\s+")
 _DEFAULT_NAMESPACE = "default"
 
 
-def _ns(namespace: Optional[str]) -> str:
+def _ns(namespace: str | None) -> str:
     """Return the effective namespace, defaulting to ``default``."""
     return namespace or _DEFAULT_NAMESPACE
-
-
-def _sanitize_rel_type(rel_type: str) -> str:
-    """Normalize relation type to a valid Neo4j relationship type."""
-    return _REL_TYPE_RE.sub("_", rel_type).upper() or "RELATED_TO"
 
 
 def _normalize_name(name: str) -> str:
@@ -59,12 +53,12 @@ def _normalize_name(name: str) -> str:
     return _WS_RE.sub(" ", text).strip()
 
 
-class Neo4jBackend(GraphStore):
+class Neo4jBackend:
     """Graph storage backed by Neo4j 5 + GDS."""
 
-    ROLES: Set[str] = {"graph"}
+    ROLES: ClassVar[set[str]] = {"graph"}
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         self._config = config
         conn = CloudConnection.from_config(config, backend_name="neo4j")
         self._conn = conn
@@ -77,7 +71,7 @@ class Neo4jBackend(GraphStore):
 
         self._driver.verify_connectivity()
         self._init_schema()
-        self._has_gds: Optional[bool] = None
+        self._has_gds: bool | None = None
 
     def _session(self):
         return self._driver.session(database=self._database)
@@ -104,8 +98,8 @@ class Neo4jBackend(GraphStore):
         self,
         name: str,
         entity_type: str = "general",
-        attributes: Optional[Dict[str, Any]] = None,
-        namespace: Optional[str] = None,
+        attributes: dict[str, Any] | None = None,
+        namespace: str | None = None,
     ) -> None:
         """Upsert an entity scoped by namespace.
 
@@ -136,8 +130,8 @@ class Neo4jBackend(GraphStore):
         from_entity: str,
         to_entity: str,
         relation_type: str = "related_to",
-        metadata: Optional[Dict[str, Any]] = None,
-        namespace: Optional[str] = None,
+        metadata: dict[str, Any] | None = None,
+        namespace: str | None = None,
     ) -> None:
         """Upsert an edge between two namespace-scoped entities.
 
@@ -175,8 +169,8 @@ class Neo4jBackend(GraphStore):
         self,
         entity: str,
         depth: int = 2,
-        namespace: Optional[str] = None,
-    ) -> List[str]:
+        namespace: str | None = None,
+    ) -> list[str]:
         """BFS traversal restricted to a single namespace.
 
         ``coalesce(n.namespace, 'default')`` keeps pre-namespace nodes
@@ -202,8 +196,8 @@ class Neo4jBackend(GraphStore):
         self,
         entity: str,
         depth: int = 2,
-        namespace: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        namespace: str | None = None,
+    ) -> dict[str, Any]:
         """Fetch a namespace-scoped subgraph rooted at ``entity``."""
         start = _normalize_name(entity)
         d = max(1, int(depth))
@@ -251,17 +245,17 @@ class Neo4jBackend(GraphStore):
             ]
         return {"entity": entity, "nodes": nodes, "edges": edges}
 
-    def get_entities(self, entity_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_entities(self, entity_type: str | None = None) -> list[dict[str, Any]]:
         # Admin/UI surface — not on the recall hot path. Returns entities
         # across all namespaces by design (operator visibility). The recall
         # path uses get_related/get_subgraph/get_edges which DO filter.
         if entity_type:
             cypher = "MATCH (n:Entity {entity_type: $etype}) RETURN n"
-            params: Dict[str, Any] = {"etype": entity_type}
+            params: dict[str, Any] = {"etype": entity_type}
         else:
             cypher = "MATCH (n:Entity) RETURN n"
             params = {}
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
         with self._session() as s:
             for row in s.run(cypher, **params):
                 node = row["n"]
@@ -278,8 +272,8 @@ class Neo4jBackend(GraphStore):
         return result
 
     def get_edges(
-        self, entity: str, namespace: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, entity: str, namespace: str | None = None
+    ) -> list[dict[str, Any]]:
         """Return all edges incident to ``entity`` within the namespace."""
         key = _normalize_name(entity)
         ns = _ns(namespace)
@@ -294,7 +288,7 @@ class Neo4jBackend(GraphStore):
                    coalesce(r.source_quote, '') AS source_quote
         """
         seen: set = set()
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
         with self._session() as s:
             for row in s.run(cypher, key=key, namespace=ns):
                 triple = (row["subject"], row["predicate"], row["object"])
@@ -310,7 +304,7 @@ class Neo4jBackend(GraphStore):
                 })
         return result
 
-    def graph_stats(self) -> Dict[str, Any]:
+    def graph_stats(self) -> dict[str, Any]:
         with self._session() as s:
             nodes = s.run("MATCH (n:Entity) RETURN count(n) AS c").single()["c"]
             edges = s.run("MATCH ()-[r]->() RETURN count(r) AS c").single()["c"]
@@ -334,7 +328,7 @@ class Neo4jBackend(GraphStore):
             self._has_gds = False
         return self._has_gds
 
-    def pagerank(self, alpha: float = 0.85) -> Dict[str, float]:
+    def pagerank(self, alpha: float = 0.85) -> dict[str, float]:
         """PageRank via GDS. Returns {entity_key: score}; empty if GDS or graph unavailable."""
         if not self._gds_available():
             return {}

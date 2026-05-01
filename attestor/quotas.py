@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 import psycopg2.extras
 
@@ -49,17 +49,17 @@ class QuotaExceeded(Exception):
 class UserQuota:
     """One user's quota row. None on a limit means unlimited."""
     user_id: str
-    max_memories: Optional[int]
-    max_sessions: Optional[int]
-    max_projects: Optional[int]
-    max_writes_per_day: Optional[int]
+    max_memories: int | None
+    max_sessions: int | None
+    max_projects: int | None
+    max_writes_per_day: int | None
     memory_count: int
     session_count: int
     project_count: int
     writes_today: int
 
     @classmethod
-    def from_row(cls, row: Dict[str, Any]) -> UserQuota:
+    def from_row(cls, row: dict[str, Any]) -> UserQuota:
         return cls(
             user_id=str(row["user_id"]),
             max_memories=row.get("max_memories"),
@@ -72,7 +72,7 @@ class UserQuota:
             writes_today=int(row.get("writes_today") or 0),
         )
 
-    def remaining_writes_today(self) -> Optional[int]:
+    def remaining_writes_today(self) -> int | None:
         if self.max_writes_per_day is None:
             return None
         return max(0, self.max_writes_per_day - self.writes_today)
@@ -88,7 +88,7 @@ class QuotaRepo:
     def __init__(self, conn: Any) -> None:
         self._conn = conn
 
-    def get(self, user_id: str) -> Optional[UserQuota]:
+    def get(self, user_id: str) -> UserQuota | None:
         with self._conn.cursor(
             cursor_factory=psycopg2.extras.RealDictCursor,
         ) as cur:
@@ -102,10 +102,10 @@ class QuotaRepo:
         self,
         user_id: str,
         *,
-        max_memories: Optional[int] = None,
-        max_sessions: Optional[int] = None,
-        max_projects: Optional[int] = None,
-        max_writes_per_day: Optional[int] = None,
+        max_memories: int | None = None,
+        max_sessions: int | None = None,
+        max_projects: int | None = None,
+        max_writes_per_day: int | None = None,
     ) -> UserQuota:
         """Update one or more limits. Counters are NOT touched."""
         with self._conn.cursor(

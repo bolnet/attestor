@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any
 
-from attestor.models import Memory
 
 # Patterns for extracting structured info from text
 _PREFERENCE_PATTERNS = [
@@ -20,7 +19,7 @@ _FACT_PATTERNS = [
 ]
 
 
-def extract_from_text(text: str) -> List[Dict[str, Any]]:
+def extract_from_text(text: str) -> list[dict[str, Any]]:
     """Extract potential memory facts from plain text using regex patterns.
 
     Returns list of dicts with keys: content, tags, category, entity.
@@ -51,7 +50,7 @@ def extract_from_text(text: str) -> List[Dict[str, Any]]:
     return results
 
 
-def _infer_tags(content: str) -> List[str]:
+def _infer_tags(content: str) -> list[str]:
     """Infer tags from content keywords."""
     tags = []
     content_lower = content.lower()

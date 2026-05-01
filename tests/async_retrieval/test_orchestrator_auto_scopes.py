@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
-import time
 from unittest.mock import MagicMock
 
 import pytest

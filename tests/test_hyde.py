@@ -6,7 +6,6 @@ deterministic merge tests, lane-failure tolerance).
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -144,7 +143,7 @@ def test_hyde_search_runs_two_lanes_when_generation_succeeds(monkeypatch) -> Non
         ),
     )
 
-    calls: List[str] = []
+    calls: list[str] = []
 
     def fake_search(q: str):
         calls.append(q)
@@ -176,7 +175,7 @@ def test_hyde_search_falls_back_to_single_lane_on_degraded_gen(
         ),
     )
 
-    calls: List[str] = []
+    calls: list[str] = []
 
     def fake_search(q: str):
         calls.append(q)

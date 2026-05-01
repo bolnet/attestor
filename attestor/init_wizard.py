@@ -7,7 +7,8 @@ import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional
+from typing import Any
+from collections.abc import Mapping
 
 import tomlkit
 
@@ -50,7 +51,7 @@ def _build_config(backend: str, backend_options: Mapping[str, Any] | None) -> to
     return doc
 
 
-def _redact_credentials(options: Mapping[str, Any] | None) -> Dict[str, Any] | None:
+def _redact_credentials(options: Mapping[str, Any] | None) -> dict[str, Any] | None:
     """Keep credential-like keys out of the on-disk config."""
     if not options:
         return None
@@ -65,18 +66,18 @@ def _set_secure_permissions(path: Path) -> None:
         log.debug("Could not set 0o600 on %s: %s", path, exc)
 
 
-def _snapshot_dir(path: Path) -> Dict[str, bytes] | None:
+def _snapshot_dir(path: Path) -> dict[str, bytes] | None:
     """Capture file contents of `path` for potential restore. Returns None if dir is absent."""
     if not path.exists():
         return None
-    snapshot: Dict[str, bytes] = {}
+    snapshot: dict[str, bytes] = {}
     for child in path.rglob("*"):
         if child.is_file():
             snapshot[str(child.relative_to(path))] = child.read_bytes()
     return snapshot
 
 
-def _restore_from_snapshot(path: Path, snapshot: Dict[str, bytes] | None) -> None:
+def _restore_from_snapshot(path: Path, snapshot: dict[str, bytes] | None) -> None:
     """Delete everything under `path` and restore the snapshot contents."""
     if path.exists():
         shutil.rmtree(path)
@@ -109,7 +110,7 @@ def init_store(
     path: Path,
     *,
     backend: str = "postgres",
-    backend_options: Optional[Dict[str, Any]] = None,
+    backend_options: dict[str, Any] | None = None,
     verify: bool = False,
 ) -> InitResult:
     """Create an Attestor store with a starter TOML config.
@@ -164,7 +165,7 @@ def init_store_interactive(path: Path, *, verify: bool = False) -> InitResult:
     print(f"\nAvailable backends: {', '.join(SUPPORTED_BACKENDS)}")
     backend = input("Backend [postgres]: ").strip() or "postgres"
 
-    backend_options: Dict[str, Any] = {}
+    backend_options: dict[str, Any] = {}
     if backend == "arangodb":
         mode = input("Mode (local/cloud) [local]: ").strip() or "local"
         port = _prompt_port("Port", 8529)

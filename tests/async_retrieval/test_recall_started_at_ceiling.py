@@ -15,7 +15,7 @@ See ``docs/plans/async-retrieval/PLAN.md`` § 4 — Phase 5.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
 

@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, ClassVar
 
 logger = logging.getLogger("attestor.store.pinecone")
 
@@ -53,9 +53,9 @@ class PineconeBackend:
     for hermetic test runs.
     """
 
-    ROLES: Set[str] = {"vector"}
+    ROLES: ClassVar[set[str]] = {"vector"}
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """Construct a Pinecone-backed vector store.
 
         Config keys:
@@ -132,12 +132,16 @@ class PineconeBackend:
                     cloud=self._cloud, region=self._region,
                 ),
             )
-            # Wait for index to be ready — cloud takes a few seconds;
-            # local is instant. Bounded poll keeps tests deterministic.
-            self._wait_until_ready(timeout=30.0)
 
         # Bind the data-plane client. For Local, route to the index's
         # localhost port via gRPC + insecure config.
+        #
+        # Note: the readiness probe (``_wait_until_ready``) is DEFERRED
+        # to first I/O via ``_ensure_ready``. Constructing this backend
+        # used to block on a ``time.sleep`` poll loop in ``__init__``
+        # which made every caller pay the readiness cost up front, even
+        # if no Pinecone calls ever happened (e.g. when the orchestrator
+        # falls back to a different backend). See ``_ensure_ready``.
         if self._is_local:
             desc = self._pc.describe_index(self._index_name)
             self._index = self._pc.Index(
@@ -153,6 +157,13 @@ class PineconeBackend:
         if self._embedder is None:
             from attestor.store.embeddings import get_embedding_provider
             self._embedder = get_embedding_provider()
+
+        # Lazy readiness — flipped to True on the first successful
+        # ``_wait_until_ready`` call. A stale concurrent read (two
+        # callers racing on the very first request) is harmless because
+        # both calls would block in the underlying Pinecone client
+        # anyway; the flag just elides the poll on subsequent calls.
+        self._ready = False
 
     # ── helpers ────────────────────────────────────────────────────
 
@@ -172,7 +183,22 @@ class PineconeBackend:
             f"Pinecone index {self._index_name!r} not ready within {timeout}s",
         )
 
-    def _embed(self, text: str) -> List[float]:
+    def _ensure_ready(self) -> None:
+        """Block until the Pinecone index is reported ``ready``, exactly once.
+
+        Called at the top of every public method that touches the
+        index. After the first successful probe ``self._ready`` flips
+        to True and subsequent calls are O(1). The flag isn't lock-
+        guarded — a race between two concurrent first-callers is
+        harmless because the underlying Pinecone client serializes
+        on the same TCP/gRPC pool anyway.
+        """
+        if self._ready:
+            return
+        self._wait_until_ready(timeout=30.0)
+        self._ready = True
+
+    def _embed(self, text: str) -> list[float]:
         """Run the configured embedder. Defensive: a missing embedder
         is a hard error here — without an embedding we can't write."""
         if self._embedder is None:
@@ -194,6 +220,7 @@ class PineconeBackend:
         same scoping shape as pgvector. Default namespace ("default")
         matches the Postgres path's behavior.
         """
+        self._ensure_ready()
         embedding = self._embed(content)
         self._index.upsert(
             vectors=[{
@@ -207,9 +234,9 @@ class PineconeBackend:
     def upsert_with_embedding(
         self,
         memory_id: str,
-        embedding: List[float],
+        embedding: list[float],
         namespace: str = "default",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Upsert with a precomputed embedding — bypasses the embedder.
 
@@ -217,6 +244,7 @@ class PineconeBackend:
         (e.g. the bakeoff's hermetic re-runs that re-use the same
         Voyage cache across pgvector AND Pinecone).
         """
+        self._ensure_ready()
         meta = {"namespace": namespace, **(metadata or {})}
         self._index.upsert(
             vectors=[{"id": memory_id, "values": embedding, "metadata": meta}],
@@ -227,9 +255,9 @@ class PineconeBackend:
         self,
         query_text: str,
         limit: int = 20,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
         **kwargs: Any,  # accept and ignore as_of/time_window — unsupported here
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Cosine similarity search.
 
         Returns the same shape as pgvector's search output —
@@ -250,6 +278,7 @@ class PineconeBackend:
                 "ignoring (returning non-temporal results).",
             )
 
+        self._ensure_ready()
         query_vec = self._embed(query_text)
         ns = namespace or "default"
         result = self._index.query(
@@ -260,7 +289,7 @@ class PineconeBackend:
             include_metadata=False,
         )
 
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for match in (result.matches or []):
             score = float(getattr(match, "score", 0.0))
             out.append({
@@ -275,6 +304,7 @@ class PineconeBackend:
         Returns True for the common case (Pinecone delete is
         idempotent — it doesn't tell you whether the id existed).
         """
+        self._ensure_ready()
         try:
             self._index.delete(ids=[memory_id], namespace="default")
             return True
@@ -284,6 +314,7 @@ class PineconeBackend:
 
     def count(self) -> int:
         """Total vectors across all namespaces."""
+        self._ensure_ready()
         try:
             stats = self._index.describe_index_stats()
             return int(getattr(stats, "total_vector_count", 0))
@@ -314,5 +345,11 @@ class PineconeBackend:
             metric=self._metric,
             spec=ServerlessSpec(cloud=self._cloud, region=self._region),
         )
+        # Hermetic reset: invalidate the readiness cache, probe again,
+        # and re-bind the index handle. The next public call won't
+        # double-poll because ``_ensure_ready`` short-circuits on the
+        # flag we just set.
+        self._ready = False
         self._wait_until_ready()
+        self._ready = True
         self._index = self._pc.Index(name=self._index_name)

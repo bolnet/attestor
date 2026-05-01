@@ -15,7 +15,6 @@ P1-scope tests RED today — target async API doesn't exist.
 
 from __future__ import annotations
 
-import asyncio
 import time
 from unittest.mock import patch
 

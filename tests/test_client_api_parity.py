@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import io
 import json
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -38,13 +38,13 @@ from attestor.quotas import QuotaExceeded
 class _FakeResponse:
     """Minimal urllib response object compatible with the client's reader."""
 
-    def __init__(self, payload: Dict[str, Any]) -> None:
+    def __init__(self, payload: dict[str, Any]) -> None:
         self._buf = io.BytesIO(json.dumps(payload).encode())
 
     def read(self) -> bytes:
         return self._buf.read()
 
-    def __enter__(self) -> "_FakeResponse":
+    def __enter__(self) -> _FakeResponse:
         return self
 
     def __exit__(self, *exc: Any) -> None:
@@ -54,7 +54,7 @@ class _FakeResponse:
 @pytest.mark.unit
 def test_recall_forwards_namespace_in_body() -> None:
     """``recall(namespace="ns1")`` must put ``namespace`` in the POST body."""
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
 
     def fake_urlopen(req: Any, timeout: float = 0) -> _FakeResponse:
         captured["url"] = req.full_url
@@ -64,7 +64,7 @@ def test_recall_forwards_namespace_in_body() -> None:
     client = MemoryClient("http://memory.test", agent_id="planner-01")
 
     with patch("attestor.client.urllib.request.urlopen", fake_urlopen):
-        results: List[Any] = client.recall(query="x", namespace="ns1")
+        results: list[Any] = client.recall(query="x", namespace="ns1")
 
     assert results == []
     assert captured["url"] == "http://memory.test/recall"
@@ -75,7 +75,7 @@ def test_recall_forwards_namespace_in_body() -> None:
 @pytest.mark.unit
 def test_recall_omits_namespace_when_not_set() -> None:
     """Back-compat: callers without ``namespace`` must keep working."""
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
 
     def fake_urlopen(req: Any, timeout: float = 0) -> _FakeResponse:
         captured["body"] = json.loads(req.data.decode())

@@ -1,5 +1,7 @@
 """Attestor — Embedded memory for AI agents."""
 
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
 from attestor.context import (
     ROLE_PERMISSIONS,
     AgentContext,
@@ -17,6 +19,11 @@ from attestor.models import (
     User,
 )
 
+try:
+    __version__ = _pkg_version("attestor")
+except PackageNotFoundError:  # editable / source install fallback
+    __version__ = "0.0.0+local"
+
 __all__ = [
     "AgentMemory",
     "AgentContext",
@@ -30,5 +37,5 @@ __all__ = [
     "Session",
     "User",
     "Visibility",
+    "__version__",
 ]
-__version__ = "4.0.0"

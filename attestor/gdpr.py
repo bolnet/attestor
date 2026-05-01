@@ -27,11 +27,12 @@ Threat model:
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import psycopg2.extras
 
@@ -41,17 +42,17 @@ logger = logging.getLogger("attestor.gdpr")
 @dataclass(frozen=True)
 class ExportPayload:
     """Result of export_user. Each section is a list of dicts."""
-    user: Dict[str, Any]
-    quota: Optional[Dict[str, Any]]
-    projects: List[Dict[str, Any]] = field(default_factory=list)
-    sessions: List[Dict[str, Any]] = field(default_factory=list)
-    episodes: List[Dict[str, Any]] = field(default_factory=list)
-    memories: List[Dict[str, Any]] = field(default_factory=list)
+    user: dict[str, Any]
+    quota: dict[str, Any] | None
+    projects: list[dict[str, Any]] = field(default_factory=list)
+    sessions: list[dict[str, Any]] = field(default_factory=list)
+    episodes: list[dict[str, Any]] = field(default_factory=list)
+    memories: list[dict[str, Any]] = field(default_factory=list)
     exported_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat(),
     )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "user": self.user,
             "quota": self.quota,
@@ -73,8 +74,8 @@ class ExportPayload:
 class PurgeResult:
     """Result of purge_user. user_existed=False means the call was a no-op."""
     user_existed: bool
-    audit_id: Optional[str] = None
-    counts: Dict[str, int] = field(default_factory=dict)
+    audit_id: str | None = None
+    counts: dict[str, int] = field(default_factory=dict)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -82,16 +83,26 @@ class PurgeResult:
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _row_to_jsonable(row: Any) -> Dict[str, Any]:
-    """Convert a psycopg2 dict-row into a JSON-serializable dict."""
-    out: Dict[str, Any] = {}
-    for k, v in dict(row).items():
+def _row_to_jsonable(row: Any) -> dict[str, Any]:
+    """Convert a psycopg2 dict-row into a JSON-serializable dict.
+
+    ``row`` is expected to be a ``psycopg2.extras.RealDictRow`` (returned
+    by ``RealDictCursor``) — already dict-like, so iterating ``.items()``
+    directly is sufficient and avoids an unnecessary ``dict(row)`` copy.
+
+    Binary columns are base64-encoded with a ``_b64:`` prefix so the
+    export remains lossless and JSON-safe — the previous
+    ``decode("utf-8", errors="replace")`` path silently corrupted any
+    non-text byte payload (signatures, encrypted blobs, embeddings).
+    """
+    out: dict[str, Any] = {}
+    for k, v in row.items():
         if isinstance(v, datetime):
             out[k] = v.isoformat()
         elif hasattr(v, "isoformat"):  # date / time
             out[k] = v.isoformat()
         elif isinstance(v, (bytes, bytearray)):
-            out[k] = v.decode("utf-8", errors="replace")
+            out[k] = "_b64:" + base64.b64encode(v).decode("ascii")
         elif isinstance(v, list):
             out[k] = list(v)
         elif hasattr(v, "lower") and hasattr(v, "upper") and not isinstance(v, str):
@@ -102,7 +113,7 @@ def _row_to_jsonable(row: Any) -> Dict[str, Any]:
     return out
 
 
-def _fetch_user(conn: Any, external_id: str) -> Optional[Dict[str, Any]]:
+def _fetch_user(conn: Any, external_id: str) -> dict[str, Any] | None:
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
             "SELECT id::text AS id, external_id, email, display_name, "
@@ -202,7 +213,7 @@ def purge_user(
     external_id: str,
     *,
     reason: str = "gdpr_request",
-    deleted_by: Optional[str] = None,
+    deleted_by: str | None = None,
 ) -> PurgeResult:
     """Hard-delete the user and CASCADE through projects/sessions/episodes/
     memories/user_quotas. Logs to deletion_audit BEFORE the actual delete
@@ -219,7 +230,7 @@ def purge_user(
 
     with conn.cursor() as cur:
         # Count first (for the audit entry)
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for table in ("projects", "sessions", "episodes", "memories"):
             cur.execute(
                 f"SELECT COUNT(*) FROM {table} WHERE user_id = %s::uuid",
@@ -251,7 +262,7 @@ def purge_user(
 
 def list_audit_log(
     conn: Any, *, limit: int = 100,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Read recent deletion audit entries. Read-only; appended-only table."""
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(

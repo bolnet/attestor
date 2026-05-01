@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 import yaml
@@ -22,7 +22,7 @@ if str(ROOT) not in sys.path:
 
 def _yaml_with(tmp_path, monkeypatch, **stack_extra: Any) -> Path:
     """Write a minimal valid YAML to ``tmp_path`` and point the loader at it."""
-    cfg: Dict[str, Any] = {
+    cfg: dict[str, Any] = {
         "stack": {
             "postgres": {"url": "postgresql://postgres@localhost/attestor"},
             "neo4j": {

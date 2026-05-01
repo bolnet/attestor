@@ -3,11 +3,10 @@
 import json
 import os
 import tempfile
-from pathlib import Path
 
 import pytest
 
-from attestor import AgentMemory, Memory
+from attestor import AgentMemory
 
 # mem_dir, mem, and test_config fixtures come from conftest.py
 
