@@ -752,6 +752,19 @@ def configure_embedder(stack: StackConfig) -> None:
         os.environ.pop("VOYAGE_API_KEY", None)
         os.environ["OPENAI_EMBEDDING_MODEL"] = stack.embedder.model
         os.environ["OPENAI_EMBEDDING_DIMENSIONS"] = str(stack.embedder.dimensions)
+    elif stack.embedder.provider == "pinecone":
+        # Pinecone Inference (cloud-only). Drop Voyage so its _try_voyage
+        # probe doesn't beat the Pinecone preference, then pin model/dim
+        # via env so PineconeEmbeddingProvider picks them up.
+        os.environ.pop("VOYAGE_API_KEY", None)
+        if not os.environ.get("PINECONE_API_KEY"):
+            raise SystemExit(
+                "[attestor.config] embedder=pinecone but PINECONE_API_KEY "
+                "not set (cloud key from app.pinecone.io required — Local "
+                "Docker doesn't serve the Inference API)"
+            )
+        os.environ["PINECONE_EMBEDDING_MODEL"] = stack.embedder.model
+        os.environ["PINECONE_EMBEDDING_DIMENSIONS"] = str(stack.embedder.dimensions)
     else:
         raise SystemExit(
             f"[attestor.config] unknown embedder provider: {stack.embedder.provider!r}"

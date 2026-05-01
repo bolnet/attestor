@@ -64,15 +64,24 @@ stack:
     database: neo4j
 
   # ─── Embedder ────────────────────────────────────────────────────────
-  # Voyage AI is the canonical embedder (Anthropic's recommended partner).
-  # voyage-4 outputs 1024-D natively — drops into the v4 pgvector schema
-  # `vector(1024)` with no Matryoshka truncation. The auto-detect chain
-  # in `attestor/store/embeddings.py` prefers Voyage when its key is set.
+  # Pinecone Inference llama-text-embed-v2 is the canonical embedder
+  # (Meta × Pinecone partnership; English-strong; 1024-D matches the
+  # v4 pgvector schema and the Pinecone index dim). Pairs naturally with
+  # the Pinecone vector store above, so the embedder + index live in
+  # the same provider — no extra cross-vendor egress, free up to the
+  # Pinecone Inference free-tier monthly cap (5M tokens for llama-text-
+  # embed-v2 as of 2026-04-29; check app.pinecone.io for current).
+  #
+  # Alternatives (flip `provider`):
+  #   - voyage   — voyage-4, 1024-D (Anthropic recommended; paid).
+  #                Set VOYAGE_API_KEY. Soft rate-limit under sustained
+  #                burst — caught 2026-04-30 in a parallel=50 LME run.
+  #   - openai   — text-embedding-3-small @ 1024-D via OPENAI_API_KEY.
   embedder:
-    provider: voyage
-    model: voyage-4
+    provider: pinecone
+    model: llama-text-embed-v2
     dimensions: 1024
-    api_key_env: VOYAGE_API_KEY        # resolved from environment
+    api_key_env: PINECONE_API_KEY      # resolved from environment
 
   # ─── LLM client routing ───────────────────────────────────────────────
   # Where chat-completion calls land. Two providers wired:
