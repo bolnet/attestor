@@ -218,7 +218,7 @@ async def test_hyde_async_preserves_temperature_zero():
         captured_kwargs.update(kwargs)
         return _StubResponse()
 
-    with patch.dict("os.environ", {"OPENROUTER_API_KEY": "stub"}):
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "stub"}):
         with patch("openai.AsyncOpenAI") as mock_client_cls:
             mock_client_cls.return_value.chat.completions.create = fake_create
             await generate_hypothetical_answer_async("q")

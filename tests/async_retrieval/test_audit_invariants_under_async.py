@@ -52,7 +52,7 @@ async def test_hyde_temperature_zero_determinism_across_runs():
         captured_temps.append(kwargs.get("temperature"))
         return _StubResp()
 
-    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "stub"}):
+    with patch.dict(os.environ, {"OPENAI_API_KEY": "stub"}):
         with patch("openai.AsyncOpenAI") as mock_client_cls:
             mock_client_cls.return_value.chat.completions.create = fake_create
             for _ in range(3):

@@ -916,10 +916,12 @@ def _print_health_report(report):
 
 
 def _cmd_locomo(args):
-    # Load env file if provided
+    # Load env file if provided. Provider keys are resolved by the LLM
+    # pool from ``configs/attestor.yaml`` (``llm.providers.*.api_key_env``)
+    # at first use — we don't read or pre-validate any specific env var
+    # here.
     if args.env_file:
         _load_env_file(args.env_file)
-    api_key = os.environ.get("OPENROUTER_API_KEY")
 
     from attestor.config import get_stack
     from attestor.locomo import run_locomo, print_locomo
@@ -943,7 +945,6 @@ def _cmd_locomo(args):
         max_questions_per_conv=args.max_questions,
         recall_budget=args.budget,
         verbose=args.verbose,
-        api_key=api_key,
         backend_config=_parse_backend_config(args),
     )
 
@@ -956,10 +957,12 @@ def _cmd_locomo(args):
 
 
 def _cmd_mab(args):
-    # Load env file if provided
+    # Load env file if provided. Provider keys are resolved by the LLM
+    # pool from ``configs/attestor.yaml`` (``llm.providers.*.api_key_env``)
+    # at first use — we don't read or pre-validate any specific env var
+    # here.
     if args.env_file:
         _load_env_file(args.env_file)
-    api_key = os.environ.get("OPENROUTER_API_KEY")
 
     from attestor.mab import run_mab, print_mab
 
@@ -975,7 +978,6 @@ def _cmd_mab(args):
         answer_model=args.answer_model,
         recall_budget=args.budget,
         verbose=args.verbose,
-        api_key=api_key,
         skip_examples=args.skip_examples,
         backend_config=_parse_backend_config(args),
     )
@@ -990,13 +992,13 @@ def _cmd_mab(args):
 
 def _cmd_longmemeval(args):
     """Run the LongMemEval benchmark against Attestor."""
-    # Load env file if provided
+    # Load env file if provided. Provider keys are resolved by the LLM
+    # pool from ``configs/attestor.yaml`` (``llm.providers.*.api_key_env``)
+    # at first use — we don't pre-read any specific env var here. If the
+    # configured provider's key is missing the pool raises with a clear
+    # message at first chat call.
     if args.env_file:
         _load_env_file(args.env_file)
-    api_key = os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
-        print("ERROR: OPENROUTER_API_KEY not set (pass via --env-file or export).", file=sys.stderr)
-        sys.exit(2)
 
     from attestor.longmemeval import (
         DEFAULT_MODEL,
@@ -1071,7 +1073,6 @@ def _cmd_longmemeval(args):
         mem_factory=mem_factory,
         answer_model=answer_model,
         judge_models=judge_models,
-        api_key=api_key,
         budget=args.budget,
         use_extraction=args.use_extraction,
         use_distillation=args.use_distillation,

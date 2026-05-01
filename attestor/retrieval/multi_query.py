@@ -112,25 +112,35 @@ def rewrite_query(
     if n <= 0 or not question.strip():
         return RewriteResult(original=question.strip())
 
-    api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
-        logger.debug("multi_query.rewrite_query: no API key; returning original only")
-        return RewriteResult(original=question.strip())
-
     model = model or _resolve_rewriter_model()
 
     try:
-        from openai import OpenAI
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
-            timeout=timeout,
+        from attestor.llm_trace import (
+            get_client_for_model,
+            _get_pool,
+            make_client,
+            traced_create,
         )
-        from attestor.llm_trace import traced_create
+        if api_key:
+            pool = _get_pool()
+            head, sep, tail = model.partition("/")
+            if sep and head in pool.providers:
+                strategy = pool._strategies[head]  # noqa: SLF001
+                clean_model = tail
+            else:
+                strategy = pool.default_strategy()
+                clean_model = model
+            client = make_client(
+                base_url=strategy.base_url,
+                api_key=api_key,
+                timeout=timeout,
+            )
+        else:
+            client, clean_model = get_client_for_model(model)
         response = traced_create(
             client,
             role="multi_query_rewriter",
-            model=model,
+            model=clean_model,
             max_tokens=400,
             messages=[
                 {"role": "user", "content": _REWRITE_PROMPT.format(
@@ -184,22 +194,40 @@ async def rewrite_query_async(
     if n <= 0 or not question.strip():
         return RewriteResult(original=question.strip())
 
-    api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
-        logger.debug("multi_query.rewrite_query_async: no API key; returning original only")
-        return RewriteResult(original=question.strip())
-
     model = model or _resolve_rewriter_model()
 
     try:
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
+        from attestor.llm_trace import _get_pool, make_async_client
+        pool = _get_pool()
+        head, sep, tail = model.partition("/")
+        if sep and head in pool.providers:
+            strategy = pool._strategies[head]  # noqa: SLF001
+            clean_model = tail
+        elif sep:
+            logger.debug(
+                "multi_query.rewrite_query_async: unknown provider %r in "
+                "model %r", head, model,
+            )
+            return RewriteResult(original=question.strip())
+        else:
+            strategy = pool.default_strategy()
+            clean_model = model
+
+        key = api_key or os.environ.get(strategy.api_key_env)
+        if not key:
+            logger.debug(
+                "multi_query.rewrite_query_async: %s not set; returning "
+                "original only", strategy.api_key_env,
+            )
+            return RewriteResult(original=question.strip())
+
+        client = make_async_client(
+            base_url=strategy.base_url,
+            api_key=key,
             timeout=timeout,
         )
         response = await client.chat.completions.create(
-            model=model,
+            model=clean_model,
             max_tokens=400,
             temperature=0.0,
             messages=[

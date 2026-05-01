@@ -196,8 +196,10 @@ def test_live_bge_m3_returns_1024d() -> None:
 
 @pytest.mark.live
 @pytest.mark.skipif(not _ollama_reachable(), reason="Ollama not running")
-def test_live_get_embedding_provider_picks_ollama() -> None:
-    """Auto-detect should land on Ollama when it's the first reachable provider."""
+def test_live_get_embedding_provider_picks_ollama_when_preferred() -> None:
+    """Strict dispatch — preferred='ollama' must land on the Ollama
+    provider when the daemon is up. The legacy auto-detect chain (no
+    `preferred=`) was removed in favor of YAML-driven selection."""
     clear_embedding_cache()
-    p = get_embedding_provider()
+    p = get_embedding_provider(preferred="ollama")
     assert p.provider_name.startswith("ollama:")

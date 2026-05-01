@@ -50,6 +50,8 @@ def yaml_with_llm(tmp_path, monkeypatch):
                     "planner": "anthropic/claude-opus-4.7",
                     "benchmark_default": "openai/gpt-4.1-mini",
                 },
+                "budget": 4000,
+                "parallel": 2,
             },
         }
         if base_url is not None:

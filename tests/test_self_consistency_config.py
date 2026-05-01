@@ -43,6 +43,8 @@ def _yaml_with(tmp_path, monkeypatch, **stack_extra: Any) -> Path:
                 "planner": "anthropic/claude-opus-4.7",
                 "benchmark_default": "openai/gpt-5.4-mini",
             },
+            "budget": 4000,
+            "parallel": 2,
             **stack_extra,
         },
     }
@@ -134,13 +136,14 @@ def test_self_consistency_partial_block_uses_defaults_for_missing(tmp_path, monk
 
 
 @pytest.mark.unit
-def test_self_consistency_no_yaml_falls_back_to_defaults(monkeypatch):
-    """Stripped checkout / no YAML → fallback stack still has a
-    valid SelfConsistencyCfg (disabled by default)."""
+def test_self_consistency_no_yaml_raises(monkeypatch):
+    """Stripped checkout / no YAML → strict-mode must fail loudly.
+
+    Fallback constants were removed; YAML is the single source of truth.
+    This test guards against the silent-fallback path being reintroduced.
+    """
     monkeypatch.setenv("ATTESTOR_CONFIG", "/tmp/nonexistent_attestor.yaml")
     from attestor import config as _c
     _c.reset_stack()
-    s = _c.get_stack(strict=False)
-    assert s.self_consistency.enabled is False
-    assert s.self_consistency.k == 5
-    assert s.self_consistency.voter == "majority"
+    with pytest.raises(SystemExit, match="config not found"):
+        _c.get_stack(strict=False)

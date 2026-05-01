@@ -17,6 +17,7 @@ stack:
   neo4j:
     url: bolt://localhost:7687
     auth: { username: neo4j, password: pw }
+    database: neo4j
   embedder:
     provider: voyage
     model: voyage-4
@@ -31,6 +32,8 @@ stack:
     benchmark_default: x
   llm:
     provider: openrouter
+  budget: 4000
+  parallel: 2
 """
 
 
