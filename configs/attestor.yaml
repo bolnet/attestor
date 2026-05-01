@@ -214,9 +214,9 @@ stack:
     # vector + BM25 candidate window to memories with event_date
     # within tolerance_days of the implied target. Caller-supplied
     # time_window always wins; this only fires when no explicit
-    # bound was passed. Disabled by default.
+    # bound was passed.
     temporal_prefilter:
-      enabled: false
+      enabled: true
       tolerance_days: 3
 
     # HyDE v2 — Hypothetical Document Embedding (Phase 3 PR-D, +6-10% recall).
