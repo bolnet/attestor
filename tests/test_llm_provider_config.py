@@ -63,6 +63,8 @@ def yaml_with_llm(tmp_path, monkeypatch):
         monkeypatch.setenv("ATTESTOR_CONFIG", str(path))
         from attestor import config as _c
         _c.reset_stack()
+        from attestor.llm_trace import _reset_client_pool
+        _reset_client_pool()
         return path
 
     return _make
