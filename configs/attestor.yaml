@@ -239,7 +239,14 @@ stack:
   budget: 4000   # tokens for the pack sent to the answerer
 
   # Concurrency across samples in benchmark runs (LME / LoCoMo / BEAM).
-  parallel: 50
+  # 2026-04-30: 50 was too aggressive for the Voyage / OpenRouter
+  # combo — sustained burst hit Cloudflare 1102 ("Worker exceeded
+  # resource limits") on gpt-5.4-mini distill calls and Voyage
+  # ConnectionResetError. With Pinecone Inference now the embedder
+  # (PR #119), Voyage is no longer in the hot path, but OpenRouter's
+  # per-Worker resource cap is still in play — 16 sustains throughput
+  # while keeping below the 503-burst threshold.
+  parallel: 16
 
   # Self-consistency answerer (Phase 3 PR-B, +3-6% on LME-S).
   # When enabled, the LME answerer draws K independent samples at
