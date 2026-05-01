@@ -545,6 +545,35 @@ def _try_voyage() -> Optional[EmbeddingProvider]:
         return None
 
 
+def _try_pinecone_inference() -> Optional[EmbeddingProvider]:
+    """Try Pinecone Inference (cloud-only — Local Docker doesn't serve it).
+
+    Activated by ATTESTOR_PREFER_EMBEDDER=pinecone OR by configure_embedder
+    setting PINECONE_EMBEDDING_MODEL when stack.embedder.provider="pinecone".
+    Configurable via:
+        PINECONE_API_KEY                   required (cloud key from app.pinecone.io)
+        PINECONE_EMBEDDING_MODEL           default ``llama-text-embed-v2``
+        PINECONE_EMBEDDING_DIMENSIONS      default 1024 (matches v4 schema)
+        PINECONE_EMBEDDING_INPUT_TYPE      default ``passage``
+    """
+    if not os.environ.get("PINECONE_API_KEY"):
+        return None
+    if os.environ.get("PINECONE_API_KEY") == "pclocal":
+        return None  # Local Docker stub doesn't serve Inference
+    try:
+        provider = PineconeEmbeddingProvider(
+            input_type=os.environ.get("PINECONE_EMBEDDING_INPUT_TYPE", "passage"),
+        )
+        logger.info(
+            "Using %s embeddings (%dD)",
+            provider.provider_name, provider.dimension,
+        )
+        return provider
+    except Exception as e:
+        logger.debug("Pinecone Inference unavailable: %s", e)
+        return None
+
+
 def _try_ollama() -> Optional[EmbeddingProvider]:
     """Probe local Ollama. Returns None if daemon unreachable or model
     missing — caller falls through to the next provider."""
@@ -647,6 +676,7 @@ def _try_openai() -> Optional[EmbeddingProvider]:
 
 _CLOUD_PROVIDERS = {
     "voyage": _try_voyage,
+    "pinecone": _try_pinecone_inference,
     "bedrock": _try_bedrock,
     "azure_openai": _try_azure_openai,
     "vertex_ai": _try_vertex_ai,
