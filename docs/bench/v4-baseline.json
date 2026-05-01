@@ -1,9 +1,0 @@
-{
-  "version": "1",
-  "default_threshold": 2.0,
-  "thresholds": {
-    "abstention": 1.0,
-    "regression": 0.5
-  },
-  "benchmarks": []
-}

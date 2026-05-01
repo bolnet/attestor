@@ -1,27 +1,15 @@
 # ─────────────────────────────────────────────────────────────────────────
 # Attestor — single source of truth for the default stack.
 #
-# Every benchmark, smoke runner, deploy script, and Terraform module reads
-# from THIS FILE. Nothing else should hardcode a model name, registry
-# address, embedder, or DB URL. If you need a different stack for a one-off
-# run, copy this file and pass `--config <copy>.yaml` to whatever script —
-# don't introduce a second hardcoded default anywhere in code.
+# Every smoke runner, deploy script, and Terraform module reads from
+# THIS FILE. Nothing else should hardcode a model name, registry
+# address, embedder, or DB URL. If you need a different stack for a
+# one-off run, copy this file and pass `--config <copy>.yaml` to
+# whatever script — don't introduce a second hardcoded default
+# anywhere in code.
 #
-# Updated 2026-04-28. Model lineup upgraded to gpt-5.5 for the
-# answerer + judge (previously gpt-4.1). OpenRouter has no
-# gpt-5.5-mini SKU yet, so extraction/distill/benchmark_default
-# stay at gpt-5.4-mini (cheapest 5.x mini available) — flip these
-# to gpt-5.5-mini the day OpenRouter ships it.
-#
-# The 500-sample LongMemEval results on disk
-# (`results/bench_lme_4models_20260428/`) reflect the *prior* gpt-4.1
-# lineup — gpt-4.1 72.2%, sonnet-4-6 66.8%, gpt-5-mini 58.8%, gpt-5 52.6%.
-# Re-run the canonical bench against this YAML before publishing any
-# new headline number; the disk numbers are now historical.
-# Embedder is Voyage AI per `project_voyage_embedder_setup.md`.
-# Stack scope is locked to PG+pgvector+Neo4j per
-# `feedback_only_pg_neo4j_stack.md` (other backends remain in code as
-# optional / unpromoted).
+# Stack scope: PG (document) + Pinecone (vector) + Neo4j (graph).
+# Other backends remain in code as optional / unpromoted.
 # ─────────────────────────────────────────────────────────────────────────
 
 stack:
@@ -36,7 +24,7 @@ stack:
   postgres:
     url: postgresql://postgres:attestor@localhost:5432/attestor_v4_test
     v4: true
-    skip_schema_init: true   # benchmarks reapply schema themselves
+    skip_schema_init: true   # consumer harnesses reapply schema themselves
 
   # Pinecone holds the VECTOR role. Two deployment modes:
   #   - Pinecone Local Docker → set host=http://localhost:5080 (no rate
@@ -53,9 +41,9 @@ stack:
     cloud: aws
     region: us-east-1
 
-  # Neo4j holds the graph role (entity nodes + typed edges, PageRank, BFS,
+  # Neo4j holds the GRAPH role (entity nodes + typed edges, PageRank, BFS,
   # Leiden via the GDS plugin). The orchestrator uses it for hop-N
-  # affinity-map expansion in the 5-layer retrieval pipeline.
+  # affinity-map expansion in the retrieval pipeline.
   neo4j:
     url: bolt://localhost:7687
     auth:
@@ -64,58 +52,60 @@ stack:
     database: neo4j
 
   # ─── Embedder ────────────────────────────────────────────────────────
-  # Pinecone Inference llama-text-embed-v2 is the canonical embedder
-  # (Meta × Pinecone partnership; English-strong; 1024-D matches the
-  # v4 pgvector schema and the Pinecone index dim). Pairs naturally with
-  # the Pinecone vector store above, so the embedder + index live in
-  # the same provider — no extra cross-vendor egress, free up to the
-  # Pinecone Inference free-tier monthly cap (5M tokens for llama-text-
-  # embed-v2 as of 2026-04-29; check app.pinecone.io for current).
-  #
+  # 1024-D matches the v4 pgvector schema and the Pinecone index dim.
   # Alternatives (flip `provider`):
   #   - voyage   — voyage-4, 1024-D (Anthropic recommended; paid).
-  #                Set VOYAGE_API_KEY. Soft rate-limit under sustained
-  #                burst — caught 2026-04-30 in a parallel=50 LME run.
-  #   - openai   — text-embedding-3-small @ 1024-D via OPENAI_API_KEY.
+  #                Set VOYAGE_API_KEY.
+  #   - pinecone — Pinecone Inference llama-text-embed-v2 (NVIDIA-hosted).
+  #                Set PINECONE_API_KEY.
   embedder:
-    provider: pinecone
-    model: llama-text-embed-v2
+    provider: openai
+    # 1024-D explicitly requested via the `dimensions` param so it matches the pgvector schema (text-embedding-3-small is natively 1536-D).
+    model: text-embedding-3-small
     dimensions: 1024
-    api_key_env: PINECONE_API_KEY      # resolved from environment
+    api_key_env: OPENAI_API_KEY        # resolved from environment
 
   # ─── LLM client routing ───────────────────────────────────────────────
-  # Where chat-completion calls land. Two providers wired:
+  # Where chat-completion calls land. Multi-provider mode: route by
+  # model prefix.
   #
-  #   openrouter  — default. Multi-vendor catalog so cross-provider
-  #                 model strings like `anthropic/claude-sonnet-4-6`
-  #                 work in the same call shape. Requires OPENROUTER_API_KEY.
-  #   openai      — direct to api.openai.com. No OpenRouter per-call
-  #                 markup; only OpenAI models. Requires OPENAI_API_KEY.
+  #   model: openai/gpt-5.5              → openai provider
+  #   model: anthropic/claude-sonnet-4-6 → anthropic provider
+  #   model: gpt-5.5                     → default_provider
   #
-  # `base_url` and `api_key_env` are auto-defaulted from the provider —
-  # override them to point at local Ollama (base_url=http://localhost:11434/v1)
-  # or to swap the env-var name. The runtime helper `_get_client` honors
-  # `LME_LLM_BASE_URL` env first when set, so ad-hoc local runs still work
-  # without editing this file.
+  # Each provider entry sets `base_url` (an OpenAI-compatible endpoint)
+  # and `api_key_env` (the env var holding the API key). The runtime
+  # helper `_get_client` honors `LME_LLM_BASE_URL` env first when set,
+  # so ad-hoc local runs (e.g. local Ollama) work without editing
+  # this file.
   llm:
-    provider: openrouter
+    # Legacy single-provider mode — used when `providers:` is absent or
+    # empty. Kept for back-compat with older configs.
+    provider: openai
+
+    providers:
+      openai:
+        base_url: https://api.openai.com/v1
+        api_key_env: OPENAI_API_KEY
+
+      # Anthropic via your organization's LiteLLM-compatible proxy.
+      # Replace the placeholders below with your org's values, OR delete
+      # this entry to fall back to the openai provider for everything.
+      # Direct anthropic.com is NOT OpenAI-API-compatible, so a proxy
+      # like LiteLLM is the standard way to route Anthropic models
+      # through this client.
+      anthropic:
+        base_url: https://XXX-litellm-proxy.example.com/v1
+        api_key_env: XXX_LITELLM_API_KEY
+
+    default_provider: openai
 
   # ─── Models (per-role assignment) ────────────────────────────────────
-  # All four roles use distinct models tuned to their job. See
-  # `project_lme_4models_20260428.md` for the benchmark numbers that
-  # justify each pick.
   models:
     # Answerer — synthesises the final reply from retrieved context.
-    # Promoted to gpt-5.5 for the temporal-reasoning bench-up where
-    # mini's reasoning depth was the bottleneck on multi-hop date
-    # arithmetic (~10× per-token cost vs the prior 5.4-mini default).
     answerer: openai/gpt-5.5
 
-    # Judge — single-judge panel. gpt-4.1 was the strongest standalone
-    # judge in the 4-model run. NOTE: now SAME model as answerer —
-    # the dual-judge panel relies on the verifier (claude-sonnet-4-6
-    # below) for cross-model validation; gpt-5.5 self-judging is a
-    # weaker signal than gpt-5.5 → claude cross-judge.
+    # Judge — single-judge accuracy verdict.
     judge: openai/gpt-5.5
 
     # Extraction / distillation — runs once per turn during ingest to
@@ -124,45 +114,35 @@ stack:
     extraction: openai/gpt-5.4-mini
     distill:    openai/gpt-5.4-mini
 
-    # Verifier — second-pass cross-check after Judge. Claude Sonnet 4.6
-    # complements gpt-4.1: its recall strengths catch errors the
-    # gpt-4.1 judge misses, raising the panel's effective accuracy
-    # without burning the cost of running Sonnet for everything.
+    # Verifier — second-pass cross-check after Judge. Anthropic
+    # complements OpenAI for cross-model validation.
     verifier: anthropic/claude-sonnet-4-6
 
     # Planner — query rewriting + multi-step query decomposition.
-    # Used by attestor.retrieval.planner. Claude Opus is the default
-    # because the planner's job is small but reasoning-heavy.
+    # Used by attestor.retrieval.planner.
     planner: anthropic/claude-opus-4.7
 
-    # Benchmark default — generic fallback for ad-hoc benchmark commands
-    # where no specific role applies (e.g. `attestor locomo` when the
-    # user doesn't pass --answer-model). Cheap by design — bench
-    # iteration happens often.
+    # Generic CLI default — used when an ad-hoc command (e.g.
+    # `attestor locomo`) is invoked without an explicit `--model` flag
+    # and no specific role applies. Cheap by design.
     benchmark_default: openai/gpt-5.4-mini
 
     # ─── Reasoning effort (gpt-5.x reasoning-model param) ──────────────
     # Higher effort = more internal CoT tokens spent before the visible
-    # answer. The `mini` base + `high` effort combination matches the
-    # o1-mini pattern: cheap base model "punches up" via deeper internal
-    # reasoning. Anthropic models silently ignore this param.
+    # answer. Anthropic models silently ignore this param.
     reasoning_effort:
-      answerer:    high      # mini base + deep reasoning = punches up
-      judge:       high      # verdict accuracy is the headline
-      extraction:  low       # ingest workhorse; speed > deep reasoning
+      answerer:    high
+      judge:       high
+      extraction:  low
       distill:     low
-      verifier:    medium    # second-pass cross-check
-      planner:     medium    # query rewriting
+      verifier:    medium
+      planner:     medium
       benchmark_default: low
 
     # ─── Output budget per role (32k uniform cap) ───────────────────────
-    # Set generously across the board. max_tokens is a CAP not a TARGET
-    # — the model only generates what it needs and is billed only for
-    # what it generates. 32k gives reasoning_effort:high ample headroom
-    # (typical reasoning span is 1.5-5k tokens) without ever truncating
-    # mid-answer. Worst case per call at gpt-5.5 rates: ~$0.38 if the
-    # model actually fills the budget; for a 500-q bench bounded
-    # ~$190. In practice the median call uses well under 5k tokens.
+    # max_tokens is a CAP not a TARGET — the model only generates what
+    # it needs and is billed only for what it generates. 32k gives
+    # reasoning_effort:high ample headroom without truncating mid-answer.
     max_tokens:
       answerer:    32000
       judge:       32000
@@ -172,17 +152,13 @@ stack:
       planner:     32000
       benchmark_default: 32000
 
-  # ─── Retrieval budget ────────────────────────────────────────────────
-  # Token budget per recall (the orchestrator MMR-packs candidates
-  # under this ceiling). 4000 is the canonical benchmark default.
   # ─── Retrieval cascade tuning ─────────────────────────────────────────
   # Three knobs that interact — raising one without the others usually
   # does nothing.
   #
   #   vector_top_k  pgvector LIMIT on the cosine-similarity lane.
   #                 More candidates → more raw material for graph
-  #                 affinity + MMR to choose from. Default 50; bench
-  #                 runs targeting big context should raise to 200-500.
+  #                 affinity + MMR to choose from.
   #
   #   mmr_top_n     post-MMR cap. None means "no cap" (legacy behavior;
   #                 mmr_rerank's diversity trim decides). Set when you
@@ -196,11 +172,9 @@ stack:
     vector_top_k: 50
     # mmr_top_n: 50    # uncomment to cap; default = no cap
 
-    # Multi-query lane (Phase 3 PR-C, RC1 — biggest +8% accuracy lever).
-    # When enabled, the orchestrator rewrites the question into N
-    # paraphrases via a single LLM call and RRF-merges N+1 vector
-    # searches before the rest of the cascade. Disabled by default —
-    # flip to `true` per bench run to measure the lift.
+    # Multi-query lane. When enabled, the orchestrator rewrites the
+    # question into N paraphrases via a single LLM call and RRF-merges
+    # N+1 vector searches before the rest of the cascade.
     multi_query:
       enabled: false
       n: 3
@@ -208,28 +182,22 @@ stack:
       rewriter_reasoning_effort: low
       merge: rrf                         # rrf | union
 
-    # Temporal pre-filter (Phase 3 RC4 — +1.5% on LME-S).
-    # When enabled, detects relative time phrases ("two weeks ago",
-    # "yesterday", "last Monday") in the question and tightens the
-    # vector + BM25 candidate window to memories with event_date
-    # within tolerance_days of the implied target. Caller-supplied
-    # time_window always wins; this only fires when no explicit
-    # bound was passed.
+    # Temporal pre-filter. When enabled, detects relative time phrases
+    # ("two weeks ago", "yesterday", "last Monday") in the question and
+    # tightens the vector + BM25 candidate window to memories with
+    # event_date within tolerance_days of the implied target.
+    # Caller-supplied time_window always wins; this only fires when no
+    # explicit bound was passed.
     temporal_prefilter:
       enabled: true
       tolerance_days: 3
 
-    # HyDE v2 — Hypothetical Document Embedding (Phase 3 PR-D, +6-10% recall).
-    # When enabled, generates a hypothetical 1-2-sentence answer to
-    # the question via a small LLM and runs THAT through the vector
-    # lane in parallel with the original question. RRF-merges the two
-    # ranked lists. Mutually exclusive with multi_query — if both are
-    # on, multi_query wins (logged warning).
-    #
-    # Enabled by default per `project_pinecone_lme_temporal_10q_20260429.md`:
-    # HyDE v2 (event-descriptive prompt + temperature=0) lifted LME-S
-    # temporal recall@10 from 70% → 96.7% on the 30q diagnostic slice
-    # against Pinecone+llama-text-embed-v2.
+    # HyDE v2 — Hypothetical Document Embedding. When enabled,
+    # generates a hypothetical 1-2-sentence answer to the question via
+    # a small LLM and runs THAT through the vector lane in parallel
+    # with the original question. RRF-merges the two ranked lists.
+    # Mutually exclusive with multi_query — if both are on,
+    # multi_query wins (logged warning).
     hyde:
       enabled: true
       generator_model: null              # null → models.extraction
@@ -238,22 +206,14 @@ stack:
 
   budget: 4000   # tokens for the pack sent to the answerer
 
-  # Concurrency across samples in benchmark runs (LME / LoCoMo / BEAM).
-  # 2026-04-30: 50 was too aggressive for the Voyage / OpenRouter
-  # combo — sustained burst hit Cloudflare 1102 ("Worker exceeded
-  # resource limits") on gpt-5.4-mini distill calls and Voyage
-  # ConnectionResetError. With Pinecone Inference now the embedder
-  # (PR #119), Voyage is no longer in the hot path, but OpenRouter's
-  # per-Worker resource cap is still in play — 16 sustains throughput
-  # while keeping below the 503-burst threshold.
+  # Concurrency for bulk operations across samples.
   parallel: 16
 
-  # Self-consistency answerer (Phase 3 PR-B, +3-6% on LME-S).
-  # When enabled, the LME answerer draws K independent samples at
-  # non-zero temperature and elects the consensus answer (most-
-  # frequent normalized fingerprint by default; optional judge_pick
-  # mode delegates to a judge LLM). 5x answerer cost — gate behind
-  # this YAML knob; flip per bench run.
+  # Self-consistency answerer. When enabled, the answerer draws K
+  # independent samples at non-zero temperature and elects the
+  # consensus answer (most-frequent normalized fingerprint by default;
+  # optional judge_pick mode delegates to a judge LLM). 5x answerer
+  # cost — gate behind this YAML knob.
   self_consistency:
     enabled: false
     k: 5
@@ -261,19 +221,19 @@ stack:
     voter: majority           # majority | judge_pick
     judge_model: null         # null → models.judge
 
-  # Critique-and-revise (Phase 3 PR-E, +3-5% on LME-S).
-  # When enabled, the LME answerer runs a three-step pipeline:
+  # Critique-and-revise. When enabled, the answerer runs a three-step
+  # pipeline:
   #   1. Initial answer (existing path)
   #   2. Critic LLM checks the answer against retrieved context
   #   3. If critic says revise, a second answerer call produces the
   #      corrected answer.
-  # ~3x answerer cost. Mutually exclusive with self_consistency in
-  # this PR (if both are on, self_consistency wins; warning logged).
+  # ~3x answerer cost. Mutually exclusive with self_consistency
+  # (if both are on, self_consistency wins; warning logged).
   critique_revise:
     enabled: false
     critic_model: null            # null → models.verifier
     revise_model: null            # null → models.answerer
-    max_revisions: 1              # hard cap; this PR rejects values > 1
+    max_revisions: 1              # hard cap; values > 1 rejected
 
 # ─── Container image (for cloud deploys) ────────────────────────────────
 # The published image is currently the *introspection-only* MCP stub

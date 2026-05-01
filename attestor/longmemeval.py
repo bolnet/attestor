@@ -67,7 +67,6 @@ def _default_judges() -> tuple[str, ...]:
 DEFAULT_MODEL = _default_model()
 # Default dual-judge. Second judge anchors out answerer-judge collusion.
 DEFAULT_JUDGES = _default_judges()
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_PARALLEL = 4
 
 # ---------------------------------------------------------------------------
@@ -709,8 +708,12 @@ def distill_turn(
         .replace("{content}", text)
     )
     try:
-        client = _get_client(api_key)
-        raw = _chat(client, model, prompt, max_tokens=max_tokens, role="distill")
+        if api_key is not None:
+            client = _get_client(api_key)
+            clean_model = model
+        else:
+            client, clean_model = _get_client_for_model(model)
+        raw = _chat(client, clean_model, prompt, max_tokens=max_tokens, role="distill")
     except Exception as e:  # noqa: BLE001 — distillation is best-effort
         logger.warning("distill_turn failed (%s); falling back to raw turn", e)
         return [
@@ -1145,74 +1148,72 @@ JUDGE_PROMPT = (
 )
 
 
+def _get_client_for_model(model: str) -> Tuple[Any, str]:
+    """Pool-aware client lookup. Returns ``(client, clean_model)`` where
+    ``clean_model`` has the provider prefix stripped — pass ``clean_model``
+    to the SDK. Falls back to the default provider when ``model`` has
+    no ``provider/`` prefix.
+    """
+    from attestor.llm_trace import get_client_for_model
+    return get_client_for_model(model)
+
+
 def _get_client(api_key: Optional[str] = None) -> Any:
-    """Instantiate an OpenAI-compatible client.
+    """Instantiate an OpenAI-compatible client (default provider).
+
+    Back-compat shim retained for callers that don't have an explicit
+    model in scope. Model-aware call sites should prefer
+    ``_get_client_for_model(model)`` so the pool can route per-model.
 
     Resolution order (top wins):
       1. ``LME_LLM_BASE_URL`` env — explicit ad-hoc override; mostly
          used to point at local Ollama (``http://localhost:11434/v1``).
          When the URL points at localhost, the API key is optional.
-      2. ``configs/attestor.yaml`` ``stack.llm.provider`` — picks the
-         base URL and the env var name for the API key. Two providers
-         wired today: ``openrouter`` (default; multi-vendor model names
-         like ``anthropic/claude-sonnet-4-6``) and ``openai`` (no
-         OpenRouter markup, OpenAI models only).
-      3. Hardcoded fallback to OpenRouter — only if YAML is missing.
+      2. ``api_key`` argument — when caller passes one, build a client
+         directly so the explicit override beats the pool's lookup.
+      3. Pool default — delegate to ``attestor.llm_trace`` and ask for
+         the default provider's client.
 
-    The chosen provider's API key env var is required unless the base
-    URL is local. A clear error names the env var that was missing
-    rather than the generic "OPENROUTER_API_KEY".
+    There is no hardcoded fallback. ``configs/attestor.yaml`` is the
+    source of truth for the default provider; if it can't be loaded
+    we raise loudly rather than silently routing somewhere unintended.
     """
-    try:
-        from attestor.llm_trace import make_client
-    except ImportError as e:  # pragma: no cover — import-time error path
-        raise RuntimeError(
-            "openai package required for benchmarks. Install with "
-            "`poetry add --group dev openai`."
-        ) from e
+    from attestor.llm_trace import make_client
+    from attestor.config import get_stack
 
-    # 2 — resolve provider via stack
-    try:
-        from attestor.config import get_stack
-        llm_cfg = get_stack().llm
-    except Exception:
-        # Stack load can fail in stripped-checkout / no-YAML test scenarios;
-        # fall back to the legacy OpenRouter shape so existing callers
-        # don't crash before they even get to the API call.
-        llm_cfg = None
+    llm_cfg = get_stack().llm  # raises loudly if YAML unloadable — by design.
 
-    # 1 — explicit env override wins
+    # 1 — explicit env override wins (preserved verbatim — local-Ollama path).
     env_base_url = os.environ.get("LME_LLM_BASE_URL")
     if env_base_url:
         base_url = env_base_url
-        # When user set the URL explicitly, default the key env to the
-        # configured provider's; the request itself will surface a 401
-        # if the key is mismatched.
-        key_env = (llm_cfg.api_key_env if llm_cfg else "OPENROUTER_API_KEY")
-    elif llm_cfg is not None:
-        base_url = llm_cfg.base_url
         key_env = llm_cfg.api_key_env
-    else:
-        base_url = OPENROUTER_BASE_URL
-        key_env = "OPENROUTER_API_KEY"
+        is_local = "localhost" in base_url or "127.0.0.1" in base_url
+        key = api_key or os.environ.get(key_env)
+        if not key:
+            if is_local:
+                key = "ollama"  # placeholder; Ollama ignores the key
+            else:
+                raise RuntimeError(
+                    f"{key_env} not set — required for LongMemEval "
+                    f"answer/judge against {base_url} "
+                    f"(llm.provider={llm_cfg.provider!r}). Either export "
+                    f"{key_env}, switch llm.provider in configs/attestor.yaml, "
+                    f"or set LME_LLM_BASE_URL=http://localhost:11434/v1 to "
+                    f"run against local Ollama instead."
+                )
+        return make_client(base_url=base_url, api_key=key)
 
-    is_local = "localhost" in base_url or "127.0.0.1" in base_url
+    # 2 — explicit api_key override: build directly so the caller's key
+    # truly wins over any cached pool client.
+    if api_key is not None:
+        return make_client(base_url=llm_cfg.base_url, api_key=api_key)
 
-    key = api_key or os.environ.get(key_env)
-    if not key:
-        if is_local:
-            key = "ollama"  # placeholder; Ollama ignores the key
-        else:
-            provider_name = (llm_cfg.provider if llm_cfg else "openrouter")
-            raise RuntimeError(
-                f"{key_env} not set — required for LongMemEval "
-                f"answer/judge against {base_url} "
-                f"(llm.provider={provider_name!r}). Either export "
-                f"{key_env}, switch llm.provider in configs/attestor.yaml, "
-                f"or set LME_LLM_BASE_URL=http://localhost:11434/v1 to "
-                f"run against local Ollama instead."
-            )
-    return make_client(base_url=base_url, api_key=key)
+    # 3 — delegate to the pool for the default provider. If YAML is
+    # missing or malformed the pool raises; we let it propagate.
+    from attestor.llm_trace import _get_pool
+    pool = _get_pool()
+    return pool.client_for(pool.default_strategy().name)
 
 
 def _chat(
@@ -1535,10 +1536,14 @@ def answer_question(
         question_date=question_date,
         context=context,
     )
-    client = _get_client(api_key)
+    if api_key is not None:
+        client = _get_client(api_key)
+        clean_model = model
+    else:
+        client, clean_model = _get_client_for_model(model)
     raw = _answerer_call(
         client=client,
-        model=model,
+        model=clean_model,
         prompt=prompt,
         max_tokens=max_tokens,
         question=sample.question,
@@ -1556,8 +1561,17 @@ def answer_question(
             context=context,
             first_answer=first_answer,
         )
+        # Verifier may target a different provider — re-route via the pool
+        # so the provider-prefix is stripped before hitting the SDK.
+        if api_key is not None:
+            verify_client = client
+            clean_verify_model = verify_model or model
+        else:
+            verify_client, clean_verify_model = _get_client_for_model(
+                verify_model or model
+            )
         verified_text = _chat(
-            client, verify_model or model, verify_prompt,
+            verify_client, clean_verify_model, verify_prompt,
             max_tokens=150, role="verifier",
         ).strip()
         # Only accept the verifier's output if it is a non-empty single line
@@ -1698,8 +1712,12 @@ def judge_personalization(
         generated=generated,
         context=context,
     )
-    client = _get_client(api_key)
-    raw = _chat(client, model, prompt, max_tokens=max_tokens, role="judge")
+    if api_key is not None:
+        client = _get_client(api_key)
+        clean_model = model
+    else:
+        client, clean_model = _get_client_for_model(model)
+    raw = _chat(client, clean_model, prompt, max_tokens=max_tokens, role="judge")
     label, reasoning = _parse_judge_response(raw)
     return JudgeResult(
         label=label,
@@ -1730,8 +1748,12 @@ def judge_answer(
         expected=expected,
         generated=generated,
     )
-    client = _get_client(api_key)
-    raw = _chat(client, model, prompt, max_tokens=max_tokens, role="judge")
+    if api_key is not None:
+        client = _get_client(api_key)
+        clean_model = model
+    else:
+        client, clean_model = _get_client_for_model(model)
+    raw = _chat(client, clean_model, prompt, max_tokens=max_tokens, role="judge")
     label, reasoning = _parse_judge_response(raw)
     return JudgeResult(
         label=label,

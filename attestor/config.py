@@ -395,6 +395,15 @@ class RetrievalCfg:
 
 
 @dataclass(frozen=True)
+class ProviderCfg:
+    """One entry in the LLMCfg.providers map."""
+
+    name: str
+    base_url: str
+    api_key_env: str
+
+
+@dataclass(frozen=True)
 class LLMCfg:
     """Where chat-completion calls are routed.
 
@@ -410,11 +419,18 @@ class LLMCfg:
     ``base_url`` and ``api_key_env`` override the per-provider defaults
     when set in YAML — useful for local Ollama (set base_url to
     http://localhost:11434/v1) or for swapping the env var name.
+
+    Multi-provider mode: when ``providers`` is set, it overrides the
+    single-provider ``provider``/``base_url``/``api_key_env`` fields,
+    and ``default_provider`` selects which one is used for unprefixed
+    model names. When unset, the legacy single-provider mode applies.
     """
 
     provider: str
     base_url: str
     api_key_env: str
+    providers: Optional[Dict[str, ProviderCfg]] = None
+    default_provider: Optional[str] = None
 
     @classmethod
     def for_provider(cls, provider: str) -> LLMCfg:
@@ -616,10 +632,46 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
             f"expected one of {sorted(LLM_PROVIDER_DEFAULTS)}"
         )
     llm_defaults = LLM_PROVIDER_DEFAULTS[llm_provider]
+
+    providers_blk = llm_blk.get("providers") or {}
+    providers_map: Optional[Dict[str, ProviderCfg]]
+    default_provider: Optional[str]
+    if providers_blk:
+        built: Dict[str, ProviderCfg] = {}
+        for name, entry in providers_blk.items():
+            entry = entry or {}
+            base_url = entry.get("base_url")
+            api_key_env = entry.get("api_key_env")
+            if not base_url or not api_key_env:
+                raise ValueError(
+                    f"providers.{name} requires base_url and api_key_env"
+                )
+            built[str(name)] = ProviderCfg(
+                name=str(name),
+                base_url=str(base_url),
+                api_key_env=str(api_key_env),
+            )
+        providers_map = built
+        default_provider_raw = llm_blk.get("default_provider")
+        if default_provider_raw is not None:
+            default_provider = str(default_provider_raw)
+            if default_provider not in providers_map:
+                raise ValueError(
+                    f"default_provider {default_provider!r} not in "
+                    f"providers {sorted(providers_map)}"
+                )
+        else:
+            default_provider = None
+    else:
+        providers_map = None
+        default_provider = None
+
     llm_cfg = LLMCfg(
         provider=llm_provider,
         base_url=str(llm_blk.get("base_url", llm_defaults["base_url"])),
         api_key_env=str(llm_blk.get("api_key_env", llm_defaults["api_key_env"])),
+        providers=providers_map,
+        default_provider=default_provider,
     )
 
     return StackConfig(

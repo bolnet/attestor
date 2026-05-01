@@ -40,8 +40,29 @@ a no-op so this module is zero-overhead in production.
 
 from __future__ import annotations
 
+import os
+import re
+import threading
 import time
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple
+
+
+# Patterns that flag a model as requiring `max_completion_tokens` instead of
+# the legacy `max_tokens` field. Compiled once at import.
+#
+#   - ``^gpt-5\.5``       — gpt-5.5 family (the cut where OpenAI flipped the
+#                           param name on the chat-completions surface).
+#   - ``^gpt-([6-9]|\d{2,})`` — future-proofing for gpt-6/7/8/9 and gpt-1X+.
+#   - ``^o[1-9]``         — o-series reasoning models (o1, o3, o4, o1-mini…).
+#
+# Any model NOT matching these (gpt-4o, gpt-4.1, claude-*, embedders, etc.)
+# falls through to the legacy ``max_tokens`` path.
+_MAX_COMPLETION_TOKENS_PATTERNS: Tuple[re.Pattern[str], ...] = (
+    re.compile(r"^gpt-5\.5"),
+    re.compile(r"^gpt-([6-9]|\d{2,})"),
+    re.compile(r"^o[1-9]"),
+)
 
 
 def make_client(
@@ -95,6 +116,193 @@ def make_async_client(
     )
 
 
+@dataclass(frozen=True)
+class LLMProviderStrategy:
+    """Runtime descriptor for a single LLM provider endpoint.
+
+    Mirrors ``attestor.config.ProviderCfg`` but is intentionally
+    decoupled — this module stays usable when the project's config
+    layer isn't loaded (e.g. in unit tests or standalone scripts that
+    pass strategies directly to ``LLMClientPool``).
+    """
+
+    name: str
+    base_url: str
+    api_key_env: str
+
+
+class LLMClientPool:
+    """Thread-safe lazy cache of OpenAI-compatible clients keyed by
+    provider name.
+
+    Each provider's client is constructed at most once, on first
+    request, using the standard ``make_client(...)`` factory. The pool
+    holds an ``RLock`` so concurrent first-touches from worker threads
+    cannot double-construct or race the cache. Subsequent calls return
+    the cached client by reference.
+    """
+
+    def __init__(
+        self,
+        strategies: Dict[str, LLMProviderStrategy],
+        default: str,
+    ) -> None:
+        if not strategies:
+            raise ValueError("LLMClientPool requires at least one strategy")
+        if default not in strategies:
+            raise ValueError(
+                f"default provider {default!r} not in strategies "
+                f"{sorted(strategies)}"
+            )
+        self._strategies: Dict[str, LLMProviderStrategy] = dict(strategies)
+        self._default: str = default
+        self._clients: Dict[str, Any] = {}
+        self._lock = threading.RLock()
+
+    def client_for(self, name: str) -> Any:
+        """Return the cached client for ``name``, building it on first
+        request. Raises ``KeyError`` if the provider is unknown and
+        ``RuntimeError`` if its API-key env var is unset.
+        """
+        with self._lock:
+            cached = self._clients.get(name)
+            if cached is not None:
+                return cached
+            try:
+                strategy = self._strategies[name]
+            except KeyError:
+                raise KeyError(
+                    f"unknown LLM provider {name!r}; expected one of "
+                    f"{sorted(self._strategies)}"
+                )
+            api_key = os.environ.get(strategy.api_key_env)
+            if not api_key:
+                raise RuntimeError(
+                    f"{strategy.api_key_env} not set — required to build "
+                    f"the {strategy.name!r} LLM client (base_url="
+                    f"{strategy.base_url})"
+                )
+            client = make_client(base_url=strategy.base_url, api_key=api_key)
+            self._clients[name] = client
+            return client
+
+    def default_strategy(self) -> LLMProviderStrategy:
+        """Return the strategy used when a model has no ``provider/``
+        prefix."""
+        return self._strategies[self._default]
+
+    @property
+    def providers(self) -> Tuple[str, ...]:
+        """Sorted tuple of known provider names — handy for error
+        messages and tests."""
+        return tuple(sorted(self._strategies))
+
+
+# --- Module-level singleton plumbing -----------------------------------
+# The pool is built lazily from ``attestor.config`` on first use so this
+# module stays importable in stripped-checkout / no-YAML environments
+# (the legacy single-provider path is the fallback). ``_reset_client_pool``
+# exists for tests that need to reload config between cases.
+
+_pool_singleton: Optional[LLMClientPool] = None
+_singleton_lock = threading.RLock()
+
+
+def _build_pool_from_config() -> LLMClientPool:
+    """Construct an ``LLMClientPool`` from ``attestor.config``'s current
+    ``LLMCfg``.
+
+    Imports lazily to avoid circular-import pain (``attestor.config``
+    can pull this module indirectly via the trace stack). When the
+    config exposes a non-empty ``providers`` map (multi-provider mode),
+    every entry becomes a strategy and ``default_provider`` (or the
+    first key) becomes the default. Otherwise we fall back to a single-
+    provider pool built from the legacy ``provider/base_url/api_key_env``
+    triple.
+    """
+    # Lazy import — same loader path used by attestor/longmemeval.py:_get_client.
+    from attestor.config import get_stack  # noqa: WPS433 — intentional lazy
+
+    cfg = get_stack().llm
+
+    providers_map = getattr(cfg, "providers", None)
+    if providers_map:
+        strategies: Dict[str, LLMProviderStrategy] = {
+            name: LLMProviderStrategy(
+                name=name,
+                base_url=p.base_url,
+                api_key_env=p.api_key_env,
+            )
+            for name, p in providers_map.items()
+        }
+        default = getattr(cfg, "default_provider", None) or next(iter(strategies))
+        return LLMClientPool(strategies, default)
+
+    # Legacy single-provider mode.
+    strategy = LLMProviderStrategy(
+        name=cfg.provider,
+        base_url=cfg.base_url,
+        api_key_env=cfg.api_key_env,
+    )
+    return LLMClientPool({cfg.provider: strategy}, cfg.provider)
+
+
+def _get_pool() -> LLMClientPool:
+    """Return the process-wide pool singleton, building it on first call."""
+    global _pool_singleton
+    with _singleton_lock:
+        if _pool_singleton is None:
+            _pool_singleton = _build_pool_from_config()
+        return _pool_singleton
+
+
+def _reset_client_pool() -> None:
+    """Drop the pool singleton so the next call rebuilds it from config.
+
+    For tests / config-reload scenarios; not part of the public API.
+    """
+    global _pool_singleton
+    with _singleton_lock:
+        _pool_singleton = None
+
+
+def get_client_for_model(model: str) -> Tuple[Any, str]:
+    """Resolve ``model`` to an ``(OpenAI client, clean_model)`` pair.
+
+    Splits ``model`` on the first ``/``. If the prefix matches a known
+    provider in the pool, the call is routed there and ``clean_model``
+    is the suffix (e.g. ``"openai/gpt-5.5"`` → openai client +
+    ``"gpt-5.5"``). If there's no slash — or the prefix isn't a known
+    provider name AND there's no slash at all — the pool's default
+    provider handles the call and ``clean_model`` is the original
+    string. A non-empty prefix that isn't a known provider raises
+    ``ValueError`` so misconfigured callers fail loudly.
+    """
+    pool = _get_pool()
+    head, sep, tail = model.partition("/")
+    if sep:
+        if head in pool.providers:
+            return pool.client_for(head), tail
+        raise ValueError(
+            f"unknown LLM provider {head!r} in model {model!r}; "
+            f"expected one of {list(pool.providers)}"
+        )
+    # No slash — route via default.
+    default = pool.default_strategy()
+    return pool.client_for(default.name), model
+
+
+def _needs_max_completion_tokens(model: str) -> bool:
+    """Return True if ``model`` requires the ``max_completion_tokens``
+    field instead of the legacy ``max_tokens``.
+
+    Matches gpt-5.5+, gpt-6+ (future-proof), and o-series reasoning
+    models. The caller should strip any ``provider/`` prefix before
+    calling — the patterns key on the bare model id.
+    """
+    return any(p.match(model) for p in _MAX_COMPLETION_TOKENS_PATTERNS)
+
+
 def traced_create(
     client: Any,
     *,
@@ -130,6 +338,22 @@ def traced_create(
         if "reasoning_effort" in yaml_kwargs and "reasoning_effort" not in create_kwargs:
             create_kwargs["reasoning_effort"] = yaml_kwargs["reasoning_effort"]
     except Exception:  # noqa: BLE001 — config lookup is best-effort
+        pass
+
+    # Translate max_tokens → max_completion_tokens for model families
+    # that require the new field (gpt-5.5+, gpt-6+, o-series). The model
+    # may carry a ``provider/`` prefix at this layer; strip it for the
+    # discrimination check without mutating the kwarg the SDK sees.
+    try:
+        raw_model = create_kwargs.get("model", "") or ""
+        _, sep, tail = raw_model.partition("/")
+        bare_model = tail if sep else raw_model
+        if (
+            _needs_max_completion_tokens(bare_model)
+            and "max_tokens" in create_kwargs
+        ):
+            create_kwargs["max_completion_tokens"] = create_kwargs.pop("max_tokens")
+    except Exception:  # noqa: BLE001 — translation is best-effort
         pass
 
     t0 = time.monotonic()
