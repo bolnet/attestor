@@ -219,15 +219,19 @@ stack:
       enabled: false
       tolerance_days: 3
 
-    # HyDE — Hypothetical Document Embedding (Phase 3 PR-D, +6-10% recall).
+    # HyDE v2 — Hypothetical Document Embedding (Phase 3 PR-D, +6-10% recall).
     # When enabled, generates a hypothetical 1-2-sentence answer to
     # the question via a small LLM and runs THAT through the vector
     # lane in parallel with the original question. RRF-merges the two
-    # ranked lists. Disabled by default and mutually exclusive with
-    # multi_query — if both are on, multi_query wins (logged warning).
-    # Flip per bench run to measure the recall lift.
+    # ranked lists. Mutually exclusive with multi_query — if both are
+    # on, multi_query wins (logged warning).
+    #
+    # Enabled by default per `project_pinecone_lme_temporal_10q_20260429.md`:
+    # HyDE v2 (event-descriptive prompt + temperature=0) lifted LME-S
+    # temporal recall@10 from 70% → 96.7% on the 30q diagnostic slice
+    # against Pinecone+llama-text-embed-v2.
     hyde:
-      enabled: false
+      enabled: true
       generator_model: null              # null → models.extraction
       generator_reasoning_effort: low
       merge: rrf                         # rrf | union
