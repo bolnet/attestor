@@ -1164,7 +1164,7 @@ def _get_client(api_key: Optional[str] = None) -> Any:
     rather than the generic "OPENROUTER_API_KEY".
     """
     try:
-        from openai import OpenAI
+        from attestor.llm_trace import make_client
     except ImportError as e:  # pragma: no cover — import-time error path
         raise RuntimeError(
             "openai package required for benchmarks. Install with "
@@ -1254,7 +1254,7 @@ def _chat(
     if reasoning_effort:
         create_kwargs["reasoning_effort"] = reasoning_effort
 
-    from attestor.llm_trace import traced_create, make_client
+    from attestor.llm_trace import traced_create
     response = traced_create(client, role=role or "lme.chat", **create_kwargs)
     return response.choices[0].message.content or ""
 

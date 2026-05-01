@@ -27,13 +27,31 @@
 stack:
 
   # ─── Data plane ──────────────────────────────────────────────────────
-  # Postgres holds the document and vector roles (pgvector). It is the
-  # SOURCE OF TRUTH — Neo4j graph is derived state and rebuildable from
-  # Postgres. Vector dim must match `embedder.dimensions` below.
+  # Postgres holds the DOCUMENT role only (source of truth). The VECTOR
+  # role goes to Pinecone (block below) and the GRAPH role to Neo4j.
+  # Vector dim must match `embedder.dimensions` below. To revert to the
+  # legacy single-Postgres bundle (doc + pgvector in one DB), comment
+  # out the `pinecone:` block — `build_backend_config` then uses the
+  # `pgvector` registry entry which claims both roles.
   postgres:
     url: postgresql://postgres:attestor@localhost:5432/attestor_v4_test
     v4: true
     skip_schema_init: true   # benchmarks reapply schema themselves
+
+  # Pinecone holds the VECTOR role. Two deployment modes:
+  #   - Pinecone Local Docker → set host=http://localhost:5080 (no rate
+  #     limit, no cloud round-trip; image at ghcr.io/pinecone-io/pinecone-local)
+  #   - Pinecone Cloud → omit `host` (use SDK default routing) and set
+  #     PINECONE_API_KEY in the environment.
+  # Index is auto-created on first write if missing. Comment out this
+  # whole block to fall back to pgvector for the vector role.
+  pinecone:
+    host: http://localhost:5080            # Pinecone Local Docker
+    api_key_env: PINECONE_API_KEY
+    index_name: attestor
+    metric: cosine
+    cloud: aws
+    region: us-east-1
 
   # Neo4j holds the graph role (entity nodes + typed edges, PageRank, BFS,
   # Leiden via the GDS plugin). The orchestrator uses it for hop-N
@@ -208,7 +226,7 @@ stack:
   budget: 4000   # tokens for the pack sent to the answerer
 
   # Concurrency across samples in benchmark runs (LME / LoCoMo / BEAM).
-  parallel: 2
+  parallel: 50
 
   # Self-consistency answerer (Phase 3 PR-B, +3-6% on LME-S).
   # When enabled, the LME answerer draws K independent samples at

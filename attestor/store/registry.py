@@ -29,8 +29,28 @@ BACKEND_REGISTRY: Dict[str, Dict[str, Any]] = {
     "postgres": {
         "module": "attestor.store.postgres_backend",
         "class": "PostgresBackend",
-        # AGE removed from default Postgres image; graph role belongs to Neo4j.
+        # Document role only in the default canonical stack — vector
+        # belongs to Pinecone and graph to Neo4j. The legacy single-DB
+        # setup (Postgres holding doc + pgvector) is registered
+        # separately as "pgvector" below.
+        "roles": {"document"},
+        "init_style": "config",
+    },
+    "pgvector": {
+        "module": "attestor.store.postgres_backend",
+        "class": "PostgresBackend",
+        # Legacy bundle — one Postgres instance holds both document
+        # and vector via pgvector. Use when you don't want to run a
+        # separate Pinecone (e.g. fully self-contained dev / CI).
         "roles": {"document", "vector"},
+        "init_style": "config",
+    },
+    "pinecone": {
+        "module": "attestor.store.pinecone_backend",
+        "class": "PineconeBackend",
+        # Vector-only. Pair with `postgres` (doc) + `neo4j` (graph)
+        # for the canonical PG+Pinecone+Neo4j stack.
+        "roles": {"vector"},
         "init_style": "config",
     },
     "neo4j": {
@@ -59,7 +79,7 @@ BACKEND_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
 }
 
-DEFAULT_BACKENDS = ["postgres", "neo4j"]
+DEFAULT_BACKENDS = ["postgres", "pinecone", "neo4j"]
 
 
 def resolve_backends(
