@@ -115,6 +115,24 @@ class Neo4jCfg:
 
 
 @dataclass(frozen=True)
+class PineconeCfg:
+    """Pinecone vector backend.
+
+    Two deployment modes (auto-detected from ``host``):
+      - **Pinecone Local Docker**: ``host=http://localhost:5080`` — no
+        cloud round-trip, free, no rate limit. Matches development.
+      - **Pinecone Cloud**: ``host=None`` (or omit) — uses the SDK's
+        default routing via ``api_key``. Pair with a serverless index.
+    """
+    host: Optional[str]
+    api_key_env: str
+    index_name: str
+    metric: str
+    cloud: str
+    region: str
+
+
+@dataclass(frozen=True)
 class EmbedderCfg:
     provider: str
     model: str
@@ -442,6 +460,7 @@ class StackConfig:
     clouds: Dict[str, Dict[str, Any]]
     self_consistency: SelfConsistencyCfg = field(default_factory=SelfConsistencyCfg)
     critique_revise: CritiqueReviseCfg = field(default_factory=CritiqueReviseCfg)
+    pinecone: Optional[PineconeCfg] = None
 
 
 # ─── YAML helpers ─────────────────────────────────────────────────────
@@ -515,6 +534,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
 
     pg = stack_blk.get("postgres") or {}
     neo = stack_blk.get("neo4j") or {}
+    pcn = stack_blk.get("pinecone")  # None when unset → vector role falls back to pgvector
     emb = stack_blk.get("embedder") or {}
     models = stack_blk.get("models") or {}
     llm_blk = stack_blk.get("llm") or {}
@@ -642,6 +662,17 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         clouds=dict(clouds_blk),
         self_consistency=sc_cfg,
         critique_revise=cr_cfg,
+        pinecone=(
+            PineconeCfg(
+                host=pcn.get("host"),
+                api_key_env=str(pcn.get("api_key_env", "PINECONE_API_KEY")),
+                index_name=str(pcn.get("index_name", "attestor")),
+                metric=str(pcn.get("metric", "cosine")),
+                cloud=str(pcn.get("cloud", "aws")),
+                region=str(pcn.get("region", "us-east-1")),
+            )
+            if pcn is not None else None
+        ),
     )
 
 
@@ -738,19 +769,46 @@ def build_backend_config(
     parsed = urlparse(stack.postgres.url)
     db = (parsed.path or "/").lstrip("/") or "attestor_v4_test"
 
-    backend_configs: Dict[str, Dict[str, Any]] = {
-        "postgres": {
-            "url": f"{parsed.scheme}://{parsed.hostname}:{parsed.port or 5432}",
-            "database": db,
-            "auth": {
-                "username": parsed.username or "postgres",
-                "password": parsed.password or "attestor",
-            },
-            "v4": stack.postgres.v4,
-            "skip_schema_init": stack.postgres.skip_schema_init,
+    pg_cfg = {
+        "url": f"{parsed.scheme}://{parsed.hostname}:{parsed.port or 5432}",
+        "database": db,
+        "auth": {
+            "username": parsed.username or "postgres",
+            "password": parsed.password or "attestor",
         },
+        "v4": stack.postgres.v4,
+        "skip_schema_init": stack.postgres.skip_schema_init,
     }
-    backends = ["postgres"]
+
+    backend_configs: Dict[str, Dict[str, Any]] = {}
+    backends: List[str] = []
+
+    # Document role: postgres always; if pinecone is also configured the
+    # postgres backend stays document-only (vector role goes to pinecone).
+    # When pinecone is absent we use the bundled "pgvector" registry entry
+    # which claims both document and vector.
+    if stack.pinecone is not None:
+        backend_configs["postgres"] = pg_cfg
+        backends.append("postgres")
+        pcn_cfg: Dict[str, Any] = {
+            "index_name": stack.pinecone.index_name,
+            "metric": stack.pinecone.metric,
+            "cloud": stack.pinecone.cloud,
+            "region": stack.pinecone.region,
+            "dimension": stack.embedder.dimensions,
+        }
+        if stack.pinecone.host:
+            pcn_cfg["host"] = stack.pinecone.host
+        api_key = os.environ.get(stack.pinecone.api_key_env)
+        if api_key:
+            pcn_cfg["api_key"] = api_key
+        backend_configs["pinecone"] = pcn_cfg
+        backends.append("pinecone")
+    else:
+        # Legacy bundle — postgres holds doc + pgvector.
+        backend_configs["pgvector"] = pg_cfg
+        backends.append("pgvector")
+
     if not no_graph:
         backend_configs["neo4j"] = {
             "url": stack.neo4j.url,

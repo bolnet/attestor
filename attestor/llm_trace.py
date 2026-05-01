@@ -49,7 +49,7 @@ def make_client(
     base_url: str,
     api_key: str,
     timeout: float = 60.0,
-    max_retries: int = 2,
+    max_retries: int = 0,
 ):
     """Construct a default-configured OpenAI/OpenRouter client.
 
@@ -57,10 +57,16 @@ def make_client(
     block the pipeline indefinitely (caught 2026-04-30 — a 133q LME-S
     smoke hung for 5+ hours on a single distill call with no timeout;
     process slept on socket recv with no deadline). 60s is well above
-    any healthy reasoning-effort=high call (observed median 2-9s);
-    2 retries cover transient transport errors. Callers can override
-    per-call via ``traced_create(client, ..., timeout=N)`` when a
-    longer-running role needs it.
+    any healthy reasoning-effort=high call (observed median 2-9s).
+
+    ``max_retries=0`` is the safe default: SDK-level retries stack on
+    top of the per-attempt timeout AND share a connection pool, so a
+    transient flake can pin every connection in pool-acquisition wait
+    until the wall clock exceeds even a generous timeout (caught
+    2026-04-30 v2 run — 17-min hang after 212 successful distills with
+    timeout=60, max_retries=2). If a role needs retries, add them at
+    the call site with an overall deadline rather than relying on the
+    SDK's per-attempt accounting.
     """
     from openai import OpenAI
     return OpenAI(
@@ -76,7 +82,7 @@ def make_async_client(
     base_url: str,
     api_key: str,
     timeout: float = 60.0,
-    max_retries: int = 2,
+    max_retries: int = 0,
 ):
     """Async sibling of ``make_client`` — used by the P1/P2 async
     HyDE + multi-query rewriter paths."""

@@ -16,14 +16,23 @@ class TestResolveBackends:
         roles = resolve_backends()
         assert roles == {
             "document": "postgres",
-            "vector": "postgres",
+            "vector": "pinecone",
             "graph": "neo4j",
         }
 
     def test_explicit_defaults(self):
-        roles = resolve_backends(["postgres", "neo4j"])
+        roles = resolve_backends(["postgres", "pinecone", "neo4j"])
         assert roles["document"] == "postgres"
-        assert roles["vector"] == "postgres"
+        assert roles["vector"] == "pinecone"
+        assert roles["graph"] == "neo4j"
+
+    def test_legacy_pgvector_bundle(self):
+        """The pgvector entry bundles document + vector for runs that
+        don't want a separate Pinecone — same backend class, different
+        registry key."""
+        roles = resolve_backends(["pgvector", "neo4j"])
+        assert roles["document"] == "pgvector"
+        assert roles["vector"] == "pgvector"
         assert roles["graph"] == "neo4j"
 
     def test_arangodb_fills_all_roles(self):

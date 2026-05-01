@@ -90,17 +90,17 @@ def default_llm_client():
     Tests inject a stub via the `client` parameter on the extract_*
     functions, so this is only invoked when a real call is needed.
     """
-    from openai import OpenAI
+    from attestor.llm_trace import make_client
 
     or_key = os.environ.get("OPENROUTER_API_KEY")
     if or_key:
-        return OpenAI(
+        return make_client(
             base_url="https://openrouter.ai/api/v1",
             api_key=or_key,
         )
     oa_key = os.environ.get("OPENAI_API_KEY")
     if oa_key:
-        return OpenAI(api_key=oa_key)
+        return make_client(base_url="https://api.openai.com/v1", api_key=oa_key)
     raise RuntimeError(
         "No LLM API key set. Provide OPENROUTER_API_KEY or OPENAI_API_KEY, "
         "or pass client= explicitly."

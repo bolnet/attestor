@@ -321,7 +321,11 @@ class VoyageEmbeddingProvider:
         if not api_key:
             raise RuntimeError("VOYAGE_API_KEY not set")
 
-        self._client = voyageai.Client(api_key=api_key)
+        # Default timeout=None in voyageai SDK = unbounded — observed
+        # 17-min hang during a 133q LME-S smoke 2026-04-30 when one
+        # embed call stalled and never woke up. 30s is well above any
+        # healthy embed (median ~170ms in practice).
+        self._client = voyageai.Client(api_key=api_key, timeout=30.0)
         self._model = model or os.environ.get("VOYAGE_EMBEDDING_MODEL") or self.DEFAULT_MODEL
         self._input_type = input_type
 
