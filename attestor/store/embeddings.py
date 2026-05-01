@@ -739,9 +739,16 @@ def get_embedding_provider(
         logger.debug("Preferred provider %r unavailable, trying fallbacks", preferred)
 
     # Auto-detect chain.
-    # Voyage AI takes precedence over Ollama auto-detect when VOYAGE_API_KEY
-    # is set, because that env var is an explicit user opt-in (vs Ollama
-    # which is auto-probed). User opt-in beats auto-detect.
+    # Pinecone Inference is checked first when PINECONE_EMBEDDING_MODEL is
+    # explicitly set (configure_embedder pins this from stack.embedder),
+    # because that env var is the canonical opt-in. Otherwise the chain
+    # falls through to Voyage / Ollama / OpenAI as before.
+    if os.environ.get("PINECONE_EMBEDDING_MODEL"):
+        provider = _try_pinecone_inference()
+        if provider is not None:
+            _cached_provider = provider
+            return provider
+
     provider = _try_voyage()
     if provider is not None:
         _cached_provider = provider
