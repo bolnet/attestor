@@ -63,24 +63,6 @@ def _build_config() -> dict[str, Any] | None:
         cfg["backends"] = backends
         return cfg
 
-    arango_url = os.environ.get("ARANGO_URL")
-    if arango_url:
-        return {
-            "backends": ["arangodb"],
-            "arangodb": {
-                "mode": "cloud",
-                "url": arango_url,
-                "database": os.environ.get("ARANGO_DATABASE", "attestor"),
-                "auth": {
-                    "username": os.environ.get("ARANGO_USERNAME", "root"),
-                    "password": os.environ.get("ARANGO_PASSWORD", ""),
-                },
-                "tls": {
-                    "verify": os.environ.get("ARANGO_TLS_VERIFY", "false").lower() == "true",
-                },
-            },
-        }
-
     # No env override — defer to the YAML SoT.
     try:
         from attestor.config import build_backend_config, get_stack

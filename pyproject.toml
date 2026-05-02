@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10,<4.0"
 authors = [{ name = "aarjay" }]
-keywords = ["ai", "agent", "memory", "multi-agent", "llm", "rbac", "namespace", "provenance", "postgres", "pgvector", "neo4j", "graph", "arangodb", "mcp", "agentic"]
+keywords = ["ai", "agent", "memory", "multi-agent", "llm", "rbac", "namespace", "provenance", "postgres", "pinecone", "neo4j", "graph", "vector-search", "mcp", "agentic"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -25,19 +25,16 @@ dependencies = [
     "tomlkit>=0.12.0",
     "starlette>=0.27.0",
     "uvicorn>=0.23.0",
-    # Postgres + Neo4j are the v4 default backends. The codebase imports
-    # them eagerly (attestor/conversation/episodes.py, store/postgres_backend.py,
+    # Canonical stack: Postgres (document) + Pinecone (vector) + Neo4j (graph).
+    # The codebase imports postgres + neo4j eagerly
+    # (attestor/conversation/episodes.py, store/postgres_backend.py,
     # store/neo4j_backend.py), so they must be present at install time for
-    # `import attestor.conversation` to even resolve. Cloud-only deployments
-    # that swap to ArangoDB / DynamoDB / Cosmos / AlloyDB will install
-    # these as harmless extras until backend imports are made lazy.
+    # `import attestor.conversation` to even resolve. Pinecone is lazy-loaded
+    # so the dependency is declared as the `pinecone` extra below.
     "psycopg2-binary>=2.9.0",
     "neo4j>=5.0.0",
-    # `requests` is used by the OllamaEmbeddingProvider — the documented
-    # default embedder. Without it, `attestor doctor` fails on a fresh
-    # install with "No embedding provider available" even when Ollama is
-    # running locally. Lazy-imported in store/embeddings.py and
-    # store/aws_backend.py.
+    # `requests` is used by the OllamaEmbeddingProvider — the local-dev
+    # embedder. Lazy-imported in store/embeddings.py.
     "requests>=2.28.0",
 ]
 
@@ -48,30 +45,19 @@ Issues = "https://github.com/bolnet/attestor/issues"
 
 [project.optional-dependencies]
 extraction = ["openai>=1.0.0"]
-arangodb = ["python-arango>=8.0.0"]
 postgres = ["psycopg2-binary>=2.9.0"]
 neo4j = ["neo4j>=5.0.0"]
-aws = ["boto3>=1.28.0"]
-azure = ["azure-cosmos>=4.5.0", "azure-identity>=1.14.0", "azure-search-documents>=11.4.0", "networkx>=3.0"]
-gcp = ["google-cloud-firestore>=2.11.0", "google-cloud-aiplatform>=1.38.0"]
+pinecone = ["pinecone>=5.0.0"]
 cloud-embeddings = ["openai>=1.0.0"]
 voyage = ["voyageai>=0.3.0; python_version < '3.14'"]
 lambda = ["mangum>=0.17.0", "starlette>=0.27.0"]
-docker = ["docker>=6.0"]
 eval = ["braintrust>=0.0.150", "anthropic>=0.30.0", "PyYAML>=6.0"]
 all = [
     "openai>=1.0.0",
     "psycopg2-binary>=2.9.0",
-    "python-arango>=8.0.0",
     "neo4j>=5.0.0",
-    "boto3>=1.28.0",
-    "azure-cosmos>=4.5.0",
-    "azure-identity>=1.14.0",
-    "azure-search-documents>=11.4.0",
-    "networkx>=3.0",
-    "google-cloud-firestore>=2.11.0",
-    "google-cloud-aiplatform>=1.38.0",
-    "docker>=6.0",
+    "pinecone>=5.0.0",
+    "voyageai>=0.3.0; python_version < '3.14'",
 ]
 
 [project.scripts]
@@ -138,7 +124,7 @@ files = [
 # expand `files` module-by-module as the codebase tightens
 
 [[tool.mypy.overrides]]
-module = ["psycopg2.*", "neo4j.*", "pinecone.*", "voyageai.*", "boto3.*", "azure.*", "google.*", "mcp.*", "starlette.*", "uvicorn.*", "tomlkit.*", "networkx.*"]
+module = ["psycopg2.*", "neo4j.*", "pinecone.*", "voyageai.*", "mcp.*", "starlette.*", "uvicorn.*", "tomlkit.*"]
 ignore_missing_imports = true
 
 [build-system]

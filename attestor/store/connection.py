@@ -9,18 +9,18 @@ Industry-standard 3-layer resolution (each overrides the previous):
 Supports two config formats (hybrid, following SQLAlchemy/Django/Prisma):
 
     URL string (12-Factor friendly):
-        {"url": "arangodb://root:$PW@cloud.example.com:8529/attestor"}
+        {"url": "postgresql://attestor:$PG_PASSWORD@db.example.com:5432/attestor"}
 
     Structured dict (for complex cases):
         {
             "mode": "cloud",
-            "url": "https://cloud.example.com:8529",
+            "url": "postgresql://db.example.com:5432",
             "database": "attestor",
-            "auth": {"username": "root", "password": "$ARANGO_PASSWORD"},
+            "auth": {"username": "attestor", "password": "$PG_PASSWORD"},
             "tls": {"verify": true, "ca_cert": "/path/to/ca.pem"}
         }
 
-Adding a new engine = add an entry to ENGINE_DEFAULTS. No code changes.
+The canonical stack is Postgres (document) + Pinecone (vector) + Neo4j (graph).
 """
 
 from __future__ import annotations
@@ -40,13 +40,6 @@ from urllib.parse import parse_qs, unquote, urlparse
 # ═══════════════════════════════════════════════════════════════════════
 
 ENGINE_DEFAULTS: dict[str, dict[str, Any]] = {
-    "arangodb": {
-        "url": "http://localhost:8529",
-        "port": 8529,
-        "database": "attestor",
-        "auth": {"username": "root", "password": ""},
-        "tls": {"verify": False},
-    },
     "postgres": {
         "url": "postgresql://localhost:5432",
         "port": 5432,
@@ -61,38 +54,11 @@ ENGINE_DEFAULTS: dict[str, dict[str, Any]] = {
         "auth": {"username": "neo4j", "password": ""},
         "tls": {"verify": False},
     },
-    "surrealdb": {
-        "url": "http://localhost:8000",
-        "port": 8000,
-        "database": "attestor",
-        "auth": {"username": "root", "password": "root"},
-        "tls": {"verify": False},
-    },
-    "gcp": {
-        "url": "postgresql://localhost:5432",
-        "port": 5432,
-        "database": "attestor",
-        "auth": {"username": "postgres", "password": ""},
-        "project_id": "",
-        "region": "us-central1",
-        "cluster": "",
-        "instance": "",
-        "tls": {"verify": True},
-    },
-    "azure": {
-        "url": "",
-        "cosmos_endpoint": "",
-        "cosmos_database": "attestor",
+    "pinecone": {
+        # Pinecone uses its own client, not URL-based; the entry exists so
+        # the registry's config-merge path has somewhere to land per-backend
+        # overrides (api_key, host, environment, namespace, etc.).
         "auth": {"api_key": ""},
-        "tls": {"verify": True},
-    },
-    "aws": {
-        "url": "",
-        "region": "us-east-1",
-        "dynamodb": {"table_prefix": "attestor"},
-        "opensearch": {"endpoint": "", "index": "memories"},
-        "neptune": {"endpoint": ""},
-        "auth": {},
         "tls": {"verify": True},
     },
 }
@@ -144,16 +110,11 @@ def merge_config_layers(*layers: dict[str, Any]) -> dict[str, Any]:
 
 # Map URL schemes to engine names
 _SCHEME_MAP: dict[str, str] = {
-    "arangodb": "arangodb",
-    "arangodb+https": "arangodb",
-    "arango": "arangodb",
     "postgresql": "postgres",
     "postgres": "postgres",
     "bolt": "neo4j",
     "neo4j": "neo4j",
     "neo4j+s": "neo4j",
-    "surrealdb": "surrealdb",
-    "surreal": "surrealdb",
 }
 
 
@@ -163,7 +124,6 @@ def parse_url(url: str) -> dict[str, Any]:
     Follows the SQLAlchemy dialect://user:pass@host:port/database convention.
 
     Examples:
-        arangodb://root:pass@cloud.example.com:8529/attestor
         postgresql://user:pass@rds.amazonaws.com:5432/mydb?sslmode=require
         neo4j+s://user:pass@aura.neo4j.io/mydb
     """
@@ -264,7 +224,7 @@ def build_config(
     """Build a fully-resolved config by stacking all 3 layers.
 
     Args:
-        engine: Backend engine name (e.g., "arangodb", "postgres").
+        engine: Backend engine name (one of "postgres", "neo4j", "pinecone").
         user_config: Project-level config (from config.json or programmatic).
         cli_overrides: Optional CLI --backend-config overrides.
 
@@ -415,13 +375,13 @@ class CloudConnection:
     """Parsed, env-resolved connection config for any cloud backend.
 
     Supports both URL strings and structured dicts:
-        URL:  "arangodb://root:pass@host:8529/attestor"
-        Dict: {"url": "https://host:8529", "database": "attestor", ...}
+        URL:  "postgresql://user:pass@host:5432/attestor"
+        Dict: {"url": "postgresql://host:5432", "database": "attestor", ...}
 
     Resolution: engine defaults → user config → env vars
     """
     mode: str = "cloud"
-    url: str = "http://localhost:8529"
+    url: str = "postgresql://localhost:5432"
     database: str = "attestor"
     port: int = 8529
     auth: AuthConfig = field(default_factory=AuthConfig)

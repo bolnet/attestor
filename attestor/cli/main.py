@@ -69,9 +69,9 @@ def main(argv=None):
     )
     p_init.add_argument(
         "--backend",
-        choices=["postgres", "arangodb"],
+        choices=["postgres"],
         default="postgres",
-        help="Backend to record in config.toml (default: postgres)",
+        help="Backend to record in config.toml (only 'postgres' is supported)",
     )
     p_init.add_argument(
         "--verify",

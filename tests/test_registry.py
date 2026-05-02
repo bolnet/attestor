@@ -26,24 +26,10 @@ class TestResolveBackends:
         assert roles["vector"] == "pinecone"
         assert roles["graph"] == "neo4j"
 
-    def test_legacy_pgvector_bundle(self):
-        """The pgvector entry bundles document + vector for runs that
-        don't want a separate Pinecone — same backend class, different
-        registry key."""
-        roles = resolve_backends(["pgvector", "neo4j"])
-        assert roles["document"] == "pgvector"
-        assert roles["vector"] == "pgvector"
-        assert roles["graph"] == "neo4j"
-
-    def test_arangodb_fills_all_roles(self):
-        roles = resolve_backends(["arangodb"])
-        assert roles["document"] == "arangodb"
-        assert roles["vector"] == "arangodb"
-        assert roles["graph"] == "arangodb"
-
     def test_conflict_raises(self):
+        # Repeating the same backend twice claims its role twice → conflict.
         with pytest.raises(BackendConflictError, match="document"):
-            resolve_backends(["postgres", "arangodb"])
+            resolve_backends(["postgres", "postgres"])
 
     def test_unknown_backend_raises(self):
         with pytest.raises(ValueError, match="Unknown backend"):
@@ -58,6 +44,12 @@ class TestResolveBackends:
 
 
 class TestBackendRegistry:
+    def test_only_canonical_stack_present(self):
+        """Registry exposes only postgres + pinecone + neo4j after the
+        2026-05-02 single-stack policy. Alternate backends (arango,
+        aws, azure, gcp, pgvector legacy) must be absent."""
+        assert set(BACKEND_REGISTRY) == {"postgres", "pinecone", "neo4j"}
+
     def test_all_entries_have_required_keys(self):
         for name, entry in BACKEND_REGISTRY.items():
             assert "module" in entry, f"{name} missing 'module'"
@@ -70,21 +62,8 @@ class TestBackendRegistry:
         for name in DEFAULT_BACKENDS:
             assert name in BACKEND_REGISTRY
 
-    def test_embedded_backends_removed(self):
-        """The zero-config embedded trio must not be in the registry anymore."""
-        for dropped in ("sqlite", "chroma", "networkx"):
-            assert dropped not in BACKEND_REGISTRY
-
 
 class TestInstantiateBackend:
     def test_instantiate_unknown_raises(self, tmp_path):
         with pytest.raises(KeyError):
             instantiate_backend("nonexistent", tmp_path)
-
-    def test_missing_arango_import_raises(self, tmp_path):
-        """When python-arango is not installed (or no server running),
-        importing arangodb backend should fail gracefully."""
-        try:
-            instantiate_backend("arangodb", tmp_path, backend_config={})
-        except (ImportError, ModuleNotFoundError, ConnectionAbortedError, Exception):
-            pass  # Expected — python-arango not installed or no ArangoDB running

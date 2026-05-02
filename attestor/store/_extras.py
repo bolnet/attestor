@@ -15,7 +15,7 @@ class MissingExtraError(ImportError):
     """Raised when an optional dependency is not installed.
 
     Subclasses :class:`ImportError` so existing ``try: ... except ImportError``
-    blocks (e.g. ``core.py:_ensure_docker``) still degrade gracefully.
+    call sites still degrade gracefully.
     """
 
 

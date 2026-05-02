@@ -15,7 +15,7 @@ import tomlkit
 
 log = logging.getLogger(__name__)
 
-SUPPORTED_BACKENDS = ("postgres", "arangodb")
+SUPPORTED_BACKENDS = ("postgres",)
 _CREDENTIAL_KEYS = frozenset({"auth_password", "password", "secret", "api_key", "token"})
 
 
@@ -34,12 +34,8 @@ def _build_config(backend: str, backend_options: Mapping[str, Any] | None) -> to
     doc.add(tomlkit.comment("Secrets should use $ENV_VAR references, not plaintext."))
     doc.add(tomlkit.nl())
 
-    if backend == "postgres":
-        backends = ["postgres", "neo4j"]
-    else:
-        backends = [backend]
-
-    doc["backends"] = backends
+    # Canonical stack: Postgres (document) + Pinecone (vector) + Neo4j (graph).
+    doc["backends"] = ["postgres", "pinecone", "neo4j"]
     doc["default_token_budget"] = 16000
 
     if backend_options:
@@ -166,19 +162,7 @@ def init_store_interactive(path: Path, *, verify: bool = False) -> InitResult:
     backend = input("Backend [postgres]: ").strip() or "postgres"
 
     backend_options: dict[str, Any] = {}
-    if backend == "arangodb":
-        mode = input("Mode (local/cloud) [local]: ").strip() or "local"
-        port = _prompt_port("Port", 8529)
-        backend_options = {"mode": mode, "port": port}
-        if mode == "cloud":
-            backend_options["url"] = input("URL: ").strip()
-            backend_options["auth_username"] = (
-                input("Username [root]: ").strip() or "root"
-            )
-            backend_options["auth_password"] = getpass.getpass(
-                "Password (or $ENV_VAR): "
-            ).strip()
-    elif backend == "postgres":
+    if backend == "postgres":
         url = input("URL [postgresql://localhost:5432]: ").strip() or "postgresql://localhost:5432"
         backend_options = {"url": url}
 
