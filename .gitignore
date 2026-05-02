@@ -38,6 +38,10 @@ htmlcov/
 locomo_*.json
 docs/bench/
 results/
+# Per-(model, mode) sweep outputs from experiments/cat*_sweep.py — these
+# are bench artifacts, kept on the user's machine + memory files only.
+experiments/cat*_sweep_*.json
+experiments/*_sweep.json
 
 # Secrets / tokens
 .mcpregistry_*
