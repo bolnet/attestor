@@ -58,13 +58,35 @@ cells:
       cost_usd: 0.30, wall_min: 31,
       note: "memory says null on this slice; included for cross-category test" }
 
+  # ── Knowledge-update ablations (mirror temporal — same retrieval bottleneck) ──
+  # Per the 2026-05-02 oracle-facts sweep: KU is also retrieval-bottlenecked
+  # (3 of 3 wrong samples recover under haiku-4.5 + oracle facts). The same
+  # answerer-swap + retrieval-side fixes that lift temporal will lift KU.
+  - { category: knowledge-update,
+      label: "ablation:answerer=haiku-4.5",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      answerer: openrouter/anthropic/claude-haiku-4.5,
+      cost_usd: 0.02, wall_min: 18,
+      note: "haiku-4.5 picked most-recent fact correctly on all 3 wrongs in oracle-facts smoke" }
+
+  - { category: knowledge-update,
+      label: "ablation:embedder=pinecone-llama",
+      samples: 10,
+      embedder: { provider: pinecone, model: llama-text-embed-v2 },
+      cost_usd: 0.06, wall_min: 24,
+      note: "blocked by Pinecone Inference monthly cap until 2026-06-01" }
+
+  - { category: knowledge-update,
+      label: "ablation:self_consistency-k5",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      self_consistency: true,
+      cost_usd: 0.30, wall_min: 31,
+      note: "self_consistency was null on temporal; cross-category test for KU" }
+
   # Add more cells here as ablations are designed. Examples to seed:
   #
   # - { category: multi-session, label: "ablation:hyde=off", samples: 10,
   #     embedder: { provider: voyage, model: voyage-4 },
   #     hyde: false, cost_usd: 0.06, wall_min: 22 }
-  #
-  # - { category: knowledge-update, label: "ablation:answerer=opus", samples: 10,
-  #     embedder: { provider: voyage, model: voyage-4 },
-  #     answerer: anthropic/claude-opus-4.7,
-  #     cost_usd: 0.30, wall_min: 30 }
