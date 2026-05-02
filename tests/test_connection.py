@@ -108,21 +108,6 @@ class TestNormalizeFlatAuth:
 
 
 class TestParseUrl:
-    def test_arangodb_url(self):
-        result = parse_url("arangodb://root:secret@cloud.example.com:8529/attestor")
-        assert result["url"] == "http://cloud.example.com:8529"
-        assert result["database"] == "attestor"
-        assert result["port"] == 8529
-        assert result["auth"]["username"] == "root"
-        assert result["auth"]["password"] == "secret"
-        assert result["_engine"] == "arangodb"
-
-    def test_arangodb_https(self):
-        result = parse_url("arangodb+https://root:pw@cloud.example.com:8529/db")
-        assert result["url"] == "https://cloud.example.com:8529"
-        assert result["tls"]["verify"] is True
-        assert result["mode"] == "cloud"
-
     def test_postgresql_url(self):
         result = parse_url("postgresql://user:pass@rds.aws.com:5432/mydb")
         assert result["_engine"] == "postgres"
@@ -141,7 +126,7 @@ class TestParseUrl:
         assert result["options"]["timeout"] == "30"
 
     def test_url_encoded_password(self):
-        result = parse_url("arangodb://root:p%40ss%23word@host:8529/db")
+        result = parse_url("postgresql://postgres:p%40ss%23word@host:5432/db")
         assert result["auth"]["password"] == "p@ss#word"
 
     def test_no_port(self):
@@ -182,18 +167,18 @@ class TestTLSConfig:
 
 class TestBuildConfig:
     def test_engine_defaults_applied(self):
-        result = build_config("arangodb", {})
-        assert result["port"] == 8529
-        assert result["auth"]["username"] == "root"
+        result = build_config("postgres", {})
+        assert result["port"] == 5432
+        assert result["auth"]["username"] == "postgres"
 
     def test_user_config_overrides_defaults(self):
-        result = build_config("arangodb", {"database": "custom"})
+        result = build_config("postgres", {"database": "custom"})
         assert result["database"] == "custom"
-        assert result["port"] == 8529  # default preserved
+        assert result["port"] == 5432  # default preserved
 
     def test_cli_overrides_user_config(self):
         result = build_config(
-            "arangodb",
+            "postgres",
             {"database": "user_db"},
             cli_overrides={"database": "cli_db"},
         )
@@ -201,8 +186,8 @@ class TestBuildConfig:
 
     def test_url_string_parsed(self):
         result = build_config(
-            "arangodb",
-            {"url": "arangodb://admin:secret@cloud.host:8529/mydb"},
+            "postgres",
+            {"url": "postgresql://admin:secret@cloud.host:5432/mydb"},
         )
         assert result["database"] == "mydb"
         assert result["auth"]["username"] == "admin"
@@ -210,9 +195,9 @@ class TestBuildConfig:
 
     def test_explicit_fields_override_url(self):
         result = build_config(
-            "arangodb",
+            "postgres",
             {
-                "url": "arangodb://root:urlpw@host:8529/urldb",
+                "url": "postgresql://postgres:urlpw@host:5432/urldb",
                 "database": "explicit_db",
             },
         )
@@ -222,16 +207,16 @@ class TestBuildConfig:
     def test_env_var_in_url(self):
         with patch.dict(os.environ, {"DB_HOST": "cloud.host.com"}):
             result = build_config(
-                "arangodb",
-                {"url": "http://$DB_HOST:8529", "mode": "cloud"},
+                "postgres",
+                {"url": "postgresql://$DB_HOST:5432", "mode": "cloud"},
             )
             # env not resolved yet at this stage (CloudConnection does it)
             assert "DB_HOST" in str(result["url"]) or "cloud.host.com" in str(result["url"])
 
-    def test_postgres_defaults(self):
-        result = build_config("postgres", {})
-        assert result["port"] == 5432
-        assert result["auth"]["username"] == "postgres"
+    def test_neo4j_defaults(self):
+        result = build_config("neo4j", {})
+        assert result["port"] == 7687
+        assert result["auth"]["username"] == "neo4j"
 
     def test_unknown_engine_no_crash(self):
         result = build_config("unknown_engine", {"url": "http://localhost"})
@@ -271,14 +256,14 @@ class TestCloudConnection:
         assert conn.auth.password == "oldpw"
 
     def test_engine_defaults_applied(self):
-        conn = CloudConnection.from_config({}, backend_name="arangodb")
-        assert conn.auth.username == "root"
-        assert conn.port == 8529
+        conn = CloudConnection.from_config({}, backend_name="postgres")
+        assert conn.auth.username == "postgres"
+        assert conn.port == 5432
 
     def test_project_config_overrides_engine_defaults(self):
         conn = CloudConnection.from_config(
             {"auth": {"username": "myuser"}},
-            backend_name="arangodb",
+            backend_name="postgres",
         )
         assert conn.auth.username == "myuser"
 
@@ -292,8 +277,8 @@ class TestCloudConnection:
 
     def test_url_string_to_connection(self):
         conn = CloudConnection.from_config(
-            {"url": "arangodb://admin:pw@host:8529/mydb"},
-            backend_name="arangodb",
+            {"url": "postgresql://admin:pw@host:5432/mydb"},
+            backend_name="postgres",
         )
         assert conn.database == "mydb"
         assert conn.auth.username == "admin"
@@ -306,16 +291,16 @@ class TestCloudConnection:
                 {
                     "mode": "cloud",
                     "database": "myproject",
-                    "url": "https://arango.cloud.com:8529",
+                    "url": "postgresql://db.example.com:5432",
                     "auth": {"password": "$DB_PW"},
                 },
-                backend_name="arangodb",
+                backend_name="postgres",
             )
 
         assert conn.database == "myproject"
-        assert conn.auth.username == "root"       # from engine defaults
-        assert conn.auth.password == "prod_secret" # from env
-        assert conn.url == "https://arango.cloud.com:8529"
+        assert conn.auth.username == "postgres"     # from engine defaults
+        assert conn.auth.password == "prod_secret"  # from env
+        assert conn.url == "postgresql://db.example.com:5432"
 
     def test_postgres_connection(self):
         conn = CloudConnection.from_config(

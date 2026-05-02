@@ -36,11 +36,11 @@ def test_full_flow_postgres(tmp_path: Path) -> None:
     doctor = _cli("doctor", str(store))
     assert "Document Store" in doctor.stdout or "PostgresBackend" in doctor.stdout, doctor.stdout
 
-    _cli("add", str(store), "ArangoDB is a unified graph + document database")
+    _cli("add", str(store), "Pinecone is a managed vector database")
 
     # `search` exercises the FTS path on Postgres.
-    search = _cli("search", str(store), "arango")
-    assert "ArangoDB" in search.stdout, search.stdout
+    search = _cli("search", str(store), "pinecone")
+    assert "Pinecone" in search.stdout, search.stdout
 
     stats = _cli("stats", str(store))
     assert "Total memories: 1" in stats.stdout, stats.stdout

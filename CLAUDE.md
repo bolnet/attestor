@@ -19,13 +19,9 @@ attestor/
     registry.py        -- Backend selection; default = postgres + neo4j
     connection.py      -- Config layering / env resolution
     embeddings.py      -- Provider auto-detect (local / OpenAI / Bedrock / Vertex / Azure)
-    postgres_backend.py-- Postgres (document role; pgvector path remains as opt-in)
+    postgres_backend.py-- Postgres (document role; pgvector embedding column kept in schema)
     pinecone_backend.py-- Pinecone (vector role; auto-detects Local Docker vs Cloud)
     neo4j_backend.py   -- Neo4j + GDS (graph role, PageRank / BFS)
-    arango_backend.py  -- ArangoDB (doc + vector + graph in one, scoped backend only)
-    aws_backend.py     -- DynamoDB + OpenSearch Serverless + Neptune
-    azure_backend.py   -- Cosmos DB DiskANN (+ NetworkX in-process for graph)
-    gcp_backend.py     -- AlloyDB (pgvector + AGE + ScaNN)
     schema.sql
   graph/
     extractor.py       -- Entity/relation extraction (4-output GraphRAG)
@@ -44,21 +40,21 @@ attestor/
     stop.py            -- Session summary on exit
   utils/
     config.py, tokens.py
-  infra/               -- Reference Terraform (AWS, Azure, GCP AlloyDB)
-tests/                 -- Unit tests (live cloud tests env-gated)
+  infra/local/         -- Docker Compose for local Postgres + Pinecone Local + Neo4j
+tests/                 -- Unit tests (live integration tests env-gated)
 ```
 
 ## Prerequisites
 
-Attestor requires three services for the default topology (one per storage role):
+Attestor supports a single canonical stack — one service per storage role:
 
-- **PostgreSQL 16+** -- document role (source of truth for content, tags, entity, ts, provenance, confidence). pgvector remains in the schema as opt-in fallback.
+- **PostgreSQL 16+** -- document role (source of truth for content, tags, entity, ts, provenance, confidence). The schema also carries a `vector(N)` embedding column (kept so writes are self-contained), but the canonical recall path goes through Pinecone.
 - **Pinecone** -- vector role (dense embeddings, per-namespace isolation, cosine search). Pinecone Local (Docker, free) for development; Pinecone Cloud for production.
 - **Neo4j 5+ with GDS** -- graph role (PageRank, multi-hop BFS, Leiden).
 
-Local development can run all three via Docker (`attestor/infra/local/`). Cloud deployments can swap in managed Postgres (Neon, RDS, Cloud SQL, AlloyDB), managed Pinecone (Standard plan starts at $50/mo; free Starter tier = 5M embedding tokens/month), and managed Neo4j (AuraDB) or self-host any of them.
+Local development can run all three via Docker (`attestor/infra/local/`). Cloud deployments can swap in managed Postgres (Neon, RDS, Cloud SQL, AlloyDB-as-PG, Cosmos PG flex), managed Pinecone (Standard plan starts at $50/mo; free Starter tier = 5M embedding tokens/month), and managed Neo4j (AuraDB) or self-host any of them.
 
-Other backends available as opt-in: pgvector (single-process self-contained), ArangoDB, AWS (DynamoDB + OpenSearch + Neptune), Azure (Cosmos DB + NetworkX), GCP (AlloyDB with AGE).
+Alternate backends (ArangoDB, AWS DynamoDB+OpenSearch+Neptune, Azure Cosmos+NetworkX, GCP AlloyDB+AGE+ScaNN, the legacy pgvector single-DB bundle) and the Apache AGE-on-Postgres graph path were removed from the codebase on 2026-05-02 in service of single-stack focus.
 
 ## Development
 
@@ -68,13 +64,13 @@ Other backends available as opt-in: pgvector (single-process self-contained), Ar
 
 ## Architecture
 
-**Three storage roles, every memory persisted across the required backends:**
+**Three storage roles, every memory persisted across all three backends:**
 
-| Role | Purpose | Default Backend | Alternatives |
-|------|---------|-----------------|--------------|
-| Document | Source of truth (content, tags, entity, ts, provenance, confidence) | Postgres | AlloyDB, Arango, DynamoDB, Cosmos |
-| Vector | Dense embedding per memory | **Pinecone** (Local Docker / Cloud) | pgvector, AlloyDB ScaNN, Arango, OpenSearch, Cosmos DiskANN |
-| Graph | Entity nodes + typed edges (`uses`, `authored-by`, `supersedes`) | Neo4j (GDS) | AGE (AlloyDB), Arango, Neptune, NetworkX (Azure) |
+| Role | Purpose | Backend |
+|------|---------|---------|
+| Document | Source of truth (content, tags, entity, ts, provenance, confidence) | Postgres |
+| Vector | Dense embedding per memory | Pinecone (Local Docker / Cloud) |
+| Graph | Entity nodes + typed edges (`uses`, `authored-by`, `supersedes`) | Neo4j (GDS) |
 
 Default embedder is **Pinecone Inference `llama-text-embed-v2`** (NVIDIA-hosted, 1024-D) — matches the index dim and pairs naturally with the Pinecone vector store. Voyage / OpenAI / Ollama remain as opt-in providers via `attestor/store/embeddings.py`.
 

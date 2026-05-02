@@ -175,24 +175,3 @@ class TestPostgresLiveVector:
             assert ids.index(mid1) < ids.index(mid2)
 
 
-class TestPostgresLiveGraphDisabled:
-    """Verify graph methods raise NotImplementedError when AGE is unavailable."""
-
-    def test_age_not_available(self, backend):
-        assert backend._has_age is False
-
-    def test_add_entity_raises(self, backend):
-        with pytest.raises(NotImplementedError, match="Apache AGE"):
-            backend.add_entity("test")
-
-    def test_add_relation_raises(self, backend):
-        with pytest.raises(NotImplementedError, match="Apache AGE"):
-            backend.add_relation("a", "b")
-
-    def test_get_related_raises(self, backend):
-        with pytest.raises(NotImplementedError, match="Apache AGE"):
-            backend.get_related("test")
-
-    def test_graph_stats_raises(self, backend):
-        with pytest.raises(NotImplementedError, match="Apache AGE"):
-            backend.graph_stats()

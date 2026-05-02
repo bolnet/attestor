@@ -20,36 +20,18 @@ class BackendConflictError(Exception):
 
 
 BACKEND_REGISTRY: dict[str, dict[str, Any]] = {
-    "arangodb": {
-        "module": "attestor.store.arango_backend",
-        "class": "ArangoBackend",
-        "roles": {"document", "vector", "graph"},
-        "init_style": "config",
-    },
     "postgres": {
         "module": "attestor.store.postgres_backend",
         "class": "PostgresBackend",
-        # Document role only in the default canonical stack — vector
-        # belongs to Pinecone and graph to Neo4j. The legacy single-DB
-        # setup (Postgres holding doc + pgvector) is registered
-        # separately as "pgvector" below.
+        # Document role only — vector belongs to Pinecone and graph to
+        # Neo4j in the canonical (and only) supported stack.
         "roles": {"document"},
-        "init_style": "config",
-    },
-    "pgvector": {
-        "module": "attestor.store.postgres_backend",
-        "class": "PostgresBackend",
-        # Legacy bundle — one Postgres instance holds both document
-        # and vector via pgvector. Use when you don't want to run a
-        # separate Pinecone (e.g. fully self-contained dev / CI).
-        "roles": {"document", "vector"},
         "init_style": "config",
     },
     "pinecone": {
         "module": "attestor.store.pinecone_backend",
         "class": "PineconeBackend",
-        # Vector-only. Pair with `postgres` (doc) + `neo4j` (graph)
-        # for the canonical PG+Pinecone+Neo4j stack.
+        # Vector role. Paired with `postgres` (doc) + `neo4j` (graph).
         "roles": {"vector"},
         "init_style": "config",
     },
@@ -57,24 +39,6 @@ BACKEND_REGISTRY: dict[str, dict[str, Any]] = {
         "module": "attestor.store.neo4j_backend",
         "class": "Neo4jBackend",
         "roles": {"graph"},
-        "init_style": "config",
-    },
-    "gcp": {
-        "module": "attestor.store.gcp_backend",
-        "class": "GCPBackend",
-        "roles": {"document", "vector", "graph"},
-        "init_style": "config",
-    },
-    "azure": {
-        "module": "attestor.store.azure_backend",
-        "class": "AzureBackend",
-        "roles": {"document", "vector", "graph"},
-        "init_style": "config",
-    },
-    "aws": {
-        "module": "attestor.store.aws_backend",
-        "class": "AWSBackend",
-        "roles": {"document", "vector", "graph"},
         "init_style": "config",
     },
 }
@@ -141,7 +105,7 @@ def instantiate_backend(
         Layer 3+: backend_config (project config + CLI overrides)
 
     Args:
-        backend_name: Registry key (e.g., "postgres", "neo4j", "arangodb").
+        backend_name: Registry key — one of "postgres", "pinecone", "neo4j".
         store_path: Path Attestor uses for side-car files (certs, etc.).
         backend_config: Config dict for backend (layers 3-5 merged).
 

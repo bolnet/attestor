@@ -80,15 +80,16 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         # Docker manager (lazy, only needed for container-based backends)
         self._docker = None
 
-        # Track instantiated backends so multi-role backends (e.g., ArangoDB)
-        # reuse the same instance
+        # Track instantiated backends so the same backend isn't constructed
+        # twice across roles (defensive — the canonical stack assigns one
+        # backend per role, so this only matters if a future config maps the
+        # same backend to multiple roles).
         _instances: dict[str, Any] = {}
 
         def _get_or_create(backend_name: str) -> Any:
             if backend_name in _instances:
                 return _instances[backend_name]
             bcfg = backend_configs.get(backend_name, {})
-            self._ensure_docker(backend_name, bcfg)
             instance = _reg.instantiate_backend(backend_name, self.path, bcfg)
             _instances[backend_name] = instance
             return instance
@@ -283,31 +284,6 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
 
     def __exit__(self, *args):
         self.close()
-
-    def _ensure_docker(self, backend_name: str, bcfg: dict[str, Any]) -> None:
-        """Start a Docker container for backends that require one.
-
-        Docker auto-management is opt-in: requires bcfg["docker"] = True.
-        Falls back to a no-op if the optional infra module is unavailable.
-        """
-        if bcfg.get("mode") == "cloud" or bcfg.get("url", "").startswith("https://"):
-            return
-        if not bcfg.get("docker"):
-            return
-
-        # Opt-in user said docker=true — propagate install instructions if the
-        # extra isn't installed rather than silently no-op-ing.
-        from attestor.infra.docker import DockerManager
-
-        if self._docker is None:
-            self._docker = DockerManager()
-        docker_images = {
-            "arangodb": ("arangodb:3.12", 8529, {"ARANGO_NO_AUTH": "1"}),
-        }
-        if backend_name in docker_images:
-            image, default_port, env = docker_images[backend_name]
-            port = bcfg.get("port", default_port)
-            self._docker.ensure_running(backend_name, image, port, env)
 
     # -- v4 round-level conversation ingest (Phase 3.5) --
 

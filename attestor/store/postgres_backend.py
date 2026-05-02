@@ -1,19 +1,14 @@
-"""PostgreSQL backend — document + vector (pgvector) + graph (Apache AGE) in one instance.
+"""PostgreSQL backend — document role for the canonical PG+Pinecone+Neo4j stack.
 
-Public class composes three role mixins:
+Public class composes two role mixins:
 
     _PostgresDocumentMixin   — memories table CRUD (source of truth)
-    _PostgresVectorMixin     — pgvector embedding column + cosine search
-    _PostgresGraphMixin      — Apache AGE Cypher (PageRank-free; AGE/PG bridge)
+    _PostgresVectorMixin     — embedding column + cosine search (kept so the
+                               schema stays in one place; vector role itself
+                               belongs to Pinecone in the canonical stack)
 
 The mixins are stateless — they reach into ``self._conn``, ``self._v4``,
-``self._embedder``, ``self._has_age``, and the SQL helpers wired up by
-``__init__`` below. This split mirrors the same composition pattern used by
-``azure_backend.py`` and ``aws_backend.py``.
-
-Backward-compat: ``gcp_backend.GCPBackend`` inherits from ``PostgresBackend``
-and calls ``super().__init__(config)``; the public class still owns the
-constructor and the ``ROLES`` ClassVar so that path is unchanged.
+``self._embedder``, and the SQL helpers wired up by ``__init__`` below.
 """
 
 from __future__ import annotations
@@ -26,14 +21,6 @@ import psycopg2
 import psycopg2.extras
 
 from attestor.store._postgres_document import _PostgresDocumentMixin
-from attestor.store._postgres_graph import (
-    _PostgresGraphMixin,
-    _CYPHER_IDENT_RE,  # noqa: F401  (preserved for backwards-compat re-export)
-    _escape_cypher,  # noqa: F401  (preserved for backwards-compat re-export)
-    _parse_agtype,  # noqa: F401  (preserved for backwards-compat re-export)
-    _validate_cypher_identifier,  # noqa: F401  (preserved for backwards-compat re-export)
-    _validate_depth,  # noqa: F401  (preserved for backwards-compat re-export)
-)
 from attestor.store._postgres_vector import _PostgresVectorMixin
 from attestor.store.connection import CloudConnection
 
@@ -43,19 +30,17 @@ logger = logging.getLogger("attestor")
 class PostgresBackend(
     _PostgresDocumentMixin,
     _PostgresVectorMixin,
-    _PostgresGraphMixin,
 ):
-    """Multi-role PostgreSQL backend: document + vector (pgvector) + graph (AGE).
+    """PostgreSQL document-role backend.
 
     Accepts raw config dict. See CloudConnection.from_config() for formats.
 
-    Requires a PostgreSQL instance with pgvector and Apache AGE extensions.
-    Neon (with pgvector enabled) and any self-hosted Postgres that has both
-    extensions loaded are both supported. See tests/test_postgres_live.py
-    for an example live-integration configuration.
+    Requires a PostgreSQL instance with the pgvector extension available
+    (Neon, RDS, Cloud SQL, AlloyDB-as-PG, Cosmos PG flex, or self-hosted
+    PostgreSQL 16+ with pgvector loaded).
     """
 
-    ROLES: ClassVar[set[str]] = {"document", "vector", "graph"}
+    ROLES: ClassVar[set[str]] = {"document"}
 
     def __init__(self, config: dict[str, Any]) -> None:
         self._config = config
@@ -86,7 +71,6 @@ class PostgresBackend(
 
         self._embedder = None  # lazy-init via shared embeddings module
         self._embedding_fn = None  # backward compat for benchmark code
-        self._has_age = False  # set by _init_age()
         # Determine embedding dimension before schema init. Caller may pass
         # `embedding_dim` to skip the embedder probe entirely (useful when
         # the embedder lives in a separate service, in tests that only need
@@ -119,7 +103,6 @@ class PostgresBackend(
                 self._init_schema_v4()
             else:
                 self._init_schema()
-        self._init_age()
 
     # ── Low-level SQL helpers (used by every mixin) ──
 
@@ -222,40 +205,6 @@ class PostgresBackend(
             CREATE INDEX IF NOT EXISTS idx_memories_embedding_hnsw
             ON memories USING hnsw (embedding vector_cosine_ops);
         """)
-
-    def _init_age(self) -> None:
-        """Initialize Apache AGE extension and graph.
-
-        Non-fatal: if AGE is not available (e.g. Neon, Cloud SQL),
-        graph methods will raise NotImplementedError but document+vector still work.
-        """
-        try:
-            self._execute("CREATE EXTENSION IF NOT EXISTS age;")
-            self._age_execute("LOAD 'age';")
-            self._age_execute(
-                "SET search_path = ag_catalog, \"$user\", public;"
-            )
-            # create_graph is not idempotent — catch if exists
-            try:
-                self._age_execute(
-                    "SELECT create_graph('memory_graph');"
-                )
-            except psycopg2.errors.InvalidSchemaName:
-                self._conn.rollback()
-                self._conn.autocommit = True
-            except Exception as e:
-                if "already exists" in str(e):
-                    self._conn.rollback()
-                    self._conn.autocommit = True
-                else:
-                    raise
-            self._has_age = True
-            logger.info("Apache AGE graph initialized")
-        except Exception as e:
-            self._conn.rollback()
-            self._conn.autocommit = True
-            self._has_age = False
-            logger.info("Apache AGE not available — graph role disabled: %s", e)
 
     # ── Lifecycle ──
 

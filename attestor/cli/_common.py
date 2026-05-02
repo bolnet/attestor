@@ -76,8 +76,9 @@ def _add_backend_args(parser: argparse.ArgumentParser) -> None:
     """Add --backend and --backend-config arguments to a subparser."""
     parser.add_argument(
         "--backend", default=None,
-        help="Backend to use: postgres (default), neo4j, arangodb, aws, azure, gcp. "
-             "Overrides default Postgres+Neo4j stack.",
+        help="Backend role override (one of: postgres, pinecone, neo4j). "
+             "The canonical stack assigns postgres → document, "
+             "pinecone → vector, neo4j → graph.",
     )
     parser.add_argument(
         "--backend-config", default=None,

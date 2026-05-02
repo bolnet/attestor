@@ -5,11 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from attestor.store.embeddings import (
-    AzureOpenAIEmbeddingProvider,
-    BedrockEmbeddingProvider,
     EmbeddingProvider,
     OpenAIEmbeddingProvider,
-    VertexAIEmbeddingProvider,
     clear_embedding_cache,
     get_embedding_provider,
 )
@@ -74,18 +71,18 @@ class TestGetEmbeddingProvider:
             provider = get_embedding_provider(preferred="openai")
             assert provider.provider_name == "openai"
 
-    def test_preferred_bedrock_routes_to_bedrock(self):
-        """preferred='bedrock' dispatches to the bedrock helper."""
-        mock_bedrock = MagicMock()
-        mock_bedrock.provider_name = "bedrock"
-        mock_bedrock.dimension = 1024
+    def test_preferred_voyage_routes_to_voyage(self):
+        """preferred='voyage' dispatches to the voyage helper."""
+        mock_voyage = MagicMock()
+        mock_voyage.provider_name = "voyage"
+        mock_voyage.dimension = 1024
 
         with patch.dict(
             "attestor.store.embeddings._PROVIDER_DISPATCH",
-            {"bedrock": lambda: mock_bedrock},
+            {"voyage": lambda: mock_voyage},
         ):
-            provider = get_embedding_provider(preferred="bedrock")
-            assert provider.provider_name == "bedrock"
+            provider = get_embedding_provider(preferred="voyage")
+            assert provider.provider_name == "voyage"
 
     def test_preferred_unavailable_raises_no_fallthrough(self):
         """Preferred provider failing must RAISE — no silent fallthrough.
@@ -95,10 +92,10 @@ class TestGetEmbeddingProvider:
         """
         with patch.dict(
             "attestor.store.embeddings._PROVIDER_DISPATCH",
-            {"bedrock": lambda: None},
+            {"voyage": lambda: None},
         ):
             with pytest.raises(RuntimeError, match="failed to initialize"):
-                get_embedding_provider(preferred="bedrock")
+                get_embedding_provider(preferred="voyage")
 
 
 class TestOpenAIEmbeddingProvider:
@@ -107,27 +104,3 @@ class TestOpenAIEmbeddingProvider:
         assert hasattr(OpenAIEmbeddingProvider, "embed_batch")
         assert hasattr(OpenAIEmbeddingProvider, "dimension")
         assert hasattr(OpenAIEmbeddingProvider, "provider_name")
-
-
-class TestBedrockEmbeddingProvider:
-    def test_class_exists_with_correct_interface(self):
-        assert hasattr(BedrockEmbeddingProvider, "embed")
-        assert hasattr(BedrockEmbeddingProvider, "embed_batch")
-        assert hasattr(BedrockEmbeddingProvider, "dimension")
-        assert hasattr(BedrockEmbeddingProvider, "provider_name")
-
-
-class TestAzureOpenAIEmbeddingProvider:
-    def test_class_exists_with_correct_interface(self):
-        assert hasattr(AzureOpenAIEmbeddingProvider, "embed")
-        assert hasattr(AzureOpenAIEmbeddingProvider, "embed_batch")
-        assert hasattr(AzureOpenAIEmbeddingProvider, "dimension")
-        assert hasattr(AzureOpenAIEmbeddingProvider, "provider_name")
-
-
-class TestVertexAIEmbeddingProvider:
-    def test_class_exists_with_correct_interface(self):
-        assert hasattr(VertexAIEmbeddingProvider, "embed")
-        assert hasattr(VertexAIEmbeddingProvider, "embed_batch")
-        assert hasattr(VertexAIEmbeddingProvider, "dimension")
-        assert hasattr(VertexAIEmbeddingProvider, "provider_name")

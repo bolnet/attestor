@@ -30,8 +30,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY attestor/ attestor/
 
-# Install only what the HTTP + Postgres + Neo4j paths need.
-# --no-deps on attestor itself keeps this image lean (no azure/arango extras).
+# Install only what the HTTP + Postgres + Pinecone + Neo4j paths need.
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir \
         "starlette>=0.27.0" \
