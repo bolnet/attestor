@@ -204,6 +204,7 @@ def run_live(
     *,
     embedder_override: dict[str, Any] | None,
     self_consistency_override: dict[str, Any] | None,
+    parallel: int = 1,
 ) -> None:
     """Execute a fresh bench run and upload as a Braintrust experiment.
 
@@ -240,6 +241,14 @@ def run_live(
 
         store_path = f"lme-{category}-{int(time.time())}"
 
+        # Warm-up: apply schema once with a single AgentMemory so parallel
+        # workers can skip init and avoid AccessExclusiveLock deadlocks on the
+        # catalog when parallel > 1.
+        if parallel > 1:
+            log.info("warming up schema (parallel=%d)…", parallel)
+            AgentMemory(store_path, config=backend_config)
+            backend_config["backend_configs"]["postgres"]["skip_schema_init"] = True
+
         def mem_factory() -> AgentMemory:
             return AgentMemory(store_path, config=backend_config)
 
@@ -249,7 +258,7 @@ def run_live(
         report = asyncio.run(run_async(
             samples=samples,
             mem_factory=mem_factory,
-            parallel=1,
+            parallel=parallel,
             verbose=True,
             output_path=log_path,
         ))
@@ -416,6 +425,8 @@ def main() -> None:
                         help="Live mode override: stack.embedder.model.")
     parser.add_argument("--self-consistency", action="store_true",
                         help="Live mode override: enable self_consistency (k=5, judge_pick).")
+    parser.add_argument("--parallel", type=int, default=1,
+                        help="Live mode: concurrent samples in run_async (default 1).")
     args = parser.parse_args()
 
     if not os.environ.get("BRAINTRUST_API_KEY"):
@@ -455,6 +466,7 @@ def main() -> None:
         args.suffix,
         embedder_override=embedder_override,
         self_consistency_override=sc_override,
+        parallel=args.parallel,
     )
 
 
