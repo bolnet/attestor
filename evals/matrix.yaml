@@ -1,0 +1,70 @@
+# Eval matrix — declarative ablation spec for LME-S benches.
+#
+# Each cell expands into one Braintrust experiment under
+# `attestor-lme-s/lme-<category>:<label>`. The runner (evals/runner.py)
+# reads this file, optionally prints a dry-run cost/wallclock estimate,
+# then invokes evals/braintrust_longmemeval.py once per cell.
+#
+# Scope per `feedback_eval_scope_lme_s_only` + `feedback_lme_s_four_category_split`:
+#   - LME-S only (no LOCOMO/MAB)
+#   - 4 categories, Option B (414 of 500 questions)
+#   - Each category gets its own GOLDEN cell + ablation cells
+
+project: attestor-lme-s
+
+# ── Cell catalog ───────────────────────────────────────────────────────
+# Each cell is one experiment. Add rows to extend ablations.
+# Required keys:
+#   category    — one of {temporal-reasoning, multi-session,
+#                         knowledge-update, single-session-user}
+#   label       — experiment-name suffix (lme-<short-cat>:<label>)
+#   samples     — sample cap (10 = smoke; 30/full per project memory)
+# Optional overrides (set_stack runtime, YAML untouched):
+#   embedder    — { provider, model }
+#   self_consistency — bool (k=5, voter=judge_pick when true)
+#
+# Cost estimates assume parallel=1 and the canonical answerer gpt-5.5
+# at reasoning_effort=high. Adjust when running larger sample counts.
+
+cells:
+  # ── GOLDEN baselines (one per category, all 10q smoke) ─────────────
+  - { category: temporal-reasoning,  label: GOLDEN, samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      cost_usd: 0.06, wall_min: 22 }
+  - { category: multi-session,       label: GOLDEN, samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      cost_usd: 0.06, wall_min: 22 }
+  - { category: knowledge-update,    label: GOLDEN, samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      cost_usd: 0.06, wall_min: 22 }
+  - { category: single-session-user, label: GOLDEN, samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      cost_usd: 0.06, wall_min: 22 }
+
+  # ── Embedder ablation (temporal only — extend per category as needed)
+  - { category: temporal-reasoning,
+      label: "ablation:embedder=pinecone-llama",
+      samples: 10,
+      embedder: { provider: pinecone, model: llama-text-embed-v2 },
+      cost_usd: 0.06, wall_min: 24,
+      note: "blocked by Pinecone Inference monthly cap until 2026-06-01" }
+
+  # ── Self-consistency ablation (already shown null on temporal) ─────
+  - { category: temporal-reasoning,
+      label: "ablation:self_consistency-k5",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      self_consistency: true,
+      cost_usd: 0.30, wall_min: 31,
+      note: "memory says null on this slice; included for cross-category test" }
+
+  # Add more cells here as ablations are designed. Examples to seed:
+  #
+  # - { category: multi-session, label: "ablation:hyde=off", samples: 10,
+  #     embedder: { provider: voyage, model: voyage-4 },
+  #     hyde: false, cost_usd: 0.06, wall_min: 22 }
+  #
+  # - { category: knowledge-update, label: "ablation:answerer=opus", samples: 10,
+  #     embedder: { provider: voyage, model: voyage-4 },
+  #     answerer: anthropic/claude-opus-4.7,
+  #     cost_usd: 0.30, wall_min: 30 }

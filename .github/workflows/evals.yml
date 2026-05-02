@@ -188,3 +188,46 @@ jobs:
           name: bench-summaries
           path: bench-output/*_summary.json
           if-no-files-found: warn
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Braintrust LME-S regression gate (Phase C). Runs on every PR to detect
+  # accuracy slip on the four LME-S category GOLDEN experiments. Bootstrap-
+  # permissive: passes when no <label>-baseline experiment exists yet.
+  # Needs BRAINTRUST_API_KEY in repo secrets; the job is skipped silently
+  # if the secret is missing so forks don't fail their CI.
+  # ────────────────────────────────────────────────────────────────────────
+  braintrust-gate:
+    name: Braintrust LME-S regression gate
+    runs-on: ubuntu-latest
+    needs: evals-unit
+    if: ${{ secrets.BRAINTRUST_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install project + eval extras
+        run: poetry install --with dev --extras eval
+
+      - name: Run Braintrust gate
+        env:
+          BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+        run: |
+          mkdir -p bench-output
+          poetry run python -m evals.braintrust_gate \
+            --project attestor-lme-s \
+            --report-out bench-output/braintrust-gate.json
+
+      - name: Upload Braintrust gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: braintrust-gate-report
+          path: bench-output/braintrust-gate.json
+          if-no-files-found: warn
