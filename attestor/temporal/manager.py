@@ -30,6 +30,90 @@ _WS_PATTERN = re.compile(r"\s+")
 # Trivially short memories (e.g. "fact 1") are too noisy to safely group.
 _MIN_FALLBACK_LEN = 12
 
+# Stopwords pruned from auto-topic extraction. Kept tiny on purpose — false
+# negatives (extracted topic too generic) are recoverable, false positives
+# (over-eager auto-supersede) are not.
+_STOP = frozenset({
+    "i", "im", "me", "my", "mine", "myself", "you", "your", "yours", "we",
+    "our", "ours", "us", "the", "a", "an", "this", "that", "these", "those",
+    "is", "am", "are", "was", "were", "be", "been", "being", "have", "has",
+    "had", "do", "does", "did", "for", "from", "to", "of", "on", "in", "at",
+    "by", "with", "and", "or", "but", "if", "then", "than", "as", "so",
+    "user", "assistant", "now", "just", "really", "very", "quite",
+    "today", "yesterday", "tomorrow",
+})
+
+# Pattern for unit-bearing values that mark "value-context" memories
+# eligible for auto-topic extraction. Time-of-day / duration formats
+# (HH:MM, MM:SS) are included — KU has running times like "25:50".
+_VALUE_CONTEXT_PATTERN = re.compile(
+    r"(?:[$€£¥])\s*[\d,]+(?:\.\d+)?[kmbt]?"        # currency
+    r"|"
+    r"\b\d+:\d{2}\b"                                 # HH:MM / MM:SS
+    r"|"
+    r"\b[\d,]+(?:\.\d+)?\s*"
+    r"(?:%|percent|kg|lbs?|mi(?:les)?|km|m|cm|mm|"
+    r"hours?|hrs?|days?|years?|yrs?|months?|weeks?|wks?|"
+    r"times?|x/(?:day|week|month)|/(?:day|week|month))\b",
+    flags=re.IGNORECASE,
+)
+_TOKEN_PATTERN = re.compile(r"[A-Za-z][A-Za-z\-']{3,}")
+
+
+def _stem(token: str) -> str:
+    """Conservative suffix stripping. Catches the common
+    inflection ('approved' / 'approval' → 'approv') that breaks naive
+    string equality on near-duplicate facts. Not a full stemmer — we
+    deliberately leave longer suffixes alone to avoid over-collapsing."""
+    t = token.lower().rstrip("'").strip("-")
+    for suf in ("ations", "ation", "ings", "ing", "ies", "ied", "ed",
+                "es", "ly", "al", "s"):
+        if t.endswith(suf) and len(t) - len(suf) >= 4:
+            return t[: -len(suf)]
+    return t
+
+
+_AUTO_TOPK = 5
+
+
+def _auto_topics(content: str) -> set[str]:
+    """Return the top-K stemmed tokens from a value-context memory,
+    ranked by positional proximity to the unit-bearing value.
+
+    Returns an empty set when the content has no unit-bearing value
+    (so the memory isn't eligible for auto-topic supersession) or when
+    no meaningful tokens survive stop-word + length filtering.
+
+    Why a set instead of one token: positional proximity alone picks
+    different anchors for paraphrased facts (m1 → "wells", m2 → "bumped"
+    for Wells Fargo). Using top-K and matching on ANY shared element
+    catches the load-bearing noun ("preapprov" appears in both top-Ks)
+    without needing semantic understanding.
+    """
+    if not _VALUE_CONTEXT_PATTERN.search(content):
+        return set()
+    s = _DATE_TAG_PATTERN.sub("", content.lower())
+    value_spans = [m.span() for m in _VALUE_CONTEXT_PATTERN.finditer(s)]
+    if not value_spans:
+        return set()
+    tokens: list[tuple[int, str]] = []
+    for m in _TOKEN_PATTERN.finditer(s):
+        tok = m.group(0)
+        if tok in _STOP or _stem(tok) in _STOP:
+            continue
+        tokens.append((m.start(), _stem(tok)))
+    if not tokens:
+        return set()
+
+    def _dist_to_value(pos: int) -> int:
+        return min(
+            min(abs(pos - vs), abs(pos - ve))
+            for vs, ve in value_spans
+        )
+
+    tokens.sort(key=lambda p: _dist_to_value(p[0]))
+    return {tok for _, tok in tokens[:_AUTO_TOPK]}
+
 
 def _content_skeleton(content: str) -> str:
     """Lower-case, strip unit-bearing numeric values + inline date tags,
@@ -126,21 +210,36 @@ class TemporalManager:
             if len(new_memory.content.strip()) < _MIN_FALLBACK_LEN:
                 return []
             new_skel = _content_skeleton(new_memory.content)
-            if new_skel == new_memory.content.strip().lower():
-                # No values were stripped → these are distinct facts, not
-                # updates to the same fact. Skip.
-                return []
-            candidates = self.store.list_memories(
+            new_topics = _auto_topics(new_memory.content)
+            same_category = self.store.list_memories(
                 status="active",
                 category=new_memory.category,
                 namespace=new_memory.namespace,
                 limit=100_000,
             )
-            candidates = [
-                c for c in candidates
-                if not c.entity
-                and _content_skeleton(c.content) == new_skel
-            ]
+            # Pass 1 — skeleton match. Same template, different
+            # unit-bearing value. Disabled when no values were actually
+            # stripped (skeleton == content), since two distinct facts
+            # without values shouldn't be auto-collapsed.
+            candidates: list[Memory] = []
+            if new_skel != new_memory.content.strip().lower():
+                candidates = [
+                    c for c in same_category
+                    if not c.entity
+                    and _content_skeleton(c.content) == new_skel
+                ]
+            # Pass 2 — auto-topic match. Cross-template paraphrases
+            # anchored on a noun near a unit-bearing value. Two memories
+            # share a topic when their top-K topic sets intersect — e.g.
+            # m1 = {"wells", "fargo", "preapprov"}, m2 = {"bump",
+            # "preapprov", ...}: the shared "preapprov" closes the loop
+            # without needing semantic understanding.
+            if not candidates and new_topics:
+                candidates = [
+                    c for c in same_category
+                    if not c.entity
+                    and _auto_topics(c.content) & new_topics
+                ]
 
         contradictions = []
         for existing in candidates:

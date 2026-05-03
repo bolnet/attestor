@@ -144,29 +144,25 @@ def test_event_date_round_trips_through_store(mem) -> None:
     )
 
 
-# ── Gap 5 — multi-session same-date, entity-NULL (the actual LME failure) ─
+# ── Gap 5 — multi-session same-date, entity-NULL, cross-template ─────────
 
 
 @pytest.mark.integration
-@pytest.mark.xfail(
-    strict=True,
-    reason="LME sample 852ce960 cross-template paraphrase: the LME extractor "
-    "wrote both pre-approval memories WITHOUT an entity tag AND in different "
-    "wordings, so neither the entity path nor the content-skeleton fallback "
-    "fires. We TRIED a vector-similarity fallback on 2026-05-03 but the "
-    "Pinecone llama-text-embed-v2 distances don't separate the cases:\n"
-    "    - 'Likes Python' vs 'Likes JavaScript'                   d=0.086\n"
-    "    - 'I'm pre-approved for $350k from Wells Fargo'\n"
-    "        vs 'My pre-approval was bumped to $400k'             d=0.229\n"
-    "Structurally-similar preferences are CLOSER than semantically-equivalent "
-    "paraphrases, so no single threshold works. Closing this needs entity "
-    "auto-tagging at ingest (extract amount/value/role-bearing entities) "
-    "OR an LLM-judged contradiction step. Both are real lifts deferred to "
-    "a follow-up PR.",
-)
 def test_multi_session_same_date_supersession_no_entity(mem) -> None:
     """The literal LME 852ce960 production scenario — no entity, same date,
-    cross-template paraphrase."""
+    cross-template paraphrase. Closes via the auto-topic top-K
+    intersection: m1's topic set {"wells", "fargo", "preapprov"} and m2's
+    {"bump", "preapprov"} share "preapprov", which anchors them as the
+    same fact for supersession.
+
+    Anti-regression:
+    - vector-similarity won't work here (measured 2026-05-03: structurally
+      similar preferences are CLOSER than semantic paraphrases on
+      llama-text-embed-v2; see project_lme_ku_semantic_threshold_null
+      memory). Don't replace top-K intersection with cosine search.
+    - "Likes Python" vs "Likes JavaScript" must NOT trigger this — covered
+      by ``test_no_contradiction_without_entity`` and Gap 6 below.
+    """
     cat = f"conversation_{_tag()}"
     mem.add(
         "[2023-08-11] User: I'm pre-approved for $350,000 from Wells Fargo",
