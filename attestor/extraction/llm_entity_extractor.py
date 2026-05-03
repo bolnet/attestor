@@ -234,11 +234,26 @@ def _resolve_client(model: str, api_key: str | None) -> tuple[Any, str]:
 # future concern; the prompt is cheap enough that we don't need it
 # for the LME-S benches motivating this PR.
 
-_CACHE: dict[str, tuple[list[ExtractedEntity], list[ExtractedRelation]]] = {}
+# Cap the cache to bound memory in long-lived service processes.
+# OrderedDict.popitem(last=False) drops the oldest entry on overflow,
+# giving FIFO eviction with O(1) lookup. Bench runs touch O(few-thousand)
+# unique chunks; production traffic hits this much harder so the cap
+# matters there.
+from collections import OrderedDict
+
+_CACHE_MAX_SIZE = int(__import__("os").environ.get("ATTESTOR_ENTITY_CACHE_MAX", "2048"))
+_CACHE: OrderedDict[str, tuple[list[ExtractedEntity], list[ExtractedRelation]]] = OrderedDict()
 
 
 def _content_hash(content: str) -> str:
     return hashlib.sha256(content.strip().encode()).hexdigest()
+
+
+def _cache_put(key: str, value: tuple[list[ExtractedEntity], list[ExtractedRelation]]) -> None:
+    """Insert into the LRU-ish cache with FIFO eviction at the cap."""
+    _CACHE[key] = value
+    while len(_CACHE) > _CACHE_MAX_SIZE:
+        _CACHE.popitem(last=False)
 
 
 def _reset_cache() -> None:
@@ -412,7 +427,7 @@ def extract_with_llm(
     # Cache the result (even when empty — repeated calls on the same
     # content shouldn't keep retrying a model that produced empty
     # output for legitimate reasons).
-    _CACHE[chash] = (entities, relations)
+    _cache_put(chash, (entities, relations))
     return entities, relations
 
 

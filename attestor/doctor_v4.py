@@ -254,7 +254,16 @@ def run_v4_doctor(conn: Any) -> V4DoctorReport:
                 name=name, status="skip",
                 detail=f"check raised {type(exc).__name__}: {exc}",
             ))
+    # Any non-ok result (including "skip" — inconclusive) means the
+    # report can't certify health. Operators running on a low-privilege
+    # connection see "skip" entries and know to investigate rather
+    # than assume the schema is validated.
     healthy = all(r.status == "ok" for r in results)
+    if any(r.status == "skip" for r in results):
+        logger.warning(
+            "v4 doctor: %d check(s) returned 'skip' (inconclusive)",
+            sum(1 for r in results if r.status == "skip"),
+        )
     return V4DoctorReport(healthy=healthy, checks=tuple(results))
 
 

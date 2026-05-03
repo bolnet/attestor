@@ -66,7 +66,7 @@ class ConsistencyResult:
     in which case ``voter`` is reported as ``"majority"``.
     """
 
-    samples: list[str]                       # all K raw answers (post-strip)
+    samples: tuple[str, ...]                 # all K raw answers (post-strip)
     chosen: str                              # the elected final answer
     voter: str                               # "majority" | "judge_pick"
     vote_breakdown: dict[str, int] = field(default_factory=dict)
@@ -290,7 +290,7 @@ def answer_with_self_consistency(
         )
 
     if k <= 0:
-        return ConsistencyResult(samples=[], chosen="", voter=voter, vote_breakdown={})
+        return ConsistencyResult(samples=(), chosen="", voter=voter, vote_breakdown={})
 
     samples: list[str] = []
     for i in range(k):
@@ -315,7 +315,7 @@ def answer_with_self_consistency(
     )
 
     if not samples:
-        return ConsistencyResult(samples=[], chosen="", voter=voter, vote_breakdown={})
+        return ConsistencyResult(samples=(), chosen="", voter=voter, vote_breakdown={})
 
     if voter == "judge_pick" and judge_model:
         try:
@@ -331,7 +331,7 @@ def answer_with_self_consistency(
                 voter="judge_pick", chosen=chosen, breakdown=breakdown,
             )
             return ConsistencyResult(
-                samples=samples, chosen=chosen,
+                samples=tuple(samples), chosen=chosen,
                 voter="judge_pick", vote_breakdown=breakdown,
             )
         except Exception as exc:  # noqa: BLE001 — fall back to majority
@@ -344,7 +344,7 @@ def answer_with_self_consistency(
         voter="majority", chosen=chosen, breakdown=breakdown,
     )
     return ConsistencyResult(
-        samples=samples, chosen=chosen,
+        samples=tuple(samples), chosen=chosen,
         voter="majority", vote_breakdown=breakdown,
     )
 
@@ -463,7 +463,7 @@ async def answer_with_self_consistency_async(
         )
 
     if k <= 0:
-        return ConsistencyResult(samples=[], chosen="", voter=voter, vote_breakdown={})
+        return ConsistencyResult(samples=(), chosen="", voter=voter, vote_breakdown={})
 
     # K samples in parallel, BUT bounded by ``concurrency``. Unbounded
     # K-fanout (e.g. K=20) would spike provider rate limits and cause
@@ -498,7 +498,7 @@ async def answer_with_self_consistency_async(
     )
 
     if not samples:
-        return ConsistencyResult(samples=[], chosen="", voter=voter, vote_breakdown={})
+        return ConsistencyResult(samples=(), chosen="", voter=voter, vote_breakdown={})
 
     if voter == "judge_pick" and judge_model:
         try:
@@ -518,7 +518,7 @@ async def answer_with_self_consistency_async(
                 voter="judge_pick", chosen=chosen, breakdown=breakdown,
             )
             return ConsistencyResult(
-                samples=samples, chosen=chosen,
+                samples=tuple(samples), chosen=chosen,
                 voter="judge_pick", vote_breakdown=breakdown,
             )
         except Exception as exc:  # noqa: BLE001
@@ -531,6 +531,6 @@ async def answer_with_self_consistency_async(
         voter="majority", chosen=chosen, breakdown=breakdown,
     )
     return ConsistencyResult(
-        samples=samples, chosen=chosen,
+        samples=tuple(samples), chosen=chosen,
         voter="majority", vote_breakdown=breakdown,
     )

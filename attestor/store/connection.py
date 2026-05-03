@@ -383,7 +383,10 @@ class CloudConnection:
     mode: str = "cloud"
     url: str = "postgresql://localhost:5432"
     database: str = "attestor"
-    port: int = 8529
+    # Default to the Postgres port — was 8529 (ArangoDB), removed
+    # 2026-05-02. Pinecone has no port and Neo4j is 7687, neither of
+    # which makes sense as a generic CloudConnection default.
+    port: int = 5432
     auth: AuthConfig = field(default_factory=AuthConfig)
     tls: TLSConfig = field(default_factory=TLSConfig)
     extra: dict[str, Any] = field(default_factory=dict)

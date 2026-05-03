@@ -53,8 +53,13 @@ def detect_mode(env: dict | None = None) -> AttestorMode:
             return AttestorMode(explicit.lower())
         except ValueError:
             # Invalid override — fall through to SOLO rather than crash.
-            # An invalid env var shouldn't take down a fresh install.
-            pass
+            # An invalid env var shouldn't take down a fresh install,
+            # but the operator should see that their explicit setting
+            # was ignored.
+            import logging
+            logging.getLogger(__name__).warning(
+                "Invalid ATTESTOR_MODE=%r; falling back to SOLO", explicit,
+            )
 
     if src.get("ATTESTOR_AUTH_PROVIDER"):
         return AttestorMode.HOSTED

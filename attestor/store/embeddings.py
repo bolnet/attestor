@@ -331,8 +331,9 @@ def _try_voyage() -> EmbeddingProvider | None:
 def _try_pinecone_inference() -> EmbeddingProvider | None:
     """Try Pinecone Inference (cloud-only — Local Docker doesn't serve it).
 
-    Activated by ATTESTOR_PREFER_EMBEDDER=pinecone OR by configure_embedder
-    setting PINECONE_EMBEDDING_MODEL when stack.embedder.provider="pinecone".
+    Activated when ``stack.embedder.provider == "pinecone"`` in
+    ``configs/attestor.yaml``. The earlier ``ATTESTOR_PREFER_EMBEDDER``
+    env var was removed 2026-05-01 — YAML is the only switch.
     Configurable via:
         PINECONE_API_KEY                   required (cloud key from app.pinecone.io)
         PINECONE_EMBEDDING_MODEL           default ``llama-text-embed-v2``

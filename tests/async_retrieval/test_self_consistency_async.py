@@ -195,7 +195,7 @@ async def test_self_consistency_async_handles_all_failures():
         k=5, temperature=0.7,
     )
 
-    assert result.samples == []
+    assert result.samples == ()
     assert result.chosen == ""
 
 
@@ -213,6 +213,6 @@ async def test_self_consistency_async_k_zero_returns_empty():
         k=0, temperature=0.7,
     )
 
-    assert result.samples == []
+    assert result.samples == ()
     assert result.chosen == ""
     client.chat.completions.create.assert_not_called()

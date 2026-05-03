@@ -163,7 +163,7 @@ def test_k_zero_returns_empty_string() -> None:
         temperature=0.7,
     )
     assert result.chosen == ""
-    assert result.samples == []
+    assert result.samples == ()
     # No LLM calls should fire when k=0.
     client.chat.completions.create.assert_not_called()
 
@@ -317,7 +317,7 @@ def test_judge_pick_invalid_index_falls_back_to_majority() -> None:
 def test_consistency_result_is_frozen_dataclass() -> None:
     """ConsistencyResult is immutable per coding-style.md."""
     result = ConsistencyResult(
-        samples=["a", "b"], chosen="a", voter="majority", vote_breakdown={"a": 2},
+        samples=("a", "b"), chosen="a", voter="majority", vote_breakdown={"a": 2},
     )
     with pytest.raises((AttributeError, Exception)):  # frozen dataclass error
         result.chosen = "x"  # type: ignore[misc]
