@@ -41,9 +41,14 @@ class _PostgresDocumentMixin:
             "status": memory.status,
             "metadata": json.dumps(memory.metadata),
         }
-        # source_span on the v4 schema is INT4RANGE [start, end). psycopg2
-        # serializes a Python tuple/list of two ints into a Range literal
-        # via the explicit cast in the INSERT.
+        # source_span on the v4 schema is INT4RANGE [start, end).
+        # psycopg2 serializes a Python tuple/list of two ints into a
+        # Range literal via the explicit cast in the INSERT.
+        # SECURITY: ``int()`` is the injection guard here — span comes
+        # from the Memory dataclass and we want to trust it, but the
+        # explicit int() cast prevents any future caller who supplies
+        # span values from an untrusted source from injecting SQL
+        # through the f-string.
         span = memory.source_span
         if isinstance(span, (list, tuple)) and len(span) == 2:
             source_span_literal = f"[{int(span[0])},{int(span[1])})"

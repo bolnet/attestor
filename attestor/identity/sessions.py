@@ -206,10 +206,16 @@ class SessionRepo:
                     (session_id,),
                 )
             self._conn.commit()
-        except Exception:
-            # If the episodes table is older (no consolidation_state),
-            # silently skip — the lifecycle transition itself succeeded.
-            pass
+        except Exception as e:  # noqa: BLE001
+            # If the episodes table is older (no consolidation_state)
+            # the schema mismatch is benign and the lifecycle transition
+            # already succeeded — but a real DB error (constraint
+            # violation, network failure) would also land here. Log at
+            # WARNING so silent data-quality regressions become visible.
+            import logging
+            logging.getLogger(__name__).warning(
+                "episode re-queue failed for session %s: %s", session_id, e,
+            )
         return Session.from_row(dict(row))
 
     def archive(self, session_id: str) -> Session | None:

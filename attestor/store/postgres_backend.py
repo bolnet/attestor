@@ -195,6 +195,12 @@ class PostgresBackend(
             CREATE EXTENSION IF NOT EXISTS vector;
         """)
         dim = self._embedding_dim
+        # DDL note: the f-string here is safe because every interpolation
+        # is a server-controlled integer (``dim``) — psycopg2.sql is
+        # overkill for a fixed CREATE TABLE template, but if a future
+        # contributor adds another `{...}` slot they must still keep
+        # the value compile-time-only. NEVER interpolate caller-supplied
+        # data into this SQL.
         with self._conn.cursor() as cur:
             cur.execute(f"""
                 CREATE TABLE IF NOT EXISTS memories (

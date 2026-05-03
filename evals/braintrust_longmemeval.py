@@ -179,13 +179,18 @@ def upload_from_json(json_path: Path, category: str, experiment_suffix: str) -> 
 
     log.info("uploading %d rows as experiment %s/%s …",
              len(rows), PROJECT, experiment_name)
+    # Build a single qid → row dict so the per-row task lookup is O(1).
+    # Pre-fix this was a linear scan inside ``Eval``'s task callback,
+    # giving O(N²) cost (N=133 → ~17k iterations). Negligible at the
+    # current scale, expensive once N grows.
+    rows_by_qid: dict[str, dict[str, Any]] = {r["_qid"]: r for r in rows}
     Eval(
         PROJECT,
         data=lambda: [
             {"input": r["input"], "expected": r["expected"], "metadata": r["metadata"]}
             for r in rows
         ],
-        task=lambda row_input: _row_lookup(rows, row_input)["output"],
+        task=lambda row_input: rows_by_qid[row_input["question_id"]]["output"],
         scores=_build_judge_scorers(judge_names, rows),
         experiment_name=experiment_name,
         metadata=metadata,
@@ -498,6 +503,19 @@ def main() -> None:
     parser.add_argument("--parallel", type=int, default=1,
                         help="Live mode: concurrent samples in run_async (default 1).")
     args = parser.parse_args()
+
+    # Voyage-4 ceiling on parallel calls before hitting the 2000 RPM
+    # cap (per project_lme_voyage_parallel_ceiling_20260502.md).
+    # parallel>4 produced 67% sample errors at the bench scale we run.
+    if args.parallel > 4:
+        import sys as _sys
+        print(
+            f"WARN: --parallel={args.parallel} exceeds the Voyage-4 "
+            "stable ceiling of 4 (>4 hit 2000 RPM and 67% sample "
+            "errors in past runs). Pass --parallel<=4 unless you're "
+            "running an embedder without that cap.",
+            file=_sys.stderr,
+        )
 
     if not os.environ.get("BRAINTRUST_API_KEY"):
         raise SystemExit(

@@ -762,6 +762,10 @@ async def run_async(
 
     semaphore = asyncio.Semaphore(max(1, parallel))
     ordered_reports: list[SampleReport | None] = [None] * len(samples)
+    # Single-element list as a writable closure cell for the inner
+    # _process_sample function; tracks completed samples without the
+    # O(N) scan that was previously done twice per completion.
+    nonlocal_done = [0]
 
     async def _guarded(idx: int, sample: LMESample) -> None:
         async with semaphore:
@@ -806,19 +810,24 @@ async def run_async(
                     retrieved_count=0,
                 )
             ordered_reports[idx] = report
+            # Maintain a counter alongside ordered_reports so we don't
+            # have to scan the full list O(N) twice per completed sample
+            # (was O(N²) total over the run — harmless at 133q but a
+            # poor pattern). The counter is updated under the gather
+            # task scheduler which is single-threaded by definition.
+            nonlocal_done[0] += 1
+            done = nonlocal_done[0]
             if verbose:
                 verdicts = ", ".join(
                     f"{jm.split('/')[-1]}={report.judgments[jm]['label']}"
                     for jm in judge_models
                 )
-                done = sum(1 for r in ordered_reports if r is not None)
                 print(
                     f"[{done}/{len(samples)}] {sample.question_id} "
                     f"[{sample.question_type}] → {verdicts}",
                     flush=True,
                 )
             if progress_callback is not None:
-                done = sum(1 for r in ordered_reports if r is not None)
                 progress_callback(done, len(samples), report)
 
     await asyncio.gather(

@@ -158,12 +158,17 @@ class MemoryClient:
         return [Memory.from_row(item) for item in data]
 
     def get(self, memory_id: str) -> Memory | None:
-        """Get a specific memory by ID."""
+        """Get a specific memory by ID. Returns None on 404; re-raises
+        on any other HTTP / network error so callers can distinguish
+        "memory does not exist" from "the service is unreachable."
+        """
         try:
             data = self._get(f"/memory/{memory_id}")
             return Memory.from_row(data)
-        except (urllib.error.HTTPError, RuntimeError):
-            return None
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return None
+            raise
 
     def timeline(self, entity: str) -> list[Memory]:
         """Get chronological history for an entity."""

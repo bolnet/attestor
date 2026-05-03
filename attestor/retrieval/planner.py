@@ -111,7 +111,7 @@ def _resolve_client(model: str, api_key: str | None = None) -> tuple[Any, str]:
         pool = _get_pool()
         head, sep, tail = model.partition("/")
         if sep and head in pool.providers:
-            strategy = pool._strategies[head]  # noqa: SLF001 — explicit override path
+            strategy = pool.get_strategy(head)
             clean_model = tail
         else:
             strategy = pool.default_strategy()

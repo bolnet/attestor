@@ -226,7 +226,7 @@ async def rewrite_query_async(
         pool = _get_pool()
         head, sep, tail = model.partition("/")
         if sep and head in pool.providers:
-            strategy = pool._strategies[head]  # noqa: SLF001
+            strategy = pool.get_strategy(head)
             clean_model = tail
         elif sep:
             logger.debug(

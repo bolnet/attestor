@@ -71,7 +71,14 @@ def _suppress_noisy_output() -> None:
     import logging
     import warnings
 
-    warnings.filterwarnings("ignore")
+    # Narrowed from the prior ``warnings.filterwarnings("ignore")`` —
+    # silencing every warning category masked legitimate signals
+    # (Deprecation, Pending, etc.) in CI / test contexts. We only
+    # suppress the noisy categories the model-loading stack emits.
+    for category in (UserWarning, FutureWarning, DeprecationWarning):
+        warnings.filterwarnings("ignore", category=category, module="transformers")
+        warnings.filterwarnings("ignore", category=category, module="huggingface_hub")
+        warnings.filterwarnings("ignore", category=category, module="safetensors")
     for name in ("tqdm",):
         logging.getLogger(name).setLevel(logging.CRITICAL)
 

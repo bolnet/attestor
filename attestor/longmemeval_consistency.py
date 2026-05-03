@@ -218,18 +218,10 @@ def _judge_choice(
 
 
 def _question_from_messages(messages: list[dict[str, Any]]) -> str:
-    """Best-effort extraction of the user's question from the chat
-    messages — used only for the judge prompt context. Defensive: if
-    the schema doesn't match, falls back to a generic placeholder."""
-    if not messages:
-        return "(no question available)"
-    # Last user message wins.
-    for m in reversed(messages):
-        if m.get("role") == "user":
-            content = m.get("content", "")
-            if isinstance(content, str):
-                return content[:4000]  # cap to keep judge prompt bounded
-    return str(messages[-1].get("content", ""))[:4000]
+    """Thin wrapper over the shared helper; cap kept at 4000 chars so
+    judge prompts stay bounded."""
+    from attestor.longmemeval.fixtures import question_from_messages
+    return question_from_messages(messages, max_chars=4000)
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -59,6 +59,10 @@ logger = logging.getLogger("attestor.retrieval.hyde")
 # Tests can pass ``client=`` directly to bypass the cache and inject a
 # mock; production code uses the cache via the default arg.
 _async_client_cache: dict[tuple[str | None, str, float], Any] = {}
+# Lock the cache against concurrent first-callers under asyncio +
+# to_thread fan-out; without this guard two threads can both miss
+# the cache and build duplicate clients before the entry is populated.
+_async_client_cache_lock = __import__("threading").Lock()
 
 
 def _get_async_client(
@@ -73,14 +77,18 @@ def _get_async_client(
     cached = _async_client_cache.get(key)
     if cached is not None:
         return cached
-    from attestor.llm_trace import make_async_client
-    client = make_async_client(
-        base_url=base_url,
-        api_key=api_key,
-        timeout=timeout,
-    )
-    _async_client_cache[key] = client
-    return client
+    with _async_client_cache_lock:
+        cached = _async_client_cache.get(key)
+        if cached is not None:
+            return cached
+        from attestor.llm_trace import make_async_client
+        client = make_async_client(
+            base_url=base_url,
+            api_key=api_key,
+            timeout=timeout,
+        )
+        _async_client_cache[key] = client
+        return client
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -197,7 +205,7 @@ def generate_hypothetical_answer(
             pool = _get_pool()
             head, sep, tail = model.partition("/")
             if sep and head in pool.providers:
-                strategy = pool._strategies[head]  # noqa: SLF001
+                strategy = pool.get_strategy(head)
                 clean_model = tail
             else:
                 strategy = pool.default_strategy()
@@ -291,7 +299,7 @@ async def generate_hypothetical_answer_async(
         pool = _get_pool()
         head, sep, tail = model.partition("/")
         if sep and head in pool.providers:
-            strategy = pool._strategies[head]  # noqa: SLF001
+            strategy = pool.get_strategy(head)
             clean_model = tail
         elif sep:
             logger.debug(

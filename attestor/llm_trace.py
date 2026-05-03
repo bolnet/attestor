@@ -191,6 +191,15 @@ class LLMClientPool:
         prefix."""
         return self._strategies[self._default]
 
+    def get_strategy(self, name: str) -> LLMProviderStrategy:
+        """Return the strategy registered under ``name``.
+
+        Public accessor introduced so callers (hyde, multi_query,
+        planner) stop reaching into the private ``_strategies`` dict.
+        Raises ``KeyError`` if the provider isn't registered.
+        """
+        return self._strategies[name]
+
     @property
     def providers(self) -> tuple[str, ...]:
         """Sorted tuple of known provider names — handy for error

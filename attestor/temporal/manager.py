@@ -90,6 +90,12 @@ def _auto_topics(content: str) -> set[str]:
     catches the load-bearing noun ("preapprov" appears in both top-Ks)
     without needing semantic understanding.
     """
+    # Content longer than 64 KB is almost always pasted dump, not a
+    # natural memory. Bound the regex passes against pathological
+    # inputs that would otherwise scan multi-MB strings on every
+    # contradiction check.
+    if len(content) > 65_536:
+        content = content[:65_536]
     if not _VALUE_CONTEXT_PATTERN.search(content):
         return set()
     s = _DATE_TAG_PATTERN.sub("", content.lower())
