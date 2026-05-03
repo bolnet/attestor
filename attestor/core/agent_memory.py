@@ -545,6 +545,89 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         from attestor.gdpr import list_audit_log
         return list_audit_log(self._store._conn, limit=limit)
 
+    # -- v4 retention + GDPR forget_user (Phase 8.6) --
+
+    @property
+    def retention(self) -> Any:
+        """Declarative retention-policy facade.
+
+        Lazy-built on first access. Exposes ``add(...)``, ``list()``,
+        ``apply(dry_run=False)`` so a single attribute on AgentMemory
+        carries the whole compliance surface — see
+        :class:`attestor.compliance.RetentionFacade`.
+        """
+        cached = getattr(self, "_retention_facade", None)
+        if cached is None:
+            from attestor.compliance.retention import RetentionFacade
+            cached = RetentionFacade(self)
+            self._retention_facade = cached
+        return cached
+
+    def forget_user(
+        self,
+        user_id: str,
+        *,
+        dry_run: bool = False,
+        initiated_by: str | None = None,
+    ) -> dict[str, Any]:
+        """GDPR right-to-be-forgotten — physical deletion across the
+        document, vector, graph, and state lanes.
+
+        Returns a dict with per-backend deletion counts plus an
+        ``audit_id`` for the ``forget_audit`` row that records the
+        event. ``dry_run=True`` emits the same counts without touching
+        any backend or the audit table.
+
+        Pinecone + Neo4j cleanup is best-effort: if the configured
+        backend doesn't expose ``delete_by_user(user_id)`` the count is
+        zero and a backend_error string surfaces on the result.
+        """
+        from attestor.compliance.retention import forget_user as _forget
+        result = _forget(
+            self, user_id,
+            dry_run=dry_run,
+            initiated_by=initiated_by,
+        )
+        return {
+            "user_id": result.user_id,
+            "doc_rows_deleted": result.doc_rows_deleted,
+            "vector_rows_deleted": result.vector_rows_deleted,
+            "graph_nodes_deleted": result.graph_nodes_deleted,
+            "graph_edges_deleted": result.graph_edges_deleted,
+            "state_rows_deleted": result.state_rows_deleted,
+            "elapsed_ms": result.elapsed_ms,
+            "audit_id": result.audit_id,
+            "dry_run": result.dry_run,
+            "backend_errors": list(result.backend_errors),
+        }
+
+    def apply_retention(
+        self,
+        *,
+        dry_run: bool = False,
+        initiated_by: str | None = None,
+    ) -> dict[str, Any]:
+        """Convenience pass-through: ``mem.retention.apply(...)``.
+
+        Mirrors the historical naming in the spec (callers expect
+        ``mem.apply_retention(dry_run=...)`` alongside the structured
+        ``mem.retention.*`` facade). Returns the
+        :class:`attestor.compliance.RetentionApplyResult` payload as a
+        plain dict for easy logging / JSON-encoding.
+        """
+        from attestor.compliance.retention import apply_retention
+        result = apply_retention(
+            self, dry_run=dry_run, initiated_by=initiated_by,
+        )
+        return {
+            "policies_evaluated": result.policies_evaluated,
+            "memories_archived": result.memories_archived,
+            "memories_deleted": result.memories_deleted,
+            "elapsed_ms": result.elapsed_ms,
+            "by_policy": result.by_policy,
+            "dry_run": result.dry_run,
+        }
+
     # -- Write --
 
     @staticmethod

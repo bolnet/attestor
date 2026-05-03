@@ -368,6 +368,53 @@ CREATE INDEX IF NOT EXISTS idx_deletion_audit_deleted_at
     ON deletion_audit (deleted_at DESC);
 -- NO RLS on deletion_audit. Confirmed by absence of ENABLE ROW LEVEL SECURITY.
 
+-- ── Retention policies (Phase 8.6) ───────────────────────────────────────
+-- Declarative rules evaluated by attestor.compliance.retention.apply_retention.
+-- Stored as rows so a long-running scheduler can pick them up without
+-- redeploying code. NULL on namespace/category/layer = "match all".
+-- ``older_than_days > 0`` is enforced at the table level so a misconfigured
+-- 0-day policy can't purge everything every run.
+CREATE TABLE IF NOT EXISTS retention_policies (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,
+    namespace       TEXT,
+    category        TEXT,
+    layer           TEXT,
+    tags_any        TEXT[],
+    older_than_days INT NOT NULL CHECK (older_than_days > 0),
+    action          TEXT NOT NULL CHECK (action IN ('archive','delete')),
+    enabled         BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_retention_policies_enabled
+    ON retention_policies (enabled, created_at) WHERE enabled = TRUE;
+
+-- ── Forget audit (Phase 8.6) ─────────────────────────────────────────────
+-- Append-only audit of every retention apply + GDPR forget_user call.
+-- Same RLS-exempt design as deletion_audit — the row must outlive the
+-- user it logs (target_user_id stored as TEXT, not FK). One row per
+-- policy run that affected ≥1 memory, plus one row per forget_user.
+CREATE TABLE IF NOT EXISTS forget_audit (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    scope               TEXT NOT NULL,           -- 'user' | 'policy_apply'
+    target_user_id      TEXT,                    -- TEXT, not FK (user may be gone)
+    policy_id           UUID,                    -- references retention_policies(id) on apply
+    doc_rows_deleted    INT NOT NULL DEFAULT 0,
+    vector_rows_deleted INT NOT NULL DEFAULT 0,
+    graph_nodes_deleted INT NOT NULL DEFAULT 0,
+    graph_edges_deleted INT NOT NULL DEFAULT 0,
+    state_rows_deleted  INT NOT NULL DEFAULT 0,
+    initiated_by        TEXT,                    -- agent_id of caller
+    initiated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_forget_audit_initiated_at
+    ON forget_audit (initiated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_forget_audit_target_user
+    ON forget_audit (target_user_id, initiated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_forget_audit_policy
+    ON forget_audit (policy_id, initiated_at DESC);
+-- NO RLS on forget_audit; the audit row outlives the user it documents.
+
 -- ── Row-Level Security ────────────────────────────────────────────────────
 -- Hard tenant isolation: even an app-level bug that forgets WHERE user_id=...
 -- returns zero rows from another user's data because the database itself

@@ -357,6 +357,48 @@ class Neo4jBackend:
         # Neo4j persists automatically.
         pass
 
+    def delete_by_user(self, user_id: str) -> tuple[int, int]:
+        """GDPR-style purge: drop every Entity / relationship tagged
+        with this ``user_id``. Returns ``(nodes_deleted, edges_deleted)``.
+
+        Entities are tagged at ingest with ``namespace`` (which the
+        canonical writer derives from the user/project boundary). For a
+        true per-user wipe, callers should set ``namespace=user_id`` at
+        ingest. Backends that don't carry the user tag will report
+        ``(0, 0)`` and the forget_audit row will surface that count so
+        the operator knows the graph wipe was incomplete.
+        """
+        # Two-pass count + delete so we can return a meaningful number.
+        with self._session() as s:
+            # Count first — DETACH DELETE doesn't return per-row counters
+            # consistently across Neo4j versions.
+            count_q = (
+                "MATCH (e:Entity {namespace: $ns}) "
+                "OPTIONAL MATCH (e)-[r]-() "
+                "RETURN count(DISTINCT e) AS nodes, "
+                "count(DISTINCT r) AS edges"
+            )
+            try:
+                rec = s.run(count_q, ns=str(user_id)).single()
+            except Exception as e:  # noqa: BLE001
+                logger.debug("Neo4j delete_by_user count failed: %s", e)
+                return (0, 0)
+            if rec is None:
+                return (0, 0)
+            nodes = int(rec.get("nodes", 0) or 0)
+            edges = int(rec.get("edges", 0) or 0)
+            if nodes == 0 and edges == 0:
+                return (0, 0)
+            try:
+                s.run(
+                    "MATCH (e:Entity {namespace: $ns}) DETACH DELETE e",
+                    ns=str(user_id),
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.debug("Neo4j delete_by_user delete failed: %s", e)
+                return (0, 0)
+        return (nodes, edges)
+
     def close(self) -> None:
         try:
             self._driver.close()

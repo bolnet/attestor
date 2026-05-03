@@ -122,6 +122,8 @@ Supplementary primitives an agent reaches for less often:
 - `consolidate(user_id, since=..., target_count=5, namespace=..., dry_run=False)` — **reflection pass**: distill a window of episodic memories into compact semantic facts, supersede the originals, stamp `_consolidated_from` provenance. Returns `ReflectionResult`.
 - `consolidate(limit=20, ...)` — legacy queue-drain mode (no `user_id`): runs one batch through the per-episode `SleepTimeConsolidator`.
 - `export_user(external_id)` / `purge_user(external_id)` / `deletion_audit_log()` — GDPR data portability + erasure with audit trail.
+- `mem.retention.add(name, *, older_than_days, action='archive', namespace=..., category=..., layer=..., tags_any=...)` / `mem.retention.list()` / `mem.retention.apply(dry_run=False)` — declarative retention policies (archive or delete after N days, optionally scoped by namespace/category/layer/tag); idempotent, audit-logged.
+- `mem.forget_user(user_id, *, dry_run=False)` — GDPR right-to-be-forgotten across the document, vector, graph, and state lanes. Returns per-backend deletion counts plus an `audit_id` written to `forget_audit` BEFORE any backend touches state, so the deletion event survives partial failure.
 - `pagerank(alpha)` — entity importance from the Neo4j graph.
 - `stats()` / `ops_log` — store counts and a ring buffer of recent operation latencies.
 
@@ -388,6 +390,38 @@ mem.recall("anything", layers=None)
 
 Layer-aware scoring applies a small (~0.05) tiebreaker boost to semantic memories over episodic ones — the value lives in `attestor.retrieval.scorer.DEFAULT_LAYER_WEIGHTS` and can be overridden per-orchestrator-instance via `orch.layer_weights = {...}`.
 
+### Example 9 — Declarative retention + GDPR forget_user
+
+```python
+from attestor import AgentMemory
+
+mem = AgentMemory("./agent-store")
+
+# Declare two policies — archive raw episodic memories after 90 days,
+# physically delete anything tagged `pii` after 14 days.
+mem.retention.add(
+    "archive-episodic-90d",
+    older_than_days=90, action="archive", layer="episodic",
+)
+mem.retention.add(
+    "purge-pii-14d",
+    older_than_days=14, action="delete", tags_any=("pii", "secret"),
+)
+
+# Dry-run first to see the blast radius.
+preview = mem.retention.apply(dry_run=True)
+# {'memories_archived': 1240, 'memories_deleted': 3, 'by_policy': {...}, 'dry_run': True}
+
+# Run for real once you're confident.
+result = mem.retention.apply(initiated_by="ops-agent")
+
+# GDPR right-to-be-forgotten: physical delete across doc + vector +
+# graph + state lanes. Audit row is written first so the deletion is
+# recorded even if a backend fails mid-flight.
+forget = mem.forget_user("user-1234", initiated_by="support-agent-7")
+# forget["audit_id"] is the forget_audit row id; counts are per-backend.
+```
+
 ## Configuration
 
 The single source of truth is `configs/attestor.yaml`. It carries:
@@ -415,7 +449,8 @@ Attestor is built for regulated workloads:
 
   In HOSTED / SHARED modes the existing `JWTAuthMiddleware` gates the audit surface alongside `/recall` — same bearer-token contract. The dashboard is read-only; it never mutates the JSONL log.
 - **Tenancy.** Postgres row-level security scoped by `user_id`; namespaces are first-class; Neo4j namespace enforcement is partial (graph entity nodes are still global as of v4.0.0 — see CLAUDE.md).
-- **GDPR-compatible erasure.** `purge_user()` issues a CASCADE delete and writes an audit row; export via `export_user()` produces a JSON-portable dump.
+- **GDPR-compatible erasure.** `purge_user()` issues a CASCADE delete and writes an audit row; export via `export_user()` produces a JSON-portable dump. `forget_user()` extends erasure across the vector + graph + state lanes (Postgres + Pinecone + Neo4j + state) and writes a `forget_audit` row before any backend wipe so the deletion event survives partial failure.
+- **Declarative retention.** `retention_policies` is a Postgres-backed table; rules are added via `mem.retention.add(...)`, evaluated via `mem.retention.apply(dry_run=False)`, and recorded in `forget_audit` per applied policy. The `dry_run` mode produces identical counts without mutating state.
 - **No LLM in the critical path.** The recall cascade is fully deterministic — same query, same ranking — which is what regulators want when they audit a recommendation.
 
 ## Health check

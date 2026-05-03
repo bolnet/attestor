@@ -232,6 +232,53 @@ class PostgresBackend(
             ON memories USING hnsw (embedding vector_cosine_ops);
         """)
 
+        # ── Retention policies + forget audit (Phase 8.6) ──
+        # The compliance module reads/writes both tables. v3 carries
+        # them so an upgrade-in-place install (still on the v3 schema)
+        # gets the same retention surface as v4.
+        self._execute("""
+            CREATE TABLE IF NOT EXISTS retention_policies (
+                id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name            TEXT NOT NULL,
+                namespace       TEXT,
+                category        TEXT,
+                layer           TEXT,
+                tags_any        TEXT[],
+                older_than_days INT NOT NULL CHECK (older_than_days > 0),
+                action          TEXT NOT NULL CHECK (action IN ('archive','delete')),
+                enabled         BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        """)
+        self._execute(
+            "CREATE INDEX IF NOT EXISTS idx_retention_policies_enabled "
+            "ON retention_policies (enabled, created_at) "
+            "WHERE enabled = TRUE"
+        )
+        self._execute("""
+            CREATE TABLE IF NOT EXISTS forget_audit (
+                id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                scope               TEXT NOT NULL,
+                target_user_id      TEXT,
+                policy_id           UUID,
+                doc_rows_deleted    INT NOT NULL DEFAULT 0,
+                vector_rows_deleted INT NOT NULL DEFAULT 0,
+                graph_nodes_deleted INT NOT NULL DEFAULT 0,
+                graph_edges_deleted INT NOT NULL DEFAULT 0,
+                state_rows_deleted  INT NOT NULL DEFAULT 0,
+                initiated_by        TEXT,
+                initiated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        """)
+        self._execute(
+            "CREATE INDEX IF NOT EXISTS idx_forget_audit_initiated_at "
+            "ON forget_audit (initiated_at DESC)"
+        )
+        self._execute(
+            "CREATE INDEX IF NOT EXISTS idx_forget_audit_target_user "
+            "ON forget_audit (target_user_id, initiated_at DESC)"
+        )
+
     # ── Lifecycle ──
 
     def save(self) -> None:
