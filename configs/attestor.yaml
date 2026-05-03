@@ -329,6 +329,29 @@ stack:
     revise_model: null            # null → models.answerer
     max_revisions: 1              # hard cap; values > 1 rejected
 
+  # ─── Reflection / consolidation pass ───────────────────────────────
+  # Periodic distillation: many raw episodic memories → a small number
+  # of compact semantic memories. Originals are SUPERSEDED, not deleted
+  # — they stay queryable via timeline() and recall(as_of=...). Each
+  # distilled memory carries `_consolidated_from: [<source_ids>]` and
+  # `_reflection_model` so the chain is auditable.
+  #
+  # This block defaults OFF so installs see no behavior change. Flip
+  # `enabled: true` to wire reflection into the consolidator schedule;
+  # invoke ad-hoc via `mem.consolidate(user_id="<id>")`.
+  #
+  # Cost: ONE LLM call per pass (target ~10 source memories →
+  # 3 distilled). With models.distill = openai/gpt-5.5, expect roughly
+  # $0.05–$0.10 per pass — a back-of-envelope estimate is returned via
+  # ReflectionResult.cost_estimate_usd.
+  consolidation:
+    enabled: false
+    target_count: 5         # number of distilled facts per pass
+    source_limit: 50        # hard cap on source memories per pass
+    since_days: null        # relative lookback (days); null = no lower bound
+    model: null             # null → stack.models.distill
+    dry_run: false          # true → call LLM, skip writes (cost preview only)
+
 # ─── Container image (for cloud deploys) ────────────────────────────────
 # The published image is currently the *introspection-only* MCP stub
 # (Glama listing). For Path B cloud deploys we build a separate

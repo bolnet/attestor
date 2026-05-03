@@ -7,6 +7,7 @@ capabilities:
   - memory.add
   - memory.timeline
   - memory.supersede
+  - memory.consolidate
   - memory.forget
   - memory.audit
 license: MIT
@@ -113,7 +114,8 @@ Supplementary primitives an agent reaches for less often:
 - `search(query, category, entity, namespace, status, after, before, limit)` — filtered listing without the recall pipeline.
 - `recall_as_pack(query, budget, user_id, as_of, time_window)` — `ContextPack` with citations + Chain-of-Note prompt for cite-or-abstain agents.
 - `extract(messages, model, use_llm, namespace)` — pull facts out of a conversation transcript and store them.
-- `consolidate(limit, ...)` — drain the sleep-time consolidation queue.
+- `consolidate(user_id, since=..., target_count=5, namespace=..., dry_run=False)` — **reflection pass**: distill a window of episodic memories into compact semantic facts, supersede the originals, stamp `_consolidated_from` provenance. Returns `ReflectionResult`.
+- `consolidate(limit=20, ...)` — legacy queue-drain mode (no `user_id`): runs one batch through the per-episode `SleepTimeConsolidator`.
 - `export_user(external_id)` / `purge_user(external_id)` / `deletion_audit_log()` — GDPR data portability + erasure with audit trail.
 - `pagerank(alpha)` — entity importance from the Neo4j graph.
 - `stats()` / `ops_log` — store counts and a ring buffer of recent operation latencies.
@@ -213,7 +215,38 @@ print(orchestrator.agent_trail)         # full handoff chain for audit
 
 Roles enforced at the context layer (`attestor/context.py`): `ORCHESTRATOR` = full perms; `PLANNER` / `EXECUTOR` / `RESEARCHER` = read + write; `REVIEWER` / `MONITOR` = read-only. `read_only=True` is an independent kill switch that strips writes regardless of role.
 
-### Example 5 — Audit + GDPR
+### Example 5 — Periodic reflection (distill many episodic memories into a few semantic ones)
+
+```python
+from datetime import datetime, timedelta, timezone
+from attestor import AgentMemory
+
+mem = AgentMemory("./agent-store")
+
+# Run nightly: condense the last 30 days of episodic memories for a
+# user into 5 attributed semantic facts. Originals are kept in the
+# supersession chain — nothing is deleted, the audit trail stays
+# queryable forever via timeline() and recall(as_of=...).
+since = datetime.now(timezone.utc) - timedelta(days=30)
+result = mem.consolidate(
+    user_id="user-1234",
+    since=since,
+    target_count=5,
+)
+print(result.distilled_memory_ids)        # 5 fresh semantic memories
+print(result.source_memory_ids)            # ids of every superseded source
+print(f"~${result.cost_estimate_usd:.4f}") # rough $$ for this pass
+
+# Each distilled memory carries provenance metadata you can audit.
+for did in result.distilled_memory_ids:
+    m = mem.get(did)
+    print(m.metadata["_consolidated_from"])  # source ids cited
+    print(m.metadata["_reflection_model"])    # LLM used
+```
+
+`dry_run=True` calls the LLM (so the cost estimate is accurate) but skips the writes — useful for canary deployments.
+
+### Example 6 — Audit + GDPR
 
 ```python
 from attestor import AgentMemory

@@ -378,22 +378,67 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
 
     def consolidate(
         self,
+        user_id: str | None = None,
         *,
+        # Reflection (distillation) params — active when ``user_id`` is set.
+        since: datetime | None = None,
+        target_count: int = 5,
+        namespace: str | None = None,
+        dry_run: bool = False,
+        llm_client: Any | None = None,
+        # Queue-drain params (legacy; active when ``user_id`` is None).
         limit: int = 20,
         model: str | None = None,
         extraction_client: Any | None = None,
         resolver_client: Any | None = None,
-    ) -> list[Any]:
-        """Drain one batch from the consolidation queue in-process.
+    ) -> Any:
+        """Sleep-time consolidation. Two modes; selected by ``user_id``.
 
-        For long-running daemons use ``SleepTimeConsolidator.run_forever``
-        directly. This method is for tests and one-shot manual triggers
-        (e.g., ``attestor consolidate run``).
+        **Reflection mode** — when ``user_id`` is provided. Distills up
+        to ``limit`` (default 50 in this mode) source memories for that
+        user into ``target_count`` semantic memories, marks the originals
+        as superseded, and stamps ``_consolidated_from`` provenance on
+        each distilled fact. Returns a
+        :class:`~attestor.consolidation.reflection.ReflectionResult`.
 
-        Returns a list of ``ConsolidationResult`` (one per processed
-        episode). Empty list when the queue is drained.
+        **Queue mode** — when ``user_id`` is omitted (legacy entry
+        point). Drains one batch from the per-episode
+        :class:`ConsolidationQueue` in-process and returns a list of
+        ``ConsolidationResult`` (one per processed episode). For
+        long-running daemons use ``SleepTimeConsolidator.run_forever``
+        directly.
+
+        The two modes share the ``limit`` / ``model`` kwargs but behave
+        differently per mode (queue mode uses ``limit=20`` as the
+        per-batch episode count; reflection mode raises the default to
+        50 source memories per pass).
         """
         self._require_v4()
+
+        # Reflection (distillation) mode.
+        if user_id is not None:
+            from attestor.consolidation.reflection import (
+                DEFAULT_SOURCE_LIMIT,
+                run_reflection,
+            )
+            # Reflection uses a higher default source ceiling than the
+            # queue-drain default (50 vs 20). When the caller didn't
+            # override ``limit``, swap to the reflection default so the
+            # source window isn't truncated unintentionally.
+            effective_limit = limit if limit != 20 else DEFAULT_SOURCE_LIMIT
+            return run_reflection(
+                self,
+                user_id=user_id,
+                namespace=namespace,
+                since=since,
+                limit=effective_limit,
+                target_count=target_count,
+                model=model,
+                dry_run=dry_run,
+                llm_client=llm_client,
+            )
+
+        # Queue (per-episode) mode — legacy.
         from attestor.consolidation import SleepTimeConsolidator
         kwargs: dict[str, Any] = {"batch_size": limit}
         if model:

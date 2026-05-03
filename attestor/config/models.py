@@ -539,6 +539,48 @@ class IngestCfg:
 
 
 @dataclass(frozen=True)
+class ConsolidationCfg:
+    """Reflection / consolidation pass knobs.
+
+    Reflection runs out-of-band (sleep-time) and distills a window of
+    raw episodic memories into a small number of compact semantic
+    memories. Originals are kept in the supersession chain — nothing
+    is deleted. The pass is quality-first (cost OK), so this defaults
+    to a strong-but-cheap target_count and a bounded source_limit
+    that keeps prompt tokens predictable.
+
+    Configuration:
+      enabled         — master switch. Defaults to ``False`` so the
+                        legacy install behaviour is unchanged; flip on
+                        per-deploy when you want reflection wired into
+                        the consolidator schedule.
+      target_count    — number of distilled facts produced per pass.
+                        5 is the spec-default sweet spot — small enough
+                        the LLM doesn't get loose with attribution,
+                        large enough to span typical user topic clusters.
+      source_limit    — hard cap on source memories per pass. 50 keeps
+                        prompt tokens bounded for any commercially
+                        sensible context window.
+      since_days      — relative lookback window (days). ``None`` means
+                        "no lower bound" — the pass picks up every
+                        active source. Set to e.g. 30 when running
+                        nightly to keep the window monthly.
+      model           — explicit LLM id for the distillation step.
+                        ``None`` falls back to ``stack.models.distill``.
+      dry_run         — when True, the LLM is still called for cost
+                        preview but no writes happen. Useful for canary
+                        deployments.
+    """
+
+    enabled: bool = False
+    target_count: int = 5
+    source_limit: int = 50
+    since_days: int | None = None
+    model: str | None = None
+    dry_run: bool = False
+
+
+@dataclass(frozen=True)
 class StackConfig:
     postgres: PostgresCfg
     neo4j: Neo4jCfg
@@ -553,6 +595,7 @@ class StackConfig:
     self_consistency: SelfConsistencyCfg = field(default_factory=SelfConsistencyCfg)
     critique_revise: CritiqueReviseCfg = field(default_factory=CritiqueReviseCfg)
     ingest: IngestCfg = field(default_factory=IngestCfg)
+    consolidation: ConsolidationCfg = field(default_factory=ConsolidationCfg)
     pinecone: PineconeCfg | None = None
 
 
