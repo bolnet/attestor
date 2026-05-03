@@ -68,6 +68,13 @@ class PostgresBackend(
 
         self._conn = psycopg2.connect(**connect_kwargs)
         self._conn.autocommit = True
+        # psycopg2 connections are not thread-safe per the docs ("can be
+        # used by a single thread at a time"). Multi-agent write paths
+        # can race on the same cursor; serialise every _execute /
+        # _execute_scalar with a per-instance lock. Cheap under the GIL,
+        # bulletproof under threaded ASGI servers and worker pools.
+        import threading
+        self._conn_lock = threading.Lock()
 
         self._embedder = None  # lazy-init via shared embeddings module
         self._embedding_fn = None  # backward compat for benchmark code
@@ -106,20 +113,34 @@ class PostgresBackend(
 
     # ── Low-level SQL helpers (used by every mixin) ──
 
+    def _get_conn_lock(self) -> "threading.Lock":
+        # Lazy-init so callers that build the backend via ``__new__``
+        # (test harnesses, pickled-state restores) don't trip an
+        # AttributeError. The lock is per-instance; under contention
+        # the first caller wins the once-init.
+        lock = getattr(self, "_conn_lock", None)
+        if lock is None:
+            import threading
+            lock = threading.Lock()
+            self._conn_lock = lock
+        return lock
+
     def _execute(self, sql: str, params: Any = None) -> list[dict[str, Any]]:
         """Execute SQL and return rows as dicts."""
-        with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(sql, params)
-            if cur.description:
-                return [dict(row) for row in cur.fetchall()]
-            return []
+        with self._get_conn_lock():
+            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(sql, params)
+                if cur.description:
+                    return [dict(row) for row in cur.fetchall()]
+                return []
 
     def _execute_scalar(self, sql: str, params: Any = None) -> Any:
         """Execute SQL and return a single scalar value."""
-        with self._conn.cursor() as cur:
-            cur.execute(sql, params)
-            row = cur.fetchone()
-            return row[0] if row else None
+        with self._get_conn_lock():
+            with self._conn.cursor() as cur:
+                cur.execute(sql, params)
+                row = cur.fetchone()
+                return row[0] if row else None
 
     # ── v4 RLS / schema helpers (Phase 1; not yet wired by default) ──
 

@@ -604,9 +604,15 @@ def build_backend_config(
         backend_configs["pinecone"] = pcn_cfg
         backends.append("pinecone")
     else:
-        # Legacy bundle — postgres holds doc + pgvector.
-        backend_configs["pgvector"] = pg_cfg
-        backends.append("pgvector")
+        # No Pinecone block configured — vector role lives on Postgres
+        # via the pgvector column already provisioned in the schema.
+        # ``pgvector`` is NOT a registered backend name (the registry
+        # only knows postgres / pinecone / neo4j), so we register the
+        # bundle under the canonical ``postgres`` key. Writing it as
+        # ``pgvector`` previously caused a runtime KeyError on every
+        # Pinecone-absent install.
+        backend_configs["postgres"] = pg_cfg
+        backends.append("postgres")
 
     if not no_graph:
         backend_configs["neo4j"] = {
@@ -633,7 +639,7 @@ def verify_neo4j_reachable(stack: StackConfig) -> None:
     except ImportError as e:
         raise SystemExit(
             f"[attestor.config] neo4j driver not installed: {e}"
-        )
+        ) from e
     try:
         with GraphDatabase.driver(
             stack.neo4j.url, auth=(stack.neo4j.username, stack.neo4j.password)
@@ -643,7 +649,7 @@ def verify_neo4j_reachable(stack: StackConfig) -> None:
         raise SystemExit(
             f"[attestor.config] Neo4j unreachable at {stack.neo4j.url}: {e}\n"
             "        The default stack requires Neo4j (graph role)."
-        )
+        ) from e
 
 
 def chat_kwargs_for_role(

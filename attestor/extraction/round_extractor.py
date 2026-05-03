@@ -154,12 +154,7 @@ def _call_llm(
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _strip_markdown_fences(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        lines = [l for l in text.split("\n") if not l.strip().startswith("```")]
-        text = "\n".join(lines).strip()
-    return text
+from attestor.extraction.utils import strip_markdown_fences as _strip_markdown_fences  # noqa: E402,F401
 
 
 def _parse_facts_payload(raw: str) -> list[dict]:

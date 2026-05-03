@@ -14,9 +14,12 @@ This module is the thin wiring layer:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
@@ -63,9 +66,33 @@ def ui_routes() -> list[Route | Mount]:
     return ordered
 
 
+def _cors_middleware() -> list[Middleware]:
+    """Build the CORS middleware list for the UI app.
+
+    Defaults to localhost-only so a stray cross-origin fetch from a
+    user's browser tab can't read the read-only memory dump. Override
+    via ``ATTESTOR_UI_CORS_ORIGINS`` (comma-separated) for hosted
+    multi-origin deploys.
+    """
+    raw = os.environ.get(
+        "ATTESTOR_UI_CORS_ORIGINS",
+        "http://localhost,http://127.0.0.1",
+    )
+    origins = [o.strip() for o in raw.split(",") if o.strip()]
+    return [
+        Middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=False,
+            allow_methods=["GET", "POST"],
+            allow_headers=["*"],
+        ),
+    ]
+
+
 def create_ui_app() -> Starlette:
     """Standalone Starlette app for the UI. Use when running `attestor ui`."""
-    return Starlette(routes=ui_routes())
+    return Starlette(routes=ui_routes(), middleware=_cors_middleware())
 
 
 # Re-export the export handlers so any external import path is preserved.

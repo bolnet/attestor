@@ -46,7 +46,15 @@ def _default_consolidation_model() -> str:
     return get_stack().models.verifier
 
 
-DEFAULT_CONSOLIDATION_MODEL = _default_consolidation_model()
+# Eager-resolved at import for the in-module class default below.
+# YAML lookup failures fall back to an empty string so importing the
+# module in a YAML-less test environment doesn't crash; the SleepTime
+# consolidator instances will surface a clear error at call time
+# instead. Production callers always have YAML loaded.
+try:
+    DEFAULT_CONSOLIDATION_MODEL = _default_consolidation_model()
+except Exception:  # noqa: BLE001
+    DEFAULT_CONSOLIDATION_MODEL = ""
 
 
 @dataclass(frozen=True)
@@ -113,9 +121,23 @@ class SleepTimeConsolidator:
         return [self._consolidate_one(ep) for ep in batch]
 
     async def run_forever(self) -> None:
-        """Daemon loop. Sleeps cadence_seconds when the queue is empty."""
+        """Daemon loop. Sleeps cadence_seconds when the queue is empty.
+
+        A transient psycopg2 / Neo4j error inside ``run_once`` (e.g.
+        ``dequeue_batch`` raising on a dropped connection) used to crash
+        the entire daemon. The outer try/except now logs and sleeps,
+        so transient failures recover automatically.
+        """
         while True:
-            results = self.run_once()
+            try:
+                results = self.run_once()
+            except Exception as e:  # noqa: BLE001
+                logger.exception(
+                    "consolidator.run_once failed: %s; sleeping before retry",
+                    e,
+                )
+                await asyncio.sleep(self._cadence)
+                continue
             if not results:
                 await asyncio.sleep(self._cadence)
                 continue

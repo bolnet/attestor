@@ -392,11 +392,6 @@ def _try_openai() -> EmbeddingProvider | None:
         return None
 
 
-_CLOUD_PROVIDERS = {
-    "voyage": _try_voyage,
-    "pinecone": _try_pinecone_inference,
-}
-
 # Module-level cache — prevents re-initialising the embedding provider
 # (e.g. API sessions) on every call.
 #

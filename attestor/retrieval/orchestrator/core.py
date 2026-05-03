@@ -272,6 +272,16 @@ class RetrievalOrchestrator(
                 time_window = self._step0_temporal_prefilter(query, time_window)
 
                 # Steps 1 + 1b — the P6 win: parallel via gather.
+                # KNOWN LIMITATION: when HyDE is enabled, _compute_lane_vector
+                # invokes the sync hyde_search inside this to_thread shim.
+                # That means the LLM call's timeout comes from the SDK
+                # (~30s default in generate_hypothetical_answer), NOT from
+                # the asyncio event loop — a stalled provider holds the
+                # threadpool slot until the SDK gives up. The async
+                # ``hyde_search_async`` path exists at retrieval/hyde.py:434
+                # but expects an async vector_search callable that the sync
+                # orchestrator doesn't currently expose. Tracked as deferred
+                # HIGH; see review notes 2026-05-03.
                 lane_results = await asyncio.gather(
                     asyncio.to_thread(
                         self._compute_lane_vector,

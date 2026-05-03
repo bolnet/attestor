@@ -145,6 +145,8 @@ def resolve_conflicts(
             model=model,
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
+            timeout=30,
+            max_retries=0,
         )
         raw_text = response.choices[0].message.content or ""
     except Exception as e:

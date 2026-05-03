@@ -267,23 +267,56 @@ def _select_sources(
     return rows
 
 
+def _sanitize_for_prompt(text: str) -> str:
+    """Strip characters that an adversarial memory could use to escape
+    the prompt's source-block boundary.
+
+    Memory content is user-supplied (or model-extracted from user-
+    supplied conversations) and lands verbatim in the reflection
+    prompt body. An attacker who plants a memory containing
+    ``</memory>\\n# Your distilled facts:`` could shift the LLM's view
+    of where instructions end and data begins. We close that surface
+    by removing the sentinel sequences we use as boundaries plus a
+    handful of characters that are over-represented in indirect
+    prompt-injection probes."""
+    if not text:
+        return ""
+    # Remove our boundary tokens; collapse stray angle brackets so the
+    # tag form ``<...>`` can't be reproduced from inside content.
+    cleaned = (
+        text.replace("</memory>", "")
+        .replace("<memory>", "")
+        .replace("```", " ")
+    )
+    # Cap on a sane content size — distillation prompts don't benefit
+    # from more than a few thousand chars per source. Truncation also
+    # bounds the cost of any injection payload.
+    return cleaned
+
+
 def _format_sources_block(sources: list[Memory]) -> str:
     """Render source memories for the prompt.
 
-    Each line carries the index, the row id, the timestamp, the category,
-    the entity, and the (truncated) content. Including the row id is
-    load-bearing — auditors and downstream traces correlate distilled
-    facts with their sources by id, and surfacing the id in the prompt
-    lets the LLM reference it back when explaining its reasoning.
+    Each source is wrapped in ``<memory>...</memory>`` sentinel tags
+    so the LLM has an unambiguous boundary between data and
+    instructions. ``_sanitize_for_prompt`` strips any matching
+    sentinel sequence from inside the content first — the wrapping
+    tags can therefore never be forged from user-supplied text.
+
+    Including the row id is load-bearing — auditors and downstream
+    traces correlate distilled facts with their sources by id.
     """
     lines: list[str] = []
     for i, m in enumerate(sources):
-        content = _truncate(m.content)
-        cat = m.category or "other"
-        ent = m.entity or "-"
-        ts = m.valid_from or m.created_at or ""
+        content = _sanitize_for_prompt(_truncate(m.content))
+        cat = _sanitize_for_prompt(m.category or "other")
+        ent = _sanitize_for_prompt(m.entity or "-")
+        ts = _sanitize_for_prompt(m.valid_from or m.created_at or "")
         lines.append(
-            f"  [{i}] id={m.id} ({ts} | {cat} | {ent}) {content}"
+            f"<memory index=\"{i}\" id=\"{m.id}\" ts=\"{ts}\" "
+            f"category=\"{cat}\" entity=\"{ent}\">"
+            f"{content}"
+            f"</memory>"
         )
     return "\n".join(lines)
 
@@ -304,18 +337,7 @@ def _build_prompt(
     )
 
 
-def _strip_markdown_fences(text: str) -> str:
-    """Strip common ```json ... ``` fences without importing the
-    extraction module (which has heavier dependencies)."""
-    s = text.strip()
-    if s.startswith("```"):
-        # Drop the first line (```json or ```)
-        nl = s.find("\n")
-        if nl != -1:
-            s = s[nl + 1 :]
-        if s.endswith("```"):
-            s = s[: -3]
-    return s.strip()
+from attestor.extraction.utils import strip_markdown_fences as _strip_markdown_fences  # noqa: E402
 
 
 def _parse_distilled(raw: str) -> list[dict[str, Any]]:
@@ -448,12 +470,15 @@ def _call_llm(
                 model=model,
                 max_tokens=4000,
                 messages=[{"role": "user", "content": prompt}],
+                timeout=60,
+                max_retries=0,
             )
         except ImportError:
             response = client.chat.completions.create(
                 model=model,
                 max_tokens=4000,
                 messages=[{"role": "user", "content": prompt}],
+                timeout=60,
             )
         raw = response.choices[0].message.content or ""
         return raw, None
@@ -463,6 +488,21 @@ def _call_llm(
 
 
 # ─── Public entry point ──────────────────────────────────────────────────
+
+
+# Module-level rate fence for run_reflection. Distillation is the most
+# expensive call site in the consolidation pipeline; an upstream bug
+# that re-fires reflection on the same window in a tight loop would
+# rack up cost silently. We track the last-completed timestamp per
+# (user_id, namespace, since) tuple and refuse to re-run inside the
+# cooldown window. OFF by default — production deployments that fire
+# reflection on a timer should set ATTESTOR_REFLECTION_COOLDOWN_S=300
+# (or whatever fits their cron cadence). Tests + ad-hoc CLI calls
+# leave it at 0 and bypass the fence entirely.
+_REFLECTION_COOLDOWN_S = float(
+    __import__("os").environ.get("ATTESTOR_REFLECTION_COOLDOWN_S", "0"),
+)
+_reflection_last_run: dict[tuple[str, str | None, str | None], float] = {}
 
 
 def run_reflection(
@@ -528,6 +568,22 @@ def run_reflection(
             llm_model=resolved_model,
             elapsed_ms=round((time.monotonic() - t0) * 1000.0, 2),
         )
+
+    # Cost cap: refuse to re-fire on the same window inside the cooldown.
+    # Dry-runs bypass the cap (they're free preview calls, not writes).
+    if not dry_run and _REFLECTION_COOLDOWN_S > 0:
+        key = (user_id, namespace, since.isoformat() if since else None)
+        last = _reflection_last_run.get(key)
+        if last is not None and (t0 - last) < _REFLECTION_COOLDOWN_S:
+            return ReflectionResult(
+                llm_model=resolved_model,
+                elapsed_ms=round((time.monotonic() - t0) * 1000.0, 2),
+                error=(
+                    f"reflection cooldown active "
+                    f"({_REFLECTION_COOLDOWN_S - (t0 - last):.0f}s remaining)"
+                ),
+            )
+        _reflection_last_run[key] = t0
 
     sources = _select_sources(
         mem,

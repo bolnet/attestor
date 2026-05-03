@@ -104,7 +104,8 @@ def download_locomo(dest_path: str) -> str:
     """Download LOCOMO dataset if not already present."""
     if not Path(dest_path).exists():
         print(f"Downloading LOCOMO dataset to {dest_path}...")
-        urllib.request.urlretrieve(LOCOMO_URL, dest_path)
+        with urllib.request.urlopen(LOCOMO_URL, timeout=30) as resp:
+            Path(dest_path).write_bytes(resp.read())
         print("Downloaded.")
     return dest_path
 
@@ -512,8 +513,8 @@ def print_locomo(results: dict[str, Any]) -> None:
     print(f"  Recall:     {timing['total_recall_s']:.2f}s  (avg {timing['avg_recall_ms']:.1f}ms/query)")
     print(f"  LLM Judge:  {timing['total_judge_s']:.2f}s")
     print("=======================================================")
-    print("Compare with (LLM-judge accuracy / token F1):")
-    print("  SimpleMem:      —    / 43.2% F1  (GPT-4.1-mini, arXiv:2601.02553)")
-    print("  Mem0:           66.9% / 16.8% F1  (arXiv:2504.19413)")
-    print("  Zep/Graphiti:   58.4% / —         (disputed)")
-    print("  Letta/MemGPT:   74.0% / —         (GPT-4o mini, file-based)")
+    # Per the project's no-bench-stats-in-repo policy: third-party
+    # numbers go stale fast, and this print used to embed Mem0 / Zep /
+    # Letta scores from specific paper versions. Compare against the
+    # original papers (arXiv:2504.19413 et al.) at recall time, not
+    # frozen literals checked into the runner.

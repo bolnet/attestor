@@ -263,22 +263,26 @@ Answer:"""
 
 
 def _rerank_results(results, question: str):
-    """Re-rank retrieval results by keyword overlap with question."""
-    # Extract keywords from question
-    set(re.findall(r"[a-zA-Z0-9_]+", question.lower()))
-    # Also extract capitalized words (proper nouns)
+    """Re-rank retrieval results by keyword overlap with question.
+
+    Returns a NEW list. The previous implementation index-assigned into
+    ``results`` in place, which mutated the caller's list — review caught
+    this as a correctness bug since callers (e.g. ``multi_hop_recall``)
+    retain references to the pre-rerank list.
+    """
     q_proper = set(re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', question))
     q_proper_lower = {w.lower() for w in q_proper}
 
-    for i, r in enumerate(results):
-        content_lower = r.memory.content.lower()
-        # Proper noun hits get extra weight
-        if q_proper_lower:
-            proper_hits = sum(1 for pn in q_proper_lower if pn in content_lower)
-            proper_density = proper_hits / len(q_proper_lower)
-            results[i] = replace(r, score=r.score + proper_density * 0.3)
+    if not q_proper_lower:
+        return list(results)
 
-    return results
+    out = []
+    for r in results:
+        content_lower = r.memory.content.lower()
+        proper_hits = sum(1 for pn in q_proper_lower if pn in content_lower)
+        proper_density = proper_hits / len(q_proper_lower)
+        out.append(replace(r, score=r.score + proper_density * 0.3))
+    return out
 
 
 def _extract_entities_from_context(text: str) -> list[str]:

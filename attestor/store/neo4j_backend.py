@@ -73,7 +73,7 @@ class Neo4jBackend:
         self._init_schema()
         self._has_gds: bool | None = None
 
-    def _session(self):
+    def _session(self) -> Any:
         return self._driver.session(database=self._database)
 
     def _init_schema(self) -> None:
@@ -177,7 +177,11 @@ class Neo4jBackend:
         recallable under ``namespace="default"`` without a backfill step.
         """
         start = _normalize_name(entity)
-        d = max(1, int(depth))
+        # Bound the BFS depth: an unbounded value (e.g. depth=1_000_000)
+        # would request a full graph traversal from Neo4j and could
+        # exhaust memory. 10 hops is well past anything the recall
+        # pipeline asks for (default is 2).
+        d = min(max(1, int(depth)), 10)
         ns = _ns(namespace)
         with self._session() as s:
             result = s.run(
@@ -200,7 +204,11 @@ class Neo4jBackend:
     ) -> dict[str, Any]:
         """Fetch a namespace-scoped subgraph rooted at ``entity``."""
         start = _normalize_name(entity)
-        d = max(1, int(depth))
+        # Bound the BFS depth: an unbounded value (e.g. depth=1_000_000)
+        # would request a full graph traversal from Neo4j and could
+        # exhaust memory. 10 hops is well past anything the recall
+        # pipeline asks for (default is 2).
+        d = min(max(1, int(depth)), 10)
         ns = _ns(namespace)
         with self._session() as s:
             nodes_rows = list(s.run(

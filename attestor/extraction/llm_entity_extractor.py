@@ -249,13 +249,7 @@ def _reset_cache() -> None:
 # ─── Parsing helpers ────────────────────────────────────────────────────
 
 
-def _strip_markdown_fences(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        lines = [line for line in lines if not line.strip().startswith("```")]
-        text = "\n".join(lines)
-    return text
+from attestor.extraction.utils import strip_markdown_fences as _strip_markdown_fences  # noqa: E402
 
 
 def _parse_extraction_response(

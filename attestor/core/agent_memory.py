@@ -394,10 +394,15 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
                     pass
         self._store.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "AgentMemory":
         return self
 
-    def __exit__(self, *args):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
         self.close()
 
     # -- v4 round-level conversation ingest (Phase 3.5) --
@@ -1897,6 +1902,30 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
 
     # -- Raw SQL --
 
-    def execute(self, sql: str, params: list[Any] | None = None) -> list[dict[str, Any]]:
-        """Execute raw SQL. Use with caution."""
+    def execute(
+        self,
+        sql: str,
+        params: list[Any] | None = None,
+        *,
+        allow_writes: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Execute raw SQL on the document store.
+
+        SECURITY: defaults to read-only. Non-SELECT statements (UPDATE,
+        DELETE, DROP, INSERT, ALTER, TRUNCATE, GRANT, REVOKE, etc.) are
+        rejected unless ``allow_writes=True`` is passed explicitly. This
+        keeps an unintended ``mem.execute("DROP TABLE memories")`` from
+        bypassing every RBAC, quota, and retention guarantee in the
+        system.
+
+        Use ``allow_writes=True`` only from trusted admin call sites
+        (migrations, recovery, manual ops). Treat it as ``DANGEROUS``.
+        """
+        stripped = sql.lstrip().lstrip("(").lstrip()
+        first_word = stripped.split(None, 1)[0].upper() if stripped else ""
+        if not allow_writes and first_word not in {"SELECT", "WITH", "EXPLAIN", "SHOW"}:
+            raise PermissionError(
+                f"execute() is read-only by default; got {first_word!r}. "
+                "Pass allow_writes=True from a trusted call site if this is intentional."
+            )
         return self._store.execute(sql, params)

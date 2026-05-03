@@ -47,6 +47,30 @@ from collections.abc import Awaitable, Callable, Sequence
 logger = logging.getLogger("attestor.retrieval.multi_query")
 
 
+# Process-wide AsyncOpenAI client cache, mirroring hyde.py:61. Building
+# a fresh AsyncOpenAI per ``rewrite_query_async`` call eats a TLS
+# handshake on every paraphrase pass — under bench fan-out that's the
+# difference between a 200ms warm cache and a 1+ s cold path. Tests
+# can pass ``client=`` directly to bypass the cache.
+_async_client_cache: dict[tuple[str | None, str, float], Any] = {}
+
+
+def _get_async_client(
+    *, base_url: str | None, api_key: str, timeout: float,
+) -> Any:
+    """Return a process-wide cached ``AsyncOpenAI`` for the given key."""
+    key = (base_url, api_key, timeout)
+    cached = _async_client_cache.get(key)
+    if cached is not None:
+        return cached
+    from attestor.llm_trace import make_async_client
+    client = make_async_client(
+        base_url=base_url, api_key=api_key, timeout=timeout,
+    )
+    _async_client_cache[key] = client
+    return client
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Rewriter
 # ──────────────────────────────────────────────────────────────────────
@@ -198,7 +222,7 @@ async def rewrite_query_async(
     model = model or _resolve_rewriter_model()
 
     try:
-        from attestor.llm_trace import _get_pool, make_async_client
+        from attestor.llm_trace import _get_pool
         pool = _get_pool()
         head, sep, tail = model.partition("/")
         if sep and head in pool.providers:
@@ -222,7 +246,7 @@ async def rewrite_query_async(
             )
             return RewriteResult(original=question.strip())
 
-        client = make_async_client(
+        client = _get_async_client(
             base_url=strategy.base_url,
             api_key=key,
             timeout=timeout,

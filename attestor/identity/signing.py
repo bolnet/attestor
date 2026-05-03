@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import base64
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -59,7 +59,10 @@ def _ensure_crypto():
 @dataclass(frozen=True)
 class SignatureKeypair:
     """Base64-encoded Ed25519 keypair for serialization to config / env vars."""
-    secret_key_b64: str
+    # repr=False keeps the base64 private key out of any default repr,
+    # log line, or exception traceback. Even base64-encoded key material
+    # is a secret.
+    secret_key_b64: str = field(repr=False)
     public_key_b64: str
 
     @classmethod
@@ -202,8 +205,10 @@ class Signer:
     If enabled=True and no keys, generates an ephemeral keypair (test-
     only). Production callers must persist their keys.
     """
-    secret_key_bytes: bytes
-    public_key_bytes: bytes
+    # repr=False keeps the raw Ed25519 private key bytes out of any
+    # default repr, log line, or exception traceback.
+    secret_key_bytes: bytes = field(repr=False)
+    public_key_bytes: bytes = field(repr=False)
     enabled: bool = True
 
     @classmethod

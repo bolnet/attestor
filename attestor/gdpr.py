@@ -214,19 +214,36 @@ def purge_user(
     *,
     reason: str = "gdpr_request",
     deleted_by: str | None = None,
+    vector_store: Any | None = None,
+    graph: Any | None = None,
 ) -> PurgeResult:
     """Hard-delete the user and CASCADE through projects/sessions/episodes/
     memories/user_quotas. Logs to deletion_audit BEFORE the actual delete
     inside one transaction; rollback on either side keeps things consistent.
 
-    Returns PurgeResult with per-table row counts (for audit dashboards).
-    Caller is responsible for cleaning vector / graph stores that don't
-    CASCADE through the FK.
+    GDPR right-to-be-forgotten requires erasure across ALL backends. Pass
+    ``vector_store`` and ``graph`` so the user's embeddings (Pinecone) and
+    entity nodes (Neo4j) are removed too. When either is None, a WARNING
+    is emitted — the deletion is incomplete and the caller should know.
     """
     user = _fetch_user(conn, external_id)
     if user is None:
         return PurgeResult(user_existed=False)
     user_id = user["id"]
+
+    if vector_store is None or graph is None:
+        # Silent multi-store gaps are a compliance failure. Surface them.
+        missing = []
+        if vector_store is None:
+            missing.append("vector_store")
+        if graph is None:
+            missing.append("graph")
+        logger.warning(
+            "gdpr.purge_user(external_id=%r): %s not provided; "
+            "data in those backends will SURVIVE the purge — caller "
+            "must clean them out-of-band for full GDPR coverage.",
+            external_id, ", ".join(missing),
+        )
 
     with conn.cursor() as cur:
         # Count first (for the audit entry)
@@ -251,6 +268,51 @@ def purge_user(
         cur.execute("DELETE FROM users WHERE id = %s::uuid", (user_id,))
 
     conn.commit()
+
+    # Multi-store cleanup. Errors are logged and counted but never
+    # raised — the Postgres delete already succeeded and rolling it
+    # back would leave the user partially-deleted in PG, which is
+    # worse than a partial vector/graph remnant we can clean later.
+    vector_purged = 0
+    graph_nodes = 0
+    graph_edges = 0
+    if vector_store is not None:
+        method = getattr(vector_store, "delete_by_user", None)
+        if method is None:
+            logger.warning(
+                "vector_store has no delete_by_user — vectors for user_id=%s "
+                "remain queryable", user_id,
+            )
+        else:
+            try:
+                vector_purged = int(method(user_id) or 0)
+            except Exception as e:  # noqa: BLE001
+                logger.exception(
+                    "vector delete_by_user failed for user_id=%s: %s",
+                    user_id, e,
+                )
+    if graph is not None:
+        method = getattr(graph, "delete_by_user", None)
+        if method is None:
+            logger.warning(
+                "graph has no delete_by_user — entity nodes for user_id=%s "
+                "remain in Neo4j", user_id,
+            )
+        else:
+            try:
+                graph_nodes, graph_edges = method(user_id)
+                graph_nodes = int(graph_nodes or 0)
+                graph_edges = int(graph_edges or 0)
+            except Exception as e:  # noqa: BLE001
+                logger.exception(
+                    "graph delete_by_user failed for user_id=%s: %s",
+                    user_id, e,
+                )
+
+    counts["vector_rows"] = vector_purged
+    counts["graph_nodes"] = graph_nodes
+    counts["graph_edges"] = graph_edges
+
     logger.info(
         "purged user external_id=%r user_id=%s counts=%s audit_id=%s",
         external_id, user_id, counts, audit_id,

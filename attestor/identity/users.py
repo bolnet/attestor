@@ -177,11 +177,43 @@ class UserRepo:
 
     # ── Hard delete ───────────────────────────────────────────────────────
 
-    def purge(self, user_id: str) -> bool:
+    def purge(self, user_id: str, *, reason: str = "manual_purge") -> bool:
         """DELETE the user row. CASCADE removes their projects, sessions,
         episodes, and memories. Caller must clean up graph + vector stores
-        separately (those don't CASCADE). Returns True if the user existed."""
+        separately (those don't CASCADE). Returns True if the user existed.
+
+        Writes a ``deletion_audit`` row BEFORE the delete so the event
+        survives even if the cascade fails. This used to skip the audit
+        entirely, letting bare ``UserRepo.purge`` calls bypass the entire
+        compliance trail — prefer ``attestor.gdpr.purge_user`` for the
+        full multi-store path; this method is retained for low-level
+        admin tooling and keeps audit parity with that helper.
+        """
+        # Resolve the user's external_id for the audit row. Required
+        # by the deletion_audit schema and useful for after-the-fact
+        # reconciliation.
         with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT external_id FROM users WHERE id = %s", (user_id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return False
+            external_id = row[0]
+
+            # Audit FIRST.
+            try:
+                cur.execute(
+                    "INSERT INTO deletion_audit (user_id, external_id, "
+                    "deleted_by, reason, counts) "
+                    "VALUES (%s, %s, %s, %s, %s::jsonb)",
+                    (user_id, external_id, None, reason, "{}"),
+                )
+            except Exception:  # noqa: BLE001
+                # Audit table may not exist on older v3 deployments;
+                # fall through to the delete rather than block.
+                pass
+
             cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
             affected = cur.rowcount
         self._conn.commit()

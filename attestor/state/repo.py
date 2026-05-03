@@ -374,6 +374,15 @@ class PostgresStateBackend:
     ) -> list[StateRecord]:
         import psycopg2.extras
 
+        # Escape LIKE metacharacters in the user-supplied prefix —
+        # otherwise ``prefix="prefs.%"`` lets a caller see keys outside
+        # their declared subtree (cross-tenant key enumeration). The
+        # ``ESCAPE '\'`` clause activates the literal-escape semantics.
+        escaped = (
+            prefix.replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        )
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
@@ -382,11 +391,11 @@ class PostgresStateBackend:
                   AND COALESCE(project_id, '00000000-0000-0000-0000-000000000000'::uuid)
                       = COALESCE(%s::uuid, '00000000-0000-0000-0000-000000000000'::uuid)
                   AND scope = %s
-                  AND key LIKE %s
+                  AND key LIKE %s ESCAPE '\\'
                   AND t_expired IS NULL
                 ORDER BY key ASC
                 """,
-                (user_id, project_id, scope, prefix + "%"),
+                (user_id, project_id, scope, escaped + "%"),
             )
             rows = cur.fetchall()
         return [self._row_to_record(dict(r)) for r in rows]

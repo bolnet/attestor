@@ -10,6 +10,7 @@ None of them mutate the underlying store.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -26,6 +27,37 @@ from attestor.ui.filters import (
     parse_filters,
     search_with_filters,
 )
+
+logger = logging.getLogger(__name__)
+
+# Keys whose values are stripped from any dict shipped to clients.
+# Backend configs frequently embed Postgres URLs with passwords, Pinecone
+# API keys, and Neo4j auth tokens — they must never reach the browser.
+_CREDENTIAL_KEY_HINTS = (
+    "password", "secret", "token", "api_key", "apikey", "auth", "key",
+    "url", "uri", "dsn", "connection_string",
+)
+
+
+def _looks_like_credential_key(key: str) -> bool:
+    k = key.lower()
+    return any(hint in k for hint in _CREDENTIAL_KEY_HINTS)
+
+
+def _redact_for_client(value: Any) -> Any:
+    """Recursively strip credential-like values from a config dict.
+
+    Used for any dict that is serialised to an HTTP response so a
+    Postgres URL with embedded password or a Pinecone API key never
+    leaves the server."""
+    if isinstance(value, dict):
+        return {
+            k: ("***" if _looks_like_credential_key(k) else _redact_for_client(v))
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_for_client(v) for v in value]
+    return value
 
 
 async def index(request: Request) -> RedirectResponse:
@@ -278,8 +310,9 @@ def build_routes(templates: Jinja2Templates) -> list[Route]:
 
         try:
             trace = retrieval.recall_debug(query, token_budget=budget, namespace=namespace)
-        except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
+        except Exception:
+            logger.exception("recall_debug failed")
+            return JSONResponse({"error": "Internal retrieval error"}, status_code=500)
 
         return JSONResponse(trace)
 
@@ -305,8 +338,9 @@ def build_routes(templates: Jinja2Templates) -> list[Route]:
             results = mem.search(
                 query=None, namespace=namespace, status=search_status, limit=500,
             )
-        except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
+        except Exception:
+            logger.exception("timeline search failed")
+            return JSONResponse({"error": "Internal search error"}, status_code=500)
 
         memories = []
         for m in results:
@@ -434,8 +468,12 @@ def build_routes(templates: Jinja2Templates) -> list[Route]:
         mem = get_mem(request)
         try:
             return JSONResponse(mem.health())
-        except Exception as e:
-            return JSONResponse({"healthy": False, "error": str(e)}, status_code=500)
+        except Exception:
+            logger.exception("health check failed")
+            return JSONResponse(
+                {"healthy": False, "error": "Health check failed"},
+                status_code=500,
+            )
 
     async def config_page(request: Request) -> HTMLResponse:
         """Configuration viewer — system parameters, backends, retrieval tuning."""
@@ -526,7 +564,7 @@ def build_routes(templates: Jinja2Templates) -> list[Route]:
             "retrieval": retrieval_data,
             "stats": stats,
             "graph_stats": graph_stats,
-            "backend_configs": getattr(config, "backend_configs", {}),
+            "backend_configs": _redact_for_client(getattr(config, "backend_configs", {})),
             "health": health_data,
         }
 
@@ -544,7 +582,14 @@ def build_routes(templates: Jinja2Templates) -> list[Route]:
         return JSONResponse({"ops": mem.ops_log})
 
     async def budget_explore_json(request: Request) -> JSONResponse:
-        """Run the same query at multiple budgets, return latency + count."""
+        """Run the same query at multiple budgets, return latency + count.
+
+        Five sequential blocking ``recall_debug`` calls run inside a
+        ``to_thread`` shim so the async event loop isn't pinned for the
+        duration of the sweep — under concurrent dashboard requests the
+        old version blocked every other UI handler for several seconds.
+        """
+        import asyncio
         import time as _time
 
         mem = get_mem(request)
@@ -558,20 +603,28 @@ def build_routes(templates: Jinja2Templates) -> list[Route]:
             return JSONResponse({"error": "No retrieval orchestrator"}, status_code=500)
 
         budgets = [500, 1000, 2000, 5000, 10000]
-        results = []
-        for b in budgets:
-            t0 = _time.monotonic()
-            trace = retrieval.recall_debug(query, token_budget=b, namespace=namespace)
-            ms = round((_time.monotonic() - t0) * 1000, 2)
-            results.append({
-                "budget": b,
-                "latency_ms": ms,
-                "result_count": trace["final_count"],
-                "layers": [
-                    {"name": l["name"], "count": l["count"], "latency_ms": l.get("latency_ms", 0)}
-                    for l in trace.get("layers", [])
-                ],
-            })
+
+        def _sweep() -> list[dict[str, Any]]:
+            sweep: list[dict[str, Any]] = []
+            for b in budgets:
+                t0 = _time.monotonic()
+                trace = retrieval.recall_debug(
+                    query, token_budget=b, namespace=namespace,
+                )
+                ms = round((_time.monotonic() - t0) * 1000, 2)
+                sweep.append({
+                    "budget": b,
+                    "latency_ms": ms,
+                    "result_count": trace["final_count"],
+                    "layers": [
+                        {"name": l["name"], "count": l["count"],
+                         "latency_ms": l.get("latency_ms", 0)}
+                        for l in trace.get("layers", [])
+                    ],
+                })
+            return sweep
+
+        results = await asyncio.to_thread(_sweep)
         return JSONResponse({"query": query, "budgets": results})
 
     return [

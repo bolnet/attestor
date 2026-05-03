@@ -126,7 +126,8 @@ class ConsolidationQueue:
                     SELECT id FROM episodes
                     WHERE consolidation_state = 'pending'
                        OR (consolidation_state = 'processing'
-                           AND consolidation_claimed_at < NOW() - INTERVAL '%s seconds')
+                           AND consolidation_claimed_at <
+                               NOW() - (%s * INTERVAL '1 second'))
                     ORDER BY created_at ASC
                     FOR UPDATE SKIP LOCKED
                     LIMIT %s
