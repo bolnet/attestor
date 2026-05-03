@@ -235,6 +235,7 @@ class LlmReranker:
             max_tokens=2000,
             temperature=0.0,
             messages=[{"role": "user", "content": prompt}],
+            timeout=30,
         )
         text = (response.choices[0].message.content or "").strip()
         # Trim common code-fence wrappers some models emit.

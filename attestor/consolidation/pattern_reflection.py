@@ -29,7 +29,7 @@ from attestor.extraction.round_extractor import (
 )
 from attestor.models import Memory
 
-logger = logging.getLogger("attestor.consolidation.reflection")
+logger = logging.getLogger("attestor.consolidation.pattern_reflection")
 
 
 REFLECTION_PROMPT = """\
@@ -220,6 +220,8 @@ class ReflectionEngine:
                 model=self._model,
                 max_tokens=self._max_tokens,
                 messages=[{"role": "user", "content": prompt}],
+                timeout=60,
+                max_retries=0,
             )
             raw = response.choices[0].message.content or ""
         except Exception as e:

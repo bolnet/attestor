@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
+import os
 import re
 from typing import Any
 
 from attestor.hooks._base import run_hook
+
+# Same wall-clock deadline contract as the SessionStart hook. PostToolUse
+# fires on every Write/Edit/Bash so a stalled DB on this path blocks every
+# subsequent tool. The hook is best-effort capture — bail rather than hang.
+_HOOK_TIMEOUT_S = float(os.environ.get("ATTESTOR_HOOK_TIMEOUT_S", "5.0"))
 
 _EMPTY_RESPONSE: dict[str, Any] = {}
 
@@ -131,11 +138,21 @@ def handle(payload: dict[str, Any]) -> dict[str, Any]:
 
             store_path = resolve_store_path()
 
-            mem = AgentMemory(store_path)
-            try:
-                mem.add(content, tags=tags, category=category)
-            finally:
-                mem.close()
+            def _do_add() -> None:
+                mem = AgentMemory(store_path)
+                try:
+                    mem.add(content, tags=tags, category=category)
+                finally:
+                    mem.close()
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                fut = ex.submit(_do_add)
+                try:
+                    fut.result(timeout=_HOOK_TIMEOUT_S)
+                except concurrent.futures.TimeoutError:
+                    # Capture failed within the deadline — the host
+                    # tool already ran successfully, so silently skip.
+                    pass
 
         return _EMPTY_RESPONSE
     except Exception:  # noqa: BLE001 -- handler must never crash the host

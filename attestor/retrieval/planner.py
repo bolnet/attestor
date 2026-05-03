@@ -26,14 +26,16 @@ from typing import Any
 
 
 def _default_planner_model() -> str:
-    """Resolve the planner model: env override > YAML > hardcoded fallback."""
+    """Resolve the planner model: env override > YAML > hardcoded fallback.
+
+    Resolved lazily at call time — the previous module-level eager
+    evaluation raised at import when YAML/env weren't yet configured
+    (test bootstrap, doc generation, partial cloud deploys).
+    """
     if env := os.environ.get("PLANNER_MODEL"):
         return env
     from attestor.config import get_stack
     return get_stack().models.planner
-
-
-DEFAULT_PLANNER_MODEL = _default_planner_model()
 
 VALID_INTENTS = frozenset({
     "FACTUAL_RECALL",
@@ -151,7 +153,7 @@ def _sanitize_plan(raw: dict[str, Any]) -> QueryPlan:
 def plan_query(
     question: str,
     *,
-    model: str = DEFAULT_PLANNER_MODEL,
+    model: str | None = None,
     api_key: str | None = None,
 ) -> QueryPlan:
     """Ask the planner LLM to classify `question` into a QueryPlan.
@@ -160,6 +162,8 @@ def plan_query(
     fallback plan that queries all three namespaces so the retriever never
     goes blind.
     """
+    if model is None:
+        model = _default_planner_model()
     try:
         client, clean_model = _resolve_client(model, api_key)
     except (ValueError, KeyError, RuntimeError):

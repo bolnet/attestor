@@ -34,11 +34,14 @@ def _default_extraction_model() -> str:
     return get_stack().models.extraction
 
 
-# Backwards-compatible attribute access — code that still references
-# this constant gets a string at import time. New code should call
-# ``_default_extraction_model()`` so config changes take effect without
-# a process restart.
-DEFAULT_EXTRACTION_MODEL = _default_extraction_model()
+# Eager-resolved at import for module-level / class-default consumers.
+# YAML lookup failures fall back to an empty string so importing the
+# module in a YAML-less environment doesn't crash; downstream callers
+# surface a clear error when the empty model is actually used.
+try:
+    DEFAULT_EXTRACTION_MODEL = _default_extraction_model()
+except Exception:  # noqa: BLE001
+    DEFAULT_EXTRACTION_MODEL = ""
 
 
 def _resolve_client(model: str, api_key: str | None = None) -> tuple[Any, str]:
@@ -259,14 +262,7 @@ def llm_extract_session_full(
     return memories, valid_triples, valid_entities, valid_concepts
 
 
-def _strip_markdown_fences(text: str) -> str:
-    """Strip markdown code fences from LLM response."""
-    text = text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        lines = [l for l in lines if not l.strip().startswith("```")]
-        text = "\n".join(lines)
-    return text
+from attestor.extraction.utils import strip_markdown_fences as _strip_markdown_fences  # noqa: E402
 
 
 def _parse_json_response(text: str) -> list[dict[str, Any]]:

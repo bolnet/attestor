@@ -1,9 +1,10 @@
-"""Starlette ASGI app — HTTP API for Attestor over ArangoDB."""
+"""Starlette ASGI REST API for the Attestor memory service."""
 
 from __future__ import annotations
 
 import logging
 import os
+import threading
 from typing import Any
 
 from starlette.applications import Starlette
@@ -13,8 +14,13 @@ from starlette.routing import Route
 
 logger = logging.getLogger("attestor.api")
 
-# Lazy singleton — initialized on first request
+# Lazy singleton — initialized on first request. The lock prevents a
+# TOCTOU race under threaded ASGI servers (Uvicorn workers, mixed
+# sync/async handler pools) where two concurrent first-callers both
+# observe ``_mem is None``, both build an AgentMemory, and the second
+# overwrites the first — leaking open Postgres connections.
 _mem = None
+_mem_lock = threading.Lock()
 
 
 def _build_config() -> dict[str, Any] | None:
@@ -76,16 +82,21 @@ def _build_config() -> dict[str, Any] | None:
 
 def _get_mem():
     global _mem
-    if _mem is None:
-        from attestor.core import AgentMemory
-        from attestor._paths import resolve_data_dir
+    if _mem is not None:
+        return _mem
+    with _mem_lock:
+        # Double-checked locking: re-test inside the lock so we don't
+        # rebuild after another thread populated _mem while we waited.
+        if _mem is None:
+            from attestor.core import AgentMemory
+            from attestor._paths import resolve_data_dir
 
-        data_dir = resolve_data_dir()
-        config = _build_config()
-        if config is not None:
-            _mem = AgentMemory(data_dir, config=config)
-        else:
-            _mem = AgentMemory(data_dir)
+            data_dir = resolve_data_dir()
+            config = _build_config()
+            if config is not None:
+                _mem = AgentMemory(data_dir, config=config)
+            else:
+                _mem = AgentMemory(data_dir)
     return _mem
 
 
@@ -180,6 +191,20 @@ async def forget(request: Request) -> JSONResponse:
     if not memory_id:
         return _err("memory_id is required")
     mem = _get_mem()
+
+    # AuthZ: when the JWTAuthMiddleware is mounted (HOSTED / SHARED modes)
+    # ``request.state.user_id`` is populated. Reject forget calls that
+    # target a memory the caller doesn't own — otherwise any authenticated
+    # user could enumerate memory_ids and archive other users' data.
+    caller_user_id = getattr(request.state, "user_id", None)
+    if caller_user_id is not None:
+        target = mem.get(memory_id)
+        if target is None:
+            return _err("not found", status=404)
+        owner = getattr(target, "user_id", None)
+        if owner is not None and owner != caller_user_id:
+            return _err("forbidden", status=403)
+
     ok = mem.forget(memory_id)
     return _ok({"forgotten": ok})
 

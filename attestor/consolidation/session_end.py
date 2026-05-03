@@ -139,6 +139,8 @@ def decide_promotions(
             role="session_end_promotion",
             model=model, max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
+            timeout=30,
+            max_retries=0,
         )
         raw = response.choices[0].message.content or ""
     except Exception as e:

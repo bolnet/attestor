@@ -383,6 +383,7 @@ def _detect_llm(
             max_tokens=300,
             temperature=0.0,
             messages=[{"role": "user", "content": prompt}],
+            timeout=10,
         )
         text = (response.choices[0].message.content or "").strip()
     except Exception as e:  # noqa: BLE001

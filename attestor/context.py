@@ -366,10 +366,6 @@ class AgentContext:
         """
         self._require_permission(RolePermission.WRITE)
 
-        sum(
-            1 for mid in self.memories_written
-            # Count is approximate -- just length-based
-        )
         if len(self.memories_written) >= self.max_writes_per_agent:
             raise RuntimeError(
                 f"Agent '{self.agent_id}' exceeded write quota "

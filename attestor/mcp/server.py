@@ -393,8 +393,18 @@ def create_server(memory_path: str):
         try:
             result = _handle_tool(mem, name, arguments)
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
-        except Exception as e:
-            return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+        except (ValueError, KeyError, TypeError) as e:
+            # User-input failures: surface the message so the MCP client
+            # can fix the call. Keep the error type prefix for clarity.
+            return [TextContent(type="text", text=json.dumps({
+                "error": f"{type(e).__name__}: {e}",
+            }))]
+        except Exception:
+            # Unexpected failures (backend errors, programming bugs).
+            # Re-raise so the MCP runtime surfaces a protocol-level error
+            # the client can branch on, rather than burying it in a 200 OK
+            # JSON body that most clients silently ignore.
+            raise
 
     # -- Resources and Prompts --
     # When mem is None (introspection-only mode), skip resource/prompt

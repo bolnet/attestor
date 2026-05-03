@@ -353,23 +353,34 @@ def _count_matches(
 
 
 def _apply_archive(
-    conn: Any, where: list[str], params: list[Any],
+    conn: Any, where: list[str], params: list[Any], now: datetime,
 ) -> int:
+    # Use the ``now`` already computed by the caller so the archive
+    # ``valid_until`` exactly matches the cutoff boundary. Using SQL
+    # ``NOW()`` allowed clock drift between cutoff computation and
+    # archive execution — an as_of replay at ``now`` would then see
+    # an archived memory as still-valid for a few microseconds.
     sql = (
         "UPDATE memories SET status = 'archived', "
-        "valid_until = NOW() WHERE "
+        "valid_until = %s WHERE "
         + " AND ".join(where)
         + " RETURNING id"
     )
     with conn.cursor() as cur:
-        cur.execute(sql, tuple(params))
+        cur.execute(sql, (now, *params))
         rows = cur.fetchall() or []
     return len(rows)
 
 
 def _apply_delete(
     conn: Any, where: list[str], params: list[Any],
-) -> int:
+) -> tuple[int, list[str]]:
+    """Hard-delete matching memories from Postgres.
+
+    Returns ``(count, ids)`` so callers can purge the same ids from
+    the vector + graph stores. Without the id list, vector entries
+    survive forever — a CRITICAL compliance gap caught in review.
+    """
     sql = (
         "DELETE FROM memories WHERE "
         + " AND ".join(where)
@@ -378,7 +389,39 @@ def _apply_delete(
     with conn.cursor() as cur:
         cur.execute(sql, tuple(params))
         rows = cur.fetchall() or []
-    return len(rows)
+    ids: list[str] = []
+    for r in rows:
+        if isinstance(r, dict):
+            ids.append(str(r.get("id", "")))
+        else:
+            ids.append(str(r[0]))
+    return len(rows), [i for i in ids if i]
+
+
+def _delete_ids_from_vector(vector_store: Any, ids: list[str]) -> int:
+    """Best-effort per-id delete on the vector store.
+
+    Pinecone exposes a per-id ``delete(memory_id)``; backends that
+    omit it silently return 0. Failures on individual ids are logged
+    at debug and counted as misses, never raised — the caller is
+    already inside a retention loop and one bad id must not abort
+    the others.
+    """
+    if vector_store is None or not ids:
+        return 0
+    method = getattr(vector_store, "delete", None)
+    if method is None:
+        return 0
+    n = 0
+    for memory_id in ids:
+        try:
+            ok = method(memory_id)
+        except Exception as e:  # noqa: BLE001
+            logger.debug("vector delete failed for %s: %s", memory_id, e)
+            continue
+        if ok:
+            n += 1
+    return n
 
 
 def _write_apply_audit(
@@ -386,6 +429,7 @@ def _write_apply_audit(
     *,
     policy_id: str,
     affected: int,
+    vector_rows: int = 0,
     initiated_by: str | None,
 ) -> str:
     aid = str(uuid.uuid4())  # placeholder; live DB returns its own
@@ -398,7 +442,7 @@ def _write_apply_audit(
             "RETURNING id",
             (
                 "policy_apply", None, policy_id,
-                int(affected), 0, 0, 0, 0,
+                int(affected), int(vector_rows), 0, 0, 0,
                 initiated_by,
             ),
         )
@@ -432,10 +476,12 @@ def apply_retention(
     """
     t0 = time.monotonic()
     conn = _conn_of(mem)
+    vector_store = getattr(mem, "_vector_store", None)
     policies = list_retention_policies(mem)
     by_policy: dict[str, dict[str, Any]] = {}
     archived = 0
     deleted = 0
+    vector_purged = 0
     now = datetime.now(timezone.utc)
 
     for pol in policies:
@@ -455,17 +501,26 @@ def apply_retention(
             continue
 
         if pol.action == "archive":
-            n = _apply_archive(conn, where, params)
+            n = _apply_archive(conn, where, params, now)
             archived += n
+            v_n = 0
         else:
-            n = _apply_delete(conn, where, params)
+            n, ids = _apply_delete(conn, where, params)
             deleted += n
+            # Compliance: a retention-delete must purge the matching
+            # vectors as well, otherwise the content remains queryable
+            # via Pinecone forever. Graph entities are shared across
+            # memories (entity nodes are global, not per-memory) and
+            # are intentionally not retention-purged here.
+            v_n = _delete_ids_from_vector(vector_store, ids)
+            vector_purged += v_n
 
         by_policy[pol.id] = {
             "name": pol.name,
             "action": pol.action,
             "matched": n,
             "applied": n,
+            "vector_purged": v_n,
         }
         if n > 0:
             try:
@@ -473,6 +528,7 @@ def apply_retention(
                     conn,
                     policy_id=pol.id,
                     affected=n,
+                    vector_rows=v_n,
                     initiated_by=initiated_by,
                 )
             except Exception as e:  # noqa: BLE001
@@ -646,17 +702,35 @@ def forget_user(
     state_count = _count_user_state_rows(conn, user_id)
 
     if dry_run:
-        # Probe vector / graph to surface the blast radius. Stubs that
-        # ship a ``delete_by_user`` are still called — that's the
-        # contract: dry_run shows what a real run WOULD do.
+        # SAFETY: backends expose ``delete_by_user`` (destructive) but
+        # not ``count_by_user``. Calling delete_by_user here would
+        # actually destroy data — dry_run must NEVER mutate. We probe
+        # for an optional count_by_user method; absent that, we report
+        # -1 to signal "unknown, run for real to see counts" rather
+        # than 0 (which would falsely imply nothing exists).
+        def _count(store: Any) -> int:
+            if store is None:
+                return 0
+            method = getattr(store, "count_by_user", None)
+            if method is None:
+                return -1
+            try:
+                return int(method(user_id))
+            except Exception as e:  # noqa: BLE001
+                logger.debug("count_by_user failed: %s", e)
+                return -1
+
+        vector_count = _count(vector_store)
+        # Graph counts are returned as a (nodes, edges) pair when the
+        # backend supports it; otherwise unknown.
+        g_count_method = getattr(graph, "count_by_user", None) if graph else None
         try:
-            vector_count = _delete_user_vector(vector_store, user_id)
-        except Exception:
-            vector_count = 0
-        try:
-            g_nodes, g_edges = _delete_user_graph(graph, user_id)
-        except Exception:
-            g_nodes, g_edges = 0, 0
+            g_nodes, g_edges = (
+                g_count_method(user_id) if g_count_method else (-1, -1)
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.debug("graph count_by_user failed: %s", e)
+            g_nodes, g_edges = -1, -1
         return ForgetUserResult(
             user_id=user_id,
             doc_rows_deleted=doc_count,
@@ -670,6 +744,23 @@ def forget_user(
         )
 
     backend_errors: list[str] = []
+
+    # AUDIT FIRST. Per the docstring contract, the deletion event must
+    # be recorded before any backend mutation runs — that way a crash
+    # mid-deletion still leaves an auditable trail of "we tried to
+    # forget this user." Counts here are pre-delete estimates; we
+    # never amend them after the fact (auditors can join doc_count to
+    # the actual delete latency via elapsed_ms if they need precision).
+    audit_id = _write_forget_audit(
+        conn,
+        user_id=user_id,
+        doc_rows=doc_count,
+        vector_rows=0,
+        graph_nodes=0,
+        graph_edges=0,
+        state_rows=state_count,
+        initiated_by=initiated_by,
+    )
 
     # 1) Postgres doc
     try:
@@ -698,17 +789,6 @@ def forget_user(
     except Exception as e:  # noqa: BLE001
         backend_errors.append(f"graph:{type(e).__name__}:{e}")
         graph_nodes, graph_edges = 0, 0
-
-    audit_id = _write_forget_audit(
-        conn,
-        user_id=user_id,
-        doc_rows=doc_deleted,
-        vector_rows=vector_deleted,
-        graph_nodes=graph_nodes,
-        graph_edges=graph_edges,
-        state_rows=state_deleted,
-        initiated_by=initiated_by,
-    )
 
     return ForgetUserResult(
         user_id=user_id,

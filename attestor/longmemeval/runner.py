@@ -376,9 +376,15 @@ def _answerer_call(
             if result.chosen:
                 return result.chosen
             # Empty consensus → fall through to single-sample retry.
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             # Self-consistency layer failed; degrade to single-sample.
-            pass
+            # Surface the failure — silent degradation made bench
+            # results non-reproducible (you couldn't tell which samples
+            # used the lever and which fell through to single-sample).
+            logger.warning(
+                "self_consistency failed; falling back to single-sample: %s",
+                e, exc_info=True,
+            )
     elif cr_on:
         try:
             from attestor.longmemeval_critique import (
@@ -399,9 +405,12 @@ def _answerer_call(
             if result.final_answer:
                 return result.final_answer
             # Empty final_answer → fall through to single-sample retry.
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             # Critique-revise layer failed; degrade to single-sample.
-            pass
+            logger.warning(
+                "critique_revise failed; falling back to single-sample: %s",
+                e, exc_info=True,
+            )
 
     return _chat(client, model, prompt, max_tokens=max_tokens, role="answerer")
 
@@ -865,6 +874,22 @@ async def run_async(
     )
 
     # Echo the runtime config so the output is self-describing.
+    # The embedder identity belongs in here too — two runs with the
+    # same answer/judge/budget but different embedders produce
+    # materially different recall@K and were previously
+    # indistinguishable in the JSON output.
+    embedder_provider = None
+    embedder_model = None
+    try:
+        from attestor.config import get_stack
+        _stack_emb = get_stack().embedder
+        embedder_provider = getattr(_stack_emb, "provider", None)
+        embedder_model = getattr(_stack_emb, "model", None)
+    except Exception:  # noqa: BLE001
+        # YAML may not be loaded in some bench harnesses; the rest
+        # of the config still ships.
+        pass
+
     run_config = {
         "answer_model": answer_model,
         "judge_models": list(judge_models),
@@ -876,6 +901,8 @@ async def run_async(
         "parallel": parallel,
         "verify": verify,
         "verify_model": verify_model if verify else None,
+        "embedder_provider": embedder_provider,
+        "embedder_model": embedder_model,
     }
 
     by_dimension = _summarize_dimensions(sample_reports)

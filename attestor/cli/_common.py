@@ -22,15 +22,34 @@ class _SuppressModelNoise:
     We must redirect at the OS file descriptor level to silence it.
     """
 
-    def __enter__(self):
+    def __enter__(self) -> "_SuppressModelNoise":
+        # Open all fds first, then perform the fd swaps. If any os.dup2
+        # raises mid-setup we tear the partial state down ourselves —
+        # __exit__ doesn't run when __enter__ raises.
         self._devnull_fd = os.open(os.devnull, os.O_WRONLY)
-        self._old_stdout_fd = os.dup(1)
-        self._old_stderr_fd = os.dup(2)
-        os.dup2(self._devnull_fd, 1)
-        os.dup2(self._devnull_fd, 2)
+        try:
+            self._old_stdout_fd = os.dup(1)
+            self._old_stderr_fd = os.dup(2)
+            os.dup2(self._devnull_fd, 1)
+            os.dup2(self._devnull_fd, 2)
+        except OSError:
+            for attr in ("_old_stderr_fd", "_old_stdout_fd"):
+                fd = getattr(self, attr, None)
+                if fd is not None:
+                    try:
+                        os.close(fd)
+                    except OSError:
+                        pass
+            os.close(self._devnull_fd)
+            raise
         return self
 
-    def __exit__(self, *args):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
         os.dup2(self._old_stdout_fd, 1)
         os.dup2(self._old_stderr_fd, 2)
         os.close(self._devnull_fd)
@@ -58,16 +77,26 @@ def _suppress_noisy_output() -> None:
 
 
 def _load_env_file(env_file_path: str) -> None:
-    """Load environment variables from a .env file."""
-    env_path = Path(env_file_path)
+    """Load environment variables from a .env file.
+
+    Resolves the path so a relative ``--env-file ../../etc/passwd``
+    can't silently traverse out of the user's working tree without an
+    explicit absolute path. The resolved path is logged at debug for
+    auditability when CI pipelines feed dynamic values in.
+    """
+    env_path = Path(env_file_path).expanduser().resolve()
     if not env_path.exists():
         return
-    for line in env_path.read_text().splitlines():
-        line = line.strip()
+    for raw in env_path.read_text().splitlines():
+        line = raw.strip()
         if line and not line.startswith("#") and "=" in line:
             key, _, value = line.partition("=")
             key = key.strip()
-            value = value.strip().strip("\"'")
+            value = value.strip()
+            # Strip a single matching pair of surrounding quotes so
+            # values like ``"foo'bar"`` round-trip cleanly.
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                value = value[1:-1]
             if value:
                 os.environ[key] = value
 

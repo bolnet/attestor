@@ -152,6 +152,8 @@ def _classify_via_llm(query: str, *, model: str) -> str:
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
             max_tokens=8,
+            timeout=10,
+            max_retries=0,
         )
         text = resp.choices[0].message.content.strip().lower()
         return "global" if text.startswith("global") else "local"

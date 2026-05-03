@@ -112,28 +112,39 @@ class EpisodeRepo:
             )
 
         new_id = str(uuid.uuid4())
-        with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """
-                INSERT INTO episodes (
-                    id, user_id, project_id, session_id, thread_id,
-                    user_turn_text, assistant_turn_text,
-                    user_ts, assistant_ts, agent_id, metadata
+        # Wrap the INSERT + commit as a single try/except so a crash
+        # between cursor close and commit can't leave the row half-
+        # written. Rollback on any error keeps the episodes table in
+        # sync with what callers think they wrote.
+        try:
+            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO episodes (
+                        id, user_id, project_id, session_id, thread_id,
+                        user_turn_text, assistant_turn_text,
+                        user_ts, assistant_ts, agent_id, metadata
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                    RETURNING *
+                    """,
+                    (
+                        new_id, user_id, project_id, session_id,
+                        user_turn.thread_id,
+                        user_turn.content, assistant_turn.content,
+                        user_turn.ts, assistant_turn.ts,
+                        agent_id,
+                        json.dumps(metadata or {}),
+                    ),
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
-                RETURNING *
-                """,
-                (
-                    new_id, user_id, project_id, session_id,
-                    user_turn.thread_id,
-                    user_turn.content, assistant_turn.content,
-                    user_turn.ts, assistant_turn.ts,
-                    agent_id,
-                    json.dumps(metadata or {}),
-                ),
-            )
-            row = cur.fetchone()
-        self._conn.commit()
+                row = cur.fetchone()
+            self._conn.commit()
+        except Exception:
+            try:
+                self._conn.rollback()
+            except Exception:  # noqa: BLE001
+                pass
+            raise
         return Episode.from_row(dict(row))
 
     # ── Read ──────────────────────────────────────────────────────────────

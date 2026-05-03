@@ -47,11 +47,41 @@ def _build_config(backend: str, backend_options: Mapping[str, Any] | None) -> to
     return doc
 
 
+_INLINE_CRED_RE = __import__("re").compile(
+    r"^(?P<scheme>[a-zA-Z][a-zA-Z0-9+.-]*://)"
+    r"(?P<user>[^:@/]+):(?P<pwd>[^@/]+)@"
+    r"(?P<host>.+)$"
+)
+
+
+def _strip_inline_url_creds(url: str) -> str:
+    """Rewrite ``scheme://user:password@host/db`` to drop the password.
+
+    The on-disk config is intended for ``$ENV_VAR`` references; an
+    inline password in a Postgres URL would land verbatim on disk and
+    leak through any ``cat config.toml`` or backup tarball.
+    """
+    if not isinstance(url, str):
+        return url
+    m = _INLINE_CRED_RE.match(url)
+    if m is None:
+        return url
+    return f"{m.group('scheme')}{m.group('user')}@{m.group('host')}"
+
+
 def _redact_credentials(options: Mapping[str, Any] | None) -> dict[str, Any] | None:
     """Keep credential-like keys out of the on-disk config."""
     if not options:
         return None
-    return {k: v for k, v in options.items() if k not in _CREDENTIAL_KEYS}
+    redacted: dict[str, Any] = {}
+    for k, v in options.items():
+        if k in _CREDENTIAL_KEYS:
+            continue
+        if k in {"url", "uri", "dsn", "connection_string"}:
+            redacted[k] = _strip_inline_url_creds(v)
+        else:
+            redacted[k] = v
+    return redacted
 
 
 def _set_secure_permissions(path: Path) -> None:

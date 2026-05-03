@@ -45,7 +45,7 @@ from __future__ import annotations
 import contextlib
 import contextvars
 from datetime import datetime, timezone
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 
 # UTC monotonic-anchored timestamp captured at recall start. Set by
 # ``recall_started_at_scope``; read by store backends when constructing
@@ -102,7 +102,7 @@ def recall_started_at_scope(
 @contextlib.asynccontextmanager
 async def recall_started_at_scope_async(
     started_at: datetime | None = None,
-) -> Iterator[datetime]:
+) -> AsyncIterator[datetime]:
     """Async-flavored ``recall_started_at_scope``. Identical semantics;
     contextvars propagate the same way. Provided so ``async with`` reads
     naturally in async call sites."""

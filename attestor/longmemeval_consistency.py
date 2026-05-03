@@ -427,6 +427,7 @@ async def _sample_once_async(
         model=model,
         temperature=temperature,
         messages=messages,
+        timeout=60,
     )
     text = response.choices[0].message.content or ""
     return text.strip()
