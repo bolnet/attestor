@@ -29,18 +29,34 @@ def _write_store_config(attestor_path) -> None:
     Hooks construct ``AgentMemory(store_path)`` without a config arg, which
     falls back to ENGINE_DEFAULTS (empty password) and fails with
     ``no password supplied``. Persisting the URL on disk lets the hook's
-    own AgentMemory boot succeed.
+    own AgentMemory boot succeed. Writes an explicit ``[postgres.auth]``
+    block — URL-embedded credentials don't always make it through every
+    layer of the connection-config merge.
     """
     from pathlib import Path
+    from urllib.parse import urlparse
 
     pg_url = os.environ.get("POSTGRES_URL")
     if not pg_url:
         return
+    parsed = urlparse(pg_url)
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 5432
+    db = (parsed.path or "/attestor").lstrip("/") or "attestor"
+    user = parsed.username or "postgres"
+    pw = parsed.password or ""
+    base_url = f"postgresql://{host}:{port}"
     path = Path(attestor_path)
     path.mkdir(parents=True, exist_ok=True)
     (path / "config.toml").write_text(
         'backends = ["postgres"]\n'
-        f'[postgres]\nurl = "{pg_url}"\nembedding_dim = 1024\n'
+        '[postgres]\n'
+        f'url = "{base_url}"\n'
+        f'database = "{db}"\n'
+        'embedding_dim = 1024\n'
+        '[postgres.auth]\n'
+        f'username = "{user}"\n'
+        f'password = "{pw}"\n'
     )
 
 
