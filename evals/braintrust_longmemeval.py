@@ -204,12 +204,14 @@ def run_live(
     *,
     embedder_override: dict[str, Any] | None,
     self_consistency_override: dict[str, Any] | None,
+    contextual_embedding_override: dict[str, Any] | None = None,
     parallel: int = 1,
 ) -> None:
     """Execute a fresh bench run and upload as a Braintrust experiment.
 
-    ``embedder_override`` and ``self_consistency_override`` flip stack fields
-    for this run only via ``set_stack()``. YAML is never modified.
+    ``embedder_override``, ``self_consistency_override``, and
+    ``contextual_embedding_override`` flip stack fields for this run
+    only via ``set_stack()``. YAML is never modified.
     """
     if category not in DATASETS:
         raise ValueError(f"Unknown category: {category!r}")
@@ -223,6 +225,11 @@ def run_live(
         overrides["self_consistency"] = replace(
             base.self_consistency, **self_consistency_override
         )
+    if contextual_embedding_override:
+        new_ce = replace(
+            base.ingest.contextual_embedding, **contextual_embedding_override,
+        )
+        overrides["ingest"] = replace(base.ingest, contextual_embedding=new_ce)
     if overrides:
         set_stack(replace(base, **overrides))
         log.info("stack overrides applied: %s", sorted(overrides))
@@ -425,6 +432,12 @@ def main() -> None:
                         help="Live mode override: stack.embedder.model.")
     parser.add_argument("--self-consistency", action="store_true",
                         help="Live mode override: enable self_consistency (k=5, judge_pick).")
+    parser.add_argument("--contextual-embedding", action="store_true",
+                        help=(
+                            "Live mode override: enable Anthropic-style "
+                            "contextual embedding pre-pass at ingest "
+                            "(stack.ingest.contextual_embedding.enabled=true)."
+                        ))
     parser.add_argument("--parallel", type=int, default=1,
                         help="Live mode: concurrent samples in run_async (default 1).")
     args = parser.parse_args()
@@ -460,12 +473,17 @@ def main() -> None:
     if args.self_consistency:
         sc_override = {"enabled": True, "k": 5, "voter": "judge_pick", "temperature": 0.7}
 
+    ce_override: dict[str, Any] | None = None
+    if args.contextual_embedding:
+        ce_override = {"enabled": True}
+
     run_live(
         args.category,
         args.max_samples,
         args.suffix,
         embedder_override=embedder_override,
         self_consistency_override=sc_override,
+        contextual_embedding_override=ce_override,
         parallel=args.parallel,
     )
 

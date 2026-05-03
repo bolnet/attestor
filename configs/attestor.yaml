@@ -265,6 +265,25 @@ stack:
     voter: majority           # majority | judge_pick
     judge_model: null         # null → models.judge
 
+  # ─── Ingest pipeline (write-path transforms) ────────────────────────
+  # Contextual embedding (Anthropic, Sept 2024 — "Contextual Retrieval"):
+  # at write time, run a small LLM pre-pass that writes 1-2 sentences
+  # situating the new memory in the last N session turns, prepend that
+  # to the content, then embed the prefixed form. Anthropic's eval shows
+  # ~49% reduction in retrieval failures. The raw content stays as-is in
+  # the document store; only the embedded payload is contextualized.
+  #
+  # Phase 1 ships disabled — flip per bench cell via this YAML or the
+  # ablation matrix in evals/matrix.yaml. Cost ~ one cheap LLM call per
+  # ingest (~$0.001 / sample with claude-haiku-4.5 on LME-S).
+  ingest:
+    contextual_embedding:
+      enabled: false
+      model: anthropic/claude-haiku-4.5
+      session_window: 5         # last N memories from the same session
+      max_prefix_chars: 200     # hard cap on the generated prefix
+      cache: true               # reuse prefix on duplicate content_hash
+
   # Critique-and-revise. When enabled, the answerer runs a three-step
   # pipeline:
   #   1. Initial answer (existing path)

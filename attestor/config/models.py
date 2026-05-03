@@ -434,6 +434,68 @@ class ImageCfg:
 
 
 @dataclass(frozen=True)
+class ContextualEmbeddingCfg:
+    """Anthropic-style contextual-embedding ingest knobs.
+
+    When ``enabled`` is True, ``AgentMemory.add()`` runs an LLM
+    pre-pass before the vector store add: a small model writes 1-2
+    sentences situating the new memory in the last N turns of the same
+    session/namespace, the prefix is bounded at ``max_prefix_chars``,
+    and the *prefixed* form is what gets embedded. The raw content
+    stays in the document store unchanged.
+
+    Reference: https://www.anthropic.com/news/contextual-retrieval
+    (Sept 2024 — cuts retrieval failures by ~49% on Anthropic's eval).
+
+    Disabled by default — flip per bench cell via ``configs/attestor.yaml``
+    or by overriding the YAML in ``evals/matrix.yaml``. The Phase 1
+    rollout ships off so the default codepath is byte-identical to
+    ``main``; LME-S ablation cells in the matrix flip it on.
+
+    Cost: one LLM call per ingest. With ``model=claude-haiku-4.5`` and
+    a ~1k-char content + 5-turn session window, expect ~$0.001 / sample
+    on LME-S — gate via the ``stack.ingest.contextual_embedding.enabled``
+    YAML toggle so this never fires unintentionally.
+
+    Configuration:
+      enabled         — master switch
+      model           — small/cheap LLM for the prefix call
+                        (haiku-4.5 is the recommended default)
+      session_window  — last N memories from the same session/namespace
+                        passed as document context (5 is the sweet spot;
+                        longer windows blow up prompt size without
+                        meaningful accuracy gain)
+      max_prefix_chars — hard cap on the generated prefix
+                        (anti-runaway; protects against models that
+                        ignore the 1-2 sentence rule)
+      cache           — when True, key by content_hash so re-ingesting
+                        the same content reuses the prior prefix
+                        without paying for another LLM call.
+    """
+
+    enabled: bool = False
+    model: str = "anthropic/claude-haiku-4.5"
+    session_window: int = 5
+    max_prefix_chars: int = 200
+    cache: bool = True
+
+
+@dataclass(frozen=True)
+class IngestCfg:
+    """Ingest-time knobs (write-path transforms).
+
+    Currently exposes :class:`ContextualEmbeddingCfg`. New ingest-stage
+    features (semantic chunking, redaction, etc.) will land here as
+    sibling fields rather than under ``stack.retrieval`` — those are
+    read-path levers and live in :class:`RetrievalCfg`.
+    """
+
+    contextual_embedding: ContextualEmbeddingCfg = field(
+        default_factory=ContextualEmbeddingCfg,
+    )
+
+
+@dataclass(frozen=True)
 class StackConfig:
     postgres: PostgresCfg
     neo4j: Neo4jCfg
@@ -447,6 +509,7 @@ class StackConfig:
     clouds: dict[str, dict[str, Any]]
     self_consistency: SelfConsistencyCfg = field(default_factory=SelfConsistencyCfg)
     critique_revise: CritiqueReviseCfg = field(default_factory=CritiqueReviseCfg)
+    ingest: IngestCfg = field(default_factory=IngestCfg)
     pinecone: PineconeCfg | None = None
 
 

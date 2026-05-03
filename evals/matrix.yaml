@@ -85,6 +85,43 @@ cells:
       cost_usd: 0.30, wall_min: 31,
       note: "self_consistency was null on temporal; cross-category test for KU" }
 
+  # ── Contextual embedding (Anthropic Sept-2024) — one cell per category ──
+  # When `contextual_embedding: true`, AgentMemory.add() runs a Haiku-4.5
+  # pre-pass that writes 1-2 sentences situating each new memory in the
+  # last 5 session turns; the prefixed form is embedded. Anthropic's eval:
+  # ~49% reduction in retrieval failures. Cost ~ +$0.01 / sample over GOLDEN.
+  - { category: temporal-reasoning,
+      label: "ablation:contextual_embedding=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      contextual_embedding: true,
+      cost_usd: 0.07, wall_min: 26,
+      note: "Anthropic chunk-context prefix at ingest; expect +5-15% recall@10" }
+
+  - { category: multi-session,
+      label: "ablation:contextual_embedding=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      contextual_embedding: true,
+      cost_usd: 0.07, wall_min: 26,
+      note: "Anthropic chunk-context prefix at ingest; expect +5-15% recall@10" }
+
+  - { category: knowledge-update,
+      label: "ablation:contextual_embedding=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      contextual_embedding: true,
+      cost_usd: 0.07, wall_min: 26,
+      note: "Anthropic chunk-context prefix at ingest; expect +5-15% recall@10" }
+
+  - { category: single-session-user,
+      label: "ablation:contextual_embedding=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      contextual_embedding: true,
+      cost_usd: 0.07, wall_min: 26,
+      note: "Anthropic chunk-context prefix at ingest; expect +5-15% recall@10" }
+
   # Add more cells here as ablations are designed. Examples to seed:
   #
   # - { category: multi-session, label: "ablation:hyde=off", samples: 10,

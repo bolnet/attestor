@@ -236,6 +236,33 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             except Exception as e:
                 logger.debug("QuotaRepo init skipped: %s", e)
 
+        # Contextual-embedding pre-pass (Anthropic Sept-2024 research).
+        # When `stack.ingest.contextual_embedding.enabled` is True, the
+        # write path runs an LLM pre-pass to prefix each new memory with
+        # 1-2 sentences of session-level context BEFORE embedding. The
+        # raw content stays unchanged in the document store; only the
+        # embedded payload is prefixed. Disabled by default → byte-
+        # identical to the legacy path. See attestor.ingest.contextual.
+        # The cfg stays on the instance even when disabled so tests can
+        # inject _contextual_embedder directly without re-reading YAML.
+        self._ingest_cfg = None
+        self._contextual_embedder = None
+        try:
+            from attestor.config import get_stack
+            _ingest = getattr(get_stack(strict=False), "ingest", None)
+            if _ingest is not None:
+                self._ingest_cfg = _ingest
+                ce_cfg = _ingest.contextual_embedding
+                if ce_cfg.enabled:
+                    from attestor.ingest.contextual import ContextualEmbedder
+                    # Lazy LLM client construction — defer until first
+                    # add() to avoid pulling in openai / network at init.
+                    self._contextual_embedder = ContextualEmbedder(
+                        cfg=ce_cfg, client=None,
+                    )
+        except Exception as e:
+            logger.debug("ingest cfg not applied: %s", e)
+
         # v4 operating mode (SOLO / HOSTED / SHARED). Detected from env on
         # first construction; tests can override via config["mode"]. The
         # mode controls how _resolve() fills missing identity params.
@@ -419,6 +446,58 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         """Compute SHA-256 hash of normalized content for dedup."""
         return hashlib.sha256(content.strip().encode()).hexdigest()
 
+    def _build_contextual_llm_client(self) -> Any:
+        """Resolve the OpenAI-compatible client for the contextual
+        prefix call. Pulls base_url + API key from the YAML LLM pool so
+        the same routing as HyDE / extraction applies.
+
+        Returns ``None`` (handled upstream as a no-op) when no provider
+        is reachable — the embedder gracefully degrades to raw content.
+        """
+        try:
+            from attestor.llm_trace import get_client_for_model
+            ce_cfg = self._contextual_embedder.cfg
+            client, _model = get_client_for_model(ce_cfg.model)
+            return client
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "contextual embedding client init failed (%s: %s); "
+                "ingest will use raw content",
+                type(e).__name__, e,
+            )
+            return None
+
+    def _fetch_session_history(
+        self,
+        *,
+        namespace: str,
+        user_id: str | None,
+        session_id: str | None,
+        limit: int,
+    ) -> list[str]:
+        """Last ``limit`` memory contents in the same session/namespace.
+
+        v4: scoped by ``session_id`` when provided.
+        v3 / fallback: scoped by ``namespace``.
+
+        Errors are swallowed — a flaky list_memories must never block
+        ingest. Empty list is a valid input to the contextual prompt.
+        """
+        if limit <= 0:
+            return []
+        try:
+            kwargs: dict[str, Any] = {"limit": limit, "status": "active"}
+            if namespace and namespace != "default":
+                kwargs["namespace"] = namespace
+            mems = self._store.list_memories(**kwargs)
+            # list_memories returns newest-first by convention; truncate
+            # defensively in case a backend returns more than asked.
+            return [m.content for m in mems[:limit]]
+        except Exception as e:  # noqa: BLE001
+            logger.debug("session history fetch failed (%s): %s",
+                         type(e).__name__, e)
+            return []
+
     def add(
         self,
         content: str,
@@ -550,6 +629,55 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         for old in contradictions:
             self._temporal.supersede(old, memory.id)
 
+        # Contextual-embedding pre-pass (Anthropic Sept-2024). When the
+        # YAML enables it, build a 1-2-sentence prefix off the last N
+        # session memories and embed `[CTX] <prefix>\n\n<content>`. The
+        # prefix is stored on metadata for audit. Failure-isolated: any
+        # LLM exception degrades to raw content + warning log.
+        embed_payload = content
+        if self._contextual_embedder is not None:
+            try:
+                # Lazy-build the LLM client on first add().
+                if self._contextual_embedder.client is None:
+                    self._contextual_embedder.client = (
+                        self._build_contextual_llm_client()
+                    )
+                history = self._fetch_session_history(
+                    namespace=namespace,
+                    user_id=user_id,
+                    session_id=session_id,
+                    limit=int(self._contextual_embedder.cfg.session_window),
+                )
+                embed_payload, prefix = self._contextual_embedder.prepare(
+                    content=content,
+                    session_history=history,
+                )
+                if prefix is not None:
+                    # Persist the prefix so it round-trips via mem.get().
+                    new_meta = dict(memory.metadata or {})
+                    new_meta["_context_prefix"] = prefix
+                    memory = replace(memory, metadata=new_meta)
+                    # Update the row so the document store reflects the
+                    # final metadata. update() is a no-op when memory
+                    # is identical, so this is safe on legacy stores.
+                    try:
+                        self._store.update(memory)
+                    except Exception as ue:
+                        logger.debug(
+                            "contextual prefix metadata update failed "
+                            "(non-fatal): %s", ue,
+                        )
+            except Exception as e:
+                # The prepare() call should never raise — but defense in
+                # depth: if it does, we still embed raw content rather
+                # than block ingest.
+                logger.warning(
+                    "contextual embedding pipeline failed (%s: %s); "
+                    "falling back to raw content",
+                    type(e).__name__, e,
+                )
+                embed_payload = content
+
         # Store in vector DB. Non-fatal — the document path is the source
         # of truth and recall degrades gracefully without vectors. Surface
         # the exception via logger.warning so the failure is debuggable
@@ -564,7 +692,7 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         if _vec_sink:
             try:
                 t0 = time.monotonic()
-                _vec_sink.add(memory.id, content, namespace=namespace)
+                _vec_sink.add(memory.id, embed_payload, namespace=namespace)
                 store_timings["vector_ms"] = round((time.monotonic() - t0) * 1000, 2)
                 if _tr.is_enabled():
                     _tr.event("ingest.write.vector",
