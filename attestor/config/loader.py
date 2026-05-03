@@ -20,6 +20,7 @@ from attestor.config.models import (
     ImageCfg,
     IngestCfg,
     LLMCfg,
+    LLMExtractionCfg,
     ModelsCfg,
     MultiQueryCfg,
     Neo4jCfg,
@@ -165,7 +166,28 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         max_prefix_chars=ce_max_chars,
         cache=bool(ce_blk.get("cache", True)),
     )
-    ingest_cfg = IngestCfg(contextual_embedding=ce_cfg)
+
+    # LLM-driven entity extraction (Mem0/Zep alignment). When enabled,
+    # ``AgentMemory.add()`` runs an LLM pass to extract entities +
+    # relations instead of the regex-based ``attestor.graph.extractor``.
+    # Defaults preserve the existing regex codepath byte-for-byte.
+    le_blk = ingest_blk.get("llm_entity_extraction") or {}
+    le_timeout = float(le_blk.get("timeout_s", 15.0))
+    if le_timeout <= 0:
+        raise SystemExit(
+            f"[attestor.config] ingest.llm_entity_extraction."
+            f"timeout_s={le_timeout} must be > 0"
+        )
+    le_cfg = LLMExtractionCfg(
+        enabled=bool(le_blk.get("enabled", False)),
+        model=str(le_blk.get("model", "anthropic/claude-haiku-4.5")),
+        timeout_s=le_timeout,
+        cache=bool(le_blk.get("cache", True)),
+    )
+    ingest_cfg = IngestCfg(
+        contextual_embedding=ce_cfg,
+        llm_entity_extraction=le_cfg,
+    )
 
     llm_provider = str(_require(llm_blk, "provider", "stack.llm.provider"))
     if llm_provider not in LLM_PROVIDER_DEFAULTS:

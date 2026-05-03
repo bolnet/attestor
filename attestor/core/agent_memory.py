@@ -714,12 +714,34 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         # nothing without the operator knowing).
         if self._graph:
             try:
-                from attestor.graph.extractor import extract_entities_and_relations
-                t0 = time.monotonic()
-                nodes, edges = extract_entities_and_relations(
-                    content, tags or [], entity, category,
-                    namespace=namespace,
+                # Branch on the LLM-extraction toggle. When enabled, we
+                # call the LLM-driven path which falls back to the
+                # regex extractor on LLM failure (NOT to empty). When
+                # disabled, the codepath is byte-identical to ``main``.
+                _le_cfg = (
+                    self._ingest_cfg.llm_entity_extraction
+                    if self._ingest_cfg is not None else None
                 )
+                t0 = time.monotonic()
+                if _le_cfg is not None and _le_cfg.enabled:
+                    from attestor.extraction.llm_entity_extractor import (
+                        extract_or_regex,
+                    )
+                    nodes, edges = extract_or_regex(
+                        content, tags or [], entity, category,
+                        namespace=namespace,
+                        llm_enabled=True,
+                        llm_model=_le_cfg.model,
+                        llm_timeout=_le_cfg.timeout_s,
+                    )
+                else:
+                    from attestor.graph.extractor import (
+                        extract_entities_and_relations,
+                    )
+                    nodes, edges = extract_entities_and_relations(
+                        content, tags or [], entity, category,
+                        namespace=namespace,
+                    )
                 if _tr.is_enabled():
                     _tr.event("ingest.extract",
                               memory_id=memory.id, namespace=namespace,

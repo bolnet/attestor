@@ -284,6 +284,24 @@ stack:
       max_prefix_chars: 200     # hard cap on the generated prefix
       cache: true               # reuse prefix on duplicate content_hash
 
+    # LLM-driven entity + relation extraction (Mem0/Zep alignment).
+    # The regex-based attestor.graph.extractor returns entity_count=0
+    # for most LME-S content (production traces show entity_names=[]).
+    # When enabled, AgentMemory.add() runs an LLM pass at ingest to
+    # extract proper-noun + value-bearing entities and explicit
+    # relationships, replacing the regex pass for that ingest. On LLM
+    # failure (timeout / malformed JSON) the path degrades to the
+    # regex extractor — never to empty.
+    #
+    # Cost: ~$0.0003 / ingest with claude-haiku-4.5 on LME-S content.
+    # Phase 1 ships disabled — flip per bench cell via this YAML or
+    # the matrix in evals/matrix.yaml.
+    llm_entity_extraction:
+      enabled: false
+      model: anthropic/claude-haiku-4.5
+      timeout_s: 15.0           # per-request deadline (LLM call)
+      cache: true               # process-local cache by content_hash
+
   # Critique-and-revise. When enabled, the answerer runs a three-step
   # pipeline:
   #   1. Initial answer (existing path)
