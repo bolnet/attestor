@@ -40,6 +40,7 @@ class Cell:
     embedder_provider: str | None = None
     embedder_model: str | None = None
     self_consistency: bool = False
+    contextual_embedding: bool = False
     cost_usd: float = 0.0
     wall_min: int = 0
     note: str = ""
@@ -56,6 +57,8 @@ class Cell:
             args.extend(["--embedder-model", self.embedder_model])
         if self.self_consistency:
             args.append("--self-consistency")
+        if self.contextual_embedding:
+            args.append("--contextual-embedding")
         return args
 
 
@@ -74,6 +77,7 @@ def load_matrix(path: Path) -> tuple[str, list[Cell]]:
             embedder_provider=emb.get("provider"),
             embedder_model=emb.get("model"),
             self_consistency=bool(raw.get("self_consistency", False)),
+            contextual_embedding=bool(raw.get("contextual_embedding", False)),
             cost_usd=float(raw.get("cost_usd", 0.0)),
             wall_min=int(raw.get("wall_min", 0)),
             note=raw.get("note", ""),

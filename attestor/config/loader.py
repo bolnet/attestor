@@ -13,10 +13,12 @@ import yaml
 from attestor.config.models import (
     LLM_PROVIDER_DEFAULTS,
     CloudTarget,
+    ContextualEmbeddingCfg,
     CritiqueReviseCfg,
     EmbedderCfg,
     HydeCfg,
     ImageCfg,
+    IngestCfg,
     LLMCfg,
     ModelsCfg,
     MultiQueryCfg,
@@ -140,6 +142,31 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         max_revisions=cr_max_revisions,
     )
 
+    # Ingest-time knobs (write-path). Currently just contextual_embedding;
+    # other ingest-stage features will land as sibling fields here.
+    ingest_blk = stack_blk.get("ingest") or {}
+    ce_blk = ingest_blk.get("contextual_embedding") or {}
+    ce_max_chars = int(ce_blk.get("max_prefix_chars", 200))
+    ce_window = int(ce_blk.get("session_window", 5))
+    if ce_max_chars <= 0:
+        raise SystemExit(
+            f"[attestor.config] ingest.contextual_embedding."
+            f"max_prefix_chars={ce_max_chars} must be > 0"
+        )
+    if ce_window < 0:
+        raise SystemExit(
+            f"[attestor.config] ingest.contextual_embedding."
+            f"session_window={ce_window} must be >= 0"
+        )
+    ce_cfg = ContextualEmbeddingCfg(
+        enabled=bool(ce_blk.get("enabled", False)),
+        model=str(ce_blk.get("model", "anthropic/claude-haiku-4.5")),
+        session_window=ce_window,
+        max_prefix_chars=ce_max_chars,
+        cache=bool(ce_blk.get("cache", True)),
+    )
+    ingest_cfg = IngestCfg(contextual_embedding=ce_cfg)
+
     llm_provider = str(_require(llm_blk, "provider", "stack.llm.provider"))
     if llm_provider not in LLM_PROVIDER_DEFAULTS:
         raise SystemExit(
@@ -235,6 +262,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         clouds=dict(clouds_blk),
         self_consistency=sc_cfg,
         critique_revise=cr_cfg,
+        ingest=ingest_cfg,
         pinecone=(
             PineconeCfg(
                 host=pcn.get("host"),
