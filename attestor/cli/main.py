@@ -84,6 +84,12 @@ def main(argv=None):
         help="Skip interactive prompts; use only CLI flags",
     )
     p_init.add_argument(
+        "--postgres-url",
+        default=None,
+        help="Override Postgres connection URL written to config.toml "
+        "(non-interactive mode)",
+    )
+    p_init.add_argument(
         "--install",
         action="store_true",
         dest="install_mcp",

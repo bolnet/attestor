@@ -193,7 +193,8 @@ class TestContentHashDedup:
         """Adding the same content twice should return the existing memory."""
         from attestor.core import AgentMemory
 
-        with AgentMemory(tmp_path / "dedup_test") as mem:
+        from .conftest import _build_test_config
+        with AgentMemory(tmp_path / "dedup_test", config=_build_test_config()) as mem:
             m1 = mem.add("The sky is blue", tags=["fact"])
             m2 = mem.add("The sky is blue", tags=["fact"])
             assert m1.id == m2.id
@@ -202,7 +203,8 @@ class TestContentHashDedup:
         """Content differing only by leading/trailing whitespace should dedup."""
         from attestor.core import AgentMemory
 
-        with AgentMemory(tmp_path / "ws_test") as mem:
+        from .conftest import _build_test_config
+        with AgentMemory(tmp_path / "ws_test", config=_build_test_config()) as mem:
             m1 = mem.add("hello world", tags=["test"])
             m2 = mem.add("  hello world  ", tags=["test"])
             assert m1.id == m2.id
@@ -211,7 +213,8 @@ class TestContentHashDedup:
         """Different content should create separate memories."""
         from attestor.core import AgentMemory
 
-        with AgentMemory(tmp_path / "diff_test") as mem:
+        from .conftest import _build_test_config
+        with AgentMemory(tmp_path / "diff_test", config=_build_test_config()) as mem:
             m1 = mem.add("The sky is blue", tags=["fact"])
             m2 = mem.add("The sky is red", tags=["fact"])
             assert m1.id != m2.id
@@ -220,7 +223,8 @@ class TestContentHashDedup:
         """Memory should have content_hash set after add."""
         from attestor.core import AgentMemory
 
-        with AgentMemory(tmp_path / "hash_test") as mem:
+        from .conftest import _build_test_config
+        with AgentMemory(tmp_path / "hash_test", config=_build_test_config()) as mem:
             m = mem.add("test content", tags=["test"])
             assert m.content_hash is not None
             expected = hashlib.sha256(b"test content").hexdigest()
@@ -240,7 +244,8 @@ class TestAccessTracking:
         """Recalling memories should increment their access_count."""
         from attestor.core import AgentMemory
 
-        with AgentMemory(tmp_path / "access_test") as mem:
+        from .conftest import _build_test_config
+        with AgentMemory(tmp_path / "access_test", config=_build_test_config()) as mem:
             m = mem.add("Python is a programming language",
                         tags=["python", "language"], entity="Python")
             # Recall to trigger access tracking

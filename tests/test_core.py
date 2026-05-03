@@ -219,8 +219,9 @@ class TestExportImport:
 class TestRawSQL:
     def test_execute(self, mem):
         mem.add("test fact", category="test_cat")
+        # Postgres uses %s placeholders, not SQLite-style ?
         rows = mem.execute(
-            "SELECT * FROM memories WHERE category = ?", ["test_cat"]
+            "SELECT * FROM memories WHERE category = %s", ["test_cat"]
         )
         assert len(rows) == 1
         assert rows[0]["content"] == "test fact"
