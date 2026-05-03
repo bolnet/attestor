@@ -163,10 +163,18 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         except Exception as _e:
             logger.debug("retrieval cfg not applied: %s", _e)
 
+        # Vector lane fallback: when no separate vector backend is wired
+        # (e.g. tests without Pinecone, single-binary deploys), use the
+        # document store's pgvector mixin so recall stays functional
+        # instead of silently returning zero hits. PostgresBackend exposes
+        # `.search(query_text, limit, namespace)` via _PostgresVectorMixin.
+        _orchestrator_vec = self._vector_store
+        if _orchestrator_vec is None and hasattr(self._store, "_embedding_dim"):
+            _orchestrator_vec = self._store  # type: ignore[assignment]
         self._retrieval = RetrievalOrchestrator(
             self._store,
             min_results=self.config.min_results,
-            vector_store=self._vector_store,
+            vector_store=_orchestrator_vec,
             graph=self._graph,
             bm25_lane=bm25_lane,
             config=_runtime_cfg,
@@ -547,10 +555,16 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         # the exception via logger.warning so the failure is debuggable
         # (silent pass made dim-mismatch / embedder-down / schema-drift bugs
         # invisible until recall returned 0 hits).
-        if self._vector_store:
+        # Vector sink fallback (mirrors orchestrator wiring above): if no
+        # separate vector backend is wired, write to the document store's
+        # pgvector mixin so recall has embeddings to query against.
+        _vec_sink = self._vector_store
+        if _vec_sink is None and hasattr(self._store, "_embedding_dim"):
+            _vec_sink = self._store  # type: ignore[assignment]
+        if _vec_sink:
             try:
                 t0 = time.monotonic()
-                self._vector_store.add(memory.id, content, namespace=namespace)
+                _vec_sink.add(memory.id, content, namespace=namespace)
                 store_timings["vector_ms"] = round((time.monotonic() - t0) * 1000, 2)
                 if _tr.is_enabled():
                     _tr.event("ingest.write.vector",
