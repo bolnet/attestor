@@ -462,6 +462,10 @@ class RetrievalCfg:
         default_factory=lambda: {0: 0.30, 1: 0.20, 2: 0.10},
     )
     graph_unreachable_penalty: float = -0.05
+    # Default cap when ``recall(long_context=True)`` omits an explicit
+    # ``long_context_max_tokens``. Sized for 1M-context answerers — see
+    # ``attestor.retrieval.orchestrator.postprocess._long_context_pack``.
+    long_context_default_max_tokens: int = 200_000
     multi_query: MultiQueryCfg = field(default_factory=MultiQueryCfg)
     temporal_prefilter: TemporalPrefilterCfg = field(
         default_factory=TemporalPrefilterCfg,

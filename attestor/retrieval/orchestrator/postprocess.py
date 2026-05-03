@@ -26,6 +26,73 @@ from attestor.retrieval.scorer import (
     temporal_boost,
 )
 from attestor.retrieval.trace import write as trace_write
+from attestor.utils.tokens import estimate_tokens
+
+# Default cap for long-context mode. Sized for 1M-context answerers
+# (Claude Sonnet 4.6 / Opus 4.x / Gemini 2 Pro) — 200_000 tokens
+# leaves ~800k for the system prompt + question + downstream reasoning.
+_DEFAULT_LONG_CONTEXT_MAX_TOKENS = 200_000
+
+
+def _long_context_pack(
+    candidates: list[RetrievalResult],
+    *,
+    max_tokens: int,
+) -> list[RetrievalResult]:
+    """Pack the top-scored candidates verbatim, capped by ``max_tokens``.
+
+    Sorts by score desc, accumulates until adding the next memory would
+    exceed the cap, drops it whole (never partial). Reuses the same
+    ``estimate_tokens`` helper that ``fit_to_budget`` uses, so cap-vs-
+    budget semantics stay aligned.
+
+    Designed for downstream answerers running on 1M-context models —
+    no MMR diversity penalty (near-duplicates that are genuinely relevant
+    survive). Pure CPU-bound; no LLM call.
+    """
+    if not candidates:
+        return []
+    sorted_results = sorted(candidates, key=lambda r: r.score, reverse=True)
+    selected: list[RetrievalResult] = []
+    tokens_used = 0
+    for r in sorted_results:
+        t = estimate_tokens(r.memory.content)
+        if tokens_used + t > max_tokens:
+            continue
+        selected.append(r)
+        tokens_used += t
+    return selected
+
+
+def _step6_pack(
+    candidates: list[RetrievalResult],
+    *,
+    token_budget: int,
+    long_context_mode: bool = False,
+    long_context_max_tokens: int = _DEFAULT_LONG_CONTEXT_MAX_TOKENS,
+) -> list[RetrievalResult]:
+    """Step 6 of the recall cascade — token-fit packing.
+
+    Two strategies:
+
+      Standard (``long_context_mode=False``)
+        Greedy fit-to-budget — optimized for short-context answerers
+        (gpt-4o, claude-haiku) where every token has measurable cost.
+
+      Long-context (``long_context_mode=True``)
+        Pack the top-scored candidates verbatim up to
+        ``long_context_max_tokens``. Designed for 1M-context answerers
+        where the diversity penalty actively HURTS (cuts genuinely-
+        relevant near-duplicates).
+
+    Default behavior (``long_context_mode=False``) is byte-identical
+    to the pre-feature pipeline.
+    """
+    if long_context_mode:
+        return _long_context_pack(
+            candidates, max_tokens=long_context_max_tokens,
+        )
+    return fit_to_budget(candidates, token_budget)
 
 
 class _OrchestratorPostProcessMixin:
@@ -116,6 +183,8 @@ class _OrchestratorPostProcessMixin:
         path: str,
         token_budget: int,
         t_total: float,
+        long_context: bool = False,
+        long_context_max_tokens: int = _DEFAULT_LONG_CONTEXT_MAX_TOKENS,
     ) -> list[RetrievalResult]:
         from attestor import trace as _tr
         results: list[RetrievalResult] = []
@@ -281,7 +350,11 @@ class _OrchestratorPostProcessMixin:
         results = entity_boost(results, question_entities or None)
 
         # ── Step 4: MMR diversity ──
-        if self.enable_mmr:
+        # Skipped when long_context=True — the downstream 1M-context
+        # answerer benefits more from raw top-K than from a diversity-
+        # trimmed subset (near-duplicates that are genuinely relevant
+        # survive). MMR + long-context are mutually exclusive by design.
+        if self.enable_mmr and not long_context:
             _pre_mmr_count = len(results)
             results = mmr_rerank(results, lambda_param=self.mmr_lambda)
             if self.mmr_top_n is not None and len(results) > self.mmr_top_n:
@@ -291,6 +364,9 @@ class _OrchestratorPostProcessMixin:
                           lambda_=self.mmr_lambda,
                           mmr_top_n=self.mmr_top_n,
                           in_count=_pre_mmr_count, out_count=len(results))
+        elif long_context and _tr.is_enabled():
+            _tr.event("recall.stage.mmr_skipped",
+                      reason="long_context_mode")
 
         # ── Step 5: Confidence decay ──
         results = confidence_decay_boost(
@@ -300,12 +376,21 @@ class _OrchestratorPostProcessMixin:
             gate=self.confidence_gate,
         )
 
-        # ── Step 6: Fit to budget ──
+        # ── Step 6: Fit to budget (or long-context pack) ──
         _pre_pack_count = len(results)
-        final = fit_to_budget(results, token_budget)
+        final = _step6_pack(
+            results,
+            token_budget=token_budget,
+            long_context_mode=long_context,
+            long_context_max_tokens=long_context_max_tokens,
+        )
         if _tr.is_enabled():
             _tr.event("recall.stage.pack",
+                      mode="long_context" if long_context else "greedy_fit",
                       token_budget=token_budget,
+                      long_context_max_tokens=(
+                          long_context_max_tokens if long_context else None
+                      ),
                       in_count=_pre_pack_count, out_count=len(final))
             _tr.event("recall.done",
                       query=query[:120],

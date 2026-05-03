@@ -212,6 +212,16 @@ stack:
       2: 0.10
     graph_unreachable_penalty: -0.05
 
+    # Long-context fit mode (alternate Step 6). Callers opt in per
+    # recall via ``mem.recall(query, long_context=True)``; this YAML
+    # key is just the default cap when the caller doesn't pass an
+    # explicit ``long_context_max_tokens``. Sized for 1M-context
+    # answerers (Claude Sonnet 4.6 / Opus 4.x / Gemini 2 Pro) — leaves
+    # ~800k tokens for system prompt + question + downstream reasoning.
+    # When ``long_context=True``, MMR (Step 5) is skipped and Step 6
+    # packs the top-K reranked candidates verbatim up to this cap.
+    long_context_default_max_tokens: 200000
+
     # Multi-query lane. When enabled, the orchestrator rewrites the
     # question into N paraphrases via a single LLM call and RRF-merges
     # N+1 vector searches before the rest of the cascade.

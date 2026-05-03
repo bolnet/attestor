@@ -159,6 +159,9 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         graph_unreachable_penalty=float(
             retrieval_blk.get("graph_unreachable_penalty", -0.05),
         ),
+        long_context_default_max_tokens=int(
+            retrieval_blk.get("long_context_default_max_tokens", 200_000),
+        ),
         multi_query=mq_cfg,
         temporal_prefilter=tp_cfg,
         hyde=hyde_cfg,

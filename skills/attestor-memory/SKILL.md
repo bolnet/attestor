@@ -103,7 +103,7 @@ The skill exposes six primitives on `attestor.AgentMemory`. Every signature belo
 | Method | Purpose |
 | --- | --- |
 | `add(content, tags, category, entity, namespace, event_date, confidence, metadata, ...)` | Persist one fact. Auto-detects contradictions and supersedes the older one. Returns the stored `Memory`. |
-| `recall(query, budget, namespace, user_id, as_of, time_window)` | Six-step retrieval cascade (vector + BM25 + RRF + graph + MMR + token-budget pack). Returns `list[RetrievalResult]`. |
+| `recall(query, budget, namespace, user_id, as_of, time_window, *, long_context, long_context_max_tokens)` | Six-step retrieval cascade (vector + BM25 + RRF + graph + MMR + token-budget pack). Returns `list[RetrievalResult]`. Pass `long_context=True` to skip MMR + greedy-fit and pack the top-K candidates verbatim up to `long_context_max_tokens` (default 200_000) — designed for 1M-context downstream answerers (Claude Sonnet 4.6 / Opus 4.x / Gemini 2 Pro). |
 | `timeline(entity, namespace)` | Chronological replay of every memory about an entity (active + superseded). Returns `list[Memory]`. |
 | `current_facts(category, entity, namespace)` | Active, non-superseded memories only. The "what does the agent believe right now" view. |
 | `forget(memory_id)` / `forget_before(date)` | Archive a single memory by id, or every memory created before a date. Returns `bool` / `int`. |
@@ -218,7 +218,32 @@ for r in past_results:
 
 `as_of` resolves on event time (`valid_from` / `valid_until`), so the answer reflects what was true *then*, not what the agent learned later.
 
-### Example 4 — Multi-agent shared state with RBAC + namespace isolation
+### Example 4 — Long-context recall for 1M-context answerers
+
+```python
+from attestor import AgentMemory
+
+mem = AgentMemory("./agent-store")
+
+# Default: short-context optimized — MMR diversity + token-budget pack.
+short_ctx = mem.recall("project decisions Q3", budget=2000)
+
+# Long-context mode: skip MMR, pack top-K verbatim up to 200_000 tokens.
+# Use when the downstream answerer is Claude Sonnet 4.6 / Opus 4.x /
+# Gemini 2 Pro — diversity penalties cut genuinely-relevant duplicates.
+long_ctx = mem.recall("project decisions Q3", long_context=True)
+
+# Override the cap when needed (e.g., 500k for Gemini 2 Pro).
+big = mem.recall(
+    "project decisions Q3",
+    long_context=True,
+    long_context_max_tokens=500_000,
+)
+```
+
+Both modes coexist: short-context callers (gpt-4o, claude-haiku) keep MMR's diversity trim; long-context callers get the top-K verbatim. Attestor never calls the answerer itself — it just packs the memories.
+
+### Example 5 — Multi-agent shared state with RBAC + namespace isolation
 
 ```python
 from attestor import AgentContext, AgentMemory, AgentRole
@@ -245,7 +270,7 @@ print(orchestrator.agent_trail)         # full handoff chain for audit
 
 Roles enforced at the context layer (`attestor/context.py`): `ORCHESTRATOR` = full perms; `PLANNER` / `EXECUTOR` / `RESEARCHER` = read + write; `REVIEWER` / `MONITOR` = read-only. `read_only=True` is an independent kill switch that strips writes regardless of role.
 
-### Example 5 — Periodic reflection (distill many episodic memories into a few semantic ones)
+### Example 6 — Periodic reflection (distill many episodic memories into a few semantic ones)
 
 ```python
 from datetime import datetime, timedelta, timezone
@@ -276,7 +301,7 @@ for did in result.distilled_memory_ids:
 
 `dry_run=True` calls the LLM (so the cost estimate is accurate) but skips the writes — useful for canary deployments.
 
-### Example 6 — Global queries via Neo4j community detection (GraphRAG-style)
+### Example 7 — Global queries via Neo4j community detection (GraphRAG-style)
 
 Attestor's six-step recall is tuned for *local* questions ("what is my Wells Fargo pre-approval amount?"). For *global* questions that span many memories ("summarize my interactions with Wells Fargo across the last 6 months", "what are my recurring concerns this quarter?", "what trips have I taken over 8 months?") the right answer is a cluster-level synthesis, not a top-K passage list.
 
@@ -312,7 +337,7 @@ for r in results:
 
 Failure-isolated: if Neo4j is down, the LLM summarizer errors, or no candidate entities exist, the lane returns an empty result and `recall()` falls back to the local pipeline.
 
-### Example 7 — Audit + GDPR
+### Example 8 — Audit + GDPR
 
 ```python
 from attestor import AgentMemory
