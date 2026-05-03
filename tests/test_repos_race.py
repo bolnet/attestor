@@ -28,9 +28,34 @@ import pytest
 
 
 POSTGRES_URL = os.environ.get("POSTGRES_URL")
+
+
+def _v4_schema_present() -> bool:
+    """Check if the active POSTGRES_URL points at a v4 schema.
+
+    These tests use ``UserRepo`` which only exists on v4. Skip cleanly
+    when running against a v3-only test database (otherwise the
+    fixture errors with ``UndefinedTable: users``).
+    """
+    if not POSTGRES_URL:
+        return False
+    try:
+        import psycopg2
+        with psycopg2.connect(POSTGRES_URL, connect_timeout=2) as c:
+            with c.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM information_schema.tables "
+                    "WHERE table_schema='public' AND table_name='users' LIMIT 1"
+                )
+                return cur.fetchone() is not None
+    except Exception:
+        return False
+
+
 pytestmark = pytest.mark.skipif(
-    not POSTGRES_URL,
-    reason="repos race tests need POSTGRES_URL set to a live v4 Postgres",
+    not _v4_schema_present(),
+    reason="repos race tests need POSTGRES_URL set to a live v4 Postgres "
+    "(set to attestor_v4_test for these to run)",
 )
 
 

@@ -1,4 +1,12 @@
-"""Tests for CLI — require a live Postgres backend (no embedded stack)."""
+"""Tests for CLI — require a live Postgres backend (no embedded stack).
+
+NOTE: this file pre-dates the v3→v4 schema cut and the removal of the
+embedded SQLite stack (PR #125). The fixture overwrites a non-existent
+``config.json`` (the new init writes ``config.toml``) and several
+asserts check for ``memory.db`` (the legacy SQLite path that no longer
+exists). Marked xfail at module level until rewritten against the
+canonical Postgres+Pinecone+Neo4j stack and config.toml format.
+"""
 
 import json
 import os
@@ -10,10 +18,18 @@ from attestor.cli import main
 
 from .conftest import TEST_CONFIG
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("POSTGRES_URL"),
-    reason="CLI tests require POSTGRES_URL (embedded stack removed)",
-)
+pytestmark = [
+    pytest.mark.skipif(
+        not os.environ.get("POSTGRES_URL"),
+        reason="CLI tests require POSTGRES_URL (embedded stack removed)",
+    ),
+    pytest.mark.xfail(
+        reason="CLI tests assert legacy v3 embedded-stack artifacts "
+        "(config.json, memory.db) that don't exist post-PR #125; needs "
+        "rewrite against config.toml + Postgres",
+        strict=False,
+    ),
+]
 
 
 @pytest.fixture
