@@ -9,6 +9,7 @@ capabilities:
   - memory.supersede
   - memory.forget
   - memory.audit
+  - memory.state
 license: MIT
 homepage: https://attestor.dev
 repository: https://github.com/bolnet/attestor
@@ -117,6 +118,34 @@ Supplementary primitives an agent reaches for less often:
 - `export_user(external_id)` / `purge_user(external_id)` / `deletion_audit_log()` — GDPR data portability + erasure with audit trail.
 - `pagerank(alpha)` — entity importance from the Neo4j graph.
 - `stats()` / `ops_log` — store counts and a ring buffer of recent operation latencies.
+
+### State lane — typed profile facts (`memory.state`)
+
+Retrieval is the wrong tool for personalization. Durable, type-checked facts (preferences, capability declarations, durable identity facts) belong in a state object, not the embedding index. OpenAI's January 2026 `context_personalization` cookbook makes this case directly. Attestor exposes the state object as `mem.state`:
+
+| Method | Purpose |
+| --- | --- |
+| `mem.state.set(key, value, *, user_id, project_id=..., agent_id=..., scope=..., schema=...)` | Write a typed fact. Append-only — previous active row is stamped with `t_expired`. Optional `schema=` triggers JSON-Schema validation. |
+| `mem.state.get(key, *, user_id, project_id=..., scope=...)` | Read the current value, or `None` if missing. |
+| `mem.state.list(*, user_id, project_id=..., scope=..., prefix="")` | Return all active key/value pairs whose key starts with `prefix`. |
+| `mem.state.history(key, *, user_id, ...)` | Every value this key has held, oldest first (bi-temporal). |
+| `mem.state.as_of(key, *, ts, user_id, ...)` | Replay the value that was active at `ts`. |
+| `mem.state.delete(key, *, user_id, ...)` | Mark the active row expired. History is preserved. |
+
+Two reference schemas ship with the package: `user_preferences_v1` (theme, language, timezone, communication_style) and `agent_capability_v1` (capability_set, max_tokens, allowed_tools). Register your own schema directory with `attestor.state.register_schema_directory(...)`. Validation failures raise `StateValidationError`.
+
+RBAC is identical to the memory lane: WRITE for `set`/`delete`, READ for `get`/`list`/`history`/`as_of`. `read_only=True` strips writes regardless of role. The `AgentContext` surface mirrors the repo: `ctx.state_set(...)`, `ctx.state_get(...)`, `ctx.state_list(...)`, `ctx.state_delete(...)`.
+
+```python
+mem.state.set(
+    "preferences",
+    {"theme": "dark", "language": "en"},
+    user_id=user.id,
+    schema="user_preferences_v1",
+)
+mem.state.get("preferences", user_id=user.id)
+# {"theme": "dark", "language": "en"}
+```
 
 Manual contradiction resolution (rare — `add()` does this automatically):
 

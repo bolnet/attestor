@@ -264,6 +264,24 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         except Exception as e:
             logger.debug("ingest cfg not applied: %s", e)
 
+        # State lane — typed profile facts (memory.state). Auto-enabled on
+        # v4 + Postgres because the ``state`` table ships in schema.sql.
+        # On v3 / non-Postgres ``self.state`` stays None and AgentContext
+        # surfaces a clear error rather than a silent attribute miss. See
+        # attestor/state for the lane's API.
+        self.state: Any = None
+        if (
+            getattr(self._store, "_v4", False)
+            and getattr(self._store, "_conn", None) is not None
+        ):
+            try:
+                from attestor.state import StateRepo
+                self.state = StateRepo(
+                    conn=self._store._conn, signer=self._signer,
+                )
+            except Exception as e:
+                logger.debug("StateRepo init skipped: %s", e)
+
         # v4 operating mode (SOLO / HOSTED / SHARED). Detected from env on
         # first construction; tests can override via config["mode"]. The
         # mode controls how _resolve() fills missing identity params.

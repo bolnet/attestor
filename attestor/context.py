@@ -471,6 +471,112 @@ class AgentContext:
         return mem.forget(memory_id)
 
     # ------------------------------------------------------------------ #
+    #  State lane (typed profile facts)                                    #
+    # ------------------------------------------------------------------ #
+    #
+    # The state lane is the non-retrieval-based personalization surface:
+    # typed key/value facts (preferences, capability declarations) looked
+    # up by key, not by similarity. RBAC is the same matrix as memory —
+    # WRITE for set/delete, READ for get/list/history/as_of. read_only
+    # strips writes regardless of role.
+
+    def _state_repo(self) -> Any:
+        mem = self._get_memory()
+        repo = getattr(mem, "state", None)
+        if repo is None:
+            raise RuntimeError(
+                "memory backend does not expose a state lane (need v4 + Postgres)"
+            )
+        return repo
+
+    def state_set(
+        self,
+        key: str,
+        value: Any,
+        *,
+        project_id: str | None = None,
+        agent_id: str | None = None,
+        scope: str | None = None,
+        schema: str | None = None,
+    ) -> Any:
+        """Write a typed profile fact. Honors the role/read_only matrix."""
+        self._require_permission(RolePermission.WRITE)
+        if self.user_id is None:
+            raise RuntimeError(
+                "state_set requires a user-anchored context (set user_id)"
+            )
+        return self._state_repo().set(
+            key,
+            value,
+            user_id=self.user_id,
+            project_id=project_id or self.project_id,
+            agent_id=agent_id or self.agent_id,
+            scope=scope,
+            schema=schema,
+            set_by_agent=self.agent_id,
+        )
+
+    def state_get(
+        self,
+        key: str,
+        *,
+        project_id: str | None = None,
+        scope: str | None = None,
+    ) -> Any | None:
+        """Read a typed profile fact. READ-permission gated."""
+        self._require_permission(RolePermission.READ)
+        if self.user_id is None:
+            raise RuntimeError(
+                "state_get requires a user-anchored context (set user_id)"
+            )
+        return self._state_repo().get(
+            key,
+            user_id=self.user_id,
+            project_id=project_id or self.project_id,
+            scope=scope,
+        )
+
+    def state_list(
+        self,
+        *,
+        prefix: str = "",
+        project_id: str | None = None,
+        scope: str | None = None,
+    ) -> dict[str, Any]:
+        """List active typed profile facts under ``prefix``."""
+        self._require_permission(RolePermission.READ)
+        if self.user_id is None:
+            raise RuntimeError(
+                "state_list requires a user-anchored context (set user_id)"
+            )
+        return self._state_repo().list(
+            user_id=self.user_id,
+            project_id=project_id or self.project_id,
+            scope=scope,
+            prefix=prefix,
+        )
+
+    def state_delete(
+        self,
+        key: str,
+        *,
+        project_id: str | None = None,
+        scope: str | None = None,
+    ) -> bool:
+        """Mark the active row at ``key`` expired. WRITE-permission gated."""
+        self._require_permission(RolePermission.WRITE)
+        if self.user_id is None:
+            raise RuntimeError(
+                "state_delete requires a user-anchored context (set user_id)"
+            )
+        return self._state_repo().delete(
+            key,
+            user_id=self.user_id,
+            project_id=project_id or self.project_id,
+            scope=scope,
+        )
+
+    # ------------------------------------------------------------------ #
     #  Scratchpad (inter-agent data passing)                               #
     # ------------------------------------------------------------------ #
 
