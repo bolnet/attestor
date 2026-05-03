@@ -71,6 +71,11 @@ packages = [{ include = "attestor" }]
 # and survives any future packaging-format changes.
 include = [
     { path = "attestor/extraction/prompts/*.md", format = ["sdist", "wheel"] },
+    # 2026 agent SDK distribution surface — Anthropic skills-2025-10-02 +
+    # OpenAI Responses API both auto-discover SKILL.md by canonical path.
+    # Shipping it inside the wheel means `pip install attestor` is enough
+    # for any 2026 agent harness to pick the skill up.
+    { path = "skills/*/SKILL.md", format = ["sdist", "wheel"] },
 ]
 
 [tool.poetry.group.dev.dependencies]
