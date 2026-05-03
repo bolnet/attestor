@@ -312,6 +312,39 @@ class PineconeBackend:
             logger.debug("Pinecone delete failed for %s: %s", memory_id, e)
             return False
 
+    def delete_by_user(self, user_id: str) -> int:
+        """GDPR-style purge: delete every vector tagged with this
+        ``user_id``. Best-effort — Pinecone supports metadata-filter
+        deletes on Standard plans only (Free / Local Docker reject the
+        ``filter=`` argument); on those tiers we fall back to scanning
+        the user's namespace and dropping all ids in it. Returns the
+        count of vectors removed when it can be determined; 0 when the
+        backend reports no useful tally.
+        """
+        self._ensure_ready()
+        # Try metadata-filter delete first (Standard plans).
+        try:
+            self._index.delete(
+                filter={"user_id": {"$eq": str(user_id)}},
+                namespace="default",
+            )
+            return 0  # Pinecone doesn't return a count; treat as opaque success
+        except Exception as e:  # noqa: BLE001
+            logger.debug(
+                "Pinecone delete_by_user metadata-filter rejected "
+                "(plan may not support filtered delete): %s", e,
+            )
+        # Fallback: drop every vector in the user's namespace. Callers
+        # that key Pinecone by user_id-as-namespace get a clean wipe;
+        # callers that share a namespace get nothing here and the
+        # forget_audit row will surface zero vectors deleted.
+        try:
+            self._index.delete(delete_all=True, namespace=str(user_id))
+            return 0
+        except Exception as e:  # noqa: BLE001
+            logger.debug("Pinecone delete_by_user fallback failed: %s", e)
+            return 0
+
     def count(self) -> int:
         """Total vectors across all namespaces."""
         self._ensure_ready()

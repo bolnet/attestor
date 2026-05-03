@@ -3,6 +3,11 @@
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 
+from attestor.compliance import (
+    ForgetUserResult,
+    RetentionApplyResult,
+    RetentionPolicy,
+)
 from attestor.context import (
     ROLE_PERMISSIONS,
     AgentContext,
@@ -35,9 +40,12 @@ __all__ = [
     "AgentContext",
     "AgentMemory",
     "AgentRole",
+    "ForgetUserResult",
     "Memory",
     "MemoryScope",
     "Project",
+    "RetentionApplyResult",
+    "RetentionPolicy",
     "RetrievalResult",
     "RolePermission",
     "Session",
