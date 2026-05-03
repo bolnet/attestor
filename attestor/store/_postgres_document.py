@@ -368,6 +368,37 @@ class _PostgresDocumentMixin:
             status=None, namespace=namespace, limit=limit,
         )
 
+    def increment_access(self, memory_ids: list[str]) -> None:
+        """Bump ``access_count`` and stamp ``last_accessed`` for each id.
+
+        Wired from ``AgentMemory.recall()`` (already hasattr-guarded).
+        Used by confidence-decay scoring: memories accessed more recently
+        carry a slight boost. No-ops on empty input. Wraps the v4 timestamp
+        column type difference (TIMESTAMPTZ in v4, TEXT in v3) by formatting
+        Python ISO strings on both paths so the column accepts the value.
+        """
+        if not memory_ids:
+            return
+        from datetime import datetime, timezone
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        if self._v4:
+            self._execute(
+                "UPDATE memories SET "
+                "access_count = COALESCE(access_count, 0) + 1, "
+                "last_accessed = %s::timestamptz "
+                "WHERE id = ANY(%s::uuid[])",
+                (now_iso, list(memory_ids)),
+            )
+        else:
+            self._execute(
+                "UPDATE memories SET "
+                "access_count = COALESCE(access_count, 0) + 1, "
+                "last_accessed = %s "
+                "WHERE id = ANY(%s)",
+                (now_iso, list(memory_ids)),
+            )
+
     def get_by_hash(
         self,
         content_hash: str,
