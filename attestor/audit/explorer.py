@@ -21,8 +21,36 @@ import threading
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+
+def _parse_iso_or_none(value: str | None) -> datetime | None:
+    """Parse an ISO-8601 string to ``datetime`` or return ``None``.
+
+    Tolerates ``YYYY-MM-DD`` (date-only), ``YYYY-MM-DDTHH:MM:SS`` (no tz),
+    full ISO with offsets, and the ``Z`` shorthand for UTC. Used by the
+    audit explorer's ``since`` filter so callers can pass any reasonable
+    ISO form without breaking the comparison.
+    """
+    if value is None:
+        return None
+    s = value.strip()
+    if not s:
+        return None
+    # ``Z`` suffix is RFC 3339 shorthand for UTC; fromisoformat accepts
+    # it on Python 3.11+ but normalising keeps older interpreters happy.
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        # Date-only fallback.
+        try:
+            return datetime.fromisoformat(s[:10])
+        except ValueError:
+            return None
 
 # ──────────────────────────────────────────────────────────────────────
 # Public dataclasses
@@ -167,6 +195,12 @@ class TraceExplorer:
         limit: int = 100,
     ) -> list[RecallSummary]:
         idx = self._ensure_index()
+        # Parse ``since`` once. Using a raw string compare against
+        # ISO-8601 ``started_at`` only works if both sides have the
+        # same shape (date-only vs date+time vs offset). Parsing here
+        # makes the comparison robust regardless of the caller's
+        # format choice.
+        since_dt = _parse_iso_or_none(since)
         out: list[RecallSummary] = []
         for rid in idx.ordered_recall_ids:
             summary = idx.summaries.get(rid)
@@ -176,8 +210,10 @@ class TraceExplorer:
                 continue
             if namespace is not None and summary.namespace != namespace:
                 continue
-            if since is not None and summary.started_at < since:
-                continue
+            if since_dt is not None:
+                start_dt = _parse_iso_or_none(summary.started_at)
+                if start_dt is not None and start_dt < since_dt:
+                    continue
             out.append(summary)
             if len(out) >= limit:
                 break
@@ -235,12 +271,15 @@ class TraceExplorer:
         distinct_memories: set[str] = set()
         lane_usage: dict[str, int] = defaultdict(int)
 
+        since_dt = _parse_iso_or_none(since)
         for rid in idx.ordered_recall_ids:
             summary = idx.summaries.get(rid)
             if summary is None or summary.user_id != user_id:
                 continue
-            if since is not None and summary.started_at < since:
-                continue
+            if since_dt is not None:
+                start_dt = _parse_iso_or_none(summary.started_at)
+                if start_dt is not None and start_dt < since_dt:
+                    continue
             recall_count += 1
             for lane in summary.lanes:
                 lane_usage[lane] += 1

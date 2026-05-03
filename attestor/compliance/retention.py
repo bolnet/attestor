@@ -192,8 +192,12 @@ def add_retention_policy(
     if hasattr(conn, "commit"):
         try:
             conn.commit()
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            # Don't silently swallow commit failures — a failed commit
+            # means the policy was NOT actually persisted but the
+            # function would otherwise return as if it succeeded.
+            logger.warning("retention commit failed: %s", e)
+            raise
     pid = row["id"] if isinstance(row, dict) else row[0]
     return RetentionPolicy(
         id=str(pid),
@@ -284,8 +288,12 @@ def remove_retention_policy(
     if hasattr(conn, "commit"):
         try:
             conn.commit()
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            # Don't silently swallow commit failures — a failed commit
+            # means the policy was NOT actually persisted but the
+            # function would otherwise return as if it succeeded.
+            logger.warning("retention commit failed: %s", e)
+            raise
     return row is not None
 
 
@@ -455,8 +463,12 @@ def _write_apply_audit(
     if hasattr(conn, "commit"):
         try:
             conn.commit()
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            # Don't silently swallow commit failures — a failed commit
+            # means the policy was NOT actually persisted but the
+            # function would otherwise return as if it succeeded.
+            logger.warning("retention commit failed: %s", e)
+            raise
     return aid
 
 
@@ -666,8 +678,12 @@ def _write_forget_audit(
     if hasattr(conn, "commit"):
         try:
             conn.commit()
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            # Don't silently swallow commit failures — a failed commit
+            # means the policy was NOT actually persisted but the
+            # function would otherwise return as if it succeeded.
+            logger.warning("retention commit failed: %s", e)
+            raise
     if row is None:
         return ""
     if isinstance(row, dict):

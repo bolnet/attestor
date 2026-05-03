@@ -21,6 +21,27 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def question_from_messages(
+    messages: list[dict[str, Any]], *, max_chars: int = 4000,
+) -> str:
+    """Extract the user's question from a chat-message list.
+
+    Single source of truth for the helper that previously lived as
+    ``_question_from_messages`` in both ``longmemeval_consistency`` and
+    ``longmemeval_critique`` with only a slice cap difference. Behavior:
+    last user message wins; falls back to the last message's content;
+    final fallback is a placeholder. Output is sliced to ``max_chars``.
+    """
+    if not messages:
+        return "(no question available)"
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            content = m.get("content", "")
+            if isinstance(content, str):
+                return content[:max_chars]
+    return str(messages[-1].get("content", ""))[:max_chars]
+
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------

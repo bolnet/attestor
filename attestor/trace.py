@@ -177,7 +177,12 @@ def event(name: str, **fields: Any) -> None:
 
     with _LOCK:
         sys.stderr.write(line + "\n")
-        sys.stderr.flush()
+        # Skip the per-event flush — stderr is line-buffered when
+        # connected to a terminal, and the JSONL file handle below is
+        # opened with ``buffering=1`` (line-buffered) anyway. Calling
+        # flush() per event was a measurable cost under bench fan-out
+        # and added no durability since the process can crash between
+        # write() and flush() either way.
         fh = _open_file()
         if fh is not None:
             try:

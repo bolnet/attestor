@@ -71,7 +71,7 @@ def load_mab(
     for cat in categories:
         split_name = CATEGORY_TO_SPLIT.get(cat)
         if not split_name:
-            print(f"Warning: Unknown category '{cat}', skipping")
+            logger.warning("Unknown category %r, skipping", cat)
             continue
 
         ds = load_dataset(HF_DATASET, split=split_name, cache_dir=cache_dir)

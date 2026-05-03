@@ -406,8 +406,11 @@ def run_global_query(
             namespace=namespace, user_id=user_id,
         )
         if sg is None:
-            # Fatal-ish — graph layer down. Bail with empty result.
-            return _result((), (), 0.0)
+            # A single failed subgraph lookup (transient / missing
+            # entity) used to abort the whole global query — even
+            # when the other candidates would have produced a valid
+            # community. Skip the bad entity instead.
+            continue
         for node in sg.get("nodes") or []:
             key = node.get("key") or node.get("name")
             if not key or key in seen:

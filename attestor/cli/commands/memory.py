@@ -68,7 +68,12 @@ def _cmd_init(args: argparse.Namespace) -> None:
             print(f"  Store initialized at {store_path}")
             mem.close()
         except Exception as e:
+            # Surface init failure as a non-zero exit so CI / shell
+            # scripts can branch on $?. The previous fall-through
+            # printed and returned 0 silently.
             print(f"  Store created but error occurred: {e}")
+            import sys as _sys
+            _sys.exit(1)
 
     attestor_bin = shutil.which("attestor") or "attestor"
     abs_path = str(store_path)

@@ -17,11 +17,14 @@ Requires: poetry add "attestor[extraction]"  (for the LLM judge)
 from __future__ import annotations
 
 import json
+import logging
 import tempfile
 import time
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from attestor.core import AgentMemory
 from attestor.mab import token_f1, _upgrade_embeddings_for_benchmark
@@ -98,6 +101,18 @@ def _guess_entity_type(name: str) -> str:
         return "entity"
 
     return "concept"
+
+
+def _configure_bench_mode(mem: Any) -> None:
+    """Disable temporal boost + contradiction checking on a fresh
+    AgentMemory for the LoCoMo bench. Reaches into private attrs by
+    design — the bench needs a deterministic baseline that ignores
+    the temporal lever the production stack normally applies.
+    """
+    if getattr(mem, "_retrieval", None) is not None:
+        mem._retrieval.enable_temporal_boost = False
+    if getattr(mem, "_temporal", None) is not None:
+        mem._temporal.check_contradictions = lambda _m: []
 
 
 def download_locomo(dest_path: str) -> str:
@@ -344,11 +359,11 @@ def run_locomo(
             # Use OpenAI embeddings for benchmarking if key available
             _upgrade_embeddings_for_benchmark(mem)
 
-            # Disable temporal boost and contradiction checking for benchmark
-            if mem._retrieval:
-                mem._retrieval.enable_temporal_boost = False
-            if mem._temporal:
-                mem._temporal.check_contradictions = lambda m: []
+            # Bench-mode tweaks: disable temporal boost + contradiction
+            # checking. Reaching into private attrs is fragile — wrap
+            # behind a single ``_configure_bench_mode`` call so a future
+            # refactor to a public API is one site, not two.
+            _configure_bench_mode(mem)
 
             original_graph = mem._graph
 

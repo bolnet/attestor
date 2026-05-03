@@ -179,18 +179,10 @@ def _parse_fix(text: str) -> str:
 
 
 def _question_from_messages(messages: list[dict[str, Any]]) -> str:
-    """Best-effort extraction of the user's question from the chat
-    messages — used to fill the critique/revise prompt's ``{question}``
-    placeholder. If the schema doesn't match, falls back to a generic
-    placeholder so the prompt still renders."""
-    if not messages:
-        return "(no question available)"
-    for m in reversed(messages):
-        if m.get("role") == "user":
-            content = m.get("content", "")
-            if isinstance(content, str):
-                return content[:8000]
-    return str(messages[-1].get("content", ""))[:8000]
+    """Thin wrapper over the shared helper; 8000-char cap keeps the
+    critique prompt's ``{question}`` placeholder under model limits."""
+    from attestor.longmemeval.fixtures import question_from_messages
+    return question_from_messages(messages, max_chars=8000)
 
 
 # ──────────────────────────────────────────────────────────────────────
