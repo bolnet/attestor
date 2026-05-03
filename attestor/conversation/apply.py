@@ -51,8 +51,16 @@ def _fact_to_memory(
     source_episode_id: str,
     extraction_model: str,
     parent_agent_id: str | None = None,
+    layer: str = "semantic",
 ) -> Memory:
-    """Build a Memory dataclass from an ExtractedFact + tenancy context."""
+    """Build a Memory dataclass from an ExtractedFact + tenancy context.
+
+    ``layer`` defaults to ``'semantic'`` because the consolidation /
+    reflection pipeline distills "what is true" out of conversational
+    rounds — that's the semantic layer. Per-round ingest still classifies
+    raw rounds as ``'episodic'`` upstream; only the distilled facts that
+    flow through this helper are semantic.
+    """
     return Memory(
         content=fact.text,
         category=fact.category,
@@ -62,6 +70,7 @@ def _fact_to_memory(
         project_id=project_id,
         session_id=session_id,
         scope=scope,
+        layer=layer,
         source_episode_id=source_episode_id,
         source_span=list(fact.source_span),
         extraction_model=extraction_model,

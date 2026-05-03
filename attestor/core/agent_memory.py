@@ -205,6 +205,23 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             self._retrieval.hyde_cfg = _retrieval_cfg.hyde
             self._retrieval.reranker_cfg = _retrieval_cfg.reranker
 
+        # Hierarchical memory layers (2026 best-practice). Pull the
+        # default_recall layers + scoring weights from the YAML so the
+        # orchestrator's tiebreaker boost matches the configured policy.
+        # Stays None when the stack loader failed above; recall() then
+        # uses the documented (episodic, semantic) default and the
+        # scorer's :data:`DEFAULT_LAYER_WEIGHTS`.
+        self._memory_cfg = None
+        try:
+            from attestor.config import get_stack
+            self._memory_cfg = get_stack(strict=False).memory
+            if self._memory_cfg is not None:
+                self._retrieval.layer_weights = (
+                    self._memory_cfg.layers.weights
+                )
+        except Exception as _e:
+            logger.debug("memory cfg not applied: %s", _e)
+
         # Operation ring buffer for latency observability
         self._ops_log: deque[dict[str, Any]] = deque(maxlen=200)
 
@@ -519,11 +536,22 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         scope: str = "user",
         agent_id: str | None = None,
         source_episode_id: str | None = None,
+        # ── Hierarchical memory layer (2026 best-practice). Closed
+        # vocabulary: episodic | semantic | procedural | working. See
+        # attestor/models.py::VALID_LAYERS. Defaults to 'episodic' so
+        # callers that don't pass a layer keep their conversational-round
+        # behavior. add_skill() is a thin convenience wrapper that sets
+        # layer='procedural'.
+        layer: str = "episodic",
     ) -> Memory:
         """Store a new memory, handling contradictions automatically.
 
         v4 callers should pass ``user_id`` (and optionally project_id,
         session_id, scope). v3 callers can omit them — behavior unchanged."""
+        # Validate layer at the boundary so a typo fails loud here, not
+        # silently filters out at recall time.
+        from attestor.models import _validate_layer
+        _validate_layer(layer)
         t_total = time.monotonic()
         store_timings: dict[str, float] = {}
 
@@ -577,6 +605,7 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             category=category,
             entity=entity,
             namespace=namespace,
+            layer=layer,
             event_date=event_date,
             confidence=confidence,
             content_hash=chash,
@@ -794,6 +823,57 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
 
         return memory
 
+    def add_skill(
+        self,
+        name: str,
+        content: str,
+        *,
+        tags: list[str] | None = None,
+        namespace: str = "default",
+        confidence: float = 1.0,
+        metadata: dict[str, Any] | None = None,
+        user_id: str | None = None,
+        project_id: str | None = None,
+        session_id: str | None = None,
+        scope: str = "user",
+        agent_id: str | None = None,
+    ) -> Memory:
+        """Convenience wrapper for the procedural layer (skills / workflows).
+
+        ``mem.add_skill("deploy-flow", "1. push 2. tag 3. release")`` is
+        equivalent to::
+
+            mem.add(
+                content="1. push 2. tag 3. release",
+                entity="deploy-flow",
+                category="skill",
+                layer="procedural",
+                tags=[...],
+            )
+
+        The skill ``name`` is stored as ``entity`` so the standard
+        timeline / tag-filter paths surface it without callers having
+        to know how procedural memories are indexed.
+        """
+        skill_tags = list(tags or [])
+        if "skill" not in skill_tags:
+            skill_tags.append("skill")
+        return self.add(
+            content=content,
+            tags=skill_tags,
+            category="skill",
+            entity=name,
+            namespace=namespace,
+            confidence=confidence,
+            metadata=metadata,
+            user_id=user_id,
+            project_id=project_id,
+            session_id=session_id,
+            scope=scope,
+            agent_id=agent_id,
+            layer="procedural",
+        )
+
     def get(self, memory_id: str) -> Memory | None:
         """Get a specific memory by ID."""
         return self._store.get(memory_id)
@@ -851,6 +931,15 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         user_id: str | None = None,
         as_of: datetime | None = None,
         time_window: Any | None = None,    # TimeWindow
+        # ── Hierarchical memory layers filter (2026 best-practice).
+        # Default = (episodic, semantic) — the natural answer to
+        # "what do I know about X". Pass ``layers=None`` to disable
+        # the filter (returns every layer). Pass a specific tuple
+        # like ``layers=('procedural',)`` to query just one layer.
+        # See attestor/models.py::VALID_LAYERS.
+        layers: tuple[str, ...] | list[str] | None = (
+            "episodic", "semantic",
+        ),
     ) -> list[RetrievalResult]:
         """Retrieve relevant memories for a query using 3-layer cascade.
 
@@ -862,6 +951,19 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
           as_of       — point-in-time replay (returns past belief)
           time_window — event-time overlap pre-filter
         Both pass through to the orchestrator and on to the lanes."""
+        # Validate layers at the boundary; ``layers=None`` means "all".
+        # When the caller didn't override (matches the documented default),
+        # let YAML's ``stack.memory.layers.default_recall`` take precedence
+        # so changing the policy is a one-line YAML edit.
+        if layers is not None:
+            from attestor.models import _validate_layer
+            for lyr in layers:
+                _validate_layer(lyr)
+            if (
+                tuple(layers) == ("episodic", "semantic")
+                and self._memory_cfg is not None
+            ):
+                layers = tuple(self._memory_cfg.layers.default_recall)
         # v4: route through _resolve() so zero-config recall works in SOLO
         # mode. Recall doesn't autostart a session — read-only ops only need
         # user+project scope.
@@ -884,6 +986,20 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         if time_window is not None:
             recall_kwargs["time_window"] = time_window
         results = self._retrieval.recall(query, token_budget, **recall_kwargs)
+
+        # Hierarchical-layer filter (2026 best-practice). Applied AFTER the
+        # orchestrator runs so the deterministic ranking pipeline stays
+        # untouched. Synthetic graph_relation rows have no layer
+        # association — they pass through unchanged. ``layers=None``
+        # opts out of the filter (every layer returned).
+        if layers is not None:
+            allowed = frozenset(layers)
+            results = [
+                r for r in results
+                if r.memory.category == "graph_relation"
+                or r.memory.layer in allowed
+            ]
+
         total_ms = round((time.monotonic() - t0) * 1000, 2)
 
         # Track access for confidence decay/boost

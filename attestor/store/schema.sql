@@ -109,6 +109,10 @@ CREATE TABLE IF NOT EXISTS memories (
     tags              TEXT[] NOT NULL DEFAULT '{}'::text[],
     category          TEXT NOT NULL DEFAULT 'general',
     entity            TEXT,
+    -- Hierarchical memory layer (2026 best-practice: Letta / LangGraph / Mem0).
+    -- Closed vocabulary enforced at the application boundary
+    -- (attestor/models.py::VALID_LAYERS): episodic | semantic | procedural | working.
+    layer             TEXT NOT NULL DEFAULT 'episodic',
     confidence        REAL NOT NULL DEFAULT 1.0,
     status            TEXT NOT NULL DEFAULT 'active',
     -- bi-temporal (Track A.4)
@@ -158,6 +162,15 @@ CREATE INDEX IF NOT EXISTS idx_memories_entity
     ON memories (entity);
 CREATE INDEX IF NOT EXISTS idx_memories_content_hash
     ON memories (content_hash);
+-- Hierarchical-layer filter index (default recall pushes down a
+-- layer = ANY('{episodic,semantic}') filter via _PostgresDocumentMixin).
+CREATE INDEX IF NOT EXISTS idx_memories_layer
+    ON memories (layer);
+
+-- ALTER fallback for v4 schemas that pre-date the hierarchical-layer
+-- column. Idempotent — re-applying schema.sql on a current DB is a no-op.
+ALTER TABLE memories
+    ADD COLUMN IF NOT EXISTS layer TEXT NOT NULL DEFAULT 'episodic';
 
 -- HNSW vector index (cosine similarity) — built lazily by postgres_backend
 CREATE INDEX IF NOT EXISTS idx_memories_embedding_hnsw

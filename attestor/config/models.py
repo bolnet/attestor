@@ -539,6 +539,42 @@ class IngestCfg:
 
 
 @dataclass(frozen=True)
+class MemoryLayersCfg:
+    """Hierarchical memory layer config (2026 best-practice).
+
+    Layers form a closed vocabulary — episodic | semantic | procedural |
+    working — validated at write time in :func:`attestor.models._validate_layer`.
+
+    ``default_recall`` controls which layers ``AgentMemory.recall()``
+    returns when the caller doesn't specify ``layers=...``. Default is
+    ``("episodic", "semantic")`` — the natural answer to "what do I
+    know about X".
+
+    ``weights`` is an additive score-boost map applied as a tiebreaker
+    after the deterministic cascade. Small positive on ``semantic``
+    lets distilled facts edge out raw episodic mentions of the same
+    content without overriding strong vector / BM25 signals.
+    """
+
+    default_recall: tuple[str, ...] = ("episodic", "semantic")
+    weights: dict[str, float] = field(
+        default_factory=lambda: {
+            "episodic": 0.0,
+            "semantic": 0.05,
+            "procedural": 0.0,
+            "working": 0.0,
+        }
+    )
+
+
+@dataclass(frozen=True)
+class MemoryCfg:
+    """Memory-subsystem config block (``stack.memory`` in attestor.yaml)."""
+
+    layers: MemoryLayersCfg = field(default_factory=MemoryLayersCfg)
+
+
+@dataclass(frozen=True)
 class StackConfig:
     postgres: PostgresCfg
     neo4j: Neo4jCfg
@@ -553,6 +589,7 @@ class StackConfig:
     self_consistency: SelfConsistencyCfg = field(default_factory=SelfConsistencyCfg)
     critique_revise: CritiqueReviseCfg = field(default_factory=CritiqueReviseCfg)
     ingest: IngestCfg = field(default_factory=IngestCfg)
+    memory: MemoryCfg = field(default_factory=MemoryCfg)
     pinecone: PineconeCfg | None = None
 
 

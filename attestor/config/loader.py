@@ -20,6 +20,8 @@ from attestor.config.models import (
     ImageCfg,
     IngestCfg,
     LLMCfg,
+    MemoryCfg,
+    MemoryLayersCfg,
     ModelsCfg,
     MultiQueryCfg,
     Neo4jCfg,
@@ -35,6 +37,7 @@ from attestor.config.models import (
     _VALID_RERANKER_PROVIDERS,
     _VALID_SC_VOTERS,
 )
+from attestor.models import VALID_LAYERS
 from attestor.config.resolver import _require, _resolve_env_password
 
 # Project root = ``attestor/`` package's parent. This module lives at
@@ -189,6 +192,45 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
     )
     ingest_cfg = IngestCfg(contextual_embedding=ce_cfg)
 
+    # Hierarchical memory layers (closed vocabulary; validated against
+    # ``attestor.models.VALID_LAYERS`` so a typo in the YAML fails loud
+    # at config load, not silently at recall time).
+    memory_blk = stack_blk.get("memory") or {}
+    layers_blk = memory_blk.get("layers") or {}
+    default_recall_raw = layers_blk.get("default_recall")
+    if default_recall_raw is None:
+        default_recall = ("episodic", "semantic")
+    else:
+        default_recall = tuple(str(x) for x in default_recall_raw)
+        for lyr in default_recall:
+            if lyr not in VALID_LAYERS:
+                raise SystemExit(
+                    f"[attestor.config] memory.layers.default_recall "
+                    f"contains invalid layer {lyr!r}; must be one of: "
+                    f"{sorted(VALID_LAYERS)}"
+                )
+    weights_raw = layers_blk.get("weights") or {}
+    weights: dict[str, float] = {
+        "episodic": 0.0,
+        "semantic": 0.05,
+        "procedural": 0.0,
+        "working": 0.0,
+    }
+    for lyr, val in weights_raw.items():
+        if lyr not in VALID_LAYERS:
+            raise SystemExit(
+                f"[attestor.config] memory.layers.weights contains "
+                f"invalid layer {lyr!r}; must be one of: "
+                f"{sorted(VALID_LAYERS)}"
+            )
+        weights[lyr] = float(val)
+    memory_cfg = MemoryCfg(
+        layers=MemoryLayersCfg(
+            default_recall=default_recall,
+            weights=weights,
+        ),
+    )
+
     llm_provider = str(_require(llm_blk, "provider", "stack.llm.provider"))
     if llm_provider not in LLM_PROVIDER_DEFAULTS:
         raise SystemExit(
@@ -285,6 +327,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         self_consistency=sc_cfg,
         critique_revise=cr_cfg,
         ingest=ingest_cfg,
+        memory=memory_cfg,
         pinecone=(
             PineconeCfg(
                 host=pcn.get("host"),

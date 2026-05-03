@@ -139,6 +139,47 @@ def entity_boost(
     return out
 
 
+DEFAULT_LAYER_WEIGHTS: dict[str, float] = {
+    # Semantic memories ("what is true", from reflection / consolidation)
+    # carry a small boost over episodic ("what happened") for the natural
+    # "what do I know about X" recall path. Procedural / working = 0
+    # contribution by default; callers that ask for those layers
+    # explicitly via recall(layers=...) don't need a generic boost.
+    "semantic": 0.05,
+    "episodic": 0.0,
+    "procedural": 0.0,
+    "working": 0.0,
+}
+
+
+def layer_boost(
+    results: list[RetrievalResult],
+    *,
+    weights: dict[str, float] | None = None,
+) -> list[RetrievalResult]:
+    """Apply a small layer-aware additive boost.
+
+    Hierarchical-layer best-practice (Letta / LangGraph / Mem0): semantic
+    memories ("what is true") rank a hair above episodic ("what happened")
+    when both surface for the same query. The boost is small (~0.05)
+    so it only acts as a tiebreaker — it can't override a strong
+    vector / BM25 signal on the lower-priority layer.
+
+    Pure: returns a NEW list of NEW RetrievalResult instances. ``None``
+    weights → :data:`DEFAULT_LAYER_WEIGHTS`. An empty dict → no-op
+    (every weight defaults to 0).
+    """
+    w = DEFAULT_LAYER_WEIGHTS if weights is None else weights
+    out: list[RetrievalResult] = []
+    for r in results:
+        delta = w.get(r.memory.layer, 0.0)
+        if delta == 0.0:
+            out.append(r)
+        else:
+            out.append(replace(r, score=r.score + delta))
+    return out
+
+
 def pagerank_boost(
     results: list[RetrievalResult],
     pagerank_scores: dict[str, float],
