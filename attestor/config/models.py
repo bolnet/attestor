@@ -524,17 +524,66 @@ class ContextualEmbeddingCfg:
 
 
 @dataclass(frozen=True)
+class LLMExtractionCfg:
+    """LLM-driven entity + relation extraction at ingest (Mem0/Zep alignment).
+
+    When ``enabled`` is True, ``AgentMemory.add()`` runs an LLM pass
+    over the content to extract proper-noun + value-bearing entities
+    and explicit relationships before writing to the graph store.
+    The regex-based ``attestor.graph.extractor`` returns
+    ``entity_count=0`` for most LME-S content (verified via production
+    traces); this path replaces that pass with an LLM call that
+    produces meaningfully richer entities for natural-language
+    inputs.
+
+    Disabled by default — flip per bench cell via ``configs/attestor.yaml``
+    or ``evals/matrix.yaml``. The shipping default keeps the regex
+    extractor wired so the codepath is byte-identical to ``main``.
+
+    Failure isolation: an LLM timeout / malformed response degrades
+    to the regex extractor (NOT to empty), so ingest never breaks.
+
+    Cost: ~$0.0003 / ingest with claude-haiku-4.5 on LME-S content
+    (~1k input chars, ~80 output tokens of JSON). Lower than the
+    contextual-embedding pre-pass because the prompt is shorter and
+    the output JSON is small.
+
+    Configuration:
+      enabled    — master switch
+      model      — small/cheap LLM for the extraction call
+                   (haiku-4.5 is the recommended default; the prompt
+                   asks for strict JSON which haiku follows reliably)
+      timeout_s  — per-request deadline. Default 15s — tight enough
+                   that ingest latency stays bounded, loose enough
+                   that haiku-4.5 returns comfortably for 4k content.
+      cache      — process-local cache by content_hash so re-ingesting
+                   the same content reuses the prior result without
+                   another LLM call.
+    """
+
+    enabled: bool = False
+    model: str = "anthropic/claude-haiku-4.5"
+    timeout_s: float = 15.0
+    cache: bool = True
+
+
+@dataclass(frozen=True)
 class IngestCfg:
     """Ingest-time knobs (write-path transforms).
 
-    Currently exposes :class:`ContextualEmbeddingCfg`. New ingest-stage
-    features (semantic chunking, redaction, etc.) will land here as
-    sibling fields rather than under ``stack.retrieval`` — those are
+    Exposes :class:`ContextualEmbeddingCfg` (Anthropic Sept-2024
+    chunk-context prefix) and :class:`LLMExtractionCfg` (Mem0/Zep
+    LLM-driven entity extraction). New ingest-stage features
+    (semantic chunking, redaction, etc.) will land here as sibling
+    fields rather than under ``stack.retrieval`` — those are
     read-path levers and live in :class:`RetrievalCfg`.
     """
 
     contextual_embedding: ContextualEmbeddingCfg = field(
         default_factory=ContextualEmbeddingCfg,
+    )
+    llm_entity_extraction: LLMExtractionCfg = field(
+        default_factory=LLMExtractionCfg,
     )
 
 

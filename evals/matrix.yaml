@@ -122,6 +122,48 @@ cells:
       cost_usd: 0.07, wall_min: 26,
       note: "Anthropic chunk-context prefix at ingest; expect +5-15% recall@10" }
 
+  # ── LLM-driven entity extraction (Mem0/Zep alignment) — one cell per category ──
+  # When `llm_entity_extraction: true`, AgentMemory.add() runs a
+  # claude-haiku-4.5 pass at ingest that pulls proper-noun + value-bearing
+  # entities and explicit relationships, replacing the regex-based
+  # attestor.graph.extractor (which returns entity_count=0 for most
+  # LME-S content). Failure-isolated: LLM timeout / malformed JSON
+  # degrades to the regex extractor, never to empty.
+  # Cost ~ +$0.003 / sample (10 ingests * $0.0003). Expect lift on
+  # knowledge-update + multi-session where supersession depends on the
+  # graph layer surfacing entity-level overlap.
+  - { category: temporal-reasoning,
+      label: "ablation:llm_entity_extraction=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      llm_entity_extraction: true,
+      cost_usd: 0.07, wall_min: 24,
+      note: "LLM entity extraction at ingest (Mem0/Zep); expect graph layer to fire for first time on natural-language content" }
+
+  - { category: multi-session,
+      label: "ablation:llm_entity_extraction=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      llm_entity_extraction: true,
+      cost_usd: 0.07, wall_min: 24,
+      note: "LLM entity extraction at ingest (Mem0/Zep); cross-session entity continuity is the graph's strongest signal" }
+
+  - { category: knowledge-update,
+      label: "ablation:llm_entity_extraction=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      llm_entity_extraction: true,
+      cost_usd: 0.07, wall_min: 24,
+      note: "LLM entity extraction at ingest (Mem0/Zep); the 852ce960 pre-approval failure motivated this PR — KU is where supersession lives" }
+
+  - { category: single-session-user,
+      label: "ablation:llm_entity_extraction=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      llm_entity_extraction: true,
+      cost_usd: 0.07, wall_min: 24,
+      note: "LLM entity extraction at ingest (Mem0/Zep); user-profile facts are entity-anchored" }
+
   # ── Reranker stage ablations (Phase 1 — one cell per LME-S category) ──
   # Phase 1 reranker bench — enable when local GPU available. The BGE
   # cross-encoder (BAAI/bge-reranker-v2-gemma) lazy-loads ~2GB on first
