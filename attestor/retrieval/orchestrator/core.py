@@ -115,6 +115,15 @@ class RetrievalOrchestrator(
         # the longer track record) and logs a warning.
         self.hyde_cfg = None  # type: ignore[assignment]
 
+        # Cross-encoder reranker stage (Phase 1 — sits between RRF
+        # (Step 3) and graph BFS (Step 4)). Defaults to None — no
+        # behavior change. AgentMemory wires the resolved RerankerCfg
+        # post-construction. ``self.reranker`` is the cached provider
+        # singleton (built lazily on first call); tests can inject a
+        # stub directly.
+        self.reranker_cfg = None  # type: ignore[assignment]
+        self.reranker = None  # type: ignore[assignment]
+
     # ── Public API ──
 
     def recall(

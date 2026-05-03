@@ -203,6 +203,7 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
                 _retrieval_cfg.temporal_prefilter
             )
             self._retrieval.hyde_cfg = _retrieval_cfg.hyde
+            self._retrieval.reranker_cfg = _retrieval_cfg.reranker
 
         # Operation ring buffer for latency observability
         self._ops_log: deque[dict[str, Any]] = deque(maxlen=200)
