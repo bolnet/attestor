@@ -696,22 +696,11 @@ class ConsolidationCfg:
     dry_run: bool = False
 
 
-@dataclass(frozen=True)
 class MemoryLayersCfg:
     """Hierarchical memory layer config (2026 best-practice).
 
     Layers form a closed vocabulary — episodic | semantic | procedural |
     working — validated at write time in :func:`attestor.models._validate_layer`.
-
-    ``default_recall`` controls which layers ``AgentMemory.recall()``
-    returns when the caller doesn't specify ``layers=...``. Default is
-    ``("episodic", "semantic")`` — the natural answer to "what do I
-    know about X".
-
-    ``weights`` is an additive score-boost map applied as a tiebreaker
-    after the deterministic cascade. Small positive on ``semantic``
-    lets distilled facts edge out raw episodic mentions of the same
-    content without overriding strong vector / BM25 signals.
     """
 
     default_recall: tuple[str, ...] = ("episodic", "semantic")
@@ -733,6 +722,28 @@ class MemoryCfg:
 
 
 @dataclass(frozen=True)
+class PIICfg:
+    """PII detection / redaction at ingest (compliance layer).
+
+    Modes: off | flag | redact | llm. Default off → no behavior change.
+    """
+
+    mode: str = "off"
+    llm_model: str | None = None
+
+
+_VALID_PII_MODES: tuple[str, ...] = ("off", "flag", "redact", "llm")
+
+
+@dataclass(frozen=True)
+class ComplianceCfg:
+    """Container for compliance-layer features (PII today; PHI / PCI
+    audit policies could land here later)."""
+
+    pii: PIICfg = field(default_factory=PIICfg)
+
+
+@dataclass(frozen=True)
 class StackConfig:
     postgres: PostgresCfg
     neo4j: Neo4jCfg
@@ -749,6 +760,7 @@ class StackConfig:
     ingest: IngestCfg = field(default_factory=IngestCfg)
     memory: MemoryCfg = field(default_factory=MemoryCfg)
     consolidation: ConsolidationCfg = field(default_factory=ConsolidationCfg)
+    compliance: ComplianceCfg = field(default_factory=ComplianceCfg)
     pinecone: PineconeCfg | None = None
 
 

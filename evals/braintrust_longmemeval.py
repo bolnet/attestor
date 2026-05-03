@@ -207,6 +207,7 @@ def run_live(
     contextual_embedding_override: dict[str, Any] | None = None,
     llm_entity_extraction_override: dict[str, Any] | None = None,
     reranker_override: dict[str, Any] | None = None,
+    pii_override: dict[str, Any] | None = None,
     long_context: bool = False,
     parallel: int = 1,
 ) -> None:
@@ -254,6 +255,11 @@ def run_live(
     if reranker_override:
         new_rr = replace(base.retrieval.reranker, **reranker_override)
         overrides["retrieval"] = replace(base.retrieval, reranker=new_rr)
+    if pii_override:
+        # ``compliance.pii.mode`` flips the ingest-side PII pass; the
+        # YAML stays untouched. Default off → byte-identical to legacy.
+        new_pii = replace(base.compliance.pii, **pii_override)
+        overrides["compliance"] = replace(base.compliance, pii=new_pii)
     if overrides:
         set_stack(replace(base, **overrides))
         log.info("stack overrides applied: %s", sorted(overrides))
@@ -483,6 +489,12 @@ def main() -> None:
                             "fit (skip MMR + greedy-fit; pack top-K verbatim up "
                             "to stack.retrieval.long_context_default_max_tokens)."
                         ))
+    parser.add_argument("--pii-mode", default=None,
+                        choices=("off", "flag", "redact", "llm"),
+                        help=(
+                            "Live mode override: enable PII detection at ingest "
+                            "(stack.compliance.pii.mode). Defaults to YAML value."
+                        ))
     parser.add_argument("--parallel", type=int, default=1,
                         help="Live mode: concurrent samples in run_async (default 1).")
     args = parser.parse_args()
@@ -530,6 +542,10 @@ def main() -> None:
     if args.reranker_provider:
         rr_override = {"enabled": True, "provider": args.reranker_provider}
 
+    pii_override: dict[str, Any] | None = None
+    if args.pii_mode:
+        pii_override = {"mode": args.pii_mode}
+
     run_live(
         args.category,
         args.max_samples,
@@ -539,6 +555,7 @@ def main() -> None:
         contextual_embedding_override=ce_override,
         llm_entity_extraction_override=le_override,
         reranker_override=rr_override,
+        pii_override=pii_override,
         long_context=args.long_context,
         parallel=args.parallel,
     )

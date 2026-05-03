@@ -316,6 +316,44 @@ cells:
       cost_usd: 0.06, wall_min: 24,
       note: "long-context fit downstream of BGE rerank — no MMR diversity cut" }
 
+  # ── PII detection at ingest (compliance / SOC2 / HIPAA) ────────────
+  # When `pii_mode: flag`, AgentMemory.add() runs a regex-baseline PII
+  # detector at ingest and stamps findings on metadata['_pii_findings']
+  # without rewriting content. Acceptance gate: detection must NOT
+  # break retrieval — recall@k stays within ±1pp of GOLDEN per category.
+  # Cost: regex baseline only (<5ms / ingest, no LLM calls).
+  - { category: temporal-reasoning,
+      label: "ablation:pii_mode=flag",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      pii_mode: flag,
+      cost_usd: 0.06, wall_min: 22,
+      note: "PII detection at ingest (regex baseline); validate recall@k unchanged" }
+
+  - { category: multi-session,
+      label: "ablation:pii_mode=flag",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      pii_mode: flag,
+      cost_usd: 0.06, wall_min: 22,
+      note: "PII detection at ingest (regex baseline); validate recall@k unchanged" }
+
+  - { category: knowledge-update,
+      label: "ablation:pii_mode=flag",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      pii_mode: flag,
+      cost_usd: 0.06, wall_min: 22,
+      note: "PII detection at ingest (regex baseline); validate recall@k unchanged" }
+
+  - { category: single-session-user,
+      label: "ablation:pii_mode=flag",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      pii_mode: flag,
+      cost_usd: 0.06, wall_min: 22,
+      note: "PII detection at ingest (regex baseline); validate recall@k unchanged" }
+
   # Add more cells here as ablations are designed. Examples to seed:
   #
   # - { category: multi-session, label: "ablation:hyde=off", samples: 10,

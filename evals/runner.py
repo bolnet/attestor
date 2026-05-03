@@ -44,6 +44,7 @@ class Cell:
     llm_entity_extraction: bool = False
     reranker_provider: str | None = None
     long_context: bool = False
+    pii_mode: str | None = None
     cost_usd: float = 0.0
     wall_min: int = 0
     note: str = ""
@@ -68,6 +69,8 @@ class Cell:
             args.extend(["--reranker-provider", self.reranker_provider])
         if self.long_context:
             args.append("--long-context")
+        if self.pii_mode:
+            args.extend(["--pii-mode", self.pii_mode])
         return args
 
 
@@ -90,6 +93,7 @@ def load_matrix(path: Path) -> tuple[str, list[Cell]]:
             llm_entity_extraction=bool(raw.get("llm_entity_extraction", False)),
             reranker_provider=raw.get("reranker_provider"),
             long_context=bool(raw.get("long_context", False)),
+            pii_mode=raw.get("pii_mode"),
             cost_usd=float(raw.get("cost_usd", 0.0)),
             wall_min=int(raw.get("wall_min", 0)),
             note=raw.get("note", ""),
