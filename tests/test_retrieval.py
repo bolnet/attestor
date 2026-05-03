@@ -11,7 +11,7 @@ import pytest
 
 from attestor import AgentMemory
 
-from .conftest import TEST_CONFIG
+from .conftest import _build_test_config
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("POSTGRES_URL"),
@@ -22,7 +22,12 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def seeded_mem():
     with tempfile.TemporaryDirectory() as d:
-        m = AgentMemory(d, config=TEST_CONFIG)
+        m = AgentMemory(d, config=_build_test_config())
+        # Reset row state so prior tests' rows don't bleed into this run.
+        try:
+            m._store.execute("TRUNCATE memories CASCADE")
+        except Exception:  # pragma: no cover - schema not yet bootstrapped
+            pass
         # Seed with test data
         m.add("User accepted Staff SWE AI role at SoFi, ~$257K base",
               tags=["career", "sofi", "compensation"], category="career", entity="SoFi")
@@ -58,7 +63,13 @@ class TestRecall:
 
     def test_recall_no_results(self):
         with tempfile.TemporaryDirectory() as d:
-            m = AgentMemory(d, config=TEST_CONFIG)
+            m = AgentMemory(d, config=_build_test_config())
+            # Empty-store assertions must start from a clean slate even
+            # when the seeded_mem fixture left rows from a sibling test.
+            try:
+                m._store.execute("TRUNCATE memories CASCADE")
+            except Exception:  # pragma: no cover - schema not yet bootstrapped
+                pass
             results = m.recall("anything")
             assert results == []
             m.close()
@@ -81,7 +92,11 @@ class TestRecallAsContext:
 
     def test_empty_store_returns_empty(self):
         with tempfile.TemporaryDirectory() as d:
-            m = AgentMemory(d, config=TEST_CONFIG)
+            m = AgentMemory(d, config=_build_test_config())
+            try:
+                m._store.execute("TRUNCATE memories CASCADE")
+            except Exception:  # pragma: no cover - schema not yet bootstrapped
+                pass
             context = m.recall_as_context("anything")
             assert context == ""
             m.close()
