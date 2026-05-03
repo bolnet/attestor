@@ -24,9 +24,16 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-import psycopg2.extras
-
 logger = logging.getLogger("attestor.quotas")
+
+
+def _psycopg2_extras() -> Any:
+    """Lazy import: psycopg2 is optional (Postgres-only). Importing
+    at module level breaks ``from attestor.quotas import QuotaExceeded``
+    in environments where psycopg2 isn't installed (docs build, tests
+    that don't need the DB layer)."""
+    import psycopg2.extras
+    return psycopg2.extras
 
 
 class QuotaExceeded(Exception):
@@ -90,7 +97,7 @@ class QuotaRepo:
 
     def get(self, user_id: str) -> UserQuota | None:
         with self._conn.cursor(
-            cursor_factory=psycopg2.extras.RealDictCursor,
+            cursor_factory=_psycopg2_extras().RealDictCursor,
         ) as cur:
             cur.execute(
                 "SELECT * FROM user_quotas WHERE user_id = %s", (user_id,),
@@ -109,7 +116,7 @@ class QuotaRepo:
     ) -> UserQuota:
         """Update one or more limits. Counters are NOT touched."""
         with self._conn.cursor(
-            cursor_factory=psycopg2.extras.RealDictCursor,
+            cursor_factory=_psycopg2_extras().RealDictCursor,
         ) as cur:
             cur.execute(
                 """

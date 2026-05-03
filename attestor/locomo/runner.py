@@ -85,6 +85,8 @@ CATEGORY_NAMES = {
 
 def _guess_entity_type(name: str) -> str:
     """Guess entity type from name for graph storage."""
+    if not name:
+        return "concept"
     name_lower = name.lower()
 
     location_words = {"city", "country", "town", "state", "island", "lake",
@@ -97,7 +99,7 @@ def _guess_entity_type(name: str) -> str:
     if any(w in name_lower for w in org_words):
         return "organization"
 
-    if name and name[0].isupper():
+    if name[0].isupper():
         return "entity"
 
     return "concept"
@@ -127,7 +129,7 @@ def download_locomo(dest_path: str) -> str:
 
 def load_locomo(file_path: str) -> list[dict[str, Any]]:
     """Load and parse the LOCOMO dataset."""
-    with open(file_path) as f:
+    with open(file_path, encoding="utf-8") as f:
         data = json.load(f)
 
     conversations = []

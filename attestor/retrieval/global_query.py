@@ -365,7 +365,18 @@ def run_global_query(
     caller can fall through to the local pipeline if it wants to.
     """
     t0 = time.monotonic()
-    model = llm_model or "anthropic/claude-haiku-4.5"
+    # Resolve from YAML when caller didn't override. The hardcoded
+    # fallback contradicts the canonical-stack invariant ("YAML is the
+    # only lever") but is retained as a last-resort default so the
+    # module still imports cleanly in test envs without YAML.
+    if llm_model is None:
+        try:
+            from attestor.config import get_stack
+            model = get_stack().models.planner
+        except Exception:  # noqa: BLE001
+            model = "anthropic/claude-haiku-4.5"
+    else:
+        model = llm_model
     summary_fn: _Summarizer = summarizer or _default_summarizer
 
     def _result(
