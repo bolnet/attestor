@@ -183,6 +183,40 @@ def run(
 # ── CLI ───────────────────────────────────────────────────────────────────
 
 
+def _build_mem_factory(*, warm_schema: bool = True) -> Callable[[], Any]:
+    """Build a zero-arg factory that returns ``AgentMemory`` instances
+    wired with the canonical YAML stack (PG + Pinecone + Neo4j).
+
+    Pre-fix: the factory called ``AgentMemory(tempfile.mkdtemp(...))``
+    with no config kwarg, so AgentMemory fell through to a passwordless
+    Postgres default and the smoke run died with
+    ``fe_sendauth: no password supplied``. The bug was a silent skip of
+    ``configs/attestor.yaml`` for the ``python -m evals.longmemeval``
+    entry point. ``evals/braintrust_longmemeval.py`` was already correct.
+
+    ``warm_schema=True`` runs one schema-init pass with a throw-away
+    AgentMemory before parallel workers spin up, so they don't race on
+    CREATE TABLE catalog locks. Tests pass ``warm_schema=False`` to
+    avoid the live DB call.
+    """
+    import tempfile
+    from attestor.config import build_backend_config, get_stack
+    from attestor.core import AgentMemory
+
+    backend_config = build_backend_config(get_stack())
+    if warm_schema:
+        backend_config["backend_configs"]["postgres"]["skip_schema_init"] = False
+        AgentMemory(tempfile.mkdtemp(prefix="lme_warmup_"), config=backend_config)
+    backend_config["backend_configs"]["postgres"]["skip_schema_init"] = True
+
+    def _factory() -> AgentMemory:
+        return AgentMemory(
+            tempfile.mkdtemp(prefix="lme_"), config=backend_config,
+        )
+
+    return _factory
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     """`python -m evals.longmemeval` entry point.
 
@@ -208,14 +242,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    # The mem_factory builder is intentionally split out — operators wire
-    # their own (Postgres URL, Neo4j URL, embedding model). Default uses
-    # the SOLO config from the user's environment.
-    from attestor.core import AgentMemory
-    import tempfile
-
-    def _factory() -> AgentMemory:
-        return AgentMemory(tempfile.mkdtemp(prefix="lme_"))
+    _factory = _build_mem_factory()
 
     summary = run(
         mem_factory=_factory,

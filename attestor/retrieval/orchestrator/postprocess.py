@@ -362,7 +362,22 @@ class _OrchestratorPostProcessMixin:
         # survive). MMR + long-context are mutually exclusive by design.
         if self.enable_mmr and not long_context:
             _pre_mmr_count = len(results)
-            results = mmr_rerank(results, lambda_param=self.mmr_lambda)
+            # Pass max_results to MMR so the diversity loop keeps enough
+            # candidates for the downstream budget packer. Pre-fix MMR
+            # used its hardcoded default of 10, silently dropping every
+            # candidate past rank 10 — including answer-bearing turns
+            # in the same session as the top hit (knowledge-update
+            # questions reliably hit this: 3+ turns about the same
+            # topic in one session, MMR de-dupes them as redundant and
+            # the answer ends up dropped). vector_top_k is the right
+            # ceiling — MMR already orders by score, the budget packer
+            # will trim further.
+            mmr_max = self.mmr_top_n if self.mmr_top_n is not None else self.vector_top_k
+            results = mmr_rerank(
+                results,
+                lambda_param=self.mmr_lambda,
+                max_results=mmr_max,
+            )
             if self.mmr_top_n is not None and len(results) > self.mmr_top_n:
                 results = results[: self.mmr_top_n]
             if _tr.is_enabled():

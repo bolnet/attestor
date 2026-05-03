@@ -298,3 +298,39 @@ class TestRetrievalConfig:
         assert cfg.confidence_gate == 0.0
         assert cfg.confidence_decay_rate == 0.001
         assert cfg.confidence_boost_rate == 0.03
+
+
+# ── Regression: MMR cap must respect the orchestrator's vector_top_k ──
+# Pre-fix the orchestrator called ``mmr_rerank(results, lambda_param=...)``
+# with no ``max_results`` kwarg, so MMR fell back to its hardcoded default
+# of 10. Knowledge-update LME questions reliably tripped this: 3+ turns
+# from the same session would all match the query, MMR demoted them as
+# redundant, and the answer-bearing turn (rank 11+) got dropped.
+class TestMmrRespectsOrchestratorCap:
+    """Verify mmr_rerank surfaces enough candidates when called with a
+    higher ``max_results`` cap from the orchestrator's vector_top_k."""
+
+    def _mk(self, idx: int, score: float) -> "RetrievalResult":
+        from attestor.models import Memory, RetrievalResult
+        return RetrievalResult(
+            memory=Memory(id=str(idx), content=f"distinct content number {idx}"),
+            score=score,
+            match_source="vector",
+        )
+
+    def test_default_caps_at_10(self) -> None:
+        """Default behaviour — no max_results — caps at 10."""
+        from attestor.retrieval.scorer import mmr_rerank
+        results = [self._mk(i, 1.0 - i * 0.01) for i in range(30)]
+        out = mmr_rerank(results)
+        assert len(out) == 10, "default cap regression"
+
+    def test_custom_max_results_keeps_more(self) -> None:
+        """Passing max_results=30 must surface up to 30 candidates."""
+        from attestor.retrieval.scorer import mmr_rerank
+        results = [self._mk(i, 1.0 - i * 0.01) for i in range(30)]
+        out = mmr_rerank(results, max_results=30)
+        assert len(out) == 30, (
+            "the LME knowledge-update fix relies on this — bumping "
+            "max_results must let downstream candidates survive MMR"
+        )
