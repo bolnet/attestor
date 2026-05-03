@@ -696,6 +696,7 @@ class ConsolidationCfg:
     dry_run: bool = False
 
 
+@dataclass(frozen=True)
 class MemoryLayersCfg:
     """Hierarchical memory layer config (2026 best-practice).
 
