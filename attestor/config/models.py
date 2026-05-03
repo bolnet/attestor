@@ -256,6 +256,48 @@ class HydeCfg:
 
 
 @dataclass(frozen=True)
+class RerankerCfg:
+    """Cross-encoder reranker stage knobs (Phase 1, +60% retrieval per
+    Anthropic's Sept-2024 contextual-retrieval research).
+
+    Sits between RRF (Step 3) and graph BFS (Step 4) of the recall
+    cascade. Three providers ship in this PR:
+
+      bge     — ``BAAI/bge-reranker-v2-gemma`` via sentence-transformers
+                (open weights, deterministic, lazy-loads). Default.
+      cohere  — ``rerank-english-v3.0`` via the cohere SDK. Requires
+                ``COHERE_API_KEY``; degrades to no-op without.
+      llm     — LLM-as-reranker (Haiku 4.5 / gpt-4o-mini) via the
+                YAML-configured LiteLLM provider.
+
+    Disabled by default — Phase 1 ships off; bench cells flip on per
+    ablation. All providers degrade to "return input unchanged" on
+    error so the recall path never breaks.
+
+    Configuration:
+      enabled       — master switch.
+      provider      — bge | cohere | llm.
+      top_k         — how many candidates survive the rerank.
+      top_n_input   — how many candidates the provider sees from RRF.
+      bge_model     — HF model id for the BGE provider.
+      cohere_model  — Cohere model id for the cohere provider.
+      llm_model     — LiteLLM model id for the llm provider; ``null``
+                      falls back to ``models.benchmark_default``.
+    """
+
+    enabled: bool = False
+    provider: str = "bge"
+    top_k: int = 10
+    top_n_input: int = 50
+    bge_model: str = "BAAI/bge-reranker-v2-gemma"
+    cohere_model: str = "rerank-english-v3.0"
+    llm_model: str | None = None
+
+
+_VALID_RERANKER_PROVIDERS = ("bge", "cohere", "llm")
+
+
+@dataclass(frozen=True)
 class TemporalPrefilterCfg:
     """Regex-only temporal pre-filter knobs (Phase 3 RC4 — +1.5% LME-S).
 
@@ -363,6 +405,7 @@ class RetrievalCfg:
         default_factory=TemporalPrefilterCfg,
     )
     hyde: HydeCfg = field(default_factory=HydeCfg)
+    reranker: RerankerCfg = field(default_factory=RerankerCfg)
 
 
 @dataclass(frozen=True)
