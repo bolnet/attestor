@@ -198,17 +198,18 @@ def fresh_schema(admin_conn):
     yield
 
 
-def _ollama_up() -> bool:
-    try:
-        import requests
-        r = requests.get("http://localhost:11434/api/tags", timeout=2)
-        return r.status_code == 200
-    except Exception:
-        return False
+def _has_embedder_keys() -> bool:
+    """True when at least one supported embedder API key is set."""
+    return bool(
+        os.environ.get("OPENROUTER_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("VOYAGE_API_KEY")
+        or os.environ.get("PINECONE_API_KEY")
+    )
 
 
 @pytest.mark.live
-@pytest.mark.skipif(not _ollama_up(), reason="Ollama not running")
+@pytest.mark.skipif(not _has_embedder_keys(), reason="no embedder API key set")
 def test_live_v4_embedding_text_reflects_round(admin_conn, fresh_schema) -> None:
     """Round → memory → _build_embedding_text returns the full round shape."""
     from attestor.store.postgres_backend import PostgresBackend

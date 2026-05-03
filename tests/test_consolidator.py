@@ -1,7 +1,7 @@
 """Phase 7.2 — SleepTimeConsolidator end-to-end with stubbed LLMs.
 
 Tests run against the live v4 schema. LLM calls go through scripted
-stubs so the tests are deterministic + don't burn local Ollama time.
+stubs so the tests are deterministic + don't burn LLM API credit.
 """
 
 from __future__ import annotations

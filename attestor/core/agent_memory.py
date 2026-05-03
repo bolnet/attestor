@@ -545,7 +545,7 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         # Store in vector DB. Non-fatal — the document path is the source
         # of truth and recall degrades gracefully without vectors. Surface
         # the exception via logger.warning so the failure is debuggable
-        # (silent pass made dim-mismatch / Ollama-down / schema-drift bugs
+        # (silent pass made dim-mismatch / embedder-down / schema-drift bugs
         # invisible until recall returned 0 hits).
         if self._vector_store:
             try:

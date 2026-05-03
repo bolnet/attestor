@@ -106,16 +106,17 @@ def test_unknown_provider_raises_at_load(yaml_with_llm):
 
 @pytest.mark.unit
 def test_yaml_overrides_take_precedence(yaml_with_llm):
-    """Pointing base_url at local Ollama via YAML should round-trip."""
+    """Pointing base_url at a local OpenAI-compatible endpoint via YAML
+    should round-trip."""
     yaml_with_llm(
         "openai",
         base_url="http://localhost:11434/v1",
-        api_key_env="LOCAL_OLLAMA_TOKEN",
+        api_key_env="LOCAL_OPENAI_COMPAT_TOKEN",
     )
     from attestor.config import get_stack
     s = get_stack(strict=False)
     assert s.llm.base_url == "http://localhost:11434/v1"
-    assert s.llm.api_key_env == "LOCAL_OLLAMA_TOKEN"
+    assert s.llm.api_key_env == "LOCAL_OPENAI_COMPAT_TOKEN"
 
 
 # ---------------------------------------------------------------------------
@@ -149,8 +150,8 @@ def test_get_client_routes_to_openai_when_provider_openai(yaml_with_llm, monkeyp
 
 @pytest.mark.unit
 def test_get_client_env_base_url_overrides_yaml(yaml_with_llm, monkeypatch):
-    """LME_LLM_BASE_URL env wins over YAML — preserves the
-    ad-hoc local-Ollama escape hatch even when YAML pins openai."""
+    """LME_LLM_BASE_URL env wins over YAML — preserves the ad-hoc local
+    OpenAI-compatible escape hatch even when YAML pins openai."""
     yaml_with_llm("openai")
     monkeypatch.setenv("LME_LLM_BASE_URL", "http://localhost:11434/v1")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -176,9 +177,9 @@ def test_get_client_missing_key_names_the_specific_env(yaml_with_llm, monkeypatc
 
 
 @pytest.mark.unit
-def test_get_client_local_ollama_works_keyless(yaml_with_llm, monkeypatch):
-    """Local Ollama base URL ignores the missing key (same as before
-    this PR — back-compat path stays intact)."""
+def test_get_client_local_openai_compat_works_keyless(yaml_with_llm, monkeypatch):
+    """Localhost OpenAI-compatible base URL ignores the missing key
+    (back-compat path for local LLM servers stays intact)."""
     yaml_with_llm("openai")
     monkeypatch.setenv("LME_LLM_BASE_URL", "http://127.0.0.1:11434/v1")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)

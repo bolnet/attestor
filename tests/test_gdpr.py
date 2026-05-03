@@ -46,16 +46,17 @@ def admin_conn():
 
 @pytest.fixture
 def fresh_schema(admin_conn):
-    # 1024-D matches Ollama bge-m3 (the default local embedder used by the
-    # AgentMemory round-trip test below). If you change the embedder, keep
-    # this in sync — the embedder/schema dim assertion in
+    # 1024-D matches the canonical embedder dim (Pinecone llama-text-embed-v2 /
+    # Voyage voyage-4 / OpenAI text-embedding-3-* @ 1024-D). If you change
+    # the embedder, keep this in sync — the embedder/schema dim assertion in
     # AgentMemory.__init__ will reject the mismatch at startup.
     #
-    # Clear the module-level embedder cache so a real Ollama probe runs
+    # Clear the module-level embedder cache so a real provider probe runs
     # for the AgentMemory init below. Some prior tests (e.g.
     # test_embeddings.py) leave a MagicMock embedder with dim=1536 cached
     # after their `with patch(...)` blocks tear down; without this clear
-    # the dim guard would fire against the leaked mock instead of Ollama.
+    # the dim guard would fire against the leaked mock instead of the
+    # configured cloud embedder.
     from attestor.store.embeddings import clear_embedding_cache
     clear_embedding_cache()
     raw = SCHEMA_PATH.read_text().replace("{embedding_dim}", "1024")
@@ -281,17 +282,18 @@ def test_purge_quota_row_also_removed(admin_conn, populated_user):
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _ollama_up() -> bool:
-    try:
-        import requests
-        r = requests.get("http://localhost:11434/api/tags", timeout=2)
-        return r.status_code == 200
-    except Exception:
-        return False
+def _has_embedder_keys() -> bool:
+    """True when at least one supported embedder API key is set."""
+    return bool(
+        os.environ.get("OPENROUTER_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("VOYAGE_API_KEY")
+        or os.environ.get("PINECONE_API_KEY")
+    )
 
 
 @pytest.mark.live
-@pytest.mark.skipif(not _ollama_up(), reason="Ollama not running")
+@pytest.mark.skipif(not _has_embedder_keys(), reason="no embedder API key set")
 def test_agent_memory_purge_user_round_trip(admin_conn, fresh_schema, tmp_path):
     from attestor.core import AgentMemory
 

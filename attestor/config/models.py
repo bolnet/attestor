@@ -388,8 +388,8 @@ class LLMCfg:
                     (no per-call OpenRouter markup; only OpenAI models work).
 
     ``base_url`` and ``api_key_env`` override the per-provider defaults
-    when set in YAML — useful for local Ollama (set base_url to
-    http://localhost:11434/v1) or for swapping the env var name.
+    when set in YAML — useful for ad-hoc local OpenAI-compatible
+    endpoints or for swapping the env var name.
 
     Multi-provider mode: when ``providers`` is set, it overrides the
     single-provider ``provider``/``base_url``/``api_key_env`` fields,

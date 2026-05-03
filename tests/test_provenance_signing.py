@@ -267,13 +267,14 @@ def _reachable() -> bool:
         return False
 
 
-def _ollama_up() -> bool:
-    try:
-        import requests
-        r = requests.get("http://localhost:11434/api/tags", timeout=2)
-        return r.status_code == 200
-    except Exception:
-        return False
+def _has_embedder_keys() -> bool:
+    """True when at least one supported embedder API key is set."""
+    return bool(
+        os.environ.get("OPENROUTER_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("VOYAGE_API_KEY")
+        or os.environ.get("PINECONE_API_KEY")
+    )
 
 
 @pytest.fixture
@@ -292,7 +293,7 @@ def fresh_schema():
 
 
 @pytest.mark.live
-@pytest.mark.skipif(not _ollama_up(), reason="Ollama not running")
+@pytest.mark.skipif(not _has_embedder_keys(), reason="no embedder API key set")
 def test_agent_memory_signs_on_add(fresh_schema, tmp_path) -> None:
     from attestor.core import AgentMemory
     kp = SignatureKeypair.generate()
@@ -322,7 +323,7 @@ def test_agent_memory_signs_on_add(fresh_schema, tmp_path) -> None:
 
 
 @pytest.mark.live
-@pytest.mark.skipif(not _ollama_up(), reason="Ollama not running")
+@pytest.mark.skipif(not _has_embedder_keys(), reason="no embedder API key set")
 def test_agent_memory_detects_tampered_row(fresh_schema, tmp_path) -> None:
     """Direct SQL UPDATE that modifies content WITHOUT re-signing must fail
     verification — the audit trail catches DB-level tampering."""
@@ -365,8 +366,8 @@ def test_verify_memory_raises_when_signing_disabled(fresh_schema, tmp_path) -> N
     """Calling verify_memory without the signer configured is a programmer
     error — the public key needs to be in the same place."""
     from attestor.core import AgentMemory
-    if not _ollama_up():
-        pytest.skip("Ollama not running")
+    if not _has_embedder_keys():
+        pytest.skip("no embedder API key set")
     mem = AgentMemory(tmp_path, config={
         "mode": "solo",
         "backends": ["postgres"],
