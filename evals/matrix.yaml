@@ -203,6 +203,44 @@ cells:
       cost_usd: 0.06, wall_min: 24,
       note: "Phase 1 reranker bench — enable when local GPU available" }
 
+  # ── Global query (multi-hop / GraphRAG-style) — one cell per category ──
+  # When `global_query: true`, recall() routes "summarize / over time /
+  # across / recurring / themes / patterns" questions to a Neo4j Leiden
+  # community-detect + LLM-summarize lane in front of the 6-step cascade.
+  # Default off; per Microsoft GraphRAG and HippoRAG, the lift on global
+  # queries is ~25-40pp where local queries are unaffected.
+  - { category: temporal-reasoning,
+      label: "ablation:global_query=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      global_query: true,
+      cost_usd: 0.10, wall_min: 26,
+      note: "Phase 9 GraphRAG lane; expect lift only on time-spanning questions" }
+
+  - { category: multi-session,
+      label: "ablation:global_query=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      global_query: true,
+      cost_usd: 0.10, wall_min: 26,
+      note: "Phase 9 GraphRAG lane; multi-session is the prime target" }
+
+  - { category: knowledge-update,
+      label: "ablation:global_query=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      global_query: true,
+      cost_usd: 0.10, wall_min: 26,
+      note: "Phase 9 GraphRAG lane; KU is mostly local — sanity-check cell" }
+
+  - { category: single-session-user,
+      label: "ablation:global_query=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      global_query: true,
+      cost_usd: 0.10, wall_min: 26,
+      note: "Phase 9 GraphRAG lane; mostly local — null-result cell" }
+
   # Add more cells here as ablations are designed. Examples to seed:
   #
   # - { category: multi-session, label: "ablation:hyde=off", samples: 10,

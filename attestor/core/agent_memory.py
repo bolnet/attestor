@@ -205,6 +205,19 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             self._retrieval.hyde_cfg = _retrieval_cfg.hyde
             self._retrieval.reranker_cfg = _retrieval_cfg.reranker
 
+        # Multi-hop / global-query lane (Microsoft GraphRAG-style).
+        # Sits IN FRONT of the 6-step cascade — when enabled and the
+        # classifier votes "global", recall short-circuits the local
+        # pipeline and returns cluster-level summaries instead. Default
+        # config has ``enabled=False`` so the codepath is byte-identical
+        # to ``main`` until a bench cell flips it on.
+        from attestor.config.models import GlobalQueryCfg
+        self._global_cfg = (
+            _retrieval_cfg.global_query
+            if _retrieval_cfg is not None
+            else GlobalQueryCfg()
+        )
+
         # Operation ring buffer for latency observability
         self._ops_log: deque[dict[str, Any]] = deque(maxlen=200)
 
@@ -959,6 +972,27 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             )
             user_id = rc.user.id
 
+        # Global-query lane (multi-hop / GraphRAG-style). When enabled
+        # AND the classifier votes "global", short-circuit the 6-step
+        # cascade and return cluster-level summaries. Disabled by default
+        # → byte-identical to legacy behavior. Failure-isolated: if the
+        # global lane errors out, fall through to the local pipeline so
+        # recall always returns *something*.
+        gq_cfg = getattr(self, "_global_cfg", None)
+        if gq_cfg is not None and getattr(gq_cfg, "enabled", False):
+            try:
+                from attestor.retrieval.global_query import is_global_query
+                if is_global_query(query, model=gq_cfg.classifier_model):
+                    return self._run_global_recall(
+                        query, user_id=user_id, namespace=namespace,
+                    )
+            except Exception as e:
+                logger.warning(
+                    "global_query lane errored (%s: %s); "
+                    "falling through to local recall",
+                    type(e).__name__, e,
+                )
+
         t0 = time.monotonic()
         token_budget = budget or self.config.default_token_budget
         # Pass temporal kwargs only when present so legacy v3 orchestrator
@@ -999,6 +1033,62 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             "stores": stores,
         })
 
+        return results
+
+    def _run_global_recall(
+        self,
+        query: str,
+        *,
+        user_id: str | None,
+        namespace: str | None,
+    ) -> list[RetrievalResult]:
+        """Execute the multi-hop global-query lane.
+
+        Always returns a list (possibly empty). The ``recall()`` caller
+        should NOT mutate the result; downstream consumers expect the
+        ``RetrievalResult`` objects to be safely shareable.
+        """
+        from attestor.retrieval.global_query import (
+            run_global_query,
+            to_retrieval_results,
+        )
+
+        gq_cfg = self._global_cfg
+        t0 = time.monotonic()
+        try:
+            result = run_global_query(
+                query,
+                user_id=user_id,
+                namespace=namespace,
+                graph_store=self._graph,
+                doc_store=self._store,
+                llm_model=gq_cfg.summary_model,
+                max_clusters=gq_cfg.max_clusters,
+                max_entities_per_cluster=gq_cfg.max_entities_per_cluster,
+                subgraph_depth=gq_cfg.subgraph_depth,
+                cost_per_summary_usd=gq_cfg.cost_per_summary_usd,
+            )
+        except Exception as e:
+            logger.warning(
+                "global_query.run_global_query failed (%s: %s); "
+                "returning empty global result",
+                type(e).__name__, e,
+            )
+            return []
+
+        results = to_retrieval_results(result, namespace=namespace)
+        total_ms = round((time.monotonic() - t0) * 1000, 2)
+
+        self._ops_log.append({
+            "op": "recall.global",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "latency_ms": total_ms,
+            "input": query[:120],
+            "result_count": len(results),
+            "cluster_count": result.cluster_count,
+            "cost_usd": result.cost_estimate_usd,
+            "stores": ["graph", "document"],
+        })
         return results
 
     def recall_as_context(
