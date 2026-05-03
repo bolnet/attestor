@@ -476,7 +476,14 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         if v4_active and namespace and namespace != "default":
             _final_metadata.setdefault("_namespace", namespace)
 
-        memory = Memory(
+        # Couple ``valid_from`` to ``event_date`` when the caller provided
+        # one. Without this the dataclass default factory stamps NOW(), and
+        # the temporal manager loses the real event time — supersession
+        # tiebreakers, BM25 time-window filters, and as_of replay all see
+        # ingest time instead. The v4 schema also drops ``event_date``
+        # entirely, so ``valid_from`` is the only column carrying the date
+        # in v4 mode. See tests/test_temporal_supersession_gaps.py.
+        memory_kwargs: dict[str, Any] = dict(
             content=content,
             tags=tags or [],
             category=category,
@@ -494,6 +501,9 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             agent_id=agent_id,
             source_episode_id=source_episode_id,
         )
+        if event_date:
+            memory_kwargs["valid_from"] = event_date
+        memory = Memory(**memory_kwargs)
 
         # Check for contradictions before insert
         contradictions = self._temporal.check_contradictions(memory)
