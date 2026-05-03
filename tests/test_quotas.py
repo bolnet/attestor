@@ -32,13 +32,14 @@ def _reachable() -> bool:
         return False
 
 
-def _ollama_up() -> bool:
-    try:
-        import requests
-        r = requests.get("http://localhost:11434/api/tags", timeout=2)
-        return r.status_code == 200
-    except Exception:
-        return False
+def _has_embedder_keys() -> bool:
+    """True when at least one supported embedder API key is set."""
+    return bool(
+        os.environ.get("OPENROUTER_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("VOYAGE_API_KEY")
+        or os.environ.get("PINECONE_API_KEY")
+    )
 
 
 pytestmark = pytest.mark.skipif(not _reachable(), reason="local Postgres unreachable")
@@ -54,9 +55,10 @@ def admin_conn():
 
 @pytest.fixture
 def fresh_schema(admin_conn):
-    # 1024-D matches Ollama bge-m3 (the default local embedder used by the
-    # AgentMemory enforcement test below). The embedder/schema dim
-    # assertion in AgentMemory.__init__ rejects mismatches at startup.
+    # 1024-D matches the canonical embedder dim (Pinecone llama-text-embed-v2 /
+    # Voyage voyage-4 / OpenAI text-embedding-3-* @ 1024-D). The embedder/
+    # schema dim assertion in AgentMemory.__init__ rejects mismatches at
+    # startup.
     #
     # Clear the module-level embedder cache (see test_gdpr.py for the
     # same rationale — prior tests can leak a MagicMock embedder).
@@ -306,7 +308,7 @@ def test_check_passes_when_no_quota_row(admin_conn):
 
 
 @pytest.mark.live
-@pytest.mark.skipif(not _ollama_up(), reason="Ollama not running")
+@pytest.mark.skipif(not _has_embedder_keys(), reason="no embedder API key set")
 def test_agent_memory_set_quota_then_add_blocks(admin_conn, fresh_schema, tmp_path):
     from attestor.core import AgentMemory
     from attestor.quotas import QuotaExceeded

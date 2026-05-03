@@ -11,7 +11,6 @@ Supported providers (canonical PG+Pinecone+Neo4j stack):
     pinecone   — Pinecone Inference (default; ``llama-text-embed-v2`` 1024-D)
     voyage     — Voyage AI (``voyage-4`` 1024-D)
     openai     — OpenAI / OpenRouter (``text-embedding-3-large``, Matryoshka)
-    ollama     — Local Ollama daemon
 
 Usage:
     provider = get_embedding_provider()              # reads YAML's stack.embedder.provider
@@ -105,88 +104,6 @@ class OpenAIEmbeddingProvider:
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         resp = self._client.embeddings.create(**self._create_kwargs(texts))
         return [d.embedding for d in resp.data]
-
-
-class OllamaEmbeddingProvider:
-    """Local Ollama embeddings (default model: bge-m3, 1024-D, 8K context).
-
-    Talks to ``http://localhost:11434/api/embeddings`` (override with
-    ``OLLAMA_HOST``). Probe-detects dimension at construction so swapping
-    the model just works — bge-m3 → 1024-D, nomic-embed-text → 768-D,
-    mxbai-embed-large → 1024-D, etc.
-
-    Local-first means: no network, no API credit cost, no rate limits.
-    The price is RAM + an Ollama daemon; both are usually already there
-    if you're running a local agent stack.
-    """
-
-    DEFAULT_MODEL = "bge-m3"
-    DEFAULT_HOST = "http://localhost:11434"
-
-    def __init__(
-        self,
-        model: str | None = None,
-        host: str | None = None,
-        timeout: float = 30.0,
-    ) -> None:
-        import requests
-
-        self._requests = requests
-        self._host = (host or os.environ.get("OLLAMA_HOST") or self.DEFAULT_HOST).rstrip("/")
-        self._model = model or os.environ.get("ATTESTOR_EMBEDDING_MODEL") or self.DEFAULT_MODEL
-        self._timeout = timeout
-        # Probe dimension once at boot. Raises if Ollama unreachable or
-        # model not pulled — caller catches and falls through to next
-        # provider in the chain.
-        probe = self._raw_embed("dim")
-        self._dimension = len(probe)
-
-    @property
-    def dimension(self) -> int:
-        return self._dimension
-
-    @property
-    def provider_name(self) -> str:
-        return f"ollama:{self._model}"
-
-    def _raw_embed(self, text: str) -> list[float]:
-        # Ollama's /api/embeddings returns {"embedding": [...]}; the newer
-        # /api/embed returns {"embeddings": [[...]]} for batch. Use the
-        # singular endpoint for consistency across versions.
-        r = self._requests.post(
-            f"{self._host}/api/embeddings",
-            json={"model": self._model, "prompt": text},
-            timeout=self._timeout,
-        )
-        r.raise_for_status()
-        data = r.json()
-        emb = data.get("embedding")
-        if not isinstance(emb, list):
-            raise RuntimeError(
-                f"Ollama embedding response missing 'embedding': {data}"
-            )
-        return emb
-
-    def embed(self, text: str) -> list[float]:
-        return self._raw_embed(text)
-
-    def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        # Ollama doesn't batch on the /api/embeddings endpoint. Use the
-        # newer /api/embed if available; fall back to per-text loop.
-        try:
-            r = self._requests.post(
-                f"{self._host}/api/embed",
-                json={"model": self._model, "input": texts},
-                timeout=self._timeout,
-            )
-            r.raise_for_status()
-            data = r.json()
-            embs = data.get("embeddings")
-            if isinstance(embs, list) and len(embs) == len(texts):
-                return embs
-        except Exception as e:
-            logger.debug("ollama batch endpoint failed (%s); per-text fallback", e)
-        return [self._raw_embed(t) for t in texts]
 
 
 class VoyageEmbeddingProvider:
@@ -440,23 +357,6 @@ def _try_pinecone_inference() -> EmbeddingProvider | None:
         return None
 
 
-def _try_ollama() -> EmbeddingProvider | None:
-    """Probe local Ollama. Returns None if daemon unreachable or model
-    missing — caller falls through to the next provider."""
-    if os.environ.get("ATTESTOR_DISABLE_LOCAL_EMBED") in {"1", "true", "True"}:
-        return None
-    try:
-        provider = OllamaEmbeddingProvider()
-        logger.info(
-            "Using %s embeddings (%dD)",
-            provider.provider_name, provider.dimension,
-        )
-        return provider
-    except Exception as e:
-        logger.debug("Ollama embeddings unavailable: %s", e)
-        return None
-
-
 def _try_openai() -> EmbeddingProvider | None:
     """Try OpenAI (direct, no OpenRouter fallback).
 
@@ -518,7 +418,6 @@ _PROVIDER_DISPATCH = {
     "openai": _try_openai,
     "voyage": _try_voyage,
     "pinecone": _try_pinecone_inference,
-    "ollama": _try_ollama,
 }
 
 
@@ -535,9 +434,8 @@ def get_embedding_provider(
     because it caused subtle index-dim drift in past runs.
 
     Args:
-        preferred: Provider name — one of openai / voyage / pinecone /
-                   ollama / bedrock / azure_openai / vertex_ai. When
-                   ``None``, the value is read from
+        preferred: Provider name — one of openai / voyage / pinecone.
+                   When ``None``, the value is read from
                    ``configs/attestor.yaml`` ``stack.embedder.provider``.
 
     Returns:

@@ -179,7 +179,7 @@ class _OrchestratorDebugMixin:
         if vector_error:
             warnings.append(
                 "Vector lane failed — query did not produce an embedding. "
-                "Likely the embedder (Ollama / OpenAI) is unreachable. "
+                "Likely the embedder (Pinecone / Voyage / OpenAI) is unreachable. "
                 f"Underlying error: {vector_error}"
             )
 

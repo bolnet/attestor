@@ -26,8 +26,8 @@ def _upgrade_embeddings_for_benchmark(mem: AgentMemory) -> None:
 
     Embedding-provider selection is owned by ``configs/attestor.yaml``
     (see ``attestor/store/embeddings.py`` for auto-detect rules:
-    Pinecone Inference / Voyage / OpenAI / Azure / Bedrock / Vertex /
-    Ollama). This helper just nudges the active vector store to
+    Pinecone Inference / Voyage / OpenAI / Azure / Bedrock / Vertex).
+    This helper just nudges the active vector store to
     re-initialize its embedder so any provider key set after store
     construction (e.g. via ``--env-file``) is picked up. No provider key
     is read here — the underlying embedder factory handles that.

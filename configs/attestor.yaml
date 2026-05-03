@@ -65,7 +65,6 @@ stack:
   #   - openai   — text-embedding-3-large @ 1024-D (best quality, ~6x cost).
   #   - voyage   — voyage-4, 1024-D (Anthropic recommended; paid).
   #                Set VOYAGE_API_KEY.
-  #   - ollama   — bge-m3, 1024-D (local, free; needs Ollama daemon).
   embedder:
     provider: pinecone
     model: llama-text-embed-v2
@@ -85,7 +84,7 @@ stack:
   # Each provider entry sets `base_url` (an OpenAI-compatible endpoint)
   # and `api_key_env` (the env var holding the API key). The runtime
   # helper `_get_client` honors `LME_LLM_BASE_URL` env first when set,
-  # so ad-hoc local runs (e.g. local Ollama) work without editing
+  # so ad-hoc local OpenAI-compatible endpoints work without editing
   # this file.
   llm:
     # Legacy single-provider mode — used when `providers:` is absent or

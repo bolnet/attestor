@@ -50,18 +50,19 @@ def _reachable() -> bool:
         return False
 
 
-def _ollama_up() -> bool:
-    try:
-        import requests
-        r = requests.get("http://localhost:11434/api/tags", timeout=2)
-        return r.status_code == 200
-    except Exception:
-        return False
+def _has_embedder_keys() -> bool:
+    """True when at least one supported embedder API key is set."""
+    return bool(
+        os.environ.get("OPENROUTER_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("VOYAGE_API_KEY")
+        or os.environ.get("PINECONE_API_KEY")
+    )
 
 
 pytestmark = pytest.mark.skipif(
-    not (_reachable() and _ollama_up()),
-    reason="local Postgres or Ollama unreachable",
+    not (_reachable() and _has_embedder_keys()),
+    reason="local Postgres unreachable or no embedder API key set",
 )
 
 

@@ -553,9 +553,9 @@ def _get_client(api_key: str | None = None) -> Any:
     ``_get_client_for_model(model)`` so the pool can route per-model.
 
     Resolution order (top wins):
-      1. ``LME_LLM_BASE_URL`` env — explicit ad-hoc override; mostly
-         used to point at local Ollama (``http://localhost:11434/v1``).
-         When the URL points at localhost, the API key is optional.
+      1. ``LME_LLM_BASE_URL`` env — explicit ad-hoc override pointing at
+         any OpenAI-compatible endpoint. When the URL points at
+         localhost, the API key is optional.
       2. ``api_key`` argument — when caller passes one, build a client
          directly so the explicit override beats the pool's lookup.
       3. Pool default — delegate to ``attestor.llm_trace`` and ask for
@@ -570,7 +570,7 @@ def _get_client(api_key: str | None = None) -> Any:
 
     llm_cfg = get_stack().llm  # raises loudly if YAML unloadable — by design.
 
-    # 1 — explicit env override wins (preserved verbatim — local-Ollama path).
+    # 1 — explicit env override wins (ad-hoc local OpenAI-compat path).
     env_base_url = os.environ.get("LME_LLM_BASE_URL")
     if env_base_url:
         base_url = env_base_url
@@ -579,15 +579,15 @@ def _get_client(api_key: str | None = None) -> Any:
         key = api_key or os.environ.get(key_env)
         if not key:
             if is_local:
-                key = "ollama"  # placeholder; Ollama ignores the key
+                key = "local"  # placeholder; local OpenAI-compat servers ignore the key
             else:
                 raise RuntimeError(
                     f"{key_env} not set — required for LongMemEval "
                     f"answer/judge against {base_url} "
                     f"(llm.provider={llm_cfg.provider!r}). Either export "
                     f"{key_env}, switch llm.provider in configs/attestor.yaml, "
-                    f"or set LME_LLM_BASE_URL=http://localhost:11434/v1 to "
-                    f"run against local Ollama instead."
+                    f"or set LME_LLM_BASE_URL to a local OpenAI-compatible "
+                    f"endpoint (the localhost case is keyless)."
                 )
         return make_client(base_url=base_url, api_key=key)
 

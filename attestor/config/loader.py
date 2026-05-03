@@ -317,8 +317,7 @@ def reset_stack() -> None:
 def configure_embedder(stack: StackConfig) -> None:
     """Pin embedder selection via env vars so the auto-detect chain in
     ``attestor.store.embeddings.get_embedding_provider()`` returns the
-    provider this stack asked for. Always disables Ollama auto-probe."""
-    os.environ["ATTESTOR_DISABLE_LOCAL_EMBED"] = "1"
+    provider this stack asked for."""
     if stack.embedder.provider == "voyage":
         if not os.environ.get("VOYAGE_API_KEY"):
             raise SystemExit(
