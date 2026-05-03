@@ -39,7 +39,15 @@ def _cmd_init(args: argparse.Namespace) -> None:
             if interactive:
                 result = init_store_interactive(store_path, verify=args.verify)
             else:
-                result = init_store(store_path, backend=args.backend, verify=args.verify)
+                backend_options: dict | None = None
+                if getattr(args, "postgres_url", None):
+                    backend_options = {"url": args.postgres_url}
+                result = init_store(
+                    store_path,
+                    backend=args.backend,
+                    backend_options=backend_options,
+                    verify=args.verify,
+                )
             print(
                 f"  config.toml: {result.config_path} "
                 f"(backend={result.backend}, verified={result.verified})"

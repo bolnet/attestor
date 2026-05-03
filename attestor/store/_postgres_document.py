@@ -128,12 +128,14 @@ class _PostgresDocumentMixin:
         # v3 path — id provided by Memory dataclass default (12-char hex)
         self._execute(
             """
-            INSERT INTO memories (id, content, tags, category, entity, namespace,
-                created_at, event_date, valid_from, valid_until,
-                superseded_by, confidence, status, metadata)
-            VALUES (%(id)s, %(content)s, %(tags)s, %(category)s, %(entity)s, %(namespace)s,
-                %(created_at)s, %(event_date)s, %(valid_from)s, %(valid_until)s,
-                %(superseded_by)s, %(confidence)s, %(status)s, %(metadata)s::jsonb)
+            INSERT INTO memories (id, content, content_hash, tags, category,
+                entity, namespace, created_at, event_date, valid_from,
+                valid_until, superseded_by, confidence, status, metadata)
+            VALUES (%(id)s, %(content)s, %(content_hash)s, %(tags)s,
+                %(category)s, %(entity)s, %(namespace)s, %(created_at)s,
+                %(event_date)s, %(valid_from)s, %(valid_until)s,
+                %(superseded_by)s, %(confidence)s, %(status)s,
+                %(metadata)s::jsonb)
             """,
             p,
         )
@@ -353,6 +355,58 @@ class _PostgresDocumentMixin:
         )
         return len(rows)
 
+    def list_all(
+        self,
+        namespace: str | None = None,
+        limit: int = 100_000,
+    ) -> list[Memory]:
+        """List every memory regardless of status. Thin wrapper around
+        ``list_memories`` with status=None so callers (LME bench, audit
+        tooling) can grab the full population in a namespace without
+        excluding superseded/archived rows."""
+        return self.list_memories(
+            status=None, namespace=namespace, limit=limit,
+        )
+
+    def get_by_hash(
+        self,
+        content_hash: str,
+        namespace: str | None = None,
+    ) -> Memory | None:
+        """Return an existing active memory whose content_hash matches.
+
+        Used by ``AgentMemory.add()`` for content-hash dedup — without
+        this method, the dedup branch silently skips (the call site
+        guards with ``hasattr(self._store, "get_by_hash")``) and every
+        identical add creates a duplicate row.
+        """
+        if self._v4:
+            ns_filter = ""
+            params: list[Any] = [content_hash]
+            if namespace:
+                ns_filter = " AND metadata->>'_namespace' = %s"
+                params.append(namespace)
+            sql = (
+                "SELECT * FROM memories "
+                "WHERE content_hash = %s AND status = 'active'"
+                f"{ns_filter} LIMIT 1"
+            )
+        else:
+            ns_filter = ""
+            params = [content_hash]
+            if namespace:
+                ns_filter = " AND namespace = %s"
+                params.append(namespace)
+            sql = (
+                "SELECT * FROM memories "
+                "WHERE content_hash = %s AND status = 'active'"
+                f"{ns_filter} LIMIT 1"
+            )
+        rows = self._execute(sql, params)
+        if not rows:
+            return None
+        return self._row_to_memory(rows[0])
+
     def stats(self) -> dict[str, Any]:
         total = self._execute_scalar("SELECT COUNT(*) FROM memories")
 
@@ -368,8 +422,22 @@ class _PostgresDocumentMixin:
         ):
             by_category[row["category"]] = row["cnt"]
 
+        # `db_size_bytes` is part of the public stats() contract used by
+        # health checks + the legacy v3 callers. Compute via pg_database_size
+        # on the active connection's database.
+        db_size_bytes = 0
+        try:
+            db_size_bytes = int(
+                self._execute_scalar(
+                    "SELECT pg_database_size(current_database())"
+                ) or 0
+            )
+        except Exception:  # pragma: no cover - permission-bound; degrade silently
+            db_size_bytes = 0
+
         return {
             "total_memories": total,
             "by_status": by_status,
             "by_category": by_category,
+            "db_size_bytes": db_size_bytes,
         }

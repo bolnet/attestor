@@ -179,6 +179,7 @@ class PostgresBackend(
                 CREATE TABLE IF NOT EXISTS memories (
                     id TEXT PRIMARY KEY,
                     content TEXT NOT NULL,
+                    content_hash TEXT,
                     tags TEXT[] NOT NULL DEFAULT '{{}}'::text[],
                     category TEXT NOT NULL DEFAULT 'general',
                     entity TEXT,
@@ -190,16 +191,31 @@ class PostgresBackend(
                     superseded_by TEXT,
                     confidence REAL DEFAULT 1.0,
                     status TEXT DEFAULT 'active',
+                    access_count INTEGER NOT NULL DEFAULT 0,
+                    last_accessed TEXT,
                     metadata JSONB DEFAULT '{{}}'::jsonb,
                     embedding vector({dim})
                 );
             """)
+            # Backfill: ALTER for pre-existing v3 schemas missing the
+            # content_hash / access tracking columns added 2026-05-03.
+            cur.execute(
+                "ALTER TABLE memories "
+                "ADD COLUMN IF NOT EXISTS content_hash TEXT, "
+                "ADD COLUMN IF NOT EXISTS access_count INTEGER NOT NULL DEFAULT 0, "
+                "ADD COLUMN IF NOT EXISTS last_accessed TEXT"
+            )
         # Indexes
         for col in ["status", "category", "entity", "created_at"]:
             self._execute(f"""
                 CREATE INDEX IF NOT EXISTS idx_memories_{col}
                 ON memories ({col});
             """)
+        # content_hash dedup lookup
+        self._execute(
+            "CREATE INDEX IF NOT EXISTS idx_memories_content_hash "
+            "ON memories (content_hash) WHERE content_hash IS NOT NULL"
+        )
         # HNSW index for vector cosine search
         self._execute("""
             CREATE INDEX IF NOT EXISTS idx_memories_embedding_hnsw

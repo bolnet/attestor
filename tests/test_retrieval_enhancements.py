@@ -228,7 +228,8 @@ class TestAccessTracking:
 class TestConfigWiring:
     def test_mmr_config_wired(self, mem_dir):
         from attestor import AgentMemory
-        cfg = {"enable_mmr": False, "mmr_lambda": 0.5}
+        from .conftest import _build_test_config
+        cfg = {**_build_test_config(), "enable_mmr": False, "mmr_lambda": 0.5}
         m = AgentMemory(mem_dir, config=cfg)
         assert m._retrieval.enable_mmr is False
         assert m._retrieval.mmr_lambda == 0.5
@@ -236,14 +237,16 @@ class TestConfigWiring:
 
     def test_fusion_mode_config(self, mem_dir):
         from attestor import AgentMemory
-        cfg = {"fusion_mode": "graph_blend"}
+        from .conftest import _build_test_config
+        cfg = {**_build_test_config(), "fusion_mode": "graph_blend"}
         m = AgentMemory(mem_dir, config=cfg)
         assert m._retrieval.fusion_mode == "graph_blend"
         m.close()
 
     def test_confidence_config(self, mem_dir):
         from attestor import AgentMemory
-        cfg = {"confidence_gate": 0.5, "confidence_decay_rate": 0.002}
+        from .conftest import _build_test_config
+        cfg = {**_build_test_config(), "confidence_gate": 0.5, "confidence_decay_rate": 0.002}
         m = AgentMemory(mem_dir, config=cfg)
         assert m._retrieval.confidence_gate == 0.5
         assert m._retrieval.confidence_decay_rate == 0.002
