@@ -1202,7 +1202,21 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             json.dump(data, f, indent=2)
 
     def import_json(self, filepath: str) -> int:
-        """Import memories from a JSON file. Returns count imported."""
+        """Import memories from a JSON file. Returns count imported.
+
+        Each entry in the JSON payload is mapped onto a fresh ``Memory``
+        and handed to ``self._store.insert``. Two safety details matter:
+
+        - ``id`` is regenerated when the JSON entry omits the field OR
+          provides ``null`` / empty-string. ``dict.get("id", DEFAULT)``
+          only uses the default for *missing* keys, so a payload with
+          ``"id": null`` would otherwise pass ``None`` straight to the
+          store and silently drop the row when the PK rejects it.
+        - Insert errors that are NOT a duplicate-content collision are
+          logged at WARNING. The previous bare ``except Exception: pass``
+          masked PK violations, NOT-NULL violations, and connection
+          errors as if they were dedup hits.
+        """
         with open(filepath) as f:
             data = json.load(f)
         count = 0
@@ -1214,8 +1228,12 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             if hasattr(self._store, "get_by_hash") and self._store.get_by_hash(chash):
                 continue
 
+            # ``or Memory().id`` (not ``get(..., default)``) so null / empty
+            # ids in the JSON payload still get a fresh value — see
+            # tests/test_client_import_gaps.py.
+            row_id = item.get("id") or Memory().id
             memory = Memory(
-                id=item.get("id", Memory().id),
+                id=row_id,
                 content=content,
                 tags=item.get("tags", []),
                 category=item.get("category", "general"),
@@ -1233,9 +1251,14 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             try:
                 self._store.insert(memory)
                 count += 1
-            except Exception:
-                # Skip duplicates
-                pass
+            except Exception as e:
+                # Don't mask non-dedup failures (PK violations, NOT-NULL
+                # violations, connection errors). Log and keep going so a
+                # bad row doesn't abort the rest of the import.
+                logger.warning(
+                    "import_json: insert failed for id=%s (%s): %s",
+                    row_id, type(e).__name__, e,
+                )
         return count
 
     # -- Graph --

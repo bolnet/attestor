@@ -499,13 +499,19 @@ _CLOUD_PROVIDERS = {
 
 # Module-level cache — prevents re-initialising the embedding provider
 # (e.g. API sessions) on every call.
-_cached_provider: EmbeddingProvider | None = None
+#
+# Keyed by the resolved provider name so a YAML edit (or an explicit
+# ``preferred=...`` call for a different provider) doesn't return a stale
+# cached instance. Pre-fix: a single-slot ``_cached_provider`` was returned
+# on every ``preferred=None`` call without re-reading YAML, which let a
+# stale provider silently survive a config change and re-incarnated the
+# silent vector-dim drift bug downstream.
+_provider_cache: dict[str, EmbeddingProvider] = {}
 
 
 def clear_embedding_cache() -> None:
-    """Clear the cached embedding provider (for testing)."""
-    global _cached_provider
-    _cached_provider = None
+    """Clear the cached embedding providers (for testing)."""
+    _provider_cache.clear()
 
 
 _PROVIDER_DISPATCH = {
@@ -542,17 +548,19 @@ def get_embedding_provider(
             matching ``_try_*`` helper fails to initialize (e.g. missing
             API key).
     """
-    global _cached_provider
-
-    if _cached_provider is not None and preferred is None:
-        return _cached_provider
-
-    # No preferred argument — read it from YAML.
+    # No preferred argument — read it from YAML EVERY call. Don't short-
+    # circuit on the cache here, otherwise a YAML edit between calls is
+    # ignored and downstream dim checks pass against the stale provider.
     if preferred is None:
         from attestor.config import get_stack
 
         cfg = get_stack().embedder
         return get_embedding_provider(preferred=cfg.provider)
+
+    # Cache hit — same provider name asked for again.
+    cached = _provider_cache.get(preferred)
+    if cached is not None:
+        return cached
 
     # Strict dispatch: only the named provider is tried. No fallthrough.
     try_fn = _PROVIDER_DISPATCH.get(preferred)
@@ -573,5 +581,5 @@ def get_embedding_provider(
         "Using %s embeddings (%dD) [pinned by config]",
         provider.provider_name, provider.dimension,
     )
-    _cached_provider = provider
+    _provider_cache[preferred] = provider
     return provider

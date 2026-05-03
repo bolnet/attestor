@@ -76,8 +76,17 @@ class MemoryClient:
         event_date: str | None = None,
         confidence: float = 1.0,
         metadata: dict[str, Any] | None = None,
+        namespace: str | None = None,
     ) -> Memory:
-        """Add a memory via the HTTP API."""
+        """Add a memory via the HTTP API.
+
+        ``namespace`` is forwarded to the server so namespace-scoped
+        writes work over HTTP (parity with the embedded
+        ``AgentMemory.add`` and with ``MemoryClient.recall``). The
+        server defaults to ``"default"`` when the body omits the key,
+        so the client only inlines it when the caller explicitly
+        passes one — masking misconfig is worse than a stale tenant.
+        """
         body: dict[str, Any] = {
             "content": content,
             "tags": tags or [],
@@ -92,6 +101,8 @@ class MemoryClient:
             body["entity"] = entity
         if event_date:
             body["event_date"] = event_date
+        if namespace is not None:
+            body["namespace"] = namespace
 
         data = self._post("/add", body)
         return Memory.from_row(data)
