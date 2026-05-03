@@ -17,6 +17,7 @@ import itertools
 import json
 import logging
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -449,8 +450,6 @@ def answer_question(
         ``AnswerResult`` with final answer + retrieval counts + latency +
         optional reasoning trace + verification flag.
     """
-    import time
-
     ns = namespace_for(sample)
     t0 = time.monotonic()
     results = mem.recall(sample.question, budget=budget, namespace=ns) or []

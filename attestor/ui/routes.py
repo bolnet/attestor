@@ -445,7 +445,8 @@ def build_routes(templates: Jinja2Templates) -> list[Route]:
             ns = d.get("namespace") or "default"
             ns_data.setdefault(ns, []).append(d)
 
-        today = datetime.utcnow().date()
+        from datetime import timezone as _tz
+        today = datetime.now(tz=_tz.utc).date()
         namespaces = []
         for ns_name, mems in sorted(ns_data.items()):
             mems.sort(key=lambda m: m.get("created_at") or "", reverse=True)

@@ -98,7 +98,8 @@ def _cmd_ui(args: argparse.Namespace) -> None:
     print(f"→ http://{args.host}:{args.port}/ui/memories", file=sys.stderr)
 
     if args.open:
-        import webbrowser, threading
+        import threading
+        import webbrowser
         url = f"http://{args.host}:{args.port}/ui/memories"
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 

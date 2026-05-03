@@ -408,8 +408,12 @@ def answer_question(
     prompt_template = MAB_EXACT_PROMPT if use_exact else MAB_ANSWER_PROMPT
     prompt = prompt_template.format(context=context, question=question)
 
-    # Retry with exponential backoff on rate limits
+    # Retry with exponential backoff on rate limits.
+    # Total wall-clock cap = 2+4+8+16+32 = 62s. Caller waits at most
+    # ~62s + the final 33rd-second attempt before we give up.
     import time as _time
+    _MAX_RETRY_WALL_S = 62.0
+    _retry_started = _time.monotonic()
     for attempt in range(5):
         try:
             response = traced_create(
@@ -422,6 +426,8 @@ def answer_question(
             break
         except Exception as e:
             if "rate" in str(e).lower() or "429" in str(e):
+                if (_time.monotonic() - _retry_started) >= _MAX_RETRY_WALL_S:
+                    raise
                 wait = 2 ** attempt
                 _time.sleep(wait)
             else:

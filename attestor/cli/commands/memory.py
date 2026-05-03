@@ -189,13 +189,19 @@ def _cmd_stats(args: argparse.Namespace) -> None:
                 print(f"  {cat}: {count}")
 
 
+# Effective "no limit" for `attestor export` to stdout. The store
+# isn't expected to grow past low-millions, so 1M is a safe ceiling
+# that matches "fetch everything" without a true unbounded scan.
+_EXPORT_ALL_LIMIT = 1_000_000
+
+
 def _cmd_export(args: argparse.Namespace) -> None:
     with AgentMemory(args.path) as mem:
         if args.output:
             mem.export_json(args.output)
             print(f"Exported to {args.output}")
         else:
-            memories = mem.search(limit=1_000_000)
+            memories = mem.search(limit=_EXPORT_ALL_LIMIT)
             print(json.dumps([m.to_dict() for m in memories], indent=2))
 
 
