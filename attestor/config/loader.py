@@ -27,11 +27,13 @@ from attestor.config.models import (
     PineconeCfg,
     PostgresCfg,
     ProviderCfg,
+    RerankerCfg,
     RetrievalCfg,
     SelfConsistencyCfg,
     StackConfig,
     TemporalPrefilterCfg,
     _MAX_CRITIQUE_REVISIONS,
+    _VALID_RERANKER_PROVIDERS,
     _VALID_SC_VOTERS,
 )
 from attestor.config.resolver import _require, _resolve_env_password
@@ -83,6 +85,25 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         ),
         merge=str(hyde_blk.get("merge", "rrf")),
     )
+    rr_blk = retrieval_blk.get("reranker") or {}
+    rr_provider = str(rr_blk.get("provider", "bge"))
+    if rr_provider not in _VALID_RERANKER_PROVIDERS:
+        raise SystemExit(
+            f"[attestor.config] unknown reranker provider {rr_provider!r}; "
+            f"expected one of {list(_VALID_RERANKER_PROVIDERS)}"
+        )
+    bge_blk = rr_blk.get("bge") or {}
+    cohere_blk = rr_blk.get("cohere") or {}
+    llm_blk_rr = rr_blk.get("llm") or {}
+    rr_cfg = RerankerCfg(
+        enabled=bool(rr_blk.get("enabled", False)),
+        provider=rr_provider,
+        top_k=int(rr_blk.get("top_k", 10)),
+        top_n_input=int(rr_blk.get("top_n_input", 50)),
+        bge_model=str(bge_blk.get("model", "BAAI/bge-reranker-v2-gemma")),
+        cohere_model=str(cohere_blk.get("model", "rerank-english-v3.0")),
+        llm_model=llm_blk_rr.get("model"),
+    )
     # Score-blending knobs — the recall hot path reads these every call.
     # Coerce types defensively so YAML int/float duck-typing doesn't
     # surface surprises downstream (e.g. ``0.3`` parsed as int).
@@ -105,6 +126,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         multi_query=mq_cfg,
         temporal_prefilter=tp_cfg,
         hyde=hyde_cfg,
+        reranker=rr_cfg,
     )
 
     sc_blk = stack_blk.get("self_consistency") or {}

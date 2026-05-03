@@ -164,6 +164,45 @@ cells:
       cost_usd: 0.07, wall_min: 24,
       note: "LLM entity extraction at ingest (Mem0/Zep); user-profile facts are entity-anchored" }
 
+  # ── Reranker stage ablations (Phase 1 — one cell per LME-S category) ──
+  # Phase 1 reranker bench — enable when local GPU available. The BGE
+  # cross-encoder (BAAI/bge-reranker-v2-gemma) lazy-loads ~2GB on first
+  # call; bench cells run on a single category to keep the load amortized.
+  # Per Anthropic's Sept-2024 contextual-retrieval research, a reranker
+  # is the highest-leverage retrieval-side improvement after vector +
+  # BM25 + RRF (~+60% retrieval quality).
+  - { category: temporal-reasoning,
+      label: "ablation:reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "Phase 1 reranker bench — enable when local GPU available" }
+
+  - { category: multi-session,
+      label: "ablation:reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "Phase 1 reranker bench — enable when local GPU available" }
+
+  - { category: knowledge-update,
+      label: "ablation:reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "Phase 1 reranker bench — enable when local GPU available" }
+
+  - { category: single-session-user,
+      label: "ablation:reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "Phase 1 reranker bench — enable when local GPU available" }
+
   # Add more cells here as ablations are designed. Examples to seed:
   #
   # - { category: multi-session, label: "ablation:hyde=off", samples: 10,

@@ -244,6 +244,37 @@ stack:
       generator_reasoning_effort: low
       merge: rrf                         # rrf | union
 
+    # Cross-encoder reranker stage (Phase 1). Sits between RRF (Step 3)
+    # and graph BFS (Step 4). Per Anthropic's Sept-2024 contextual-
+    # retrieval research, a reranker is the highest-leverage retrieval-
+    # side improvement after vector + BM25 + RRF.
+    #
+    # Three providers ship in this PR:
+    #   - bge    — BAAI/bge-reranker-v2-gemma via sentence-transformers
+    #              (open weights, deterministic, lazy-loads on first
+    #              call). Default. Falls back to no-op when torch /
+    #              sentence-transformers aren't installed.
+    #   - cohere — rerank-english-v3.0 via the cohere SDK. Requires
+    #              COHERE_API_KEY; degrades to no-op without.
+    #   - llm    — LLM-as-reranker (Haiku 4.5 / gpt-4o-mini) via the
+    #              YAML-configured LiteLLM provider. Slower + costlier
+    #              than the cross-encoders but works without local GPU.
+    #
+    # Phase 1 ships disabled; bench cells in evals/matrix.yaml flip on
+    # per ablation. All providers degrade to "return input unchanged"
+    # on error so the recall path never breaks.
+    reranker:
+      enabled: false                     # Phase 1 ships off
+      provider: bge                      # bge | cohere | llm
+      top_k: 10                          # how many survive the rerank
+      top_n_input: 50                    # how many RRF candidates seen
+      bge:
+        model: BAAI/bge-reranker-v2-gemma
+      cohere:
+        model: rerank-english-v3.0
+      llm:
+        model: anthropic/claude-haiku-4.5
+
   budget: 4000   # tokens for the pack sent to the answerer
 
   # Concurrency for bulk operations across samples.

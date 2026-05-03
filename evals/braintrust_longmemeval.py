@@ -206,14 +206,15 @@ def run_live(
     self_consistency_override: dict[str, Any] | None,
     contextual_embedding_override: dict[str, Any] | None = None,
     llm_entity_extraction_override: dict[str, Any] | None = None,
+    reranker_override: dict[str, Any] | None = None,
     parallel: int = 1,
 ) -> None:
     """Execute a fresh bench run and upload as a Braintrust experiment.
 
     ``embedder_override``, ``self_consistency_override``,
-    ``contextual_embedding_override``, and
-    ``llm_entity_extraction_override`` flip stack fields for this run
-    only via ``set_stack()``. YAML is never modified.
+    ``contextual_embedding_override``, ``llm_entity_extraction_override``,
+    and ``reranker_override`` flip stack fields for this run only via
+    ``set_stack()``. YAML is never modified.
     """
     if category not in DATASETS:
         raise ValueError(f"Unknown category: {category!r}")
@@ -249,6 +250,9 @@ def run_live(
             contextual_embedding=new_ce,
             llm_entity_extraction=new_le,
         )
+    if reranker_override:
+        new_rr = replace(base.retrieval.reranker, **reranker_override)
+        overrides["retrieval"] = replace(base.retrieval, reranker=new_rr)
     if overrides:
         set_stack(replace(base, **overrides))
         log.info("stack overrides applied: %s", sorted(overrides))
@@ -463,6 +467,9 @@ def main() -> None:
                             "+ relation extraction at ingest "
                             "(stack.ingest.llm_entity_extraction.enabled=true)."
                         ))
+    parser.add_argument("--reranker-provider", default=None,
+                        choices=("bge", "cohere", "llm"),
+                        help="Live mode override: enable reranker stage with this provider.")
     parser.add_argument("--parallel", type=int, default=1,
                         help="Live mode: concurrent samples in run_async (default 1).")
     args = parser.parse_args()
@@ -506,6 +513,10 @@ def main() -> None:
     if args.llm_entity_extraction:
         le_override = {"enabled": True}
 
+    rr_override: dict[str, Any] | None = None
+    if args.reranker_provider:
+        rr_override = {"enabled": True, "provider": args.reranker_provider}
+
     run_live(
         args.category,
         args.max_samples,
@@ -514,6 +525,7 @@ def main() -> None:
         self_consistency_override=sc_override,
         contextual_embedding_override=ce_override,
         llm_entity_extraction_override=le_override,
+        reranker_override=rr_override,
         parallel=args.parallel,
     )
 

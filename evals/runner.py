@@ -42,6 +42,7 @@ class Cell:
     self_consistency: bool = False
     contextual_embedding: bool = False
     llm_entity_extraction: bool = False
+    reranker_provider: str | None = None
     cost_usd: float = 0.0
     wall_min: int = 0
     note: str = ""
@@ -62,6 +63,8 @@ class Cell:
             args.append("--contextual-embedding")
         if self.llm_entity_extraction:
             args.append("--llm-entity-extraction")
+        if self.reranker_provider:
+            args.extend(["--reranker-provider", self.reranker_provider])
         return args
 
 
@@ -82,6 +85,7 @@ def load_matrix(path: Path) -> tuple[str, list[Cell]]:
             self_consistency=bool(raw.get("self_consistency", False)),
             contextual_embedding=bool(raw.get("contextual_embedding", False)),
             llm_entity_extraction=bool(raw.get("llm_entity_extraction", False)),
+            reranker_provider=raw.get("reranker_provider"),
             cost_usd=float(raw.get("cost_usd", 0.0)),
             wall_min=int(raw.get("wall_min", 0)),
             note=raw.get("note", ""),

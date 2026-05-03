@@ -31,6 +31,77 @@ from attestor.retrieval.trace import write as trace_write
 class _OrchestratorPostProcessMixin:
     """Steps 2-6 shared between sync recall and async recall."""
 
+    def _step3p5_rerank(
+        self,
+        query: str,
+        candidates: list[dict],
+    ) -> list[dict]:
+        """Cross-encoder rerank between RRF and graph BFS.
+
+        Wraps each candidate dict's ``memory`` in a ``RetrievalResult``
+        seeded with its current ``vector_sim``, calls ``rerank()``, then
+        rebuilds the dict list with the rerank score promoted into
+        ``vector_sim``. Skipped (identity) when reranker_cfg is None,
+        disabled, or when no candidates were produced.
+        """
+        from attestor import trace as _tr
+
+        cfg = getattr(self, "reranker_cfg", None)
+        if cfg is None or not getattr(cfg, "enabled", False) or not candidates:
+            return candidates
+
+        # Lazy import to avoid forcing torch/sentence-transformers on
+        # every recall — the module itself is light, but follow the
+        # codebase's convention of deferring optional-feature imports
+        # so error paths in unrelated tests stay clean.
+        from attestor.models import RetrievalResult
+        from attestor.retrieval.reranker import rerank as _rerank_fn
+
+        # Materialize a typed result list for the reranker; the
+        # rerank() helper never mutates its input.
+        wrapped: list[RetrievalResult] = []
+        for c in candidates:
+            wrapped.append(
+                RetrievalResult(
+                    memory=c["memory"],
+                    score=float(c["vector_sim"]),
+                    match_source="vector",
+                )
+            )
+
+        # Cached provider singleton on the orchestrator — tests can
+        # inject ``orch.reranker = stub`` directly to bypass the
+        # build_reranker() factory and skip model loading.
+        provider = getattr(self, "reranker", None)
+        reranked = _rerank_fn(query, wrapped, cfg=cfg, provider=provider)
+        if reranked is wrapped:
+            return candidates  # rerank() short-circuited (disabled / no-op)
+
+        # Rebuild dicts, joining on memory.id so original distance/etc.
+        # is preserved.
+        by_id: dict[str, dict] = {c["memory"].id: c for c in candidates}
+        out: list[dict] = []
+        for r in reranked:
+            existing = by_id.get(r.memory.id)
+            if existing is None:
+                continue
+            out.append({
+                "memory": r.memory,
+                "distance": existing["distance"],
+                "vector_sim": float(r.score),
+            })
+
+        if _tr.is_enabled():
+            _tr.event(
+                "recall.stage.rerank",
+                provider=getattr(cfg, "provider", "?"),
+                top_k=getattr(cfg, "top_k", 0),
+                top_n_input=getattr(cfg, "top_n_input", 0),
+                in_count=len(candidates),
+                out_count=len(out),
+            )
+        return out
+
     def _post_process_candidates(
         self,
         *,
@@ -139,6 +210,13 @@ class _OrchestratorPostProcessMixin:
                           fused_count=len(fused),
                           top_fused=[{"id": mid, "rank": i}
                                      for i, mid in enumerate(fused[:10])])
+
+        # ── Step 3.5: Cross-encoder rerank (opt-in via YAML) ──
+        # Reranks candidate dicts by their `vector_sim` field — the
+        # rerank score replaces vector_sim so the downstream graph
+        # narrow + score blend pick up the new signal. Skipped when
+        # reranker_cfg is None / disabled (default behavior unchanged).
+        candidates = self._step3p5_rerank(query, candidates)
 
         # ── Step 2: Graph narrow ──
         affinity_map = self._graph_affinity_map(
