@@ -103,18 +103,32 @@ class TemporalManager:
                 limit=100_000,
             )
         else:
-            # Entity-None fallback: narrow by category+namespace, then
-            # filter by skeleton match on the Python side. The skeleton
-            # match is intentionally strict — same template + same
-            # unit-bearing value pattern — so semantically-different
-            # memories with the same category don't collide. Skip the
-            # fallback entirely for very short content (no signal).
+            # Entity-None fallback: skeleton match. Narrow by
+            # category+namespace, then filter by content-skeleton equality
+            # (same template, different unit-bearing value). Catches
+            # "pre-approved for $350,000" vs "pre-approved for $400,000"
+            # without false-firing on "Likes Python" vs "Likes JavaScript"
+            # (different skeletons).
+            #
+            # We DELIBERATELY do not have a semantic-similarity fallback
+            # for cross-template paraphrases. Empirical 2026-05-03 data on
+            # Pinecone llama-text-embed-v2 (1024-D) on the actual KU
+            # 852ce960 wording:
+            #     - "Likes Python" vs "Likes JavaScript"            d=0.086
+            #     - "I'm pre-approved for $350k from Wells Fargo"
+            #         vs "My pre-approval was bumped to $400k"      d=0.229
+            # The structurally-similar preference pair is closer than the
+            # semantically-equivalent paraphrase pair, so no single
+            # threshold distinguishes them. The cross-template paraphrase
+            # case needs an entity-extractor upgrade (auto-tag amount-
+            # bearing memories) or LLM-judged contradiction — see
+            # tests/test_temporal_supersession_gaps.py xfail Gap 5.
             if len(new_memory.content.strip()) < _MIN_FALLBACK_LEN:
                 return []
             new_skel = _content_skeleton(new_memory.content)
-            # If skeleton == content (no values stripped), this isn't an
-            # update-to-same-fact case — it's two distinct facts. Skip.
             if new_skel == new_memory.content.strip().lower():
+                # No values were stripped → these are distinct facts, not
+                # updates to the same fact. Skip.
                 return []
             candidates = self.store.list_memories(
                 status="active",

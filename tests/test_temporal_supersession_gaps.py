@@ -150,16 +150,23 @@ def test_event_date_round_trips_through_store(mem) -> None:
 @pytest.mark.integration
 @pytest.mark.xfail(
     strict=True,
-    reason="LME sample 852ce960 reproduced literally: the LME extractor wrote "
-    "both pre-approval memories WITHOUT an entity tag. With entity=None, "
-    "TemporalManager.check_contradictions() short-circuits at line 48 and "
-    "supersession never fires. Production retrieval surfaces both '$350k' "
-    "and '$400k' to the answerer with no supersession metadata. Fix requires "
-    "entity auto-tagging on amount/value memories OR a content-similarity "
-    "fallback when entity is missing.",
+    reason="LME sample 852ce960 cross-template paraphrase: the LME extractor "
+    "wrote both pre-approval memories WITHOUT an entity tag AND in different "
+    "wordings, so neither the entity path nor the content-skeleton fallback "
+    "fires. We TRIED a vector-similarity fallback on 2026-05-03 but the "
+    "Pinecone llama-text-embed-v2 distances don't separate the cases:\n"
+    "    - 'Likes Python' vs 'Likes JavaScript'                   d=0.086\n"
+    "    - 'I'm pre-approved for $350k from Wells Fargo'\n"
+    "        vs 'My pre-approval was bumped to $400k'             d=0.229\n"
+    "Structurally-similar preferences are CLOSER than semantically-equivalent "
+    "paraphrases, so no single threshold works. Closing this needs entity "
+    "auto-tagging at ingest (extract amount/value/role-bearing entities) "
+    "OR an LLM-judged contradiction step. Both are real lifts deferred to "
+    "a follow-up PR.",
 )
 def test_multi_session_same_date_supersession_no_entity(mem) -> None:
-    """The literal LME 852ce960 production scenario — no entity, same date."""
+    """The literal LME 852ce960 production scenario — no entity, same date,
+    cross-template paraphrase."""
     cat = f"conversation_{_tag()}"
     mem.add(
         "[2023-08-11] User: I'm pre-approved for $350,000 from Wells Fargo",
