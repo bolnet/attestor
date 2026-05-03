@@ -13,6 +13,7 @@ import yaml
 from attestor.config.models import (
     LLM_PROVIDER_DEFAULTS,
     CloudTarget,
+    ConsolidationCfg,
     ContextualEmbeddingCfg,
     CritiqueReviseCfg,
     EmbedderCfg,
@@ -211,6 +212,40 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         llm_entity_extraction=le_cfg,
     )
 
+    # Consolidation / reflection knobs. Optional block — absent YAML
+    # block uses ConsolidationCfg's frozen defaults (enabled=False,
+    # target_count=5, source_limit=50). All values are validated
+    # eagerly so the runtime never sees nonsense numbers.
+    cons_blk = stack_blk.get("consolidation") or {}
+    cons_target = int(cons_blk.get("target_count", 5))
+    cons_source_limit = int(cons_blk.get("source_limit", 50))
+    cons_since = cons_blk.get("since_days")
+    if cons_target < 0:
+        raise SystemExit(
+            f"[attestor.config] consolidation.target_count="
+            f"{cons_target} must be >= 0"
+        )
+    if cons_source_limit <= 0:
+        raise SystemExit(
+            f"[attestor.config] consolidation.source_limit="
+            f"{cons_source_limit} must be > 0"
+        )
+    if cons_since is not None:
+        cons_since = int(cons_since)
+        if cons_since <= 0:
+            raise SystemExit(
+                f"[attestor.config] consolidation.since_days="
+                f"{cons_since} must be > 0 or null"
+            )
+    cons_cfg = ConsolidationCfg(
+        enabled=bool(cons_blk.get("enabled", False)),
+        target_count=cons_target,
+        source_limit=cons_source_limit,
+        since_days=cons_since,
+        model=cons_blk.get("model"),
+        dry_run=bool(cons_blk.get("dry_run", False)),
+    )
+
     llm_provider = str(_require(llm_blk, "provider", "stack.llm.provider"))
     if llm_provider not in LLM_PROVIDER_DEFAULTS:
         raise SystemExit(
@@ -307,6 +342,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         self_consistency=sc_cfg,
         critique_revise=cr_cfg,
         ingest=ingest_cfg,
+        consolidation=cons_cfg,
         pinecone=(
             PineconeCfg(
                 host=pcn.get("host"),
