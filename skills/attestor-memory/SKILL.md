@@ -11,6 +11,7 @@ capabilities:
   - memory.forget
   - memory.audit
   - memory.state
+  - memory.global_query
 license: MIT
 homepage: https://attestor.dev
 repository: https://github.com/bolnet/attestor
@@ -275,7 +276,43 @@ for did in result.distilled_memory_ids:
 
 `dry_run=True` calls the LLM (so the cost estimate is accurate) but skips the writes — useful for canary deployments.
 
-### Example 6 — Audit + GDPR
+### Example 6 — Global queries via Neo4j community detection (GraphRAG-style)
+
+Attestor's six-step recall is tuned for *local* questions ("what is my Wells Fargo pre-approval amount?"). For *global* questions that span many memories ("summarize my interactions with Wells Fargo across the last 6 months", "what are my recurring concerns this quarter?", "what trips have I taken over 8 months?") the right answer is a cluster-level synthesis, not a top-K passage list.
+
+Enable the global-query lane in `configs/attestor.yaml`:
+
+```yaml
+stack:
+  retrieval:
+    global_query:
+      enabled: true              # default false
+      classifier_model: anthropic/claude-haiku-4.5
+      summary_model:    anthropic/claude-haiku-4.5
+      max_clusters: 8
+      subgraph_depth: 2
+```
+
+`recall()` automatically routes global-shaped questions through Leiden community detection on the Neo4j entity graph, summarizes each cluster with the configured LLM, and returns the summaries as `RetrievalResult` objects with `category="global_summary"`. Local questions stay on the deterministic six-step cascade — same query, same ranking.
+
+```python
+from attestor import AgentMemory
+
+mem = AgentMemory("./agent-store")
+
+# 12 trip memories already stored across 8 months — entity="Tokyo",
+# "Lisbon", "Paris", etc.
+results = mem.recall("what trips have I taken over the last 8 months?")
+for r in results:
+    if r.memory.category == "global_summary":
+        print("[cluster]", r.memory.metadata["_cluster_id"], r.memory.content)
+    else:
+        print("[fact]   ", r.memory.content)
+```
+
+Failure-isolated: if Neo4j is down, the LLM summarizer errors, or no candidate entities exist, the lane returns an empty result and `recall()` falls back to the local pipeline.
+
+### Example 7 — Audit + GDPR
 
 ```python
 from attestor import AgentMemory

@@ -275,6 +275,34 @@ stack:
       llm:
         model: anthropic/claude-haiku-4.5
 
+    # Multi-hop / global-query lane (Microsoft GraphRAG-style). The
+    # 6-step cascade above is great for LOCAL queries ("what did I say
+    # about X?") but fails on GLOBAL queries that span many memories
+    # ("summarize my interactions with X over 6 months", "what are my
+    # recurring concerns?", "what trips have I taken across 8 months?").
+    #
+    # When enabled, recall() runs a cheap regex/LLM classifier; if the
+    # query is "global", it short-circuits the 6-step cascade and
+    # instead:
+    #   1. Pulls candidate entities from the user's Neo4j subgraph.
+    #   2. Runs Leiden community detection (gds.leiden.stream).
+    #   3. For each top community, fetches the underlying memories from
+    #      Postgres and asks an LLM for a cluster-level summary.
+    #   4. Returns those summaries as RetrievalResult objects with
+    #      category="global_summary".
+    #
+    # Disabled by default → byte-identical to the 6-step cascade. Cost
+    # at the default cap of 8 clusters: ~$0.0001 classifier + 8 ×
+    # ~$0.005 summaries ≈ $0.04 / global query.
+    global_query:
+      enabled: false
+      classifier_model: anthropic/claude-haiku-4.5
+      summary_model: anthropic/claude-haiku-4.5
+      max_clusters: 8
+      max_entities_per_cluster: 20
+      subgraph_depth: 2
+      cost_per_summary_usd: 0.005
+
   budget: 4000   # tokens for the pack sent to the answerer
 
   # Concurrency for bulk operations across samples.

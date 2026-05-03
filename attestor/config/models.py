@@ -325,6 +325,68 @@ class TemporalPrefilterCfg:
 
 
 @dataclass(frozen=True)
+class GlobalQueryCfg:
+    """Multi-hop / global-query lane knobs (Microsoft GraphRAG-style).
+
+    The 6-step recall pipeline (vector → BM25 → RRF → reranker → graph
+    BFS → MMR → fit) is great for LOCAL queries ("what did I say about
+    X?") but fails on GLOBAL queries that span many memories and need
+    cluster-level synthesis ("summarize my interactions with X over
+    6 months", "what are my recurring concerns?", "what trips have I
+    taken across 8 months?").
+
+    When ``enabled`` is True, ``AgentMemory.recall()`` runs a cheap
+    classifier over the question. If the classifier votes "global", the
+    call short-circuits the 6-step pipeline and instead:
+
+      1. Pulls candidate entities from the user's Neo4j subgraph.
+      2. Runs Leiden community detection on the subgraph (via
+         ``gds.leiden.stream``).
+      3. For each top community, pulls the underlying memories from
+         the document store.
+      4. Asks a summarizer LLM to write one cluster-level summary.
+      5. Returns those summaries as ``RetrievalResult`` objects with
+         ``category="global_summary"`` and a ``_cluster_id`` metadata
+         marker so callers can tell them apart from local hits.
+
+    Disabled by default — flip per bench cell via
+    ``configs/attestor.yaml``'s ``stack.retrieval.global_query`` block
+    or ``evals/matrix.yaml``.
+
+    Cost: 1 classifier call (~$0.0001 with Haiku-4.5) + N community
+    summaries (N ≤ ``max_clusters``; ~$0.005 each with Haiku-4.5).
+    Total ~$0.04 per global query at the default cap of 8 clusters.
+
+    Configuration:
+      enabled                   — master switch.
+      classifier_model          — small/cheap LLM for the heuristic
+                                  tiebreaker. ``null`` means heuristics
+                                  only (no LLM call).
+      summary_model             — LLM for community summaries.
+      max_clusters              — hard cap on the number of communities
+                                  the lane will summarize. The largest
+                                  communities (by node count) win.
+      max_entities_per_cluster  — cap on how many entities are passed
+                                  to the doc-store fetch + summarizer
+                                  per cluster.
+      subgraph_depth            — k-hop neighborhood depth around each
+                                  candidate entity. 2 hops matches the
+                                  GraphRAG paper.
+      cost_per_summary_usd      — naive per-summary cost estimate; the
+                                  ``GlobalQueryResult.cost_estimate_usd``
+                                  field rolls these up.
+    """
+
+    enabled: bool = False
+    classifier_model: str | None = "anthropic/claude-haiku-4.5"
+    summary_model: str = "anthropic/claude-haiku-4.5"
+    max_clusters: int = 8
+    max_entities_per_cluster: int = 20
+    subgraph_depth: int = 2
+    cost_per_summary_usd: float = 0.005
+
+
+@dataclass(frozen=True)
 class RetrievalCfg:
     """Knobs for the 6-step recall cascade.
 
@@ -406,6 +468,7 @@ class RetrievalCfg:
     )
     hyde: HydeCfg = field(default_factory=HydeCfg)
     reranker: RerankerCfg = field(default_factory=RerankerCfg)
+    global_query: GlobalQueryCfg = field(default_factory=GlobalQueryCfg)
 
 
 @dataclass(frozen=True)

@@ -17,6 +17,7 @@ from attestor.config.models import (
     ContextualEmbeddingCfg,
     CritiqueReviseCfg,
     EmbedderCfg,
+    GlobalQueryCfg,
     HydeCfg,
     ImageCfg,
     IngestCfg,
@@ -105,6 +106,40 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         cohere_model=str(cohere_blk.get("model", "rerank-english-v3.0")),
         llm_model=llm_blk_rr.get("model"),
     )
+    gq_blk = retrieval_blk.get("global_query") or {}
+    gq_max_clusters = int(gq_blk.get("max_clusters", 8))
+    gq_max_entities = int(gq_blk.get("max_entities_per_cluster", 20))
+    gq_depth = int(gq_blk.get("subgraph_depth", 2))
+    if gq_max_clusters <= 0:
+        raise SystemExit(
+            f"[attestor.config] retrieval.global_query.max_clusters="
+            f"{gq_max_clusters} must be > 0"
+        )
+    if gq_max_entities <= 0:
+        raise SystemExit(
+            f"[attestor.config] retrieval.global_query."
+            f"max_entities_per_cluster={gq_max_entities} must be > 0"
+        )
+    if gq_depth <= 0:
+        raise SystemExit(
+            f"[attestor.config] retrieval.global_query.subgraph_depth="
+            f"{gq_depth} must be > 0"
+        )
+    gq_cfg = GlobalQueryCfg(
+        enabled=bool(gq_blk.get("enabled", False)),
+        classifier_model=gq_blk.get(
+            "classifier_model", "anthropic/claude-haiku-4.5"
+        ),
+        summary_model=str(
+            gq_blk.get("summary_model", "anthropic/claude-haiku-4.5")
+        ),
+        max_clusters=gq_max_clusters,
+        max_entities_per_cluster=gq_max_entities,
+        subgraph_depth=gq_depth,
+        cost_per_summary_usd=float(
+            gq_blk.get("cost_per_summary_usd", 0.005)
+        ),
+    )
     # Score-blending knobs — the recall hot path reads these every call.
     # Coerce types defensively so YAML int/float duck-typing doesn't
     # surface surprises downstream (e.g. ``0.3`` parsed as int).
@@ -128,6 +163,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         temporal_prefilter=tp_cfg,
         hyde=hyde_cfg,
         reranker=rr_cfg,
+        global_query=gq_cfg,
     )
 
     sc_blk = stack_blk.get("self_consistency") or {}
