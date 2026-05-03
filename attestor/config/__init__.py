@@ -50,6 +50,7 @@ from __future__ import annotations
 from attestor.config.models import (
     LLM_PROVIDER_DEFAULTS,
     CloudTarget,
+    ComplianceCfg,
     ContextualEmbeddingCfg,
     CritiqueReviseCfg,
     EmbedderCfg,
@@ -61,6 +62,7 @@ from attestor.config.models import (
     ModelsCfg,
     MultiQueryCfg,
     Neo4jCfg,
+    PIICfg,
     PineconeCfg,
     PostgresCfg,
     ProviderCfg,
@@ -92,6 +94,7 @@ __all__ = [
     "REPO_ROOT",
     # Dataclasses
     "CloudTarget",
+    "ComplianceCfg",
     "ContextualEmbeddingCfg",
     "CritiqueReviseCfg",
     "EmbedderCfg",
@@ -103,6 +106,7 @@ __all__ = [
     "ModelsCfg",
     "MultiQueryCfg",
     "Neo4jCfg",
+    "PIICfg",
     "PineconeCfg",
     "PostgresCfg",
     "ProviderCfg",

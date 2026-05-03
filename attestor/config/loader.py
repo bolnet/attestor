@@ -13,6 +13,7 @@ import yaml
 from attestor.config.models import (
     LLM_PROVIDER_DEFAULTS,
     CloudTarget,
+    ComplianceCfg,
     ConsolidationCfg,
     ContextualEmbeddingCfg,
     CritiqueReviseCfg,
@@ -28,6 +29,7 @@ from attestor.config.models import (
     ModelsCfg,
     MultiQueryCfg,
     Neo4jCfg,
+    PIICfg,
     PineconeCfg,
     PostgresCfg,
     ProviderCfg,
@@ -37,6 +39,7 @@ from attestor.config.models import (
     StackConfig,
     TemporalPrefilterCfg,
     _MAX_CRITIQUE_REVISIONS,
+    _VALID_PII_MODES,
     _VALID_RERANKER_PROVIDERS,
     _VALID_SC_VOTERS,
 )
@@ -288,9 +291,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         dry_run=bool(cons_blk.get("dry_run", False)),
     )
 
-    # Hierarchical memory layers (closed vocabulary; validated against
-    # ``attestor.models.VALID_LAYERS`` so a typo in the YAML fails loud
-    # at config load, not silently at recall time).
+    # Hierarchical memory layers
     memory_blk = stack_blk.get("memory") or {}
     layers_blk = memory_blk.get("layers") or {}
     default_recall_raw = layers_blk.get("default_recall")
@@ -326,6 +327,22 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
             weights=weights,
         ),
     )
+
+    # Compliance — PII detection / redaction at ingest. Block is
+    # optional; absent YAML → PIICfg(mode='off'), byte-identical legacy.
+    comp_blk = stack_blk.get("compliance") or {}
+    pii_blk = comp_blk.get("pii") or {}
+    pii_mode = str(pii_blk.get("mode", "off"))
+    if pii_mode not in _VALID_PII_MODES:
+        raise SystemExit(
+            f"[attestor.config] unknown compliance.pii.mode {pii_mode!r}; "
+            f"expected one of {list(_VALID_PII_MODES)}"
+        )
+    pii_cfg = PIICfg(
+        mode=pii_mode,
+        llm_model=pii_blk.get("llm_model"),
+    )
+    compliance_cfg = ComplianceCfg(pii=pii_cfg)
 
     llm_provider = str(_require(llm_blk, "provider", "stack.llm.provider"))
     if llm_provider not in LLM_PROVIDER_DEFAULTS:
@@ -425,6 +442,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         ingest=ingest_cfg,
         memory=memory_cfg,
         consolidation=cons_cfg,
+        compliance=compliance_cfg,
         pinecone=(
             PineconeCfg(
                 host=pcn.get("host"),

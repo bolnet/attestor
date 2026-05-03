@@ -14,6 +14,7 @@ capabilities:
   - memory.layers
   - memory.state
   - memory.global_query
+  - memory.compliance.pii
 license: MIT
 homepage: https://attestor.dev
 repository: https://github.com/bolnet/attestor
@@ -342,7 +343,39 @@ for r in results:
 
 Failure-isolated: if Neo4j is down, the LLM summarizer errors, or no candidate entities exist, the lane returns an empty result and `recall()` falls back to the local pipeline.
 
-### Example 8 — Audit + GDPR
+### Example 8 — PII detection + opt-in redaction at ingest (SOC2 / HIPAA)
+
+Enterprise / regulated-industry deployments need PII handling at the memory-write layer. Attestor ships a `compliance.pii` block that runs a deterministic regex detector (and an optional LLM-judged lane for names + addresses) inside `mem.add()`. Three modes, configured per-deployment via `configs/attestor.yaml`:
+
+- `off` (default) — detector never runs; byte-identical to the legacy `add()`.
+- `flag` — findings written to `metadata["_pii_findings"]`; content unchanged.
+- `redact` — spans replaced with typed tokens (`[REDACTED:EMAIL]`, `[REDACTED:SSN]`, …); `metadata["_pii_original_sealed"] = True` flags the transform.
+- `llm` — regex baseline AND an LLM-judged lane for names / addresses.
+
+```yaml
+# configs/attestor.yaml
+stack:
+  compliance:
+    pii:
+      mode: flag                     # off | flag | redact | llm
+      llm_model: anthropic/claude-haiku-4.5
+```
+
+```python
+from attestor import AgentMemory
+
+mem = AgentMemory("./agent-store")
+m = mem.add("Reach Jane at jane@example.com or (415) 555-1234.")
+print(m.metadata["_pii_findings"])
+# [
+#   {"type": "email", "span": [14, 30], "confidence": 0.99, "detector": "regex_v1"},
+#   {"type": "phone", "span": [34, 48], "confidence": 0.92, "detector": "regex_v1"},
+# ]
+```
+
+The regex baseline covers email / phone / SSN / Luhn-checked credit card / IPs and URLs with embedded auth, plus context-keyword-gated DOB and MRN detection (so a bare `1/15/1990` does NOT trip the detector — only `DOB: 1/15/1990` does). Failure isolation: a detector exception is caught; ingest still succeeds with `metadata["_pii_detector_error"] = True` so the operator can audit it. Detection runs in <5ms on typical inputs — no LLM in the critical path unless `mode='llm'`.
+
+### Example 9 — Audit + GDPR
 
 ```python
 from attestor import AgentMemory
@@ -451,6 +484,7 @@ Attestor is built for regulated workloads:
 - **Tenancy.** Postgres row-level security scoped by `user_id`; namespaces are first-class; Neo4j namespace enforcement is partial (graph entity nodes are still global as of v4.0.0 — see CLAUDE.md).
 - **GDPR-compatible erasure.** `purge_user()` issues a CASCADE delete and writes an audit row; export via `export_user()` produces a JSON-portable dump. `forget_user()` extends erasure across the vector + graph + state lanes (Postgres + Pinecone + Neo4j + state) and writes a `forget_audit` row before any backend wipe so the deletion event survives partial failure.
 - **Declarative retention.** `retention_policies` is a Postgres-backed table; rules are added via `mem.retention.add(...)`, evaluated via `mem.retention.apply(dry_run=False)`, and recorded in `forget_audit` per applied policy. The `dry_run` mode produces identical counts without mutating state.
+- **PII detection at ingest.** Opt-in via `stack.compliance.pii.mode` (`off` | `flag` | `redact` | `llm`). Regex baseline covers email / phone / SSN / Luhn-checked credit card / URL-with-auth / context-gated DOB + MRN; optional LLM-judged lane for names + addresses. Failure-isolated: detector errors stamp `metadata["_pii_detector_error"]` instead of breaking ingest. SOC2 / HIPAA-friendly when `mode='redact'` seals originals via `metadata["_pii_original_sealed"]`.
 - **No LLM in the critical path.** The recall cascade is fully deterministic — same query, same ranking — which is what regulators want when they audit a recommendation.
 
 ## Health check

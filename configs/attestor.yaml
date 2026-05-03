@@ -409,19 +409,13 @@ stack:
     revise_model: null            # null → models.answerer
     max_revisions: 1              # hard cap; values > 1 rejected
 
-  # ─── Compliance — retention + GDPR forget ──────────────────────────
-  # Declarative retention rules (delete after N days, archive by
-  # namespace/category/layer/tags) read by
-  # ``attestor.compliance.retention.apply_retention``. The actual rules
-  # are stored as rows in the ``retention_policies`` Postgres table and
-  # added/listed/removed via ``mem.retention.add(...)`` etc.; this YAML
-  # block only carries the runner schedule + audit toggles.
-  #
-  # Defaults are conservative: ``apply_retention`` does not run on a
-  # schedule unless ``apply_on_schedule: true`` AND a scheduler picks
-  # up the ``apply_interval_minutes`` cadence (out-of-process; the
-  # library does not start a thread on its own).
+  # ─── Compliance — retention + GDPR forget + PII ───────────────────
+  # Combined compliance block: retention rules (PR #156) + PII detection
+  # (this PR). Both default off; flip per workload.
   compliance:
+    pii:
+      mode: "off"                      # off | flag | redact | llm
+      llm_model: anthropic/claude-haiku-4.5
     retention:
       apply_on_schedule: false
       apply_interval_minutes: 1440          # 24h cadence when scheduler is wired

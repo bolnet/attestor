@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from attestor.compliance.pii import PIIConfig, detect_pii
 from attestor.mode import AttestorMode, detect_mode
 from attestor.models import Memory, RetrievalResult
 from attestor.retrieval.orchestrator import RetrievalOrchestrator
@@ -305,6 +306,24 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
                     )
         except Exception as e:
             logger.debug("ingest cfg not applied: %s", e)
+
+        # Compliance — PII detection / redaction at ingest. Pulls from
+        # ``stack.compliance.pii`` (mode + llm_model). Defaults to
+        # ``mode='off'`` so the legacy add() path is byte-identical
+        # until a config flip turns it on. The cfg lives on the
+        # instance so tests can inject a different mode without
+        # touching YAML.
+        self._pii_cfg: PIIConfig = PIIConfig(mode="off", llm_model=None)
+        try:
+            from attestor.config import get_stack
+            _stack = get_stack(strict=False)
+            _pii = getattr(getattr(_stack, "compliance", None), "pii", None)
+            if _pii is not None:
+                self._pii_cfg = PIIConfig(
+                    mode=str(_pii.mode), llm_model=_pii.llm_model,
+                )
+        except Exception as e:
+            logger.debug("compliance.pii cfg not applied: %s", e)
 
         # State lane — typed profile facts (memory.state). Auto-enabled on
         # v4 + Postgres because the ``state`` table ships in schema.sql.
@@ -795,6 +814,60 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
 
         # Check for contradictions before insert
         contradictions = self._temporal.check_contradictions(memory)
+
+        # Compliance — PII detection / redaction (opt-in via
+        # ``stack.compliance.pii.mode``). Failure-isolated: a detector
+        # exception logs a warning and stamps a ``_pii_detector_error``
+        # metadata flag so the operator can see it; ingest never blocks
+        # on PII tooling failure. When ``mode='off'`` (the shipping
+        # default), this branch is byte-identical to the legacy path.
+        if self._pii_cfg.mode != "off":
+            try:
+                pii_result = detect_pii(
+                    content,
+                    mode=self._pii_cfg.mode,
+                    llm_model=self._pii_cfg.llm_model,
+                )
+                if pii_result.findings:
+                    findings_payload = [
+                        {
+                            "type": f.type,
+                            "span": list(f.span),
+                            "confidence": f.confidence,
+                            "detector": f.detector,
+                        }
+                        for f in pii_result.findings
+                    ]
+                    new_meta = dict(memory.metadata or {})
+                    new_meta["_pii_findings"] = findings_payload
+                    if (
+                        self._pii_cfg.mode == "redact"
+                        and pii_result.redacted_content is not None
+                    ):
+                        # Replace the content on the memory + the local
+                        # ``content`` variable so the vector lane embeds
+                        # the redacted form. The original is kept in
+                        # the contextual prefix prompt history if the
+                        # caller needs it (and is otherwise not stored
+                        # — sealed flag tells callers what happened).
+                        content = pii_result.redacted_content
+                        new_meta["_pii_original_sealed"] = True
+                        memory = replace(
+                            memory,
+                            content=content,
+                            metadata=new_meta,
+                        )
+                    else:
+                        memory = replace(memory, metadata=new_meta)
+            except Exception as e:
+                logger.warning(
+                    "PII detection failed for content_hash=%s: %s: %s; "
+                    "ingest proceeds with raw content",
+                    chash[:8], type(e).__name__, e,
+                )
+                new_meta = dict(memory.metadata or {})
+                new_meta["_pii_detector_error"] = True
+                memory = replace(memory, metadata=new_meta)
 
         # Insert new memory first (so FK reference is valid).
         # In v4 mode the document backend assigns a fresh UUID and returns
