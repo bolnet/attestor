@@ -30,7 +30,15 @@ class DocumentStore(Protocol):
 
     def insert(self, memory: Memory) -> Memory: ...
 
-    def get(self, memory_id: str) -> Memory | None: ...
+    # ``requester_agent_id`` (Gap A1) — optional visibility filter:
+    # when set, the read drops rows where
+    # ``visibility='private' AND agent_id != requester_agent_id``.
+    # Backends that don't carry visibility (v3 schema) ignore it.
+    def get(
+        self,
+        memory_id: str,
+        requester_agent_id: str | None = None,
+    ) -> Memory | None: ...
 
     def update(self, memory: Memory) -> Memory: ...
 
@@ -45,6 +53,7 @@ class DocumentStore(Protocol):
         after: str | None = None,
         before: str | None = None,
         limit: int = 100,
+        requester_agent_id: str | None = None,
     ) -> list[Memory]: ...
 
     # NOTE: tag_search predates the semantic-first cascade and is no longer
@@ -59,6 +68,7 @@ class DocumentStore(Protocol):
         category: str | None = None,
         namespace: str | None = None,
         limit: int = 20,
+        requester_agent_id: str | None = None,
     ) -> list[Memory]: ...
 
     def execute(

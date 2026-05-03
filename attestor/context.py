@@ -158,7 +158,7 @@ class AgentContext:
         self,
         agent_id: str,
         role: AgentRole = AgentRole.EXECUTOR,
-        read_only: bool = False,
+        read_only: bool | None = None,
         token_budget: int | None = None,
     ) -> AgentContext:
         """Create a child context for a sub-agent.
@@ -167,14 +167,23 @@ class AgentContext:
         budget) but gives the child its own *mutable* state copies so
         sibling agents don't stomp each other's scratchpad / recall cache /
         accumulated id lists. Immutable contract: never mutates ``self``.
+
+        ``read_only`` defaults to ``None`` so the parent's value
+        propagates: a read-only orchestrator must not be able to spawn
+        a writeable sub-agent simply by omitting the kwarg. Pass
+        ``read_only=False`` explicitly to override the parent (rare —
+        usually a security regression).
         """
+        effective_read_only = (
+            self.read_only if read_only is None else read_only
+        )
         return replace(
             self,
             **self._derived_fields(
                 agent_id=agent_id,
                 role=role,
                 token_budget=token_budget or self.token_budget,
-                read_only=read_only,
+                read_only=effective_read_only,
             ),
         )
 
