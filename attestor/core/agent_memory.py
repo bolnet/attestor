@@ -222,6 +222,31 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         except Exception as _e:
             logger.debug("memory cfg not applied: %s", _e)
 
+        # Multi-hop / global-query lane (Microsoft GraphRAG-style).
+        # Sits IN FRONT of the 6-step cascade — when enabled and the
+        # classifier votes "global", recall short-circuits the local
+        # pipeline and returns cluster-level summaries instead. Default
+        # config has ``enabled=False`` so the codepath is byte-identical
+        # to ``main`` until a bench cell flips it on.
+        from attestor.config.models import GlobalQueryCfg
+        self._global_cfg = (
+            _retrieval_cfg.global_query
+            if _retrieval_cfg is not None
+            else GlobalQueryCfg()
+        )
+
+        # Long-context fit (alternate Step 6) — opt-in per recall via
+        # ``mem.recall(long_context=True)``. The instance-level default
+        # below lets eval harnesses flip the mode on at construction
+        # time (matrix cells with ``long_context: true``) without
+        # touching every call site. Always False by default → legacy
+        # behavior unchanged.
+        self._default_long_context: bool = False
+        self._default_long_context_max_tokens: int = (
+            getattr(_retrieval_cfg, "long_context_default_max_tokens", 200_000)
+            if _retrieval_cfg is not None else 200_000
+        )
+
         # Operation ring buffer for latency observability
         self._ops_log: deque[dict[str, Any]] = deque(maxlen=200)
 
@@ -280,6 +305,24 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
                     )
         except Exception as e:
             logger.debug("ingest cfg not applied: %s", e)
+
+        # State lane — typed profile facts (memory.state). Auto-enabled on
+        # v4 + Postgres because the ``state`` table ships in schema.sql.
+        # On v3 / non-Postgres ``self.state`` stays None and AgentContext
+        # surfaces a clear error rather than a silent attribute miss. See
+        # attestor/state for the lane's API.
+        self.state: Any = None
+        if (
+            getattr(self._store, "_v4", False)
+            and getattr(self._store, "_conn", None) is not None
+        ):
+            try:
+                from attestor.state import StateRepo
+                self.state = StateRepo(
+                    conn=self._store._conn, signer=self._signer,
+                )
+            except Exception as e:
+                logger.debug("StateRepo init skipped: %s", e)
 
         # v4 operating mode (SOLO / HOSTED / SHARED). Detected from env on
         # first construction; tests can override via config["mode"]. The
@@ -395,22 +438,67 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
 
     def consolidate(
         self,
+        user_id: str | None = None,
         *,
+        # Reflection (distillation) params — active when ``user_id`` is set.
+        since: datetime | None = None,
+        target_count: int = 5,
+        namespace: str | None = None,
+        dry_run: bool = False,
+        llm_client: Any | None = None,
+        # Queue-drain params (legacy; active when ``user_id`` is None).
         limit: int = 20,
         model: str | None = None,
         extraction_client: Any | None = None,
         resolver_client: Any | None = None,
-    ) -> list[Any]:
-        """Drain one batch from the consolidation queue in-process.
+    ) -> Any:
+        """Sleep-time consolidation. Two modes; selected by ``user_id``.
 
-        For long-running daemons use ``SleepTimeConsolidator.run_forever``
-        directly. This method is for tests and one-shot manual triggers
-        (e.g., ``attestor consolidate run``).
+        **Reflection mode** — when ``user_id`` is provided. Distills up
+        to ``limit`` (default 50 in this mode) source memories for that
+        user into ``target_count`` semantic memories, marks the originals
+        as superseded, and stamps ``_consolidated_from`` provenance on
+        each distilled fact. Returns a
+        :class:`~attestor.consolidation.reflection.ReflectionResult`.
 
-        Returns a list of ``ConsolidationResult`` (one per processed
-        episode). Empty list when the queue is drained.
+        **Queue mode** — when ``user_id`` is omitted (legacy entry
+        point). Drains one batch from the per-episode
+        :class:`ConsolidationQueue` in-process and returns a list of
+        ``ConsolidationResult`` (one per processed episode). For
+        long-running daemons use ``SleepTimeConsolidator.run_forever``
+        directly.
+
+        The two modes share the ``limit`` / ``model`` kwargs but behave
+        differently per mode (queue mode uses ``limit=20`` as the
+        per-batch episode count; reflection mode raises the default to
+        50 source memories per pass).
         """
         self._require_v4()
+
+        # Reflection (distillation) mode.
+        if user_id is not None:
+            from attestor.consolidation.reflection import (
+                DEFAULT_SOURCE_LIMIT,
+                run_reflection,
+            )
+            # Reflection uses a higher default source ceiling than the
+            # queue-drain default (50 vs 20). When the caller didn't
+            # override ``limit``, swap to the reflection default so the
+            # source window isn't truncated unintentionally.
+            effective_limit = limit if limit != 20 else DEFAULT_SOURCE_LIMIT
+            return run_reflection(
+                self,
+                user_id=user_id,
+                namespace=namespace,
+                since=since,
+                limit=effective_limit,
+                target_count=target_count,
+                model=model,
+                dry_run=dry_run,
+                llm_client=llm_client,
+            )
+
+        # Queue (per-episode) mode — legacy.
         from attestor.consolidation import SleepTimeConsolidator
         kwargs: dict[str, Any] = {"batch_size": limit}
         if model:
@@ -744,12 +832,34 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         # nothing without the operator knowing).
         if self._graph:
             try:
-                from attestor.graph.extractor import extract_entities_and_relations
-                t0 = time.monotonic()
-                nodes, edges = extract_entities_and_relations(
-                    content, tags or [], entity, category,
-                    namespace=namespace,
+                # Branch on the LLM-extraction toggle. When enabled, we
+                # call the LLM-driven path which falls back to the
+                # regex extractor on LLM failure (NOT to empty). When
+                # disabled, the codepath is byte-identical to ``main``.
+                _le_cfg = (
+                    self._ingest_cfg.llm_entity_extraction
+                    if self._ingest_cfg is not None else None
                 )
+                t0 = time.monotonic()
+                if _le_cfg is not None and _le_cfg.enabled:
+                    from attestor.extraction.llm_entity_extractor import (
+                        extract_or_regex,
+                    )
+                    nodes, edges = extract_or_regex(
+                        content, tags or [], entity, category,
+                        namespace=namespace,
+                        llm_enabled=True,
+                        llm_model=_le_cfg.model,
+                        llm_timeout=_le_cfg.timeout_s,
+                    )
+                else:
+                    from attestor.graph.extractor import (
+                        extract_entities_and_relations,
+                    )
+                    nodes, edges = extract_entities_and_relations(
+                        content, tags or [], entity, category,
+                        namespace=namespace,
+                    )
                 if _tr.is_enabled():
                     _tr.event("ingest.extract",
                               memory_id=memory.id, namespace=namespace,
@@ -940,6 +1050,9 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         layers: tuple[str, ...] | list[str] | None = (
             "episodic", "semantic",
         ),
+        *,
+        long_context: bool = False,
+        long_context_max_tokens: int = 200_000,
     ) -> list[RetrievalResult]:
         """Retrieve relevant memories for a query using 3-layer cascade.
 
@@ -950,7 +1063,14 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         v4 + Phase 5.3 — bi-temporal:
           as_of       — point-in-time replay (returns past belief)
           time_window — event-time overlap pre-filter
-        Both pass through to the orchestrator and on to the lanes."""
+        Both pass through to the orchestrator and on to the lanes.
+
+        Long-context mode (``long_context=True``) skips Step 5 (MMR) and
+        swaps Step 6 from greedy fit-to-budget to a high-cap pack
+        (``long_context_max_tokens``, default 200_000). Use when the
+        downstream answerer is a 1M-context model (Claude Sonnet 4.6 /
+        Opus 4.x / Gemini 2 Pro) where diversity penalties hurt quality.
+        Default ``False`` preserves legacy behavior."""
         # Validate layers at the boundary; ``layers=None`` means "all".
         # When the caller didn't override (matches the documented default),
         # let YAML's ``stack.memory.layers.default_recall`` take precedence
@@ -959,11 +1079,12 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             from attestor.models import _validate_layer
             for lyr in layers:
                 _validate_layer(lyr)
+            _memory_cfg = getattr(self, "_memory_cfg", None)
             if (
                 tuple(layers) == ("episodic", "semantic")
-                and self._memory_cfg is not None
+                and _memory_cfg is not None
             ):
-                layers = tuple(self._memory_cfg.layers.default_recall)
+                layers = tuple(_memory_cfg.layers.default_recall)
         # v4: route through _resolve() so zero-config recall works in SOLO
         # mode. Recall doesn't autostart a session — read-only ops only need
         # user+project scope.
@@ -976,6 +1097,27 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             )
             user_id = rc.user.id
 
+        # Global-query lane (multi-hop / GraphRAG-style). When enabled
+        # AND the classifier votes "global", short-circuit the 6-step
+        # cascade and return cluster-level summaries. Disabled by default
+        # → byte-identical to legacy behavior. Failure-isolated: if the
+        # global lane errors out, fall through to the local pipeline so
+        # recall always returns *something*.
+        gq_cfg = getattr(self, "_global_cfg", None)
+        if gq_cfg is not None and getattr(gq_cfg, "enabled", False):
+            try:
+                from attestor.retrieval.global_query import is_global_query
+                if is_global_query(query, model=gq_cfg.classifier_model):
+                    return self._run_global_recall(
+                        query, user_id=user_id, namespace=namespace,
+                    )
+            except Exception as e:
+                logger.warning(
+                    "global_query lane errored (%s: %s); "
+                    "falling through to local recall",
+                    type(e).__name__, e,
+                )
+
         t0 = time.monotonic()
         token_budget = budget or self.config.default_token_budget
         # Pass temporal kwargs only when present so legacy v3 orchestrator
@@ -985,6 +1127,19 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             recall_kwargs["as_of"] = as_of
         if time_window is not None:
             recall_kwargs["time_window"] = time_window
+        # Resolve long_context: explicit caller arg wins; otherwise fall
+        # back to the instance default (set by eval harnesses via
+        # ``set_default_long_context()``).
+        effective_long_context = (
+            long_context or getattr(self, "_default_long_context", False)
+        )
+        if effective_long_context:
+            recall_kwargs["long_context"] = True
+            recall_kwargs["long_context_max_tokens"] = (
+                long_context_max_tokens
+                if long_context
+                else getattr(self, "_default_long_context_max_tokens", 200_000)
+            )
         results = self._retrieval.recall(query, token_budget, **recall_kwargs)
 
         # Hierarchical-layer filter (2026 best-practice). Applied AFTER the
@@ -1030,6 +1185,62 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             "stores": stores,
         })
 
+        return results
+
+    def _run_global_recall(
+        self,
+        query: str,
+        *,
+        user_id: str | None,
+        namespace: str | None,
+    ) -> list[RetrievalResult]:
+        """Execute the multi-hop global-query lane.
+
+        Always returns a list (possibly empty). The ``recall()`` caller
+        should NOT mutate the result; downstream consumers expect the
+        ``RetrievalResult`` objects to be safely shareable.
+        """
+        from attestor.retrieval.global_query import (
+            run_global_query,
+            to_retrieval_results,
+        )
+
+        gq_cfg = self._global_cfg
+        t0 = time.monotonic()
+        try:
+            result = run_global_query(
+                query,
+                user_id=user_id,
+                namespace=namespace,
+                graph_store=self._graph,
+                doc_store=self._store,
+                llm_model=gq_cfg.summary_model,
+                max_clusters=gq_cfg.max_clusters,
+                max_entities_per_cluster=gq_cfg.max_entities_per_cluster,
+                subgraph_depth=gq_cfg.subgraph_depth,
+                cost_per_summary_usd=gq_cfg.cost_per_summary_usd,
+            )
+        except Exception as e:
+            logger.warning(
+                "global_query.run_global_query failed (%s: %s); "
+                "returning empty global result",
+                type(e).__name__, e,
+            )
+            return []
+
+        results = to_retrieval_results(result, namespace=namespace)
+        total_ms = round((time.monotonic() - t0) * 1000, 2)
+
+        self._ops_log.append({
+            "op": "recall.global",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "latency_ms": total_ms,
+            "input": query[:120],
+            "result_count": len(results),
+            "cluster_count": result.cluster_count,
+            "cost_usd": result.cost_estimate_usd,
+            "stores": ["graph", "document"],
+        })
         return results
 
     def recall_as_context(

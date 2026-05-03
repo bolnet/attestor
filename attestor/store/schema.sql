@@ -296,6 +296,58 @@ CREATE TRIGGER trg_quota_count_projects
     AFTER INSERT OR DELETE ON projects
     FOR EACH ROW EXECUTE FUNCTION attestor_quota_count_projects();
 
+-- ── State lane — typed profile facts (memory.state) ─────────────────────
+-- Personalization-as-state, not retrieval (per OpenAI's January 2026
+-- context_personalization cookbook). Each row is one (user, scope, key)
+-- fact. Updates are append-only: t_expired stamps the previous active
+-- row; the new value lands in a new row. ``history()`` and ``as_of()``
+-- read the full bi-temporal trail.
+CREATE TABLE IF NOT EXISTS state (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id      UUID REFERENCES projects(id) ON DELETE CASCADE,
+    agent_id        TEXT,
+    scope           TEXT NOT NULL DEFAULT 'user',  -- user | project | agent
+    key             TEXT NOT NULL,
+    value           JSONB NOT NULL,
+    schema_id       TEXT,
+    set_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    set_by_agent    TEXT,
+    t_created       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    t_expired       TIMESTAMPTZ,
+    signature       TEXT
+);
+
+-- Active-row lookup: serves get / list with a partial index on the
+-- predicate the SQL filters by every time.
+CREATE INDEX IF NOT EXISTS idx_state_user_key_active
+    ON state (user_id, scope, key)
+    WHERE t_expired IS NULL;
+
+-- Full active key listing (history + as_of read the partition by key).
+CREATE INDEX IF NOT EXISTS idx_state_user_key_history
+    ON state (user_id, scope, key, t_created DESC);
+
+-- One active row per (user, project, scope, key). The COALESCE on
+-- project_id makes user-scoped rows (project_id IS NULL) compare equal
+-- so a duplicate user-scoped set hits the supersession path instead of
+-- being rejected by the index.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_state_unique_active
+    ON state (
+        user_id,
+        COALESCE(project_id, '00000000-0000-0000-0000-000000000000'::uuid),
+        scope,
+        key
+    )
+    WHERE t_expired IS NULL;
+
+-- Tenant isolation. Same RLS variable as memories.
+ALTER TABLE state ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_state ON state;
+CREATE POLICY tenant_isolation_state ON state
+    USING (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid)
+    WITH CHECK (user_id = NULLIF(current_setting('attestor.current_user_id', true), '')::uuid);
+
 -- ── GDPR deletion audit (Phase 8.5) ──────────────────────────────────────
 -- Append-only log of every user deletion. Regulators need to see THAT a
 -- deletion happened, not the deleted data. Intentionally RLS-EXEMPT so

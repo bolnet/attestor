@@ -8,9 +8,12 @@ capabilities:
   - memory.add_skill
   - memory.timeline
   - memory.supersede
+  - memory.consolidate
   - memory.forget
   - memory.audit
   - memory.layers
+  - memory.state
+  - memory.global_query
 license: MIT
 homepage: https://attestor.dev
 repository: https://github.com/bolnet/attestor
@@ -103,7 +106,7 @@ The skill exposes six primitives on `attestor.AgentMemory`. Every signature belo
 | --- | --- |
 | `add(content, tags, category, entity, namespace, event_date, confidence, metadata, layer='episodic', ...)` | Persist one fact. Auto-detects contradictions and supersedes the older one. Returns the stored `Memory`. |
 | `add_skill(name, content, ...)` | Convenience wrapper for procedural memories (workflows / recipes / how-to). Sets `layer='procedural'`, `category='skill'`, `entity=name`. |
-| `recall(query, budget, namespace, user_id, as_of, time_window, layers=('episodic','semantic'))` | Six-step retrieval cascade (vector + BM25 + RRF + graph + MMR + token-budget pack). Default `layers` filter returns the natural answer to "what do I know about X". Returns `list[RetrievalResult]`. |
+| `recall(query, budget, namespace, user_id, as_of, time_window, layers=('episodic','semantic'), *, long_context, long_context_max_tokens)` | Six-step retrieval cascade (vector + BM25 + RRF + graph + MMR + token-budget pack). Default `layers` filter returns the natural answer to "what do I know about X". Pass `long_context=True` to skip MMR + greedy-fit and pack the top-K candidates verbatim up to `long_context_max_tokens` (default 200_000) — designed for 1M-context downstream answerers (Claude Sonnet 4.6 / Opus 4.x / Gemini 2 Pro). Returns `list[RetrievalResult]`. |
 | `timeline(entity, namespace)` | Chronological replay of every memory about an entity (active + superseded). Returns `list[Memory]`. |
 | `current_facts(category, entity, namespace)` | Active, non-superseded memories only. The "what does the agent believe right now" view. |
 | `forget(memory_id)` / `forget_before(date)` | Archive a single memory by id, or every memory created before a date. Returns `bool` / `int`. |
@@ -116,10 +119,39 @@ Supplementary primitives an agent reaches for less often:
 - `search(query, category, entity, namespace, status, after, before, limit)` — filtered listing without the recall pipeline.
 - `recall_as_pack(query, budget, user_id, as_of, time_window)` — `ContextPack` with citations + Chain-of-Note prompt for cite-or-abstain agents.
 - `extract(messages, model, use_llm, namespace)` — pull facts out of a conversation transcript and store them.
-- `consolidate(limit, ...)` — drain the sleep-time consolidation queue.
+- `consolidate(user_id, since=..., target_count=5, namespace=..., dry_run=False)` — **reflection pass**: distill a window of episodic memories into compact semantic facts, supersede the originals, stamp `_consolidated_from` provenance. Returns `ReflectionResult`.
+- `consolidate(limit=20, ...)` — legacy queue-drain mode (no `user_id`): runs one batch through the per-episode `SleepTimeConsolidator`.
 - `export_user(external_id)` / `purge_user(external_id)` / `deletion_audit_log()` — GDPR data portability + erasure with audit trail.
 - `pagerank(alpha)` — entity importance from the Neo4j graph.
 - `stats()` / `ops_log` — store counts and a ring buffer of recent operation latencies.
+
+### State lane — typed profile facts (`memory.state`)
+
+Retrieval is the wrong tool for personalization. Durable, type-checked facts (preferences, capability declarations, durable identity facts) belong in a state object, not the embedding index. OpenAI's January 2026 `context_personalization` cookbook makes this case directly. Attestor exposes the state object as `mem.state`:
+
+| Method | Purpose |
+| --- | --- |
+| `mem.state.set(key, value, *, user_id, project_id=..., agent_id=..., scope=..., schema=...)` | Write a typed fact. Append-only — previous active row is stamped with `t_expired`. Optional `schema=` triggers JSON-Schema validation. |
+| `mem.state.get(key, *, user_id, project_id=..., scope=...)` | Read the current value, or `None` if missing. |
+| `mem.state.list(*, user_id, project_id=..., scope=..., prefix="")` | Return all active key/value pairs whose key starts with `prefix`. |
+| `mem.state.history(key, *, user_id, ...)` | Every value this key has held, oldest first (bi-temporal). |
+| `mem.state.as_of(key, *, ts, user_id, ...)` | Replay the value that was active at `ts`. |
+| `mem.state.delete(key, *, user_id, ...)` | Mark the active row expired. History is preserved. |
+
+Two reference schemas ship with the package: `user_preferences_v1` (theme, language, timezone, communication_style) and `agent_capability_v1` (capability_set, max_tokens, allowed_tools). Register your own schema directory with `attestor.state.register_schema_directory(...)`. Validation failures raise `StateValidationError`.
+
+RBAC is identical to the memory lane: WRITE for `set`/`delete`, READ for `get`/`list`/`history`/`as_of`. `read_only=True` strips writes regardless of role. The `AgentContext` surface mirrors the repo: `ctx.state_set(...)`, `ctx.state_get(...)`, `ctx.state_list(...)`, `ctx.state_delete(...)`.
+
+```python
+mem.state.set(
+    "preferences",
+    {"theme": "dark", "language": "en"},
+    user_id=user.id,
+    schema="user_preferences_v1",
+)
+mem.state.get("preferences", user_id=user.id)
+# {"theme": "dark", "language": "en"}
+```
 
 Manual contradiction resolution (rare — `add()` does this automatically):
 
@@ -189,7 +221,32 @@ for r in past_results:
 
 `as_of` resolves on event time (`valid_from` / `valid_until`), so the answer reflects what was true *then*, not what the agent learned later.
 
-### Example 4 — Multi-agent shared state with RBAC + namespace isolation
+### Example 4 — Long-context recall for 1M-context answerers
+
+```python
+from attestor import AgentMemory
+
+mem = AgentMemory("./agent-store")
+
+# Default: short-context optimized — MMR diversity + token-budget pack.
+short_ctx = mem.recall("project decisions Q3", budget=2000)
+
+# Long-context mode: skip MMR, pack top-K verbatim up to 200_000 tokens.
+# Use when the downstream answerer is Claude Sonnet 4.6 / Opus 4.x /
+# Gemini 2 Pro — diversity penalties cut genuinely-relevant duplicates.
+long_ctx = mem.recall("project decisions Q3", long_context=True)
+
+# Override the cap when needed (e.g., 500k for Gemini 2 Pro).
+big = mem.recall(
+    "project decisions Q3",
+    long_context=True,
+    long_context_max_tokens=500_000,
+)
+```
+
+Both modes coexist: short-context callers (gpt-4o, claude-haiku) keep MMR's diversity trim; long-context callers get the top-K verbatim. Attestor never calls the answerer itself — it just packs the memories.
+
+### Example 5 — Multi-agent shared state with RBAC + namespace isolation
 
 ```python
 from attestor import AgentContext, AgentMemory, AgentRole
@@ -216,7 +273,74 @@ print(orchestrator.agent_trail)         # full handoff chain for audit
 
 Roles enforced at the context layer (`attestor/context.py`): `ORCHESTRATOR` = full perms; `PLANNER` / `EXECUTOR` / `RESEARCHER` = read + write; `REVIEWER` / `MONITOR` = read-only. `read_only=True` is an independent kill switch that strips writes regardless of role.
 
-### Example 5 — Audit + GDPR
+### Example 6 — Periodic reflection (distill many episodic memories into a few semantic ones)
+
+```python
+from datetime import datetime, timedelta, timezone
+from attestor import AgentMemory
+
+mem = AgentMemory("./agent-store")
+
+# Run nightly: condense the last 30 days of episodic memories for a
+# user into 5 attributed semantic facts. Originals are kept in the
+# supersession chain — nothing is deleted, the audit trail stays
+# queryable forever via timeline() and recall(as_of=...).
+since = datetime.now(timezone.utc) - timedelta(days=30)
+result = mem.consolidate(
+    user_id="user-1234",
+    since=since,
+    target_count=5,
+)
+print(result.distilled_memory_ids)        # 5 fresh semantic memories
+print(result.source_memory_ids)            # ids of every superseded source
+print(f"~${result.cost_estimate_usd:.4f}") # rough $$ for this pass
+
+# Each distilled memory carries provenance metadata you can audit.
+for did in result.distilled_memory_ids:
+    m = mem.get(did)
+    print(m.metadata["_consolidated_from"])  # source ids cited
+    print(m.metadata["_reflection_model"])    # LLM used
+```
+
+`dry_run=True` calls the LLM (so the cost estimate is accurate) but skips the writes — useful for canary deployments.
+
+### Example 7 — Global queries via Neo4j community detection (GraphRAG-style)
+
+Attestor's six-step recall is tuned for *local* questions ("what is my Wells Fargo pre-approval amount?"). For *global* questions that span many memories ("summarize my interactions with Wells Fargo across the last 6 months", "what are my recurring concerns this quarter?", "what trips have I taken over 8 months?") the right answer is a cluster-level synthesis, not a top-K passage list.
+
+Enable the global-query lane in `configs/attestor.yaml`:
+
+```yaml
+stack:
+  retrieval:
+    global_query:
+      enabled: true              # default false
+      classifier_model: anthropic/claude-haiku-4.5
+      summary_model:    anthropic/claude-haiku-4.5
+      max_clusters: 8
+      subgraph_depth: 2
+```
+
+`recall()` automatically routes global-shaped questions through Leiden community detection on the Neo4j entity graph, summarizes each cluster with the configured LLM, and returns the summaries as `RetrievalResult` objects with `category="global_summary"`. Local questions stay on the deterministic six-step cascade — same query, same ranking.
+
+```python
+from attestor import AgentMemory
+
+mem = AgentMemory("./agent-store")
+
+# 12 trip memories already stored across 8 months — entity="Tokyo",
+# "Lisbon", "Paris", etc.
+results = mem.recall("what trips have I taken over the last 8 months?")
+for r in results:
+    if r.memory.category == "global_summary":
+        print("[cluster]", r.memory.metadata["_cluster_id"], r.memory.content)
+    else:
+        print("[fact]   ", r.memory.content)
+```
+
+Failure-isolated: if Neo4j is down, the LLM summarizer errors, or no candidate entities exist, the lane returns an empty result and `recall()` falls back to the local pipeline.
+
+### Example 8 — Audit + GDPR
 
 ```python
 from attestor import AgentMemory

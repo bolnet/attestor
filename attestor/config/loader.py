@@ -13,13 +13,16 @@ import yaml
 from attestor.config.models import (
     LLM_PROVIDER_DEFAULTS,
     CloudTarget,
+    ConsolidationCfg,
     ContextualEmbeddingCfg,
     CritiqueReviseCfg,
     EmbedderCfg,
+    GlobalQueryCfg,
     HydeCfg,
     ImageCfg,
     IngestCfg,
     LLMCfg,
+    LLMExtractionCfg,
     MemoryCfg,
     MemoryLayersCfg,
     ModelsCfg,
@@ -106,6 +109,40 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         cohere_model=str(cohere_blk.get("model", "rerank-english-v3.0")),
         llm_model=llm_blk_rr.get("model"),
     )
+    gq_blk = retrieval_blk.get("global_query") or {}
+    gq_max_clusters = int(gq_blk.get("max_clusters", 8))
+    gq_max_entities = int(gq_blk.get("max_entities_per_cluster", 20))
+    gq_depth = int(gq_blk.get("subgraph_depth", 2))
+    if gq_max_clusters <= 0:
+        raise SystemExit(
+            f"[attestor.config] retrieval.global_query.max_clusters="
+            f"{gq_max_clusters} must be > 0"
+        )
+    if gq_max_entities <= 0:
+        raise SystemExit(
+            f"[attestor.config] retrieval.global_query."
+            f"max_entities_per_cluster={gq_max_entities} must be > 0"
+        )
+    if gq_depth <= 0:
+        raise SystemExit(
+            f"[attestor.config] retrieval.global_query.subgraph_depth="
+            f"{gq_depth} must be > 0"
+        )
+    gq_cfg = GlobalQueryCfg(
+        enabled=bool(gq_blk.get("enabled", False)),
+        classifier_model=gq_blk.get(
+            "classifier_model", "anthropic/claude-haiku-4.5"
+        ),
+        summary_model=str(
+            gq_blk.get("summary_model", "anthropic/claude-haiku-4.5")
+        ),
+        max_clusters=gq_max_clusters,
+        max_entities_per_cluster=gq_max_entities,
+        subgraph_depth=gq_depth,
+        cost_per_summary_usd=float(
+            gq_blk.get("cost_per_summary_usd", 0.005)
+        ),
+    )
     # Score-blending knobs — the recall hot path reads these every call.
     # Coerce types defensively so YAML int/float duck-typing doesn't
     # surface surprises downstream (e.g. ``0.3`` parsed as int).
@@ -125,10 +162,14 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         graph_unreachable_penalty=float(
             retrieval_blk.get("graph_unreachable_penalty", -0.05),
         ),
+        long_context_default_max_tokens=int(
+            retrieval_blk.get("long_context_default_max_tokens", 200_000),
+        ),
         multi_query=mq_cfg,
         temporal_prefilter=tp_cfg,
         hyde=hyde_cfg,
         reranker=rr_cfg,
+        global_query=gq_cfg,
     )
 
     sc_blk = stack_blk.get("self_consistency") or {}
@@ -190,7 +231,62 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         max_prefix_chars=ce_max_chars,
         cache=bool(ce_blk.get("cache", True)),
     )
-    ingest_cfg = IngestCfg(contextual_embedding=ce_cfg)
+
+    # LLM-driven entity extraction (Mem0/Zep alignment). When enabled,
+    # ``AgentMemory.add()`` runs an LLM pass to extract entities +
+    # relations instead of the regex-based ``attestor.graph.extractor``.
+    # Defaults preserve the existing regex codepath byte-for-byte.
+    le_blk = ingest_blk.get("llm_entity_extraction") or {}
+    le_timeout = float(le_blk.get("timeout_s", 15.0))
+    if le_timeout <= 0:
+        raise SystemExit(
+            f"[attestor.config] ingest.llm_entity_extraction."
+            f"timeout_s={le_timeout} must be > 0"
+        )
+    le_cfg = LLMExtractionCfg(
+        enabled=bool(le_blk.get("enabled", False)),
+        model=str(le_blk.get("model", "anthropic/claude-haiku-4.5")),
+        timeout_s=le_timeout,
+        cache=bool(le_blk.get("cache", True)),
+    )
+    ingest_cfg = IngestCfg(
+        contextual_embedding=ce_cfg,
+        llm_entity_extraction=le_cfg,
+    )
+
+    # Consolidation / reflection knobs. Optional block — absent YAML
+    # block uses ConsolidationCfg's frozen defaults (enabled=False,
+    # target_count=5, source_limit=50). All values are validated
+    # eagerly so the runtime never sees nonsense numbers.
+    cons_blk = stack_blk.get("consolidation") or {}
+    cons_target = int(cons_blk.get("target_count", 5))
+    cons_source_limit = int(cons_blk.get("source_limit", 50))
+    cons_since = cons_blk.get("since_days")
+    if cons_target < 0:
+        raise SystemExit(
+            f"[attestor.config] consolidation.target_count="
+            f"{cons_target} must be >= 0"
+        )
+    if cons_source_limit <= 0:
+        raise SystemExit(
+            f"[attestor.config] consolidation.source_limit="
+            f"{cons_source_limit} must be > 0"
+        )
+    if cons_since is not None:
+        cons_since = int(cons_since)
+        if cons_since <= 0:
+            raise SystemExit(
+                f"[attestor.config] consolidation.since_days="
+                f"{cons_since} must be > 0 or null"
+            )
+    cons_cfg = ConsolidationCfg(
+        enabled=bool(cons_blk.get("enabled", False)),
+        target_count=cons_target,
+        source_limit=cons_source_limit,
+        since_days=cons_since,
+        model=cons_blk.get("model"),
+        dry_run=bool(cons_blk.get("dry_run", False)),
+    )
 
     # Hierarchical memory layers (closed vocabulary; validated against
     # ``attestor.models.VALID_LAYERS`` so a typo in the YAML fails loud
@@ -328,6 +424,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
         critique_revise=cr_cfg,
         ingest=ingest_cfg,
         memory=memory_cfg,
+        consolidation=cons_cfg,
         pinecone=(
             PineconeCfg(
                 host=pcn.get("host"),

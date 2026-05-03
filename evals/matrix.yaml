@@ -122,6 +122,48 @@ cells:
       cost_usd: 0.07, wall_min: 26,
       note: "Anthropic chunk-context prefix at ingest; expect +5-15% recall@10" }
 
+  # ── LLM-driven entity extraction (Mem0/Zep alignment) — one cell per category ──
+  # When `llm_entity_extraction: true`, AgentMemory.add() runs a
+  # claude-haiku-4.5 pass at ingest that pulls proper-noun + value-bearing
+  # entities and explicit relationships, replacing the regex-based
+  # attestor.graph.extractor (which returns entity_count=0 for most
+  # LME-S content). Failure-isolated: LLM timeout / malformed JSON
+  # degrades to the regex extractor, never to empty.
+  # Cost ~ +$0.003 / sample (10 ingests * $0.0003). Expect lift on
+  # knowledge-update + multi-session where supersession depends on the
+  # graph layer surfacing entity-level overlap.
+  - { category: temporal-reasoning,
+      label: "ablation:llm_entity_extraction=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      llm_entity_extraction: true,
+      cost_usd: 0.07, wall_min: 24,
+      note: "LLM entity extraction at ingest (Mem0/Zep); expect graph layer to fire for first time on natural-language content" }
+
+  - { category: multi-session,
+      label: "ablation:llm_entity_extraction=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      llm_entity_extraction: true,
+      cost_usd: 0.07, wall_min: 24,
+      note: "LLM entity extraction at ingest (Mem0/Zep); cross-session entity continuity is the graph's strongest signal" }
+
+  - { category: knowledge-update,
+      label: "ablation:llm_entity_extraction=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      llm_entity_extraction: true,
+      cost_usd: 0.07, wall_min: 24,
+      note: "LLM entity extraction at ingest (Mem0/Zep); the 852ce960 pre-approval failure motivated this PR — KU is where supersession lives" }
+
+  - { category: single-session-user,
+      label: "ablation:llm_entity_extraction=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      llm_entity_extraction: true,
+      cost_usd: 0.07, wall_min: 24,
+      note: "LLM entity extraction at ingest (Mem0/Zep); user-profile facts are entity-anchored" }
+
   # ── Reranker stage ablations (Phase 1 — one cell per LME-S category) ──
   # Phase 1 reranker bench — enable when local GPU available. The BGE
   # cross-encoder (BAAI/bge-reranker-v2-gemma) lazy-loads ~2GB on first
@@ -160,6 +202,119 @@ cells:
       reranker_provider: bge,
       cost_usd: 0.06, wall_min: 24,
       note: "Phase 1 reranker bench — enable when local GPU available" }
+
+  # ── Global query (multi-hop / GraphRAG-style) — one cell per category ──
+  # When `global_query: true`, recall() routes "summarize / over time /
+  # across / recurring / themes / patterns" questions to a Neo4j Leiden
+  # community-detect + LLM-summarize lane in front of the 6-step cascade.
+  # Default off; per Microsoft GraphRAG and HippoRAG, the lift on global
+  # queries is ~25-40pp where local queries are unaffected.
+  - { category: temporal-reasoning,
+      label: "ablation:global_query=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      global_query: true,
+      cost_usd: 0.10, wall_min: 26,
+      note: "Phase 9 GraphRAG lane; expect lift only on time-spanning questions" }
+
+  - { category: multi-session,
+      label: "ablation:global_query=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      global_query: true,
+      cost_usd: 0.10, wall_min: 26,
+      note: "Phase 9 GraphRAG lane; multi-session is the prime target" }
+
+  - { category: knowledge-update,
+      label: "ablation:global_query=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      global_query: true,
+      cost_usd: 0.10, wall_min: 26,
+      note: "Phase 9 GraphRAG lane; KU is mostly local — sanity-check cell" }
+
+  - { category: single-session-user,
+      label: "ablation:global_query=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      global_query: true,
+      cost_usd: 0.10, wall_min: 26,
+      note: "Phase 9 GraphRAG lane; mostly local — null-result cell" }
+
+  # ── Long-context fit (alternate Step 6 — skip MMR + greedy-fit) ─────
+  # When ``long_context: true``, recall() skips Step 5 (MMR diversity)
+  # and Step 6 packs the top-K reranked candidates verbatim up to the
+  # configured cap (default 200_000 tokens). Designed for downstream
+  # 1M-context answerers (Claude Sonnet 4.6 / Opus 4.x / Gemini 2 Pro)
+  # where diversity penalties cut genuinely-relevant near-duplicates.
+  # Matched-pair vs GOLDEN per category to isolate the Step-6 swap.
+  - { category: temporal-reasoning,
+      label: "ablation:long_context=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      cost_usd: 0.06, wall_min: 22,
+      note: "Step 6 swap — pack top-K verbatim (200k cap), MMR off" }
+
+  - { category: temporal-reasoning,
+      label: "ablation:long_context=on+reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "long-context fit downstream of BGE rerank — no MMR diversity cut" }
+
+  - { category: multi-session,
+      label: "ablation:long_context=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      cost_usd: 0.06, wall_min: 22,
+      note: "Step 6 swap — pack top-K verbatim (200k cap), MMR off" }
+
+  - { category: multi-session,
+      label: "ablation:long_context=on+reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "long-context fit downstream of BGE rerank — no MMR diversity cut" }
+
+  - { category: knowledge-update,
+      label: "ablation:long_context=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      cost_usd: 0.06, wall_min: 22,
+      note: "Step 6 swap — pack top-K verbatim (200k cap), MMR off" }
+
+  - { category: knowledge-update,
+      label: "ablation:long_context=on+reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "long-context fit downstream of BGE rerank — no MMR diversity cut" }
+
+  - { category: single-session-user,
+      label: "ablation:long_context=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      cost_usd: 0.06, wall_min: 22,
+      note: "Step 6 swap — pack top-K verbatim (200k cap), MMR off" }
+
+  - { category: single-session-user,
+      label: "ablation:long_context=on+reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "long-context fit downstream of BGE rerank — no MMR diversity cut" }
 
   # Add more cells here as ablations are designed. Examples to seed:
   #

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "user_preferences_v1",
+  "title": "User Preferences (v1)",
+  "description": "Durable, type-checked user-level personalization. Theme, language, timezone, and the model's communication style.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "theme": {
+      "type": "string",
+      "enum": ["light", "dark", "system"]
+    },
+    "language": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 16
+    },
+    "timezone": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "communication_style": {
+      "type": "string",
+      "enum": ["concise", "detailed", "casual", "formal"]
+    }
+  }
+}

@@ -325,6 +325,68 @@ class TemporalPrefilterCfg:
 
 
 @dataclass(frozen=True)
+class GlobalQueryCfg:
+    """Multi-hop / global-query lane knobs (Microsoft GraphRAG-style).
+
+    The 6-step recall pipeline (vector → BM25 → RRF → reranker → graph
+    BFS → MMR → fit) is great for LOCAL queries ("what did I say about
+    X?") but fails on GLOBAL queries that span many memories and need
+    cluster-level synthesis ("summarize my interactions with X over
+    6 months", "what are my recurring concerns?", "what trips have I
+    taken across 8 months?").
+
+    When ``enabled`` is True, ``AgentMemory.recall()`` runs a cheap
+    classifier over the question. If the classifier votes "global", the
+    call short-circuits the 6-step pipeline and instead:
+
+      1. Pulls candidate entities from the user's Neo4j subgraph.
+      2. Runs Leiden community detection on the subgraph (via
+         ``gds.leiden.stream``).
+      3. For each top community, pulls the underlying memories from
+         the document store.
+      4. Asks a summarizer LLM to write one cluster-level summary.
+      5. Returns those summaries as ``RetrievalResult`` objects with
+         ``category="global_summary"`` and a ``_cluster_id`` metadata
+         marker so callers can tell them apart from local hits.
+
+    Disabled by default — flip per bench cell via
+    ``configs/attestor.yaml``'s ``stack.retrieval.global_query`` block
+    or ``evals/matrix.yaml``.
+
+    Cost: 1 classifier call (~$0.0001 with Haiku-4.5) + N community
+    summaries (N ≤ ``max_clusters``; ~$0.005 each with Haiku-4.5).
+    Total ~$0.04 per global query at the default cap of 8 clusters.
+
+    Configuration:
+      enabled                   — master switch.
+      classifier_model          — small/cheap LLM for the heuristic
+                                  tiebreaker. ``null`` means heuristics
+                                  only (no LLM call).
+      summary_model             — LLM for community summaries.
+      max_clusters              — hard cap on the number of communities
+                                  the lane will summarize. The largest
+                                  communities (by node count) win.
+      max_entities_per_cluster  — cap on how many entities are passed
+                                  to the doc-store fetch + summarizer
+                                  per cluster.
+      subgraph_depth            — k-hop neighborhood depth around each
+                                  candidate entity. 2 hops matches the
+                                  GraphRAG paper.
+      cost_per_summary_usd      — naive per-summary cost estimate; the
+                                  ``GlobalQueryResult.cost_estimate_usd``
+                                  field rolls these up.
+    """
+
+    enabled: bool = False
+    classifier_model: str | None = "anthropic/claude-haiku-4.5"
+    summary_model: str = "anthropic/claude-haiku-4.5"
+    max_clusters: int = 8
+    max_entities_per_cluster: int = 20
+    subgraph_depth: int = 2
+    cost_per_summary_usd: float = 0.005
+
+
+@dataclass(frozen=True)
 class RetrievalCfg:
     """Knobs for the 6-step recall cascade.
 
@@ -400,12 +462,17 @@ class RetrievalCfg:
         default_factory=lambda: {0: 0.30, 1: 0.20, 2: 0.10},
     )
     graph_unreachable_penalty: float = -0.05
+    # Default cap when ``recall(long_context=True)`` omits an explicit
+    # ``long_context_max_tokens``. Sized for 1M-context answerers — see
+    # ``attestor.retrieval.orchestrator.postprocess._long_context_pack``.
+    long_context_default_max_tokens: int = 200_000
     multi_query: MultiQueryCfg = field(default_factory=MultiQueryCfg)
     temporal_prefilter: TemporalPrefilterCfg = field(
         default_factory=TemporalPrefilterCfg,
     )
     hyde: HydeCfg = field(default_factory=HydeCfg)
     reranker: RerankerCfg = field(default_factory=RerankerCfg)
+    global_query: GlobalQueryCfg = field(default_factory=GlobalQueryCfg)
 
 
 @dataclass(frozen=True)
@@ -524,18 +591,109 @@ class ContextualEmbeddingCfg:
 
 
 @dataclass(frozen=True)
+class LLMExtractionCfg:
+    """LLM-driven entity + relation extraction at ingest (Mem0/Zep alignment).
+
+    When ``enabled`` is True, ``AgentMemory.add()`` runs an LLM pass
+    over the content to extract proper-noun + value-bearing entities
+    and explicit relationships before writing to the graph store.
+    The regex-based ``attestor.graph.extractor`` returns
+    ``entity_count=0`` for most LME-S content (verified via production
+    traces); this path replaces that pass with an LLM call that
+    produces meaningfully richer entities for natural-language
+    inputs.
+
+    Disabled by default — flip per bench cell via ``configs/attestor.yaml``
+    or ``evals/matrix.yaml``. The shipping default keeps the regex
+    extractor wired so the codepath is byte-identical to ``main``.
+
+    Failure isolation: an LLM timeout / malformed response degrades
+    to the regex extractor (NOT to empty), so ingest never breaks.
+
+    Cost: ~$0.0003 / ingest with claude-haiku-4.5 on LME-S content
+    (~1k input chars, ~80 output tokens of JSON). Lower than the
+    contextual-embedding pre-pass because the prompt is shorter and
+    the output JSON is small.
+
+    Configuration:
+      enabled    — master switch
+      model      — small/cheap LLM for the extraction call
+                   (haiku-4.5 is the recommended default; the prompt
+                   asks for strict JSON which haiku follows reliably)
+      timeout_s  — per-request deadline. Default 15s — tight enough
+                   that ingest latency stays bounded, loose enough
+                   that haiku-4.5 returns comfortably for 4k content.
+      cache      — process-local cache by content_hash so re-ingesting
+                   the same content reuses the prior result without
+                   another LLM call.
+    """
+
+    enabled: bool = False
+    model: str = "anthropic/claude-haiku-4.5"
+    timeout_s: float = 15.0
+    cache: bool = True
+
+
+@dataclass(frozen=True)
 class IngestCfg:
     """Ingest-time knobs (write-path transforms).
 
-    Currently exposes :class:`ContextualEmbeddingCfg`. New ingest-stage
-    features (semantic chunking, redaction, etc.) will land here as
-    sibling fields rather than under ``stack.retrieval`` — those are
+    Exposes :class:`ContextualEmbeddingCfg` (Anthropic Sept-2024
+    chunk-context prefix) and :class:`LLMExtractionCfg` (Mem0/Zep
+    LLM-driven entity extraction). New ingest-stage features
+    (semantic chunking, redaction, etc.) will land here as sibling
+    fields rather than under ``stack.retrieval`` — those are
     read-path levers and live in :class:`RetrievalCfg`.
     """
 
     contextual_embedding: ContextualEmbeddingCfg = field(
         default_factory=ContextualEmbeddingCfg,
     )
+    llm_entity_extraction: LLMExtractionCfg = field(
+        default_factory=LLMExtractionCfg,
+    )
+
+
+@dataclass(frozen=True)
+class ConsolidationCfg:
+    """Reflection / consolidation pass knobs.
+
+    Reflection runs out-of-band (sleep-time) and distills a window of
+    raw episodic memories into a small number of compact semantic
+    memories. Originals are kept in the supersession chain — nothing
+    is deleted. The pass is quality-first (cost OK), so this defaults
+    to a strong-but-cheap target_count and a bounded source_limit
+    that keeps prompt tokens predictable.
+
+    Configuration:
+      enabled         — master switch. Defaults to ``False`` so the
+                        legacy install behaviour is unchanged; flip on
+                        per-deploy when you want reflection wired into
+                        the consolidator schedule.
+      target_count    — number of distilled facts produced per pass.
+                        5 is the spec-default sweet spot — small enough
+                        the LLM doesn't get loose with attribution,
+                        large enough to span typical user topic clusters.
+      source_limit    — hard cap on source memories per pass. 50 keeps
+                        prompt tokens bounded for any commercially
+                        sensible context window.
+      since_days      — relative lookback window (days). ``None`` means
+                        "no lower bound" — the pass picks up every
+                        active source. Set to e.g. 30 when running
+                        nightly to keep the window monthly.
+      model           — explicit LLM id for the distillation step.
+                        ``None`` falls back to ``stack.models.distill``.
+      dry_run         — when True, the LLM is still called for cost
+                        preview but no writes happen. Useful for canary
+                        deployments.
+    """
+
+    enabled: bool = False
+    target_count: int = 5
+    source_limit: int = 50
+    since_days: int | None = None
+    model: str | None = None
+    dry_run: bool = False
 
 
 @dataclass(frozen=True)
@@ -590,6 +748,7 @@ class StackConfig:
     critique_revise: CritiqueReviseCfg = field(default_factory=CritiqueReviseCfg)
     ingest: IngestCfg = field(default_factory=IngestCfg)
     memory: MemoryCfg = field(default_factory=MemoryCfg)
+    consolidation: ConsolidationCfg = field(default_factory=ConsolidationCfg)
     pinecone: PineconeCfg | None = None
 
 

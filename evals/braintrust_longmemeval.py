@@ -205,15 +205,17 @@ def run_live(
     embedder_override: dict[str, Any] | None,
     self_consistency_override: dict[str, Any] | None,
     contextual_embedding_override: dict[str, Any] | None = None,
+    llm_entity_extraction_override: dict[str, Any] | None = None,
     reranker_override: dict[str, Any] | None = None,
+    long_context: bool = False,
     parallel: int = 1,
 ) -> None:
     """Execute a fresh bench run and upload as a Braintrust experiment.
 
     ``embedder_override``, ``self_consistency_override``,
-    ``contextual_embedding_override``, and ``reranker_override`` flip
-    stack fields for this run only via ``set_stack()``. YAML is never
-    modified.
+    ``contextual_embedding_override``, ``llm_entity_extraction_override``,
+    and ``reranker_override`` flip stack fields for this run only via
+    ``set_stack()``. YAML is never modified.
     """
     if category not in DATASETS:
         raise ValueError(f"Unknown category: {category!r}")
@@ -227,11 +229,28 @@ def run_live(
         overrides["self_consistency"] = replace(
             base.self_consistency, **self_consistency_override
         )
-    if contextual_embedding_override:
-        new_ce = replace(
-            base.ingest.contextual_embedding, **contextual_embedding_override,
+    if contextual_embedding_override or llm_entity_extraction_override:
+        new_ce = (
+            replace(
+                base.ingest.contextual_embedding,
+                **contextual_embedding_override,
+            )
+            if contextual_embedding_override
+            else base.ingest.contextual_embedding
         )
-        overrides["ingest"] = replace(base.ingest, contextual_embedding=new_ce)
+        new_le = (
+            replace(
+                base.ingest.llm_entity_extraction,
+                **llm_entity_extraction_override,
+            )
+            if llm_entity_extraction_override
+            else base.ingest.llm_entity_extraction
+        )
+        overrides["ingest"] = replace(
+            base.ingest,
+            contextual_embedding=new_ce,
+            llm_entity_extraction=new_le,
+        )
     if reranker_override:
         new_rr = replace(base.retrieval.reranker, **reranker_override)
         overrides["retrieval"] = replace(base.retrieval, reranker=new_rr)
@@ -262,7 +281,13 @@ def run_live(
             backend_config["backend_configs"]["postgres"]["skip_schema_init"] = True
 
         def mem_factory() -> AgentMemory:
-            return AgentMemory(store_path, config=backend_config)
+            mem = AgentMemory(store_path, config=backend_config)
+            if long_context:
+                # Flip the per-instance default; recall() resolves this
+                # when the explicit kwarg is False (the answerer code
+                # path doesn't pass long_context).
+                mem._default_long_context = True
+            return mem
 
         log_path = Path(f"logs/lme_{category}_{experiment_suffix}.json")
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -443,9 +468,21 @@ def main() -> None:
                             "contextual embedding pre-pass at ingest "
                             "(stack.ingest.contextual_embedding.enabled=true)."
                         ))
+    parser.add_argument("--llm-entity-extraction", action="store_true",
+                        help=(
+                            "Live mode override: enable LLM-driven entity "
+                            "+ relation extraction at ingest "
+                            "(stack.ingest.llm_entity_extraction.enabled=true)."
+                        ))
     parser.add_argument("--reranker-provider", default=None,
                         choices=("bge", "cohere", "llm"),
                         help="Live mode override: enable reranker stage with this provider.")
+    parser.add_argument("--long-context", action="store_true",
+                        help=(
+                            "Live mode override: switch Step 6 to long-context "
+                            "fit (skip MMR + greedy-fit; pack top-K verbatim up "
+                            "to stack.retrieval.long_context_default_max_tokens)."
+                        ))
     parser.add_argument("--parallel", type=int, default=1,
                         help="Live mode: concurrent samples in run_async (default 1).")
     args = parser.parse_args()
@@ -485,6 +522,10 @@ def main() -> None:
     if args.contextual_embedding:
         ce_override = {"enabled": True}
 
+    le_override: dict[str, Any] | None = None
+    if args.llm_entity_extraction:
+        le_override = {"enabled": True}
+
     rr_override: dict[str, Any] | None = None
     if args.reranker_provider:
         rr_override = {"enabled": True, "provider": args.reranker_provider}
@@ -496,7 +537,9 @@ def main() -> None:
         embedder_override=embedder_override,
         self_consistency_override=sc_override,
         contextual_embedding_override=ce_override,
+        llm_entity_extraction_override=le_override,
         reranker_override=rr_override,
+        long_context=args.long_context,
         parallel=args.parallel,
     )
 

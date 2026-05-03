@@ -212,6 +212,16 @@ stack:
       2: 0.10
     graph_unreachable_penalty: -0.05
 
+    # Long-context fit mode (alternate Step 6). Callers opt in per
+    # recall via ``mem.recall(query, long_context=True)``; this YAML
+    # key is just the default cap when the caller doesn't pass an
+    # explicit ``long_context_max_tokens``. Sized for 1M-context
+    # answerers (Claude Sonnet 4.6 / Opus 4.x / Gemini 2 Pro) — leaves
+    # ~800k tokens for system prompt + question + downstream reasoning.
+    # When ``long_context=True``, MMR (Step 5) is skipped and Step 6
+    # packs the top-K reranked candidates verbatim up to this cap.
+    long_context_default_max_tokens: 200000
+
     # Multi-query lane. When enabled, the orchestrator rewrites the
     # question into N paraphrases via a single LLM call and RRF-merges
     # N+1 vector searches before the rest of the cascade.
@@ -274,6 +284,34 @@ stack:
         model: rerank-english-v3.0
       llm:
         model: anthropic/claude-haiku-4.5
+
+    # Multi-hop / global-query lane (Microsoft GraphRAG-style). The
+    # 6-step cascade above is great for LOCAL queries ("what did I say
+    # about X?") but fails on GLOBAL queries that span many memories
+    # ("summarize my interactions with X over 6 months", "what are my
+    # recurring concerns?", "what trips have I taken across 8 months?").
+    #
+    # When enabled, recall() runs a cheap regex/LLM classifier; if the
+    # query is "global", it short-circuits the 6-step cascade and
+    # instead:
+    #   1. Pulls candidate entities from the user's Neo4j subgraph.
+    #   2. Runs Leiden community detection (gds.leiden.stream).
+    #   3. For each top community, fetches the underlying memories from
+    #      Postgres and asks an LLM for a cluster-level summary.
+    #   4. Returns those summaries as RetrievalResult objects with
+    #      category="global_summary".
+    #
+    # Disabled by default → byte-identical to the 6-step cascade. Cost
+    # at the default cap of 8 clusters: ~$0.0001 classifier + 8 ×
+    # ~$0.005 summaries ≈ $0.04 / global query.
+    global_query:
+      enabled: false
+      classifier_model: anthropic/claude-haiku-4.5
+      summary_model: anthropic/claude-haiku-4.5
+      max_clusters: 8
+      max_entities_per_cluster: 20
+      subgraph_depth: 2
+      cost_per_summary_usd: 0.005
 
   budget: 4000   # tokens for the pack sent to the answerer
 
@@ -339,6 +377,24 @@ stack:
       max_prefix_chars: 200     # hard cap on the generated prefix
       cache: true               # reuse prefix on duplicate content_hash
 
+    # LLM-driven entity + relation extraction (Mem0/Zep alignment).
+    # The regex-based attestor.graph.extractor returns entity_count=0
+    # for most LME-S content (production traces show entity_names=[]).
+    # When enabled, AgentMemory.add() runs an LLM pass at ingest to
+    # extract proper-noun + value-bearing entities and explicit
+    # relationships, replacing the regex pass for that ingest. On LLM
+    # failure (timeout / malformed JSON) the path degrades to the
+    # regex extractor — never to empty.
+    #
+    # Cost: ~$0.0003 / ingest with claude-haiku-4.5 on LME-S content.
+    # Phase 1 ships disabled — flip per bench cell via this YAML or
+    # the matrix in evals/matrix.yaml.
+    llm_entity_extraction:
+      enabled: false
+      model: anthropic/claude-haiku-4.5
+      timeout_s: 15.0           # per-request deadline (LLM call)
+      cache: true               # process-local cache by content_hash
+
   # Critique-and-revise. When enabled, the answerer runs a three-step
   # pipeline:
   #   1. Initial answer (existing path)
@@ -352,6 +408,29 @@ stack:
     critic_model: null            # null → models.verifier
     revise_model: null            # null → models.answerer
     max_revisions: 1              # hard cap; values > 1 rejected
+
+  # ─── Reflection / consolidation pass ───────────────────────────────
+  # Periodic distillation: many raw episodic memories → a small number
+  # of compact semantic memories. Originals are SUPERSEDED, not deleted
+  # — they stay queryable via timeline() and recall(as_of=...). Each
+  # distilled memory carries `_consolidated_from: [<source_ids>]` and
+  # `_reflection_model` so the chain is auditable.
+  #
+  # This block defaults OFF so installs see no behavior change. Flip
+  # `enabled: true` to wire reflection into the consolidator schedule;
+  # invoke ad-hoc via `mem.consolidate(user_id="<id>")`.
+  #
+  # Cost: ONE LLM call per pass (target ~10 source memories →
+  # 3 distilled). With models.distill = openai/gpt-5.5, expect roughly
+  # $0.05–$0.10 per pass — a back-of-envelope estimate is returned via
+  # ReflectionResult.cost_estimate_usd.
+  consolidation:
+    enabled: false
+    target_count: 5         # number of distilled facts per pass
+    source_limit: 50        # hard cap on source memories per pass
+    since_days: null        # relative lookback (days); null = no lower bound
+    model: null             # null → stack.models.distill
+    dry_run: false          # true → call LLM, skip writes (cost preview only)
 
 # ─── Container image (for cloud deploys) ────────────────────────────────
 # The published image is currently the *introspection-only* MCP stub
