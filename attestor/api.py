@@ -212,6 +212,19 @@ try:
 except ImportError as e:  # pragma: no cover - UI is optional
     logger.warning("UI router unavailable: %s", e)
 
+# Attach the audit explorer at /audit/* + the static /audit.html dashboard.
+# Off by default — opt-in via `ATTESTOR_AUDIT_ENABLED=1` or
+# `audit.dashboard.enabled: true` in configs/attestor.yaml. Mounting only
+# when enabled keeps the surface smaller in single-user installs and lets
+# operators gate the audit trail behind explicit configuration.
+try:
+    from attestor.audit.routes import audit_routes, is_enabled as _audit_enabled
+
+    if _audit_enabled():
+        routes.extend(audit_routes())
+except ImportError as e:  # pragma: no cover - audit module is optional
+    logger.warning("Audit router unavailable: %s", e)
+
 
 def _build_middleware() -> list:
     """Return the Starlette middleware stack for the resolved mode.
