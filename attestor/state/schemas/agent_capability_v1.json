@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent_capability_v1",
+  "title": "Agent Capability (v1)",
+  "description": "Per-agent capability declaration: capability set, token ceiling, allowed tool names.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["capability_set"],
+  "properties": {
+    "capability_set": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "allowed_tools": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  }
+}
