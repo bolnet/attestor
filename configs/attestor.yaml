@@ -432,6 +432,25 @@ stack:
     model: null             # null → stack.models.distill
     dry_run: false          # true → call LLM, skip writes (cost preview only)
 
+# ─── Audit dashboard + recall trace explorer ───────────────────────────
+# The audit explorer reads the JSONL trace log written by `attestor.trace`
+# (toggle via ATTESTOR_TRACE=1) and surfaces it through `/audit/*` REST
+# endpoints + a static `/audit.html` dashboard. Off by default — flip
+# `dashboard.enabled` (or set ATTESTOR_AUDIT_ENABLED=1 in the env) to
+# expose the routes. In HOSTED / SHARED modes the same JWT bearer-token
+# middleware that gates `/recall` also gates `/audit/*`.
+#
+# Endpoints:
+#   GET /audit/recalls?user_id=&namespace=&since=&limit=  → list summaries
+#   GET /audit/recall/{recall_id}                          → full event tree
+#   GET /audit/memory/{memory_id}/access                   → access timeline
+#   GET /audit/user/{user_id}/activity?since=              → aggregate stats
+#   GET /audit.html                                        → static dashboard
+audit:
+  dashboard:
+    enabled: false                  # opt-in; flip true to mount /audit/*
+  trace_log_path: ~/.attestor/trace.jsonl   # default ATTESTOR_TRACE_FILE
+
 # ─── Container image (for cloud deploys) ────────────────────────────────
 # The published image is currently the *introspection-only* MCP stub
 # (Glama listing). For Path B cloud deploys we build a separate

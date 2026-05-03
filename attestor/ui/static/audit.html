@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Attestor — Audit &amp; Recall Trace Explorer</title>
+  <meta name="description" content="Forensic recall-trace explorer: every recall an Attestor agent ever did, with lane breakdown, scoring, and result provenance." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
+    .lane-pill{display:inline-block;padding:1px 8px;border-radius:9999px;font-size:11px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;}
+    .lane-vector{background:#dbeafe;color:#1e3a8a;}
+    .lane-bm25{background:#dcfce7;color:#166534;}
+    .lane-graph{background:#fae8ff;color:#86198f;}
+    .lane-reranker{background:#fef3c7;color:#854d0e;}
+    .lane-mmr{background:#f1f5f9;color:#334155;}
+    .lane-other{background:#f1f5f9;color:#475569;}
+    tr.row:hover{background:#f8fafc;cursor:pointer;}
+    .modal-bg{background:rgba(15,23,42,.55);backdrop-filter:blur(2px);}
+    pre.evjson{font-size:11px;line-height:1.5;}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <header class="border-b border-slate-200 bg-white">
+    <div class="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-semibold tracking-tight">Attestor — Audit Explorer</h1>
+        <p class="text-sm text-slate-500">Recall trace forensics. Read-only. Source: <span id="src-path" class="mono">trace.jsonl</span></p>
+      </div>
+      <div class="text-xs text-slate-400">
+        <span id="status-pill" class="inline-flex items-center gap-1">
+          <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+          live
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <section class="mx-auto max-w-7xl px-6 py-6">
+    <!-- Filters -->
+    <form id="filters" class="grid grid-cols-1 md:grid-cols-5 gap-3 bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <div>
+        <label class="block text-xs font-medium text-slate-600">User</label>
+        <input id="f-user" type="text" placeholder="any user"
+               class="mt-1 w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600">Namespace</label>
+        <input id="f-ns" type="text" placeholder="any namespace"
+               class="mt-1 w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600">Since (ISO 8601)</label>
+        <input id="f-since" type="text" placeholder="2026-05-01T00:00:00Z"
+               class="mt-1 w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600">Limit</label>
+        <input id="f-limit" type="number" value="100" min="1" max="1000"
+               class="mt-1 w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500" />
+      </div>
+      <div class="flex items-end gap-2">
+        <button type="submit" class="px-3 py-2 rounded-md bg-slate-900 text-white text-sm font-medium hover:bg-slate-700">Refresh</button>
+        <button type="button" id="reset-btn" class="px-3 py-2 rounded-md bg-white border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100">Clear</button>
+      </div>
+    </form>
+
+    <!-- Stats strip -->
+    <div id="stats" class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-white border border-slate-200 rounded-lg p-3"><div class="text-xs text-slate-500">Recalls shown</div><div id="s-count" class="text-2xl font-semibold tracking-tight">—</div></div>
+      <div class="bg-white border border-slate-200 rounded-lg p-3"><div class="text-xs text-slate-500">Avg latency (ms)</div><div id="s-latency" class="text-2xl font-semibold tracking-tight">—</div></div>
+      <div class="bg-white border border-slate-200 rounded-lg p-3"><div class="text-xs text-slate-500">Total cost (USD)</div><div id="s-cost" class="text-2xl font-semibold tracking-tight">—</div></div>
+      <div class="bg-white border border-slate-200 rounded-lg p-3"><div class="text-xs text-slate-500">Distinct users</div><div id="s-users" class="text-2xl font-semibold tracking-tight">—</div></div>
+    </div>
+
+    <!-- Recalls table -->
+    <div class="mt-4 bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50">
+          <tr class="text-xs uppercase tracking-wider text-slate-500">
+            <th class="px-4 py-3 text-left">Started</th>
+            <th class="px-4 py-3 text-left">User</th>
+            <th class="px-4 py-3 text-left">Namespace</th>
+            <th class="px-4 py-3 text-left">Query</th>
+            <th class="px-4 py-3 text-left">Lanes</th>
+            <th class="px-4 py-3 text-right">Results</th>
+            <th class="px-4 py-3 text-right">Latency</th>
+            <th class="px-4 py-3 text-right">Cost</th>
+          </tr>
+        </thead>
+        <tbody id="tbody" class="divide-y divide-slate-200 text-sm"></tbody>
+      </table>
+      <div id="empty-state" class="hidden text-center py-12 text-slate-500 text-sm">
+        No recalls match the current filters.
+      </div>
+    </div>
+
+    <p class="mt-3 text-xs text-slate-400">
+      Endpoints: <span class="mono">GET /audit/recalls</span>,
+      <span class="mono">GET /audit/recall/{id}</span>,
+      <span class="mono">GET /audit/memory/{id}/access</span>,
+      <span class="mono">GET /audit/user/{id}/activity</span>.
+    </p>
+  </section>
+
+  <!-- Recall detail modal -->
+  <div id="modal" class="hidden fixed inset-0 modal-bg z-40 flex items-start justify-center p-6 overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl my-8 border border-slate-200">
+      <header class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+        <div>
+          <h2 class="text-lg font-semibold tracking-tight">Recall <span id="m-rid" class="mono text-slate-500"></span></h2>
+          <p id="m-query" class="text-sm text-slate-600 mt-1"></p>
+        </div>
+        <button id="modal-close" class="rounded-md p-1.5 hover:bg-slate-100" aria-label="Close">
+          <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-slate-500"><path fill-rule="evenodd" d="M4.28 4.22a.75.75 0 011.06 0L10 8.94l4.66-4.72a.75.75 0 011.07 1.05L11.06 10l4.67 4.72a.75.75 0 11-1.06 1.06L10 11.06l-4.66 4.72a.75.75 0 11-1.07-1.06L8.94 10 4.28 5.28a.75.75 0 010-1.06z" clip-rule="evenodd"/></svg>
+        </button>
+      </header>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-6 border-b border-slate-200 bg-slate-50">
+        <div><div class="text-xs text-slate-500">User</div><div id="m-user" class="mono text-sm">—</div></div>
+        <div><div class="text-xs text-slate-500">Namespace</div><div id="m-ns" class="mono text-sm">—</div></div>
+        <div><div class="text-xs text-slate-500">Latency</div><div id="m-latency" class="mono text-sm">—</div></div>
+        <div><div class="text-xs text-slate-500">Cost</div><div id="m-cost" class="mono text-sm">—</div></div>
+      </div>
+
+      <div class="p-6 space-y-6">
+        <div>
+          <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider">Lane Activity</h3>
+          <div id="m-lanes" class="mt-2 flex flex-wrap gap-2"></div>
+        </div>
+
+        <div>
+          <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider">Returned Memories</h3>
+          <ul id="m-results" class="mt-2 divide-y divide-slate-200 border border-slate-200 rounded-md"></ul>
+        </div>
+
+        <div>
+          <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider">Event Trace</h3>
+          <div id="m-events" class="mt-2 space-y-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Memory drill-down modal -->
+  <div id="mem-modal" class="hidden fixed inset-0 modal-bg z-50 flex items-start justify-center p-6 overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl my-8 border border-slate-200">
+      <header class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+        <h2 class="text-lg font-semibold tracking-tight">Memory access timeline — <span id="mm-id" class="mono text-slate-500"></span></h2>
+        <button id="mem-close" class="rounded-md p-1.5 hover:bg-slate-100" aria-label="Close">
+          <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-slate-500"><path fill-rule="evenodd" d="M4.28 4.22a.75.75 0 011.06 0L10 8.94l4.66-4.72a.75.75 0 011.07 1.05L11.06 10l4.67 4.72a.75.75 0 11-1.06 1.06L10 11.06l-4.66 4.72a.75.75 0 11-1.07-1.06L8.94 10 4.28 5.28a.75.75 0 010-1.06z" clip-rule="evenodd"/></svg>
+        </button>
+      </header>
+      <ul id="mm-rows" class="divide-y divide-slate-200"></ul>
+    </div>
+  </div>
+
+  <script src="/ui/static/audit.js"></script>
+</body>
+</html>

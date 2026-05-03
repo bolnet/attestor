@@ -76,6 +76,10 @@ include = [
     # Shipping it inside the wheel means `pip install attestor` is enough
     # for any 2026 agent harness to pick the skill up.
     { path = "skills/*/SKILL.md", format = ["sdist", "wheel"] },
+    # Web UI assets — read-only dashboard, recall explorer, audit dashboard.
+    # FileResponse serves them directly so they MUST be in the wheel.
+    { path = "attestor/ui/static/*", format = ["sdist", "wheel"] },
+    { path = "attestor/ui/templates/*.html", format = ["sdist", "wheel"] },
 ]
 
 [tool.poetry.group.dev.dependencies]

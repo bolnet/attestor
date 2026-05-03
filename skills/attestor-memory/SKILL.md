@@ -405,7 +405,15 @@ Attestor is built for regulated workloads:
 
 - **Bi-temporal storage.** Every memory has both event time (`valid_from` / `valid_until`) and transaction time (`t_created` / `t_expired`). Nothing is deleted on contradiction — the older fact is marked `superseded` and stays queryable forever via `timeline()` and `recall(as_of=...)`.
 - **Provenance signing.** Opt-in Ed25519 signature on every memory (`signing` block in config). `mem.verify_memory(memory_id)` re-checks the signature against the canonical payload.
-- **Audit trail via traces.** OpenTelemetry-style spans on every ingest / recall / supersede call (`attestor/trace.py`). Toggle with `ATTESTOR_TRACE=1`.
+- **Audit trail via traces.** OpenTelemetry-style spans on every ingest / recall / supersede call (`attestor/trace.py`). Toggle with `ATTESTOR_TRACE=1`; point at a JSONL log via `ATTESTOR_TRACE_FILE`.
+- **Audit dashboard.** Set `audit.dashboard.enabled: true` in `configs/attestor.yaml` (or `ATTESTOR_AUDIT_ENABLED=1` in the env) to mount the recall trace explorer:
+  - `GET /audit/recalls?user_id=&namespace=&since=&limit=` — recall summaries (newest first).
+  - `GET /audit/recall/{recall_id}` — full event tree for one recall (lanes, scores, returned ids).
+  - `GET /audit/memory/{memory_id}/access` — every recall that surfaced a given memory.
+  - `GET /audit/user/{user_id}/activity` — recall count, distinct memories, per-lane usage.
+  - `GET /audit.html` — single-page static dashboard (Tailwind CDN, vanilla JS) for visual inspection.
+
+  In HOSTED / SHARED modes the existing `JWTAuthMiddleware` gates the audit surface alongside `/recall` — same bearer-token contract. The dashboard is read-only; it never mutates the JSONL log.
 - **Tenancy.** Postgres row-level security scoped by `user_id`; namespaces are first-class; Neo4j namespace enforcement is partial (graph entity nodes are still global as of v4.0.0 — see CLAUDE.md).
 - **GDPR-compatible erasure.** `purge_user()` issues a CASCADE delete and writes an audit row; export via `export_user()` produces a JSON-portable dump.
 - **No LLM in the critical path.** The recall cascade is fully deterministic — same query, same ranking — which is what regulators want when they audit a recommendation.
