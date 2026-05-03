@@ -22,6 +22,7 @@ mode the user pushed back against in the prior session.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 from dataclasses import dataclass, field
@@ -31,6 +32,8 @@ from typing import Any
 import yaml
 
 from attestor.config import StackConfig
+
+logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────────────────────────────
 # Errors
@@ -272,19 +275,24 @@ def reset_bench() -> None:
 
 
 def print_bench_banner(cfg: BenchCfg, *, run_label: str) -> None:
-    """Print [stack] and [bench] blocks side-by-side at startup."""
+    """Print [stack] and [bench] blocks side-by-side at startup.
+
+    Routes through ``logger.info`` so downstream consumers (CI log
+    capture, structured-log shippers) see the banner with a level and
+    timestamp instead of a raw stdout write.
+    """
     s = cfg.stack
     pg = s.postgres.url.split("@", 1)[-1] if "@" in s.postgres.url else s.postgres.url
-    print(f"[{run_label}]")
-    print(
-        f"  [stack]   embedder={s.embedder.model} ({s.embedder.dimensions}d) "
-        f"· answerer={s.models.answerer} · judge={s.models.judge} "
-        f"· pg={pg} · neo4j={s.neo4j.url}",
+    logger.info("[%s]", run_label)
+    logger.info(
+        "  [stack]   embedder=%s (%dd) · answerer=%s · judge=%s · pg=%s · neo4j=%s",
+        s.embedder.model, s.embedder.dimensions, s.models.answerer,
+        s.models.judge, pg, s.neo4j.url,
     )
-    print(
-        f"  [bench]   variant={cfg.lme.variant} "
-        f"· category={cfg.lme.category or 'ALL'} "
-        f"· sample_limit={cfg.lme.sample_limit or 'full'} "
-        f"· parallel={s.parallel} · budget={s.budget} "
-        f"· output_dir={cfg.lme.output_dir}",
+    logger.info(
+        "  [bench]   variant=%s · category=%s · sample_limit=%s "
+        "· parallel=%d · budget=%d · output_dir=%s",
+        cfg.lme.variant, cfg.lme.category or "ALL",
+        cfg.lme.sample_limit or "full",
+        s.parallel, s.budget, cfg.lme.output_dir,
     )

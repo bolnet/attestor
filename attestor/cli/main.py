@@ -10,6 +10,7 @@ byte-identical.
 from __future__ import annotations
 
 import argparse
+import sys
 
 from attestor.cli._common import _add_backend_args, _suppress_noisy_output
 from attestor.cli.commands.bench import (
@@ -383,8 +384,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if not args.command:
+        # No subcommand → print help and exit 1 so CI / scripts that
+        # check ``$?`` see "bad usage" rather than "success". The
+        # previous fall-through returned 0 silently.
         parser.print_help()
-        return
+        sys.exit(1)
 
     # Dispatch
     handlers = {

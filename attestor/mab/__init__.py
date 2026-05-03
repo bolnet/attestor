@@ -84,14 +84,4 @@ __all__ = [
     "print_mab",
     # Embedding upgrade helper
     "_upgrade_embeddings_for_benchmark",
-    # Internal helpers (kept public for tests + downstream callers)
-    "_EXACT_MATCH_SOURCES",
-    "_extract_answer",
-    "_flatten_answers",
-    "_get_budget_for_source",
-    "_is_exact_source",
-    "_extract_entities_from_context",
-    "_merge_splits",
-    "_merge_splits_overlap",
-    "_rerank_results",
 ]

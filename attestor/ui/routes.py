@@ -302,7 +302,11 @@ def build_routes(templates: Jinja2Templates) -> list[Route]:
             return JSONResponse({"error": "query is required"}, status_code=400)
 
         namespace = body.get("namespace") or None
-        budget = int(body.get("budget", 2000))
+        # Cap on token budget — an unbounded value can request the
+        # retrieval pipeline to pack arbitrarily many memories,
+        # exhausting RAM and Postgres connection time. 100k tokens is
+        # well past the largest legitimate long-context budget.
+        budget = min(int(body.get("budget", 2000)), 100_000)
 
         retrieval = getattr(mem, "_retrieval", None)
         if retrieval is None:
@@ -332,6 +336,22 @@ def build_routes(templates: Jinja2Templates) -> list[Route]:
         date_from = request.query_params.get("from") or None
         date_to = request.query_params.get("to") or None
         as_of = request.query_params.get("as_of") or None
+
+        # Reject malformed dates up-front. The legacy lexicographic
+        # string compares (`created[:10] < date_from`) silently produced
+        # wrong results when a caller passed e.g. "not-a-date" instead
+        # of erroring at the boundary.
+        from datetime import date as _date
+        for label, val in (("from", date_from), ("to", date_to), ("as_of", as_of)):
+            if val is None:
+                continue
+            try:
+                _date.fromisoformat(val[:10])
+            except ValueError:
+                return JSONResponse(
+                    {"error": f"invalid date for '{label}': {val!r}"},
+                    status_code=400,
+                )
 
         try:
             search_status = status if status and status != "all" else None

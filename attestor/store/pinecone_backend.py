@@ -358,7 +358,6 @@ class PineconeBackend:
     def close(self) -> None:
         """Pinecone SDK has no explicit close — connection is
         implicit per-request. Provided for Protocol compliance."""
-        return None
 
     # ── helpers for hermetic test runs ────────────────────────────
 

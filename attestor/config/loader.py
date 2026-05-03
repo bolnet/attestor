@@ -62,7 +62,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
 
     pg = stack_blk.get("postgres") or {}
     neo = stack_blk.get("neo4j") or {}
-    pcn = stack_blk.get("pinecone")  # None when unset → vector role falls back to pgvector
+    pcn = stack_blk.get("pinecone")  # None when unset → vector role lives on the postgres pgvector column (no separate Pinecone backend registered)
     emb = stack_blk.get("embedder") or {}
     models = stack_blk.get("models") or {}
     llm_blk = stack_blk.get("llm") or {}
