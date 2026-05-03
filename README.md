@@ -814,6 +814,24 @@ Then it installs `attestor` via pipx, writes the MCP config, optionally writes `
 
 ---
 
+## Install as a Skill (2026 agent SDKs)
+
+Attestor ships with a canonical `SKILL.md` at [`skills/attestor-memory/SKILL.md`](skills/attestor-memory/SKILL.md). Both Anthropic (`skills-2025-10-02`) and OpenAI's Responses API converged on this format — a markdown file with YAML frontmatter — for distributing reusable agent expertise. The wheel ships the SKILL.md, so every 2026-grade harness can auto-discover it after a single `pip install attestor`.
+
+The skill teaches the agent the six core primitives (`recall`, `add`, `timeline`, `current_facts`, `forget`, `audit`) plus the v4 enterprise surface (bi-temporal `as_of` replay, RBAC roles, namespace isolation, provenance signing, GDPR export / purge). Every code example references methods that actually exist on `attestor.AgentMemory`, and a CI test (`tests/test_skill_md.py`) keeps the SKILL.md from drifting from the live API.
+
+To pin the contract in your own host:
+
+```bash
+pip install attestor
+python -c "import attestor, importlib.resources as r; print(r.files('attestor'))"   # confirm wheel installed
+# Point your agent harness at the bundled SKILL.md or read it directly:
+python -c "from pathlib import Path; import attestor; \
+  print((Path(attestor.__file__).parent.parent / 'skills' / 'attestor-memory' / 'SKILL.md').read_text())"
+```
+
+---
+
 ## Evaluation
 
 > **Boundary statement.** The dual-LLM judge stack is a **benchmarking** mechanism, *not* the runtime contract. Recall in production is single-pipeline and deterministic. Multiple judges score answers in evaluation only — never in user-facing reads.
