@@ -130,6 +130,42 @@ class Session:
 # caller working until Phase 1 lands.
 
 
+# ── Hierarchical memory layers (2026 best-practice: Letta / LangGraph / Mem0) ──
+# Memory.layer classifies the *intent* of a memory, separate from category:
+#
+#   episodic   — what happened in conversation (default; conversational rounds)
+#   semantic   — what is true (distilled facts; reflection / consolidation)
+#   procedural — how to do things (skills, workflows, recipes)
+#   working    — session-scoped, ephemeral (auto-purged on session end; the
+#                cron path is out of scope for this PR — column + plumbing only)
+#
+# Layer is a CLOSED vocabulary — invalid values raise at the boundary so a
+# typo can't silently land in the DB.
+LAYER_EPISODIC: str = "episodic"
+LAYER_SEMANTIC: str = "semantic"
+LAYER_PROCEDURAL: str = "procedural"
+LAYER_WORKING: str = "working"
+LAYER_DEFAULT: str = LAYER_EPISODIC
+
+VALID_LAYERS: frozenset[str] = frozenset({
+    LAYER_EPISODIC, LAYER_SEMANTIC, LAYER_PROCEDURAL, LAYER_WORKING,
+})
+
+
+def _validate_layer(value: str) -> None:
+    """Raise ValueError if ``value`` is not in :data:`VALID_LAYERS`.
+
+    The error message lists every allowed layer so the caller doesn't have
+    to look it up. Used at every system boundary that accepts a layer
+    string (Memory.__post_init__, AgentMemory.add, AgentMemory.recall).
+    """
+    if value not in VALID_LAYERS:
+        valid = ", ".join(sorted(VALID_LAYERS))
+        raise ValueError(
+            f"invalid layer {value!r}; must be one of: {valid}"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class Memory:
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
@@ -140,6 +176,12 @@ class Memory:
     category: str = "general"
     entity: str | None = None
     namespace: str = "default"   # legacy v3; derived from user/project/session in v4
+
+    # Hierarchical memory layer (2026 best-practice).
+    # See LAYER_* constants above. Default = 'episodic' so existing callers
+    # that don't pass a layer keep their conversational-round behavior.
+    # Validated in __post_init__ — ``Memory(layer='garbage')`` raises.
+    layer: str = LAYER_DEFAULT
 
     # v4 tenancy (Optional → backward-compat with v3 callers)
     user_id: str | None = None
@@ -189,6 +231,12 @@ class Memory:
 
     # Extensible
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # Closed-vocabulary check at the dataclass boundary — typos in
+        # caller code (`layer="proceduiral"`) fail loudly here rather
+        # than landing in the DB and getting filtered out at recall time.
+        _validate_layer(self.layer)
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> Memory:
@@ -243,6 +291,15 @@ class Memory:
         if _ns_from_row is None:
             _md_for_ns = metadata if isinstance(metadata, dict) else {}
             _ns_from_row = _md_for_ns.get("_namespace", "default")
+
+        # Layer column was added in the hierarchical-layers PR. Pre-existing
+        # rows (and v4 rows from before the migration) won't have it; default
+        # them to ``episodic``. We also coerce unknown values to ``episodic``
+        # rather than crashing on the read path — a corrupted DB row should
+        # be inert, not poison every recall.
+        _layer_from_row = row.get("layer")
+        if not isinstance(_layer_from_row, str) or _layer_from_row not in VALID_LAYERS:
+            _layer_from_row = LAYER_DEFAULT
         return cls(
             id=str(row["id"]),
             content=row["content"],
@@ -250,6 +307,7 @@ class Memory:
             category=row.get("category", "general"),
             entity=row.get("entity"),
             namespace=_ns_from_row,
+            layer=_layer_from_row,
             user_id=_maybe_str(row.get("user_id")),
             project_id=_maybe_str(row.get("project_id")),
             session_id=_maybe_str(row.get("session_id")),
@@ -288,6 +346,7 @@ class Memory:
             "category": self.category,
             "entity": self.entity,
             "namespace": self.namespace,
+            "layer": self.layer,
             "user_id": self.user_id,
             "project_id": self.project_id,
             "session_id": self.session_id,

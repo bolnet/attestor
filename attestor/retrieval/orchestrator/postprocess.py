@@ -22,6 +22,7 @@ from attestor.retrieval.scorer import (
     deduplicate,
     entity_boost,
     fit_to_budget,
+    layer_boost,
     mmr_rerank,
     temporal_boost,
 )
@@ -348,6 +349,11 @@ class _OrchestratorPostProcessMixin:
         results = deduplicate(results)
         results = temporal_boost(results, enabled=self.enable_temporal_boost)
         results = entity_boost(results, question_entities or None)
+        # Layer-aware tiebreaker (~0.05 semantic > episodic). Tunable via
+        # ``self.layer_weights`` (None = scorer default, empty dict = no-op).
+        results = layer_boost(
+            results, weights=getattr(self, "layer_weights", None),
+        )
 
         # ── Step 4: MMR diversity ──
         # Skipped when long_context=True — the downstream 1M-context

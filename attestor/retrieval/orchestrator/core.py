@@ -124,6 +124,12 @@ class RetrievalOrchestrator(
         self.reranker_cfg = None  # type: ignore[assignment]
         self.reranker = None  # type: ignore[assignment]
 
+        # Layer-aware tiebreaker weights (hierarchical memory layers PR).
+        # ``None`` → scorer's :data:`DEFAULT_LAYER_WEIGHTS`. Empty dict → no-op.
+        # Pull from ``configs/attestor.yaml`` ``stack.memory.layers.weights``
+        # when present so the boost is tunable without code edits.
+        self.layer_weights: dict[str, float] | None = None
+
     # ── Public API ──
 
     def recall(

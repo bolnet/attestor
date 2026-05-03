@@ -184,6 +184,7 @@ class PostgresBackend(
                     category TEXT NOT NULL DEFAULT 'general',
                     entity TEXT,
                     namespace TEXT NOT NULL DEFAULT 'default',
+                    layer TEXT NOT NULL DEFAULT 'episodic',
                     created_at TEXT NOT NULL,
                     event_date TEXT,
                     valid_from TEXT NOT NULL,
@@ -198,12 +199,15 @@ class PostgresBackend(
                 );
             """)
             # Backfill: ALTER for pre-existing v3 schemas missing the
-            # content_hash / access tracking columns added 2026-05-03.
+            # content_hash / access tracking columns added 2026-05-03,
+            # and the hierarchical ``layer`` column (added 2026-05-03 in
+            # the memory-layers PR — see attestor/models.py).
             cur.execute(
                 "ALTER TABLE memories "
                 "ADD COLUMN IF NOT EXISTS content_hash TEXT, "
                 "ADD COLUMN IF NOT EXISTS access_count INTEGER NOT NULL DEFAULT 0, "
-                "ADD COLUMN IF NOT EXISTS last_accessed TEXT"
+                "ADD COLUMN IF NOT EXISTS last_accessed TEXT, "
+                "ADD COLUMN IF NOT EXISTS layer TEXT NOT NULL DEFAULT 'episodic'"
             )
         # Indexes
         for col in ["status", "category", "entity", "created_at"]:
@@ -215,6 +219,12 @@ class PostgresBackend(
         self._execute(
             "CREATE INDEX IF NOT EXISTS idx_memories_content_hash "
             "ON memories (content_hash) WHERE content_hash IS NOT NULL"
+        )
+        # Hierarchical-layer filter index (default recall pushes down a
+        # layer filter via _PostgresDocumentMixin.list_memories).
+        self._execute(
+            "CREATE INDEX IF NOT EXISTS idx_memories_layer "
+            "ON memories (layer)"
         )
         # HNSW index for vector cosine search
         self._execute("""

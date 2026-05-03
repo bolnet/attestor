@@ -5,11 +5,13 @@ version: 4.0.0
 capabilities:
   - memory.recall
   - memory.add
+  - memory.add_skill
   - memory.timeline
   - memory.supersede
   - memory.consolidate
   - memory.forget
   - memory.audit
+  - memory.layers
   - memory.state
   - memory.global_query
 license: MIT
@@ -102,8 +104,9 @@ The skill exposes six primitives on `attestor.AgentMemory`. Every signature belo
 
 | Method | Purpose |
 | --- | --- |
-| `add(content, tags, category, entity, namespace, event_date, confidence, metadata, ...)` | Persist one fact. Auto-detects contradictions and supersedes the older one. Returns the stored `Memory`. |
-| `recall(query, budget, namespace, user_id, as_of, time_window, *, long_context, long_context_max_tokens)` | Six-step retrieval cascade (vector + BM25 + RRF + graph + MMR + token-budget pack). Returns `list[RetrievalResult]`. Pass `long_context=True` to skip MMR + greedy-fit and pack the top-K candidates verbatim up to `long_context_max_tokens` (default 200_000) — designed for 1M-context downstream answerers (Claude Sonnet 4.6 / Opus 4.x / Gemini 2 Pro). |
+| `add(content, tags, category, entity, namespace, event_date, confidence, metadata, layer='episodic', ...)` | Persist one fact. Auto-detects contradictions and supersedes the older one. Returns the stored `Memory`. |
+| `add_skill(name, content, ...)` | Convenience wrapper for procedural memories (workflows / recipes / how-to). Sets `layer='procedural'`, `category='skill'`, `entity=name`. |
+| `recall(query, budget, namespace, user_id, as_of, time_window, layers=('episodic','semantic'), *, long_context, long_context_max_tokens)` | Six-step retrieval cascade (vector + BM25 + RRF + graph + MMR + token-budget pack). Default `layers` filter returns the natural answer to "what do I know about X". Pass `long_context=True` to skip MMR + greedy-fit and pack the top-K candidates verbatim up to `long_context_max_tokens` (default 200_000) — designed for 1M-context downstream answerers (Claude Sonnet 4.6 / Opus 4.x / Gemini 2 Pro). Returns `list[RetrievalResult]`. |
 | `timeline(entity, namespace)` | Chronological replay of every memory about an entity (active + superseded). Returns `list[Memory]`. |
 | `current_facts(category, entity, namespace)` | Active, non-superseded memories only. The "what does the agent believe right now" view. |
 | `forget(memory_id)` / `forget_before(date)` | Archive a single memory by id, or every memory created before a date. Returns `bool` / `int`. |
@@ -354,6 +357,36 @@ result = mem.purge_user("user-1234", reason="gdpr_request",
 # Verify it landed in the audit trail.
 recent = mem.deletion_audit_log(limit=10)
 ```
+
+## Hierarchical memory layers
+
+Attestor classifies every memory into one of four layers (closed vocabulary, validated at write time):
+
+| Layer | Purpose | Set by |
+| --- | --- | --- |
+| `episodic` | What happened — conversational rounds, raw observations. The default. | `add(...)` without an explicit `layer=` arg |
+| `semantic` | What is true — distilled facts, stable preferences, refined beliefs. | The reflection / consolidation pipeline (`apply_decisions` defaults to `semantic`) |
+| `procedural` | How to do things — skills, workflows, recipes. | `add_skill(name, content)` (or `add(..., layer='procedural')`) |
+| `working` | Session-scoped, ephemeral. Auto-purged on session end (cron path lands in a follow-up PR). | `add(..., layer='working')` |
+
+Default `recall(query)` returns `episodic` + `semantic` — the natural answer to "what do I know about X". Pass `layers=('procedural',)` to query just one layer, or `layers=None` to query every layer.
+
+```python
+mem.add("user said 'I prefer Python'", layer="episodic")          # what happened
+mem.add("user prefers Python", layer="semantic", entity="user")    # what is true
+mem.add_skill("deploy-flow", "1. push  2. tag  3. release")        # how to deploy
+
+# default recall = episodic + semantic
+mem.recall("user language")                                         # → episodic + semantic hits
+
+# explicit procedural query
+mem.recall("how do I deploy", layers=("procedural",))               # → procedural only
+
+# unrestricted (every layer)
+mem.recall("anything", layers=None)
+```
+
+Layer-aware scoring applies a small (~0.05) tiebreaker boost to semantic memories over episodic ones — the value lives in `attestor.retrieval.scorer.DEFAULT_LAYER_WEIGHTS` and can be overridden per-orchestrator-instance via `orch.layer_weights = {...}`.
 
 ## Configuration
 

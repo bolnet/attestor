@@ -334,6 +334,30 @@ stack:
     voter: majority           # majority | judge_pick
     judge_model: null         # null → models.judge
 
+  # ─── Hierarchical memory layers ──────────────────────────────────────
+  # Closed vocabulary, validated at write: episodic | semantic | procedural | working.
+  #   - episodic   — what happened (default; conversational rounds)
+  #   - semantic   — what is true (distilled facts; reflection pipeline)
+  #   - procedural — how to do things (skills, workflows, recipes)
+  #   - working    — session-scoped, ephemeral
+  #
+  # Default recall returns episodic + semantic — the natural answer to
+  # "what do I know about X". Pass ``layers=...`` to AgentMemory.recall
+  # to override per-call.
+  #
+  # ``weights`` are additive score boosts applied as a tiebreaker after
+  # the deterministic cascade. A small positive on ``semantic`` lets
+  # distilled facts edge out raw episodic mentions of the same content
+  # without overriding strong vector / BM25 signals.
+  memory:
+    layers:
+      default_recall: ["episodic", "semantic"]
+      weights:
+        episodic:   0.0
+        semantic:   0.05
+        procedural: 0.0
+        working:    0.0
+
   # ─── Ingest pipeline (write-path transforms) ────────────────────────
   # Contextual embedding (Anthropic, Sept 2024 — "Contextual Retrieval"):
   # at write time, run a small LLM pre-pass that writes 1-2 sentences

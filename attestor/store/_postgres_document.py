@@ -31,6 +31,7 @@ class _PostgresDocumentMixin:
             "category": memory.category,
             "entity": memory.entity,
             "namespace": memory.namespace,
+            "layer": memory.layer,
             "created_at": memory.created_at,
             "event_date": memory.event_date,
             "valid_from": memory.valid_from,
@@ -88,7 +89,7 @@ class _PostgresDocumentMixin:
                 """
                 INSERT INTO memories (
                     user_id, project_id, session_id, scope,
-                    content, content_hash, tags, category, entity,
+                    content, content_hash, tags, category, entity, layer,
                     confidence, status,
                     valid_from, valid_until,
                     superseded_by,
@@ -98,7 +99,7 @@ class _PostgresDocumentMixin:
                 )
                 VALUES (
                     %(user_id)s, %(project_id)s, %(session_id)s, %(scope)s,
-                    %(content)s, %(content_hash)s, %(tags)s, %(category)s, %(entity)s,
+                    %(content)s, %(content_hash)s, %(tags)s, %(category)s, %(entity)s, %(layer)s,
                     %(confidence)s, %(status)s,
                     COALESCE(%(valid_from)s::timestamptz, NOW()),
                     %(valid_until)s::timestamptz,
@@ -129,10 +130,10 @@ class _PostgresDocumentMixin:
         self._execute(
             """
             INSERT INTO memories (id, content, content_hash, tags, category,
-                entity, namespace, created_at, event_date, valid_from,
+                entity, namespace, layer, created_at, event_date, valid_from,
                 valid_until, superseded_by, confidence, status, metadata)
             VALUES (%(id)s, %(content)s, %(content_hash)s, %(tags)s,
-                %(category)s, %(entity)s, %(namespace)s, %(created_at)s,
+                %(category)s, %(entity)s, %(namespace)s, %(layer)s, %(created_at)s,
                 %(event_date)s, %(valid_from)s, %(valid_until)s,
                 %(superseded_by)s, %(confidence)s, %(status)s,
                 %(metadata)s::jsonb)
@@ -177,6 +178,7 @@ class _PostgresDocumentMixin:
                     tags          = %(tags)s,
                     category      = %(category)s,
                     entity        = %(entity)s,
+                    layer         = %(layer)s,
                     valid_from    = COALESCE(%(valid_from)s::timestamptz, valid_from),
                     valid_until   = %(valid_until)s::timestamptz,
                     superseded_by = %(superseded_by)s,
@@ -192,7 +194,7 @@ class _PostgresDocumentMixin:
         self._execute("""
             UPDATE memories SET
                 content = %(content)s, tags = %(tags)s, category = %(category)s,
-                entity = %(entity)s, namespace = %(namespace)s,
+                entity = %(entity)s, namespace = %(namespace)s, layer = %(layer)s,
                 created_at = %(created_at)s,
                 event_date = %(event_date)s, valid_from = %(valid_from)s,
                 valid_until = %(valid_until)s, superseded_by = %(superseded_by)s,
@@ -218,6 +220,7 @@ class _PostgresDocumentMixin:
         before: str | None = None,
         limit: int = 100,
         requester_agent_id: str | None = None,
+        layer: str | list[str] | tuple[str, ...] | None = None,
     ) -> list[Memory]:
         # v4 schema replaces the v3 ``created_at`` text column with the
         # bi-temporal ``t_created`` (TIMESTAMPTZ). Use the right one per
@@ -247,6 +250,17 @@ class _PostgresDocumentMixin:
             else:
                 filters.append("namespace = %(namespace)s")
             params["namespace"] = namespace
+
+        # Hierarchical-layer filter (episodic / semantic / procedural / working).
+        # Single value → equality; iterable → ANY(...) so default recall can
+        # push down a (episodic, semantic) filter without two round-trips.
+        if layer is not None:
+            if isinstance(layer, str):
+                filters.append("layer = %(layer)s")
+                params["layer"] = layer
+            else:
+                filters.append("layer = ANY(%(layer)s)")
+                params["layer"] = list(layer)
 
         # Phase 5 — recall_started_at ceiling: when an active recall
         # scope is open, no writes that landed after the recall began
