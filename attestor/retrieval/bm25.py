@@ -56,11 +56,19 @@ class BM25Lane:
         active_only: bool = True,
         as_of: datetime | None = None,
         time_window: Any | None = None,
+        namespace: str | None = None,
     ) -> list[BM25Hit]:
         """Return the top BM25-ranked memory ids for ``query``.
 
-        RLS scopes the search automatically — the caller must already
-        have set ``attestor.current_user_id`` on the connection.
+        RLS scopes the search by ``user_id`` automatically — the caller
+        must already have set ``attestor.current_user_id`` on the
+        connection. RLS does NOT filter by ``namespace`` (the v4 schema
+        has no namespace column; sub-tenancy lives in
+        ``metadata->>'_namespace'``). Callers that use namespace as a
+        sub-tenancy key (LME bench: one user, many per-sample
+        namespaces) MUST pass ``namespace=...`` here, otherwise BM25
+        leaks rows across namespaces — same shape as the bug PR #77
+        fixed for vector search. See test_tenancy_rbac_gaps.
 
         Phase 5.2 — bi-temporal filters (roadmap §C.2/§C.3):
           time_window → tstzrange(valid_from, valid_until) && tstzrange
@@ -76,6 +84,13 @@ class BM25Lane:
         where: list[str] = ["content_tsv @@ websearch_to_tsquery('english', %(q)s)"]
         if active_only:
             where.append("status = 'active'")
+        if namespace is not None:
+            # v4 only — v3 BM25 callers pre-date the metadata-namespace
+            # convention. The FTS column itself is v4-only (the
+            # ``content_tsv`` ALTER lives in the v4 schema), so this
+            # branch only ever runs against v4 rows in practice.
+            where.append("metadata->>'_namespace' = %(namespace)s")
+            params["namespace"] = namespace
         if as_of is not None:
             where.append(
                 "t_created <= %(as_of)s "

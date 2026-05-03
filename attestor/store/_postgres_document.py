@@ -139,10 +139,26 @@ class _PostgresDocumentMixin:
         )
         return memory
 
-    def get(self, memory_id: str) -> Memory | None:
-        rows = self._execute(
-            "SELECT * FROM memories WHERE id = %s", (memory_id,)
-        )
+    def get(
+        self,
+        memory_id: str,
+        requester_agent_id: str | None = None,
+    ) -> Memory | None:
+        # ``requester_agent_id`` (Gap A1) — when supplied, drop rows where
+        # ``visibility='private' AND agent_id != requester_agent_id`` so
+        # the per-id read path can't be used as a cross-agent visibility
+        # bypass. When omitted, behavior unchanged (admin / single-tenant
+        # single-agent flows).
+        if requester_agent_id is not None and self._v4:
+            rows = self._execute(
+                "SELECT * FROM memories WHERE id = %s "
+                "AND (visibility != 'private' OR agent_id = %s)",
+                (memory_id, requester_agent_id),
+            )
+        else:
+            rows = self._execute(
+                "SELECT * FROM memories WHERE id = %s", (memory_id,)
+            )
         if not rows:
             return None
         return self._row_to_memory(rows[0])
@@ -199,6 +215,7 @@ class _PostgresDocumentMixin:
         after: str | None = None,
         before: str | None = None,
         limit: int = 100,
+        requester_agent_id: str | None = None,
     ) -> list[Memory]:
         # v4 schema replaces the v3 ``created_at`` text column with the
         # bi-temporal ``t_created`` (TIMESTAMPTZ). Use the right one per
@@ -246,6 +263,18 @@ class _PostgresDocumentMixin:
             filters.append(f"{time_col} <= %(before)s")
             params["before"] = before
 
+        # Visibility filter (Gap A1). v4 carries the visibility column;
+        # when caller passes ``requester_agent_id`` we drop rows that
+        # are PRIVATE and belong to a different agent. When the caller
+        # doesn't pass one (admin / single-tenant flows) the filter is
+        # omitted to preserve backward compat.
+        if requester_agent_id is not None and self._v4:
+            filters.append(
+                "(visibility != 'private' "
+                "OR agent_id = %(requester_agent_id)s)"
+            )
+            params["requester_agent_id"] = requester_agent_id
+
         where = " AND ".join(filters) if filters else "TRUE"
         rows = self._execute(
             f"SELECT * FROM memories WHERE {where} "
@@ -260,7 +289,15 @@ class _PostgresDocumentMixin:
         category: str | None = None,
         namespace: str | None = None,
         limit: int = 20,
+        requester_agent_id: str | None = None,
     ) -> list[Memory]:
+        # v4 schema dropped the ``namespace`` column (lives in
+        # metadata->>'_namespace' instead) and replaced ``created_at TEXT``
+        # with ``t_created TIMESTAMPTZ``. Pre-fix this method referenced
+        # the v3 columns and crashed with UndefinedColumn on every v4 call.
+        # See test_tenancy_rbac_gaps.test_v4_tag_search_*.
+        time_col = "t_created" if self._v4 else "created_at"
+
         params: dict[str, Any] = {"tags": tags, "lim": limit}
         filters = [
             "status = 'active'",
@@ -271,12 +308,26 @@ class _PostgresDocumentMixin:
             filters.append("category = %(category)s")
             params["category"] = category
         if namespace:
-            filters.append("namespace = %(namespace)s")
+            if self._v4:
+                filters.append("metadata->>'_namespace' = %(namespace)s")
+            else:
+                filters.append("namespace = %(namespace)s")
             params["namespace"] = namespace
+
+        # Visibility filter (Gap A1). Only added when caller passes a
+        # ``requester_agent_id`` — preserves backward compat for the
+        # admin / single-tenant call sites that don't constrain.
+        if requester_agent_id is not None and self._v4:
+            filters.append(
+                "(visibility != 'private' "
+                "OR agent_id = %(requester_agent_id)s)"
+            )
+            params["requester_agent_id"] = requester_agent_id
 
         where = " AND ".join(filters)
         rows = self._execute(
-            f"SELECT * FROM memories WHERE {where} ORDER BY created_at DESC LIMIT %(lim)s",
+            f"SELECT * FROM memories WHERE {where} "
+            f"ORDER BY {time_col} DESC LIMIT %(lim)s",
             params,
         )
         return [self._row_to_memory(r) for r in rows]

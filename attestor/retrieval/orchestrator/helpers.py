@@ -306,10 +306,19 @@ class _OrchestratorHelpersMixin:
         query: str,
         as_of: Any | None,
         time_window: Any | None,
+        namespace: str | None = None,
     ) -> list[BM25Hit]:
         """BM25 lane (Postgres FTS or in-memory rank_bm25 in
         experiments). Runs alongside the vector lane; fused via RRF
-        in step 2b. No-op when the lane isn't configured."""
+        in step 2b. No-op when the lane isn't configured.
+
+        ``namespace`` (Gap A2) — when set, the BM25 lane filters by
+        ``metadata->>'_namespace'`` so multi-namespace single-user
+        deployments (LME-S) don't leak across samples. The legacy
+        ``BM25Lane.search`` signature didn't accept ``namespace`` at
+        all; experiment lanes that still don't are tolerated via
+        TypeError fallback below.
+        """
         from attestor import trace as _tr
         bm25_hits_raw: list[BM25Hit] = []
         if self.bm25_lane is not None:
@@ -318,11 +327,25 @@ class _OrchestratorHelpersMixin:
                     query, limit=self.bm25_top_k,
                     min_rank=self.bm25_min_rank,
                     as_of=as_of, time_window=time_window,
+                    namespace=namespace,
                     # When replaying past belief OR slicing an event-time
                     # window, superseded rows are valid answers; drop the
                     # current-state filter.
                     active_only=(as_of is None and time_window is None),
                 )
+            except TypeError:
+                # Older experiment lanes (rank_bm25 in-memory shim) that
+                # don't yet accept ``namespace`` — fall back to the
+                # legacy call so the orchestrator stays drop-in.
+                try:
+                    bm25_hits_raw = self.bm25_lane.search(
+                        query, limit=self.bm25_top_k,
+                        min_rank=self.bm25_min_rank,
+                        as_of=as_of, time_window=time_window,
+                        active_only=(as_of is None and time_window is None),
+                    )
+                except Exception:
+                    bm25_hits_raw = []
             except Exception:
                 bm25_hits_raw = []
         if _tr.is_enabled():

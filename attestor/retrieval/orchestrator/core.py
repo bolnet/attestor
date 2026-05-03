@@ -168,7 +168,9 @@ class RetrievalOrchestrator(
             )
 
             # ── Step 1b: BM25 lane ──
-            bm25_hits_raw = self._compute_lane_bm25(query, as_of, time_window)
+            bm25_hits_raw = self._compute_lane_bm25(
+                query, as_of, time_window, namespace=namespace,
+            )
 
             # ── Steps 2–6 — extracted into ``_post_process_candidates`` so
             # the same logic is reused by both the sync ``recall()`` and
@@ -244,7 +246,7 @@ class RetrievalOrchestrator(
                     ),
                     asyncio.to_thread(
                         self._compute_lane_bm25,
-                        query, as_of, time_window,
+                        query, as_of, time_window, namespace,
                     ),
                     return_exceptions=True,
                 )
