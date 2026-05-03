@@ -15,10 +15,33 @@ from attestor.hooks.session_start import handle as session_start_handle
 from attestor.hooks.post_tool_use import handle as post_tool_handle
 from attestor.hooks.stop import handle as stop_handle
 
+from .conftest import _build_test_config
+
 pytestmark = pytest.mark.skipif(
     not os.environ.get("POSTGRES_URL"),
     reason="hooks exercise AgentMemory — require POSTGRES_URL",
 )
+
+
+def _write_store_config(attestor_path) -> None:
+    """Drop a config.toml at ``attestor_path`` pointing at the test Postgres.
+
+    Hooks construct ``AgentMemory(store_path)`` without a config arg, which
+    falls back to ENGINE_DEFAULTS (empty password) and fails with
+    ``no password supplied``. Persisting the URL on disk lets the hook's
+    own AgentMemory boot succeed.
+    """
+    from pathlib import Path
+
+    pg_url = os.environ.get("POSTGRES_URL")
+    if not pg_url:
+        return
+    path = Path(attestor_path)
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "config.toml").write_text(
+        'backends = ["postgres"]\n'
+        f'[postgres]\nurl = "{pg_url}"\nembedding_dim = 1024\n'
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -29,8 +52,22 @@ def _isolate_attestor_store(tmp_path, monkeypatch):
     $ATTESTOR_PATH then ~/.attestor. Without this, tests write to (and read
     from) the developer's real home store. Mirror the per-test convention of
     store_path = tmp_path / "proj"; attestor_path = store_path / ".attestor".
+
+    Also resets the shared Postgres test DB so prior tests' rows don't
+    bleed into "empty store" assertions in this run.
     """
     monkeypatch.setenv("ATTESTOR_PATH", str(tmp_path / "proj" / ".attestor"))
+
+    pg_url = os.environ.get("POSTGRES_URL")
+    if pg_url:
+        try:
+            import psycopg2
+            with psycopg2.connect(pg_url) as conn:
+                conn.autocommit = True
+                with conn.cursor() as cur:
+                    cur.execute("TRUNCATE memories CASCADE")
+        except Exception:  # pragma: no cover - schema not yet bootstrapped
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -51,10 +88,11 @@ class TestSessionStartHook:
         store_path = tmp_path / "proj"
         store_path.mkdir()
         attestor_path = store_path / ".attestor"
+        _write_store_config(attestor_path)
 
         # Pre-populate memories
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(attestor_path))
+        mem = AgentMemory(str(attestor_path), config=_build_test_config())
         mem.add("User prefers Python over JavaScript", tags=["preference"], category="preference")
         mem.add("Project uses FastAPI framework", tags=["tech"], category="project")
         mem.close()
@@ -69,7 +107,7 @@ class TestSessionStartHook:
         """Verify the 20000 token budget is passed to recall."""
         store_path = tmp_path / "proj"
         store_path.mkdir()
-        store_path / ".attestor"
+        _write_store_config(store_path / ".attestor")
 
         captured_budgets = []
 
@@ -103,6 +141,7 @@ class TestPostToolUseHook:
         store_path = tmp_path / "proj"
         store_path.mkdir()
         attestor_path = store_path / ".attestor"
+        _write_store_config(attestor_path)
 
         payload = {
             "event": "PostToolUse",
@@ -119,7 +158,7 @@ class TestPostToolUseHook:
 
         # Verify memory was stored
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(attestor_path))
+        mem = AgentMemory(str(attestor_path), config=_build_test_config())
         memories = mem.search(limit=10)
         mem.close()
         assert len(memories) >= 1
@@ -129,6 +168,7 @@ class TestPostToolUseHook:
         store_path = tmp_path / "proj"
         store_path.mkdir()
         attestor_path = store_path / ".attestor"
+        _write_store_config(attestor_path)
 
         payload = {
             "event": "PostToolUse",
@@ -144,7 +184,7 @@ class TestPostToolUseHook:
         assert result == {}
 
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(attestor_path))
+        mem = AgentMemory(str(attestor_path), config=_build_test_config())
         memories = mem.search(limit=10)
         mem.close()
         assert len(memories) >= 1
@@ -154,6 +194,7 @@ class TestPostToolUseHook:
         store_path = tmp_path / "proj"
         store_path.mkdir()
         attestor_path = store_path / ".attestor"
+        _write_store_config(attestor_path)
 
         payload = {
             "event": "PostToolUse",
@@ -169,7 +210,7 @@ class TestPostToolUseHook:
         assert result == {}
 
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(attestor_path))
+        mem = AgentMemory(str(attestor_path), config=_build_test_config())
         memories = mem.search(limit=10)
         mem.close()
         assert len(memories) >= 1
@@ -255,10 +296,11 @@ class TestStopHook:
         store_path = tmp_path / "proj"
         store_path.mkdir()
         attestor_path = store_path / ".attestor"
+        _write_store_config(attestor_path)
 
         # Pre-populate with some recent memories (simulating tool captures)
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(attestor_path))
+        mem = AgentMemory(str(attestor_path), config=_build_test_config())
         mem.add("Created/wrote file src/main.py", tags=["file-change", "write"], category="project")
         mem.add("Edited file src/utils.py", tags=["file-change", "edit"], category="project")
         mem.add("Ran command: npm install express", tags=["command"], category="project")
@@ -269,7 +311,7 @@ class TestStopHook:
         assert result == {}
 
         # Verify summary memory was stored
-        mem = AgentMemory(str(attestor_path))
+        mem = AgentMemory(str(attestor_path), config=_build_test_config())
         memories = mem.search(category="session", limit=10)
         mem.close()
         assert len(memories) >= 1
@@ -281,9 +323,10 @@ class TestStopHook:
         store_path = tmp_path / "proj"
         store_path.mkdir()
         attestor_path = store_path / ".attestor"
+        _write_store_config(attestor_path)
 
         from attestor.core import AgentMemory
-        mem = AgentMemory(str(attestor_path))
+        mem = AgentMemory(str(attestor_path), config=_build_test_config())
         mem.add("Created/wrote file a.py", tags=["file-change", "write"], category="project")
         mem.add("Created/wrote file b.py", tags=["file-change", "write"], category="project")
         mem.add("Ran command: pytest", tags=["command"], category="project")
@@ -292,7 +335,7 @@ class TestStopHook:
         payload = {"event": "Stop", "session_id": "s1", "cwd": str(store_path)}
         stop_handle(payload)
 
-        mem = AgentMemory(str(attestor_path))
+        mem = AgentMemory(str(attestor_path), config=_build_test_config())
         memories = mem.search(category="session", limit=10)
         mem.close()
         assert len(memories) >= 1
@@ -310,11 +353,15 @@ class TestStopHook:
 # ---------------------------------------------------------------------------
 
 class TestMcpSubcommand:
-    def test_mcp_parser_accepts_no_args(self):
+    def test_mcp_parser_accepts_no_args(self, monkeypatch):
         """Verify `attestor mcp` parses without positional args."""
         from attestor.cli import main
         from unittest.mock import patch, MagicMock
 
+        # _cmd_mcp_serve does a preflight AgentMemory init against the path.
+        # The throwaway path has no config.toml, so let the init failure be
+        # tolerated — this test only exercises the argparse/dispatch surface.
+        monkeypatch.setenv("ATTESTOR_MCP_TOLERATE_INIT_FAILURE", "1")
         # Mock asyncio.run to avoid actually starting the server
         with patch("attestor.cli.asyncio") as mock_asyncio, \
              patch("attestor.mcp.server.run_server"):
@@ -328,6 +375,7 @@ class TestMcpSubcommand:
     def test_mcp_default_path_resolution(self, monkeypatch):
         """Verify default path uses ATTESTOR_PATH or ~/.attestor."""
         monkeypatch.delenv("ATTESTOR_PATH", raising=False)
+        monkeypatch.setenv("ATTESTOR_MCP_TOLERATE_INIT_FAILURE", "1")
 
         from attestor.cli import main
         from unittest.mock import patch, MagicMock
