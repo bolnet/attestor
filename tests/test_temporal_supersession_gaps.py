@@ -63,21 +63,20 @@ def test_add_with_event_date_sets_valid_from(mem) -> None:
     )
 
 
-# ── Gap 2 — the entity=None short-circuit must NOT silently allow drift ──
+# ── Gap 2 — entity-None fallback via content-skeleton matching ───────────
 
 
 @pytest.mark.integration
-@pytest.mark.xfail(
-    strict=True,
-    reason="TemporalManager.check_contradictions short-circuits on entity=None; "
-    "amount-bearing memories from the LME extractor have no entity tag and "
-    "drift accumulates. Needs a fallback (auto-tag or content-similarity) "
-    "before this can flip green.",
-)
 def test_supersession_falls_back_when_entity_missing(mem) -> None:
-    """Two same-category memories with the same content shape but different
-    values should still supersede even when the extractor failed to tag an
-    entity — that's the production failure for the Wells Fargo sample."""
+    """When the extractor fails to tag an entity, the temporal manager falls
+    back to grouping by content skeleton (numeric-stripped). Two memories
+    with the same template but different values supersede correctly.
+
+    Anti-regression: distinct-skeleton entity-None pairs (e.g. "Likes Python"
+    vs "Likes JavaScript") must NOT trigger this — covered by
+    ``test_no_entity_no_implicit_supersession_but_contradiction_visible``
+    below and by ``test_no_contradiction_without_entity`` in test_temporal.py.
+    """
     cat = f"finance_{_tag()}"
     m1 = mem.add("pre-approved for $350,000", category=cat)
     mem.add("pre-approved for $400,000", category=cat)
