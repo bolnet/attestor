@@ -218,6 +218,18 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             else GlobalQueryCfg()
         )
 
+        # Long-context fit (alternate Step 6) — opt-in per recall via
+        # ``mem.recall(long_context=True)``. The instance-level default
+        # below lets eval harnesses flip the mode on at construction
+        # time (matrix cells with ``long_context: true``) without
+        # touching every call site. Always False by default → legacy
+        # behavior unchanged.
+        self._default_long_context: bool = False
+        self._default_long_context_max_tokens: int = (
+            getattr(_retrieval_cfg, "long_context_default_max_tokens", 200_000)
+            if _retrieval_cfg is not None else 200_000
+        )
+
         # Operation ring buffer for latency observability
         self._ops_log: deque[dict[str, Any]] = deque(maxlen=200)
 
@@ -949,6 +961,9 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         user_id: str | None = None,
         as_of: datetime | None = None,
         time_window: Any | None = None,    # TimeWindow
+        *,
+        long_context: bool = False,
+        long_context_max_tokens: int = 200_000,
     ) -> list[RetrievalResult]:
         """Retrieve relevant memories for a query using 3-layer cascade.
 
@@ -959,7 +974,14 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         v4 + Phase 5.3 — bi-temporal:
           as_of       — point-in-time replay (returns past belief)
           time_window — event-time overlap pre-filter
-        Both pass through to the orchestrator and on to the lanes."""
+        Both pass through to the orchestrator and on to the lanes.
+
+        Long-context mode (``long_context=True``) skips Step 5 (MMR) and
+        swaps Step 6 from greedy fit-to-budget to a high-cap pack
+        (``long_context_max_tokens``, default 200_000). Use when the
+        downstream answerer is a 1M-context model (Claude Sonnet 4.6 /
+        Opus 4.x / Gemini 2 Pro) where diversity penalties hurt quality.
+        Default ``False`` preserves legacy behavior."""
         # v4: route through _resolve() so zero-config recall works in SOLO
         # mode. Recall doesn't autostart a session — read-only ops only need
         # user+project scope.
@@ -1002,6 +1024,19 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             recall_kwargs["as_of"] = as_of
         if time_window is not None:
             recall_kwargs["time_window"] = time_window
+        # Resolve long_context: explicit caller arg wins; otherwise fall
+        # back to the instance default (set by eval harnesses via
+        # ``set_default_long_context()``).
+        effective_long_context = (
+            long_context or getattr(self, "_default_long_context", False)
+        )
+        if effective_long_context:
+            recall_kwargs["long_context"] = True
+            recall_kwargs["long_context_max_tokens"] = (
+                long_context_max_tokens
+                if long_context
+                else getattr(self, "_default_long_context_max_tokens", 200_000)
+            )
         results = self._retrieval.recall(query, token_budget, **recall_kwargs)
         total_ms = round((time.monotonic() - t0) * 1000, 2)
 

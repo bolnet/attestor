@@ -241,6 +241,81 @@ cells:
       cost_usd: 0.10, wall_min: 26,
       note: "Phase 9 GraphRAG lane; mostly local — null-result cell" }
 
+  # ── Long-context fit (alternate Step 6 — skip MMR + greedy-fit) ─────
+  # When ``long_context: true``, recall() skips Step 5 (MMR diversity)
+  # and Step 6 packs the top-K reranked candidates verbatim up to the
+  # configured cap (default 200_000 tokens). Designed for downstream
+  # 1M-context answerers (Claude Sonnet 4.6 / Opus 4.x / Gemini 2 Pro)
+  # where diversity penalties cut genuinely-relevant near-duplicates.
+  # Matched-pair vs GOLDEN per category to isolate the Step-6 swap.
+  - { category: temporal-reasoning,
+      label: "ablation:long_context=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      cost_usd: 0.06, wall_min: 22,
+      note: "Step 6 swap — pack top-K verbatim (200k cap), MMR off" }
+
+  - { category: temporal-reasoning,
+      label: "ablation:long_context=on+reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "long-context fit downstream of BGE rerank — no MMR diversity cut" }
+
+  - { category: multi-session,
+      label: "ablation:long_context=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      cost_usd: 0.06, wall_min: 22,
+      note: "Step 6 swap — pack top-K verbatim (200k cap), MMR off" }
+
+  - { category: multi-session,
+      label: "ablation:long_context=on+reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "long-context fit downstream of BGE rerank — no MMR diversity cut" }
+
+  - { category: knowledge-update,
+      label: "ablation:long_context=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      cost_usd: 0.06, wall_min: 22,
+      note: "Step 6 swap — pack top-K verbatim (200k cap), MMR off" }
+
+  - { category: knowledge-update,
+      label: "ablation:long_context=on+reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "long-context fit downstream of BGE rerank — no MMR diversity cut" }
+
+  - { category: single-session-user,
+      label: "ablation:long_context=on",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      cost_usd: 0.06, wall_min: 22,
+      note: "Step 6 swap — pack top-K verbatim (200k cap), MMR off" }
+
+  - { category: single-session-user,
+      label: "ablation:long_context=on+reranker=bge",
+      samples: 10,
+      embedder: { provider: voyage, model: voyage-4 },
+      long_context: true,
+      reranker_provider: bge,
+      cost_usd: 0.06, wall_min: 24,
+      note: "long-context fit downstream of BGE rerank — no MMR diversity cut" }
+
   # Add more cells here as ablations are designed. Examples to seed:
   #
   # - { category: multi-session, label: "ablation:hyde=off", samples: 10,

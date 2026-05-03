@@ -133,6 +133,9 @@ class RetrievalOrchestrator(
         namespace: str | None = None,
         as_of: Any | None = None,           # datetime; Phase 5.3
         time_window: Any | None = None,     # TimeWindow; Phase 5.3
+        *,
+        long_context: bool = False,
+        long_context_max_tokens: int = 200_000,
     ) -> list[RetrievalResult]:
         """Semantic-first recall with graph narrowing.
 
@@ -145,6 +148,13 @@ class RetrievalOrchestrator(
         Both kwargs are passed through to the vector + BM25 lanes; lanes
         that don't support them ignore them silently. Behavior unchanged
         when both are None.
+
+        Long-context mode (``long_context=True``) swaps Step 6 from the
+        standard greedy fit-to-budget to a high-cap pack
+        (``long_context_max_tokens``, default 200_000) and skips Step 5
+        (MMR). Designed for downstream 1M-context answerers (Claude
+        Sonnet 4.6 / Opus 4.x / Gemini 2 Pro). Default ``False`` preserves
+        legacy behavior exactly.
         """
         # Audit invariants A2 + A5 are enforced via two scopes opened
         # at the very top of the recall — recall_started_at_scope sets
@@ -193,6 +203,8 @@ class RetrievalOrchestrator(
                 bm25_hits_raw=bm25_hits_raw,
                 mq_used=mq_used, path=path,
                 token_budget=token_budget, t_total=t_total,
+                long_context=long_context,
+                long_context_max_tokens=long_context_max_tokens,
             )
 
     # ──────────────────────────────────────────────────────────────────
@@ -218,6 +230,9 @@ class RetrievalOrchestrator(
         namespace: str | None = None,
         as_of: Any | None = None,
         time_window: Any | None = None,
+        *,
+        long_context: bool = False,
+        long_context_max_tokens: int = 200_000,
     ) -> list[RetrievalResult]:
         """Async sibling of ``recall()``. Runs the vector lane and BM25
         lane concurrently via ``asyncio.gather`` + ``asyncio.to_thread``.
@@ -225,6 +240,9 @@ class RetrievalOrchestrator(
         Latency story (with vector ~80ms and BM25 ~50ms):
             sync:  ~130ms (vector → BM25 sequential)
             async:  ~80ms (vector ‖ BM25 under gather, max wins)
+
+        Supports the same long-context kwargs as :meth:`recall` — they
+        affect Steps 5 + 6 only (CPU-bound post-processing).
         """
         from attestor.recall_context import recall_started_at_scope_async
 
@@ -279,6 +297,8 @@ class RetrievalOrchestrator(
                     bm25_hits_raw=bm25_hits_raw,
                     mq_used=mq_used, path=path,
                     token_budget=token_budget, t_total=t_total,
+                    long_context=long_context,
+                    long_context_max_tokens=long_context_max_tokens,
                 )
 
     def recall_as_context(
