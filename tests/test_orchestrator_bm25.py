@@ -19,6 +19,7 @@ import pytest
 
 try:
     import psycopg2
+    import psycopg2.extras  # noqa: F401  — RealDictCursor used by StubDocStore.get
     HAVE_PSYCOPG2 = True
 except ImportError:
     HAVE_PSYCOPG2 = False
