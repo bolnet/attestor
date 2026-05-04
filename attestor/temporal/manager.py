@@ -54,7 +54,16 @@ _VALUE_CONTEXT_PATTERN = re.compile(
     r"\b[\d,]+(?:\.\d+)?\s*"
     r"(?:%|percent|kg|lbs?|mi(?:les)?|km|m|cm|mm|"
     r"hours?|hrs?|days?|years?|yrs?|months?|weeks?|wks?|"
-    r"times?|x/(?:day|week|month)|/(?:day|week|month))\b",
+    r"times?|x/(?:day|week|month)|/(?:day|week|month))\b"
+    r"|"
+    # English frequency / count phrases — "twice a week", "three times
+    # a month", "every other day". Catches knowledge-update value
+    # changes that don't use digits but still imply a quantitative
+    # update ("yoga twice a week" → "yoga three times a week").
+    r"\b(?:once|twice|thrice|"
+    r"one|two|three|four|five|six|seven|eight|nine|ten)"
+    r"\s+(?:times?\s+)?(?:a|per|every)?\s*"
+    r"(?:day|week|month|year)s?\b",
     flags=re.IGNORECASE,
 )
 _TOKEN_PATTERN = re.compile(r"[A-Za-z][A-Za-z\-']{3,}")
@@ -185,13 +194,29 @@ class TemporalManager:
            for plain preference memories.
         """
         if new_memory.entity:
-            candidates = self.store.list_memories(
+            same_entity = self.store.list_memories(
                 status="active",
                 category=new_memory.category,
                 entity=new_memory.entity,
                 namespace=new_memory.namespace,
                 limit=100_000,
             )
+            # Same-entity is necessary but not sufficient — pre-fix this
+            # was the only filter, which over-fired on incremental
+            # updates ("Anjali at Lakeshore" + "Anjali Tue/Thu/Sat
+            # schedule" — both about Anjali, neither contradicts the
+            # other). Require ALSO that the two contents share
+            # structural signal: same skeleton (template + value
+            # change) OR auto-topic intersection (paraphrased value
+            # change). Different aspects of the same entity → no
+            # supersession.
+            new_skel = _content_skeleton(new_memory.content)
+            new_topics = _auto_topics(new_memory.content)
+            candidates = [
+                c for c in same_entity
+                if _content_skeleton(c.content) == new_skel
+                or (new_topics and (_auto_topics(c.content) & new_topics))
+            ]
         else:
             # Entity-None fallback: skeleton match. Narrow by
             # category+namespace, then filter by content-skeleton equality
