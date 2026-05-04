@@ -554,6 +554,41 @@ def test_strip_reasoning_multiline_reasoning() -> None:
     assert final == "final"
 
 
+# ── Regression: numbered/bulleted/ordering answers must NOT be truncated ──
+# Pre-fix the heuristic took only the first non-empty line, dropping every
+# list item past item 1 and breaking the LIST COMPLETENESS contract.
+
+@pytest.mark.unit
+def test_strip_reasoning_preserves_numbered_list() -> None:
+    raw = (
+        "<reasoning>three events ordered</reasoning>\n"
+        "1. Helped friend prepare nursery — Feb 5\n"
+        "2. Helped cousin baby shower — Feb 12\n"
+        "3. Ordered phone case — Feb 18"
+    )
+    reasoning, final = _strip_reasoning(raw)
+    assert reasoning == "three events ordered"
+    assert "1." in final and "2." in final and "3." in final
+
+
+@pytest.mark.unit
+def test_strip_reasoning_preserves_first_then_lastly_prose() -> None:
+    raw = (
+        "<reasoning>r</reasoning>\n"
+        "First, A. Then, B. Lastly, C."
+    )
+    reasoning, final = _strip_reasoning(raw)
+    assert reasoning == "r"
+    assert "Lastly, C" in final
+
+
+@pytest.mark.unit
+def test_strip_reasoning_preserves_bullets() -> None:
+    raw = "<reasoning>r</reasoning>\n- one\n- two\n- three"
+    _, final = _strip_reasoning(raw)
+    assert final.count("- ") == 3
+
+
 @pytest.mark.unit
 def test_answer_prompt_includes_arithmetic_guidance() -> None:
     # Guard against a future edit that silently removes the CoT / date-math section.

@@ -751,11 +751,23 @@ def _extract_retrieved_session_ids(results: list) -> tuple[str, ...]:
     return tuple(out)
 
 
+_LIST_LEAD_RE = __import__("re").compile(
+    r"^\s*(?:\d+[\.\)]|[-*•]|first[,:]?|then|finally|lastly)",
+    __import__("re").IGNORECASE,
+)
+
+
 def _strip_reasoning(raw: str) -> tuple[str, str]:
     """Split an answerer response into (reasoning, final_answer).
 
     Supports the <reasoning>...</reasoning> then final-answer contract.
     If no tags are present, treats the whole string as the final answer.
+
+    Multi-line list answers (numbered, bulleted, or "First, … Then, …
+    Lastly, …" prose) are preserved in full — pre-fix the heuristic
+    truncated to the first non-empty line, dropping every list item
+    after item 1 and silently breaking the LIST COMPLETENESS contract
+    (RC6) for ordering questions.
     """
     if not raw:
         return "", ""
@@ -764,10 +776,22 @@ def _strip_reasoning(raw: str) -> tuple[str, str]:
         return "", raw.strip()
     reasoning = m.group(1).strip()
     after = raw[m.end():].strip()
-    # Some models wrap the final answer in ticks / extra prose — take the
-    # first non-empty line after the reasoning block.
-    for line in after.splitlines():
-        line = line.strip().strip("`").strip()
-        if line:
-            return reasoning, line
-    return reasoning, after
+    if not after:
+        return reasoning, ""
+
+    # Pull the first non-empty line — used to detect list-shaped output.
+    first_nonempty = next(
+        (ln for ln in after.splitlines() if ln.strip()),
+        "",
+    )
+
+    # If the answer starts a list (numbered, bulleted, or ordering
+    # adverb like "First,") return everything — let the judge see all
+    # the items.
+    if _LIST_LEAD_RE.match(first_nonempty):
+        return reasoning, after
+
+    # Single-line answer: strip surrounding backticks/whitespace, drop
+    # trailing prose ("extra elaboration") that some models append.
+    line = first_nonempty.strip().strip("`").strip()
+    return reasoning, line or after
