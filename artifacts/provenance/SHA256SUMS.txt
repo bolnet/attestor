@@ -1,0 +1,2 @@
+d5accf6efff09e938638f6152fd9dba6f9ad9e6198a32b37c8a47d23951cf40a  attestor-4.0.0-py3-none-any.whl
+e0fa2fe82672d550fe533fc44d543bdc2f2c9b0d1d99e8a05fefd93288960031  attestor-4.0.0.tar.gz
