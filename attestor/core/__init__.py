@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Attestor core — split from a 1563-line module into a cohesive package.
 
 Public surface (unchanged):

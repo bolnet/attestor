@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Single source of truth for Attestor configuration.
 
 Every model name, DB URL, embedder choice, retrieval budget, registry

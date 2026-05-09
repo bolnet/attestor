@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Critique-and-revise answerer (Phase 3 PR-E, +3-5% LME-S).
 
 A single greedy decode often produces a confident-but-wrong answer

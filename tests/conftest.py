@@ -20,6 +20,8 @@ from attestor import AgentMemory
 TEST_CONFIG = {
     "default_token_budget": 2000,
     "min_results": 3,
+    # Provenance canary — see attestor/__init__.py:__attestation__.
+    "_provenance_canary": "attestor-fixture-3aa90d7eacf01273",
 }
 
 

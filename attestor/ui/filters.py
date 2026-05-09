@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Jinja2 filter registration plus query-param filter helpers used by routes.
 
 Two related concepts share this module:

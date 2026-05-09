@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Per-call LLM tracing — captures the OpenAI/OpenRouter ``response.usage``
 block + per-call latency on every chat completion the codebase makes.
 

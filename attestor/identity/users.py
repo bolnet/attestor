@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """UserRepo — CRUD against the ``users`` table.
 
 Race-safe first-time provisioning via INSERT ... ON CONFLICT. Soft delete

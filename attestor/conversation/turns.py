@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """ConversationTurn — speaker-tagged verbatim message dataclass.
 
 Roadmap §A.1: a turn is one message. A *round* is a (user_turn,

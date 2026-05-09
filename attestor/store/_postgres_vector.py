@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Postgres vector-role mixin (split from postgres_backend.py).
 
 This module is private — consumers should import ``PostgresBackend`` from

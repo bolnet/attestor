@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Shared embedding providers — single source of truth for all backends.
 
 YAML is authoritative. ``configs/attestor.yaml`` ``stack.embedder.provider``

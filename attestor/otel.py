@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """OpenTelemetry bridge — opt-in spans for the recall pipeline.
 
 Off by default. Enable with one of:

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """AgentMemory — public API for the memory layer.
 
 Composes Identity / Quota / Provenance mixins (split from a 1563-line

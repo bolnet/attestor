@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Latency benchmark for the local Attestor API.
 
 Measures P50/P95/P99 latency for `/add` and `/recall` against the single

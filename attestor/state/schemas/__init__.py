@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """JSON-Schema bundles for the state lane.
 
 Each ``.json`` file here is addressable by its filename stem (e.g.

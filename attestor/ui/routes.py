@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """HTTP route handlers for the Attestor read-only UI.
 
 Handlers are bound to the shared ``Jinja2Templates`` instance via

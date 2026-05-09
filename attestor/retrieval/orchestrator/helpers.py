@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Pipeline helpers for :class:`RetrievalOrchestrator`.
 
 Split from the original ``orchestrator.py`` (1099-line monolith) into a

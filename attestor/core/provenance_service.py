@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Provenance signing mixin for AgentMemory (split from core.py).
 
 Exposes the public verification surface (``verify_memory`` /

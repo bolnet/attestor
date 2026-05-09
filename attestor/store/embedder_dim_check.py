@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Embedder/schema dimension assertion — fail-fast guard.
 
 Bug class: pgvector declares ``embedding vector(N)`` at table-create time.

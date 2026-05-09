@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """SleepTimeConsolidator — per-episode background re-extraction (Phase 7.2).
 
 Drains the ConsolidationQueue and re-runs the conversation pipeline

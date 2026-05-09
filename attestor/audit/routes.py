@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Starlette route handlers for the /audit/* surface.
 
 Kept separate from ``attestor.audit.explorer`` so the explorer stays

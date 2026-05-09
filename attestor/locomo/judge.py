@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """LoCoMo judge — LLM-as-judge correctness verdict for generated answers."""
 
 from __future__ import annotations

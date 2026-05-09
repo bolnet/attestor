@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """AgentContext -- shared state for multi-agent memory consumption.
 
 This is the context object that gets passed between agents in a multi-agent

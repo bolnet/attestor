@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Attestor v4 conversation layer — round-level capture + extraction.
 
 Per LongMemEval Finding 1 (roadmap §A.1), a *round* (one user message

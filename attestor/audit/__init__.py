@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Audit-trail explorer for Attestor recall traces.
 
 Reads the JSONL trace log written by ``attestor.trace`` (when

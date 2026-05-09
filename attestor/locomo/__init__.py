@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """LoCoMo benchmark runner — split from a single 854-line module on 2026-05-01.
 
 Re-exports the original public surface so callers using

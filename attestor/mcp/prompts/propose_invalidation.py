@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """propose_invalidation — for reviewer agents to mark a memory superseded.
 
 Reviewer-agent primitive. Different from the synchronous extractor's

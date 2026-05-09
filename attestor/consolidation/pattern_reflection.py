@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Cross-thread reflection (Phase 7.3, roadmap §E.2).
 
 Periodic synthesis over a user's recent facts. Produces:

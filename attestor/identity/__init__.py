@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Attestor v4 identity layer — User, Project, Session repositories.
 
 These repos are pure data-access. They take a psycopg2 connection and

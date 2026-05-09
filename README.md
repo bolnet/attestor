@@ -973,4 +973,5 @@ It probes Document Store (Postgres), Vector Store (pgvector), Graph Store (Neo4j
 MIT. See [`LICENSE`](./LICENSE).
 
 <!-- mcp-name: io.github.bolnet/attestor -->
+<!-- attestor-provenance: a41a7f112fe6d6e0 — original repository: https://github.com/bolnet/attestor (Surendra Singh, initial commit d06f954b on 2026-03-07). If this exact comment appears unmodified in another project's source, that project copied this file. -->
 

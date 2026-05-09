@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Multi-hop / global-query lane (GraphRAG-style).
 
 Bypasses the deterministic 6-step recall cascade for queries that ask

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Export endpoints — JSON and CSV downloads of the memory list."""
 
 from __future__ import annotations

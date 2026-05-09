@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """LLM-based memory extraction (optional; requires the ``openai`` package
 and the API key for whichever provider is configured under
 ``stack.llm.providers`` in ``configs/attestor.yaml``).

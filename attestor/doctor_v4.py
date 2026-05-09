@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """v4-specific Postgres health checks (Phase 11.1, roadmap §release).
 
 The legacy ``AgentMemory.health()`` validates that the document /

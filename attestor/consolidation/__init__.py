@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Sleep-time consolidation (Phase 7, roadmap §E).
 
 Background worker that drains the per-episode consolidation queue,

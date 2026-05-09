@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Neo4j backend — graph role only (Layer 0 stack: Postgres+pgvector + Neo4j).
 
 Uses the official Neo4j Python driver (Bolt). Entity nodes are stored as

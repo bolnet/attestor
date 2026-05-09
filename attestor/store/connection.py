@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Layered connection config — reusable across all backends.
 
 Industry-standard 3-layer resolution (each overrides the previous):

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Shared helpers for the extraction / consolidation LLM pipelines.
 
 Single source of truth for the markdown-fence stripper that was

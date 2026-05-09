@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Apply ADD/UPDATE/INVALIDATE/NOOP decisions through the supersession path.
 
 Phase 3.5. Each Decision becomes one or two writes against the document

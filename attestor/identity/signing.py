@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Ed25519 provenance signing for memory writes (Phase 8.1, roadmap §F).
 
 Optional. When enabled in config, every memory inserted via the v4 path

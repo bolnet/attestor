@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Common entry-point plumbing for stdin/stdout hook scripts.
 
 Hooks are invoked by Claude Code with a JSON payload on stdin. They must:

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """EpisodeRepo — verbatim user+assistant rounds in the ``episodes`` table.
 
 Episodes are the immutable audit log: every extracted fact links back

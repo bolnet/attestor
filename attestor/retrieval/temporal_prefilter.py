@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Regex-only temporal pre-filter for the recall pipeline (Phase 3 RC4).
 
 Detects relative time phrases in a user question ("two weeks ago",

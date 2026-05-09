@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Recall context — async-safe per-recall metadata propagation.
 
 Phase 5 of the async retrieval rollout (see

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Session-end promotion (Phase 7.4, roadmap §E task list).
 
 When a session ends, decide what to do with each session-scoped memory:

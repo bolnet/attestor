@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Retrieval orchestrator package — split from a 1099-line module.
 
 Public API (re-exported for back-compat with existing callers):

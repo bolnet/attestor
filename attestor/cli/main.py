@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Top-level CLI entry — argparse setup and subcommand dispatch.
 
 Imports the per-domain ``_cmd_*`` handlers from
