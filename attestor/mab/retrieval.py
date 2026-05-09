@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """MAB retrieval — chunking, ingestion, multi-hop recall, and answer synthesis."""
 
 from __future__ import annotations

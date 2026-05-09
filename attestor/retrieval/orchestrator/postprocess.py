@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Post-processing mixin for :class:`RetrievalOrchestrator`.
 
 Houses ``_post_process_candidates`` — Steps 2-6 of the recall pipeline

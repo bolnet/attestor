@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Attestor v4 operating modes — SOLO / HOSTED / SHARED.
 
 Per defaults.md §1, the mode determines which defaults apply:

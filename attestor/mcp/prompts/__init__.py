@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Standard MCP prompts shipped with the Attestor server (Phase 8.2).
 
 Five primitives that bake in the right defaults for multi-agent flows:

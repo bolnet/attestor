@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """HOSTED mode JWT auth middleware (Phase 8.4, roadmap §F).
 
 Verifies an incoming JWT, extracts the ``sub`` claim as the external_id,

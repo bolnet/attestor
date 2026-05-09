@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Reflection pass — distill episodic memories into compact semantic ones.
 
 Long-running agents accumulate raw episodic memories ("user mentioned X

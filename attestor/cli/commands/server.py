@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Server-style CLI commands: ``serve``, ``api``, ``ui``, ``mcp``, ``hook``.
 
 The ``mcp`` handler intentionally references ``attestor.cli.asyncio`` (rather

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Episode consolidation queue (Phase 7.1, roadmap §E.1).
 
 Backed by the ``consolidation_state`` columns on the v4 ``episodes``

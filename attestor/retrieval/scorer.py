@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Scoring, deduplication, temporal boost, entity boost, token budget assembly.
 
 All boost functions are PURE: each returns a new list of new RetrievalResult

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Setup / health CLI commands: ``setup-claude-code`` and ``doctor``."""
 
 from __future__ import annotations

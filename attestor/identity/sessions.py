@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """SessionRepo — CRUD against the ``sessions`` table.
 
 Implements the lifecycle: pending → active → idle → ended → archived

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Static prompt strings used by the LongMemEval pipeline.
 
 Pulled verbatim from the legacy 2466-line ``attestor/longmemeval.py``

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """StateRepo — typed profile lane on top of the v4 ``state`` table.
 
 The state lane stores small, type-checked profile facts (preferences,

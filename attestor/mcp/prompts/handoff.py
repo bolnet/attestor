@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """handoff_to — generate a handoff package between agents.
 
 Cognition's session-handoff pattern (Devin), surfaced as a first-class

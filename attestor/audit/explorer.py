@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Read-only explorer for the Attestor JSONL trace log.
 
 The explorer indexes events by ``recall_id`` (set by

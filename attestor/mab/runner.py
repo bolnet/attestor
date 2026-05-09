@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """MAB runner — dataset loading, run_mab() entry, and result printing."""
 
 from __future__ import annotations

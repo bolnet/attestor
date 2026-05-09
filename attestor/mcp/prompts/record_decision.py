@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """record_decision — capture an agent decision with rationale + evidence.
 
 Wraps a memory_add call with category="decision" and forces the agent

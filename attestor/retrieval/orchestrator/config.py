@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Retrieval-pipeline runtime config (frozen, slots).
 
 Holds the score-blending knobs the recall cascade reads at request time.

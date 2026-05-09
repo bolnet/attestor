@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Contextual embedding — Anthropic-style chunk-context prefix at ingest.
 
 Anthropic's Sept 2024 *Contextual Retrieval* research

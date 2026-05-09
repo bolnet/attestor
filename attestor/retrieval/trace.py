@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Per-query retrieval trace logger.
 
 Writes one JSONL line per recall() call to ``logs/attestor_trace.jsonl``.

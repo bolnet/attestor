@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """BM25 / FTS retrieval lane (Phase 4.2, roadmap §B.2).
 
 Postgres' built-in full-text search with ``ts_rank_cd`` over a generated

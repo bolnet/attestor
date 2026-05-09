@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Unified observability facade — recall trace + OTel + LLM cost trace.
 
 Three modules previously formed the observability surface:

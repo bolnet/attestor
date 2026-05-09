@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Loader for externalized prompt templates.
 
 Prompts live as ``.md`` files under ``attestor/extraction/prompts/`` and

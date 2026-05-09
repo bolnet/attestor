@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Temporal query expansion (Phase 5.1, roadmap §C.1).
 
 Extracts a ``TimeWindow`` from a natural-language query so the

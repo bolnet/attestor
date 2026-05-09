@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """resume_thread — chronological recall of a thread's recent activity.
 
 The "I'm back, what was happening here?" primitive. Issues a

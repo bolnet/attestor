@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """HyDE retrieval — Hypothetical Document Embedding (Phase 3 PR-D).
 
 A small LLM generates a 1-2-sentence hypothetical answer to the user's

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """MemoryClient -- thin HTTP client for distributed multi-agent memory access.
 
 Mirrors the AgentMemory interface but delegates to the Starlette ASGI API

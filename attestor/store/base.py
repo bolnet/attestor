@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Structural interfaces for storage backends.
 
 These are :class:`typing.Protocol` definitions, not :class:`abc.ABC`

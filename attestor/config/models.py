@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Frozen dataclass definitions for the Attestor stack config.
 
 Pure declarative — no I/O, no env reads. The YAML loader in

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Conflict resolver — turn extracted facts into Decisions (Phase 3.4).
 
 Compares each newly-extracted ``ExtractedFact`` against existing

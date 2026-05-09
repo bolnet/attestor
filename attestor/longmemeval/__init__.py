@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """LongMemEval benchmark runner for Attestor.
 
 LongMemEval (Wu et al., ICLR 2025) evaluates long-term memory of chat

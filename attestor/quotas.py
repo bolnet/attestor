@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """User quotas + enforcement (Phase 8.3, roadmap §F).
 
 Per-user limits that apply at the application boundary (add() /

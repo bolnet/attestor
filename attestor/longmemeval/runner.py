@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """LongMemEval ingest + answer + run pipeline.
 
 Distillation, raw-turn ingest, answer prompt + answerer, and the

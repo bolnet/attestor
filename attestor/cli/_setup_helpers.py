@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Claude Code / Cursor MCP setup helpers.
 
 Shared between the ``init`` and ``setup-claude-code`` command handlers.

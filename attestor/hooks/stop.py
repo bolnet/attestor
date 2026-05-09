@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Stop hook -- summarizes session and stores key decisions as memories."""
 
 from __future__ import annotations

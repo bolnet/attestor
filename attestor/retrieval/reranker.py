@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Cross-encoder reranker stage — Step 3.5 of the recall cascade.
 
 Sits between RRF (Step 3) and graph BFS (Step 4). Consumes the top-N RRF

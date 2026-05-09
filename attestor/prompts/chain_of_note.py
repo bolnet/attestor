@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Default Chain-of-Note reading prompt (Phase 6.1, roadmap §D.2).
 
 Agents should prepend this to their system prompt when consuming a

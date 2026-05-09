@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Ingest-time pipelines: pre-write transforms applied before persistence.
 
 Currently exposes :mod:`attestor.ingest.contextual` — Anthropic-style

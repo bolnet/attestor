@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """MemoryAgentBench (MAB) benchmark runner for Attestor.
 
 MemoryAgentBench (ICLR 2026) evaluates memory systems across 4 competencies:

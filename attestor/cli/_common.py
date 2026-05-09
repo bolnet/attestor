@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Shared CLI helpers — env file loading, backend args, output suppression.
 
 Extracted from the legacy ``attestor/cli.py`` so that the per-command modules

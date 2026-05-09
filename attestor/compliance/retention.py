@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Declarative retention policies + GDPR right-to-be-forgotten.
 
 Retention rules are stored in the ``retention_policies`` Postgres table

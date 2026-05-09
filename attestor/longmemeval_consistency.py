@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Self-consistency K-sample answerer (Phase 3 PR-B, +3-6% LME-S).
 
 A single greedy decode from the answerer model can lock onto a wrong

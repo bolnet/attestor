@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Read-only web UI for Attestor — Starlette sub-app wiring.
 
 Renders Jinja2 templates served with a "Forensic Archive" aesthetic.

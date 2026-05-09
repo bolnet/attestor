@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Extraction prompts for the v4 conversation pipeline (roadmap §A.2/A.3).
 
 The prompt content lives as versioned ``.md`` files alongside this module

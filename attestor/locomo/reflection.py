@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """LoCoMo reflection / answer synthesis — coreference resolution, context
 building, and the reflection-loop answer pipeline."""
 

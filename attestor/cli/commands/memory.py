@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Memory CRUD CLI commands (split from cli.py).
 
 Handlers: ``init``, ``add``, ``recall``, ``search``, ``list``, ``timeline``,

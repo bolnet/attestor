@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """audit_decision — fetch a memory + its episode + its supersession chain.
 
 Auditor primitive. Given a memory_id, returns the canonical view that

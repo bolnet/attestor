@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """LLM query planner: classify a question into an intent + namespace plan.
 
 The planner reads the user's question and produces a structured plan telling

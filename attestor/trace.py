@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Surendra Singh <66422685+bolnet@users.noreply.github.com>
+# SPDX-License-Identifier: MIT
 """Pipeline tracing — env-gated, stderr + JSONL output.
 
 Off by default. Enable with ATTESTOR_TRACE=1.
