@@ -82,8 +82,21 @@ The image's default entrypoint is `attestor mcp` (MCP server over stdio). For fu
 
 ```bash
 attestor setup local                                       # writes attestor/infra/local/docker-compose.yml
-docker compose -f attestor/infra/local/docker-compose.yml up -d
+
+# Vector role: Pinecone Local is a SEPARATE container (not in the compose file) — start it first.
+docker run -d --name pinecone-local -e PORT=5080 -e PINECONE_HOST=localhost \
+  -p 5080-5090:5080-5090 --platform linux/amd64 \
+  ghcr.io/pinecone-io/pinecone-local:latest
+
+# Compose loads its env file from the compose file's own directory, so pass the
+# repo-root .env explicitly (it holds PINECONE_API_KEY / VOYAGE_API_KEY / etc).
+docker compose --env-file .env -f attestor/infra/local/docker-compose.yml up -d --build
 ```
+
+> **New here? Read [docs/LOCAL_DOCKER_SETUP.md](docs/LOCAL_DOCKER_SETUP.md)** for the full step-by-step
+> container walkthrough, the exact verify command, and a Troubleshooting section covering the common
+> first-run gotchas (missing `--env-file`, Pinecone Local not running, and the host-vs-container
+> `localhost:5080` nuance).
 
 The default stack ships **three containers** (one per storage role):
 

@@ -29,8 +29,15 @@ WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY attestor/ attestor/
+# configs/attestor.yaml is the ONLY source of truth for the stack (embedder,
+# vector, models) — the loader hard-fails without it (fallback constants were
+# removed), so it must be baked into the image.
+COPY configs/ configs/
 
-# Install only what the HTTP + Postgres + Pinecone + Neo4j paths need.
+# Install what the HTTP + Postgres + Pinecone + Neo4j paths need, INCLUDING
+# the canonical default stack's embedder (Voyage) and vector store (Pinecone)
+# clients — without these the container cannot honor configs/attestor.yaml's
+# default (voyage-4 + Pinecone) and `_ensure_embedding_fn()` fails at startup.
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir \
         "starlette>=0.27.0" \
@@ -38,6 +45,8 @@ RUN pip install --no-cache-dir --upgrade pip \
         "psycopg2-binary>=2.9.0" \
         "neo4j>=5.0.0" \
         "openai>=1.0.0" \
+        "voyageai>=0.3.0" \
+        "pinecone>=5.0.0" \
         "tomlkit>=0.12.0" \
     && pip install --no-cache-dir --no-deps .
 
