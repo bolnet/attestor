@@ -15,7 +15,16 @@ A step-by-step guide to installing and verifying Attestor across different topol
 
 ## Chapter 00 — Install via Claude Code (recommended)
 
-**The one instruction.** Tell Claude Code **"install attestor to claude code"** (or run `/install-attestor`, or paste the prompt below). Claude **scans your machine first, looks up the current docs for every tool via Context7, then installs** — it brings up the three backend containers, installs the `attestor` package, wires the MCP server + hooks, and verifies. It assumes you start with **nothing installed**.
+**One install path — the guided wizard** ([`../commands/install-attestor.md`](../commands/install-attestor.md)). Whatever you type, Claude reads this repo and runs the wizard end-to-end: it **scans your machine first, looks up current docs via Context7**, then installs the `attestor` package, brings up the three backend containers, wires the MCP server + hooks, and verifies. It assumes you start with **nothing installed**. Four ways to launch it — type any of:
+
+| # | Way | Type this |
+|---|-----|-----------|
+| 1 | Plugin (recommended) | `/plugin install attestor` |
+| 2 | Command | `/install-attestor` |
+| 3 | Repo URL | `github.com/bolnet/attestor` |
+| 4 | Natural language | `install attestor` |
+
+First-time plugin use needs `/plugin marketplace add bolnet/attestor` once. The detailed cold-start prompt below is what the wizard runs — paste it directly only if you want to drive a bare session by hand.
 
 > Every chapter targets the same **canonical stack: Postgres (document) + Pinecone (vector) + Neo4j (graph)**, with the embedder, models, and retrieval budget coming from the single source of truth, [`configs/attestor.yaml`](../configs/attestor.yaml). Chapter 00 is the fastest path; 01–03 are the manual local / sidecar / cloud setups.
 

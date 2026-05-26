@@ -838,11 +838,16 @@ https://github.com/bolnet/attestor  — install attestor to claude code
 
 Claude Code reads this repo's install guide ([`docs/INSTALL.md` → Chapter 00](docs/INSTALL.md#chapter-00--install-via-claude-code-recommended)), then **scans your machine first, looks up current docs via Context7, and installs** — it brings up the three backend containers, installs the `attestor` package, wires the MCP server + hooks, and verifies. It assumes you start with nothing installed.
 
-Three ways in (full detail in [`docs/INSTALL.md`](docs/INSTALL.md)):
+**One install path — the guided wizard** ([`commands/install-attestor.md`](commands/install-attestor.md)). Whatever you type, Claude reads this repo and runs the wizard end-to-end: scan → package → Postgres + Pinecone + Neo4j backends → MCP server + hooks → `attestor doctor`. Four ways to launch it — type any of:
 
-1. **Plugin (recommended)** — `/plugin marketplace add bolnet/attestor` then `/plugin install attestor`. On **Claude Code v2.1+** the MCP server (`.mcp.json`) and the SessionStart / PostToolUse / Stop hooks (`hooks/hooks.json`) are auto-loaded by convention; on older versions, use the wizard (below) to wire them. Either way you still need `pipx install attestor` (so the `attestor` binary is on PATH) plus reachable backends.
-2. **Guided wizard** — `/install-attestor` runs an interactive interview (scope, Postgres / Pinecone / Neo4j connections, embedding provider, hook wiring), installs `attestor`, merges the config, and runs `attestor doctor`.
-3. **Copy-paste prompt** — for a cold session, paste the detailed install prompt from [`docs/INSTALL.md` Chapter 00](docs/INSTALL.md#chapter-00--install-via-claude-code-recommended).
+| # | Way | Type this |
+|---|-----|-----------|
+| 1 | Plugin (recommended) | `/plugin install attestor` |
+| 2 | Command | `/install-attestor` |
+| 3 | Repo URL | `github.com/bolnet/attestor` |
+| 4 | Natural language | `install attestor` |
+
+> All four launch the same guided wizard. First-time plugin use needs `/plugin marketplace add bolnet/attestor` once. The plugin also auto-wires the MCP server + hooks; the wizard handles package + backends + verify.
 
 **Memory is isolated per project automatically** — each working directory (git root, else cwd) is its own hard-isolated tenant, so projects never share memory. No namespace to configure.
 
