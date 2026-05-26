@@ -302,3 +302,18 @@ export PINECONE_API_KEY="pcsk_..."   # Pinecone Cloud — index settings from co
 Run the API container (or your own image) with those env vars; `configs/attestor.yaml` remains the source of truth for the embedder, models, and retrieval budget. Validated reference deploys (App Runner / Cloud Run / Container Apps in front of managed Postgres + Pinecone + Neo4j) follow the same pattern — only DB hostnames and secrets differ.
 
 > **Operational notes** (from cloud-deploy validation): Neo4j needs ≥512 MB RAM even idle (the JVM + GDS plugin OOM in 0.5 GB containers — use the next size up). Don't put Neo4j behind HTTP-only compute (`bolt://` is TCP/7687 — use a small VM in the same VPC, or a TCP-capable platform). Keep the embedder dim and the schema `vector(N)` locked together. Tighten ingress (5432 / 7687) to your compute's egress range before production.
+
+---
+
+## Uninstall
+
+Attestor is **prompt-first**: tell Claude Code **"uninstall attestor"** (or run **`/uninstall-attestor`**) and it reverses all six install surfaces itself — following `commands/uninstall-attestor.md`:
+
+1. **Package** — `pipx uninstall attestor` (run from `$HOME`, not the repo: a local `attestor/` dir makes pipx read the name as a path).
+2. **`~/.attestor/`** — config + `.env` (no memory data lives here).
+3. **Claude Code wiring** — the `attestor` MCP entry + Attestor's own hooks, content-matched on `attestor hook` so other tools' hooks are never touched (project `.claude/settings.json` / `.mcp.json`; the global file usually has none).
+4. **Docker backends** — `attestor-*` containers + volumes (**confirm — this deletes all stored memory**).
+5. **Plugin** — `/plugin uninstall attestor` (interactive).
+6. **Stray repo artifacts** — `.cc_attestor_probe_store`, root `config.json`, `logs/`.
+
+For local testing / CI there's a dry-run-by-default script that encodes the same procedure: `python scripts/attestor_uninstall.py` (add `--yes --containers --artifacts` to execute). It is a test/reference of the prompt above, not the primary path. Restart Claude Code afterward so it drops the orphaned MCP server + hooks.

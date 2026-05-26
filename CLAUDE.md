@@ -110,11 +110,15 @@ Same API across all three. Only configuration changes.
 
 **The one instruction:** a user tells Claude Code **"install attestor to claude code"** (or runs `/install-attestor`) and Claude does the rest — installs the package, wires the MCP server + hooks, sets up the backends, and verifies. The full guide, **including the copy-paste install prompt for a cold session**, is **[`docs/INSTALL.md`](docs/INSTALL.md)** (start at *Chapter 00 — Install via Claude Code*).
 
+**Prompt-first.** Install / setup / uninstall are driven by **prompts that Claude Code executes itself** — `commands/install-attestor.md` and `commands/uninstall-attestor.md` are the source of truth. The Python helpers (`attestor setup-claude-code`, `scripts/attestor_uninstall.py`) encode the same steps for **testing/CI only**; keep them in sync with the prompts, but the prompt is the canonical path.
+
 Three install paths (all detailed in `docs/INSTALL.md`):
 
 1. **Plugin (recommended).** `/plugin marketplace add bolnet/attestor` then `/plugin install attestor`. The plugin manifest (`.claude-plugin/plugin.json`) auto-wires the MCP server (`.mcp.json`) and the SessionStart / PostToolUse / Stop hooks (`hooks/hooks.json`) by convention. Still requires `pipx install attestor` (so the `attestor` binary is on PATH) plus reachable backends.
 2. **Guided wizard.** `/install-attestor` runs `commands/install-attestor.md`, an interactive interview — scope (global `~/.claude` vs project), Postgres / Pinecone / Neo4j connections, embedding provider (Pinecone Inference default, or Voyage / OpenAI / Ollama), hook wiring — then installs `attestor`, merges the MCP + hook config, and runs `attestor doctor`.
 3. **Copy-paste prompt.** For a cold Claude Code session with nothing installed, paste the detailed install prompt from `docs/INSTALL.md` and Claude executes the whole flow.
+
+**Uninstall.** `/uninstall-attestor` (or "uninstall attestor") runs `commands/uninstall-attestor.md` — Claude reverses all six install surfaces itself: package (pipx — run from `$HOME` so the repo `attestor/` subdir doesn't shadow the name), `~/.attestor/`, the MCP entry + Attestor's own hooks (content-matched on `attestor hook`, never other tools'), the Docker backends + volumes (confirm — deletes memory), the plugin, and stray repo artifacts.
 
 **Per-project isolation is automatic.** Each working directory (git root, else cwd) is its own hard-isolated memory tenant (`attestor/_project.py` + `attestor/hooks/_tenant.py`) — no namespace to configure, and memory never bleeds across projects. Other MCP clients (Cursor, etc.) and runtimes (library / sidecar / shared service) are covered in `docs/INSTALL.md`.
 

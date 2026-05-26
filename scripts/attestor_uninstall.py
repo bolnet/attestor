@@ -3,6 +3,12 @@
 # SPDX-License-Identifier: MIT
 """Completely uninstall Attestor — package, config, Claude Code wiring, and containers.
 
+NOTE — TEST/REFERENCE ARTIFACT. Attestor is prompt-first: the canonical
+uninstall is the prompt at ``commands/uninstall-attestor.md``, which Claude
+Code executes directly (scanning + adapting to the machine's actual state).
+This script encodes the same procedure for local testing and CI — it is not
+the primary path; keep it in sync with the prompt.
+
 DRY-RUN BY DEFAULT: prints exactly what it would do and changes nothing. Pass
 ``--yes`` to execute. This is the symmetric counterpart to ``attestor init
 --install`` / ``setup-claude-code``.

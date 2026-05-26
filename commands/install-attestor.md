@@ -8,6 +8,8 @@ allowed-tools: Bash, Read, Write, Edit, Glob
 
 You are installing **Attestor** (PyPI: `attestor`, import: `attestor`) — a memory layer for agent teams — into the user's Claude Code setup.
 
+**This prompt is the source of truth — drive the whole install yourself by following it.** Attestor is prompt-first for Claude Code + local use: you do the install/setup by reading and acting on this prompt, not by deferring to a script. The Python helpers (`attestor setup-claude-code` / `scripts/`) exist as a test/reference of the same steps; prefer doing each step here directly so you can adapt to the machine's actual state.
+
 This command is **interactive**. The wizard is the single source of truth for every install input — scope, paths, backends, credentials, secrets, hook wiring, verification. **Do NOT silently apply defaults when state already exists. Do NOT collect secrets out-of-band. If the install needs a value, the wizard asks for it.**
 
 > **Plugin mode:** When Attestor is installed as a Claude Code plugin (`/plugin install attestor`), the MCP server (`.mcp.json`) and the session-start / post-tool-use / stop hooks (`hooks/hooks.json`) are **auto-wired by the plugin** — Claude Code v2.1+ loads them by convention. In that case this wizard only needs to: (a) `pip`/`pipx install attestor` so the `attestor` binary is on PATH, (b) collect backend connection details (Postgres + Pinecone + Neo4j; local Docker or cloud), (c) collect the embedding provider, and (d) run `attestor doctor`. **Skip the `settings.json` MCP + hook writing steps in plugin mode** — they only apply to manual, non-plugin installs and would duplicate the plugin's wiring. Memory is automatically isolated per project: each working directory (git root, else cwd) becomes its own RLS tenant, so projects never share memory.
@@ -67,79 +69,57 @@ Report a one-line summary and move to Step 2.
 - `Default (~/.attestor/)` *(Recommended)*
 - `Custom path` — follow-up free-text for absolute path.
 
-### Q3. Backend type (top-level Local vs Cloud split)
-- `Local` *(Recommended)* — runs on your machine.
-- `Cloud-managed` — managed service.
+### Q3. Backend topology (Local vs Cloud — the same three roles either way)
 
-### Q3a. Local stack (only if Q3 = Local)
-- `Zero-config embedded` *(Recommended)* — SQLite + ChromaDB + NetworkX. No external services.
-- `Local PostgreSQL` — self-hosted Postgres 16 with pgvector + Apache AGE.
-- `Local ArangoDB` — self-hosted ArangoDB (doc + vector + graph in one).
+The canonical stack is **Postgres (document) + Pinecone (vector) + Neo4j (graph)**; only the connection details differ. (The single-DB pgvector bundle and the Arango / AWS-native / Cosmos / AlloyDB backends were removed on 2026-05-02 — do not offer them.)
 
-### Q3b. Cloud platform (only if Q3 = Cloud-managed) — grouped by provider
-- `AWS`
-- `Azure`
-- `GCP`
+- `Local Docker` *(Recommended)* — three containers on this machine: `attestor-postgres` (`pgvector/pgvector:pg16`), `attestor-pinecone` (Pinecone Local emulator), `attestor-neo4j` (`neo4j:5.24-community` + GDS). Full walkthrough: `docs/LOCAL_DOCKER_SETUP.md`.
+- `Cloud-managed` — managed Postgres (Neon / RDS / Cloud SQL / AlloyDB-as-PG), Pinecone Cloud, Neo4j AuraDB.
 
-### Q3b.i. AWS backend variant (only if Q3b = AWS)
-- `ArangoDB Oasis on AWS` *(Recommended)* — single managed service for all three roles.
-- `DynamoDB + OpenSearch Serverless + Neptune` — all-AWS native stack.
+### Q-backend-creds — Credentials (collect after Q3, before install)
 
-### Q3b.ii. Azure backend
-- `Cosmos DB with DiskANN` — doc + vector + graph in Cosmos.
+Non-secret settings live in `configs/attestor.yaml`; only secrets vary by environment. Required keys:
 
-### Q3b.iii. GCP backend
-- `AlloyDB` — Postgres-compatible, pgvector + AGE + ScaNN.
-
-### Q-backend-creds — Credential collection (after backend chosen, before install)
-
-For **every** cloud backend and any local variant that needs credentials (Local Postgres / Local Arango), the wizard collects the required secrets. Required keys per backend:
-
-| Backend | Required env vars |
+| Topology | Required env vars |
 |---|---|
-| Local zero-config | *(none)* |
-| Local PostgreSQL | `DATABASE_URL` |
-| Local ArangoDB | `ARANGO_URL`, `ARANGO_USER`, `ARANGO_PASSWORD` |
-| AWS + ArangoDB Oasis | `ARANGO_URL`, `ARANGO_USER`, `ARANGO_PASSWORD` |
-| AWS native | `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (or confirm `~/.aws/credentials`) |
-| Azure Cosmos | `COSMOS_CONNECTION_STRING` |
-| GCP AlloyDB | `DATABASE_URL` |
+| Local Docker | `PINECONE_API_KEY` (Pinecone Inference embedder — cloud-only), `NEO4J_PASSWORD`, `OPENROUTER_API_KEY` (LLM calls). Pinecone **Local** + Postgres need no key. |
+| Cloud-managed | `POSTGRES_URL`, `NEO4J_URI`, `NEO4J_PASSWORD`, `PINECONE_API_KEY`, `OPENROUTER_API_KEY` |
+
+If you change the embedder in `configs/attestor.yaml` (Q4), swap `PINECONE_API_KEY` for that provider's key.
 
 **Q-backend-creds.1 — How to collect:**
-- `Use existing env vars` *(Recommended if already exported)* — wizard detects and confirms.
-- `Paste them now` — prompts free-text per key.
-- `Skip` — writes config with placeholder; user fills in before restart.
+- `Use existing env vars` *(Recommended if already exported)* — detect and confirm.
+- `Paste them now` — prompt free-text per key.
+- `Skip` — write config with placeholder; user fills in before restart.
 
 **Q-backend-creds.2 — Where to persist** (only if user pasted values):
 - `Gitignored .env file (~/.attestor/.env, chmod 600)` *(Recommended)*
 - `Shell profile (~/.zshrc or ~/.bashrc)`
 - `This session only` — hold in memory; user must re-export before restart.
 
-### Q4. Embedding provider (only if Q3a = Zero-config embedded; cloud backends bring their own)
-- `Local (all-MiniLM-L6-v2, 384D)` *(Recommended)* — no API key, ~90MB download on first use.
-- `OpenAI (text-embedding-3-small)` — needs `OPENAI_API_KEY`.
-- `OpenRouter` — needs `OPENROUTER_API_KEY`.
+### Q4. Embedder (the `configs/attestor.yaml` default — only change if asked)
 
-### Q-embed-creds (only if OpenAI or OpenRouter chosen)
-Same collect/persist sub-questions as Q-backend-creds.
+Whichever is chosen, set it under `stack.embedder` in `configs/attestor.yaml` (the single source of truth) and put the key in `.env`:
+- `Pinecone Inference llama-text-embed-v2 (1024-D)` *(Recommended — the default)* — needs `PINECONE_API_KEY` (cloud-only; pairs with the Pinecone vector role).
+- `Voyage voyage-4 (1024-D)` — needs `VOYAGE_API_KEY`.
+- `OpenAI text-embedding-3-* (→1024-D)` — needs `OPENAI_API_KEY`.
+- `Ollama bge-m3 (local, free)` — provider `openai` + `OPENAI_BASE_URL` pointed at the local Ollama endpoint.
 
 ### Q5. Claude Code hooks (multi-select)
-- `session-start` *(Recommended for multi-agent)* — every agent boots with shared team context (20K tokens).
-- `post-tool-use` *(Recommended for multi-agent)* — auto-capture observations so memory grows across the team.
-- `stop` — session summary on exit; useful for planner→executor→reviewer handoffs.
+- `session-start` *(Recommended)* — inject this project's relevant memories at session start.
+- `post-tool-use` *(Recommended)* — auto-capture file changes + commands into this project's memory.
+- `stop` — write a project-scoped session summary on exit.
 - `none` — MCP only, no hooks.
 
-### Q6. Namespace (only if hooks enabled)
-- `Default "user"` *(Recommended)* — single-user laptop.
-- `Custom` — follow-up free-text for project/team slug.
+> No namespace to configure — memory is **automatically isolated per project**: each working directory (git root, else cwd) is its own RLS tenant, so projects never share memory.
 
-### Q7. Default token budget for `recall()`
+### Q6. Default token budget for `recall()`
 - `2000`
 - `5000`
 - `10000` *(Recommended for multi-agent)*
 - `Custom`
 
-### Q8. Verification & restart preferences
+### Q7. Verification & restart preferences
 - `Run doctor + print MCP config automatically` *(Recommended)*
 - `Skip verification`
 
@@ -192,16 +172,14 @@ Merge into the chosen MCP config file. Read first, then update the chosen `mcpSe
       "command": "attestor",
       "args": ["mcp", "--path", "<STORE_PATH>"],
       "env": {
-        "ATTESTOR_NAMESPACE": "<NAMESPACE>",
-        "ATTESTOR_TOKEN_BUDGET": "<BUDGET>",
-        "ATTESTOR_BACKEND": "<local|postgres|arango|aws|azure|gcp>"
+        "ATTESTOR_CONFIG": "<ABSOLUTE_PATH_TO_attestor.yaml>"
       }
     }
   }
 }
 ```
 
-Backend-specific env var **names** go in `env` (the values come from the shell/`.env`, never inline).
+`ATTESTOR_CONFIG` is the single source of truth — pin it to the **absolute** path of the `attestor.yaml` this install uses, so the long-running MCP server resolves the same config the CLI did (not a cwd-relative guess). Use the resolved path that `attestor setup-claude-code` prints under "Config file in use". Backend secrets are never inlined — they come from the shell / `~/.attestor/.env`.
 
 ---
 
@@ -209,27 +187,29 @@ Backend-specific env var **names** go in `env` (the values come from the shell/`
 
 Edit `~/.claude/settings.json` (or `.claude/settings.json` for project scope). Only emit the hooks the user selected in Q5.
 
+**Critical — the hook command MUST load the user env before calling `attestor`.** Claude Code spawns hooks without the interactive shell's environment, so a bare `attestor hook ...` runs with no `ATTESTOR_CONFIG` / provider keys, the embedder fails to init, and the hook silently saves nothing. Wrap every hook in `set -a; source ~/.attestor/.env; set +a` — and `set -a` is required, because un-`export`ed `KEY=value` lines in `.env` otherwise stay shell-local and never reach the subprocess:
+
 ```json
 {
   "hooks": {
     "SessionStart": [
-      { "matcher": "*", "hooks": [{ "type": "command", "command": "attestor hook session-start" }] }
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook session-start'" }] }
     ],
     "PostToolUse": [
-      { "matcher": "Write|Edit|Bash", "hooks": [{ "type": "command", "command": "attestor hook post-tool-use" }] }
+      { "matcher": "Write|Edit|Bash", "hooks": [{ "type": "command", "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook post-tool-use'" }] }
     ],
     "Stop": [
-      { "matcher": "*", "hooks": [{ "type": "command", "command": "attestor hook stop" }] }
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook stop'" }] }
     ]
   }
 }
 ```
 
-If Q0b = Replace, strip existing Attestor hook entries before merging.
+If a non-default config is in play, bake it in too: `… set +a; ATTESTOR_CONFIG="<abs path>" attestor hook stop`. If Q0b = Replace, strip existing Attestor hook entries (any command containing `attestor hook`) before merging.
 
 ---
 
-## Step 8 — Verify (if Q8 = Run doctor)
+## Step 8 — Verify (if Q7 = Run doctor)
 
 ```bash
 attestor doctor "$STORE_PATH" && echo "--- MCP config ---" && cat "$MCP_CONFIG_FILE"
