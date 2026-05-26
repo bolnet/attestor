@@ -46,6 +46,7 @@ from attestor.cli.commands.server import (
     _cmd_ui,
 )
 from attestor.cli.commands.setup import _cmd_doctor, _cmd_setup_claude_code
+from attestor.cli.commands.teardown import _cmd_teardown
 
 
 def main(argv=None):
@@ -127,6 +128,24 @@ def main(argv=None):
     )
     p_quickstart.add_argument(
         "--no-verify", action="store_true", help="Skip the post-install health check"
+    )
+
+    # teardown (zero-question reverse of quickstart)
+    p_teardown = subparsers.add_parser(
+        "teardown",
+        help="Zero-question reverse of quickstart: remove the local backends + "
+        "store config + MCP entry + hooks. Data volumes kept unless --purge.",
+    )
+    p_teardown.add_argument(
+        "path", nargs="?", default=None, help="Store path (default: ~/.attestor)"
+    )
+    p_teardown.add_argument(
+        "--purge",
+        action="store_true",
+        help="Also delete Docker volumes (WIPES stored memories) + the store dir",
+    )
+    p_teardown.add_argument(
+        "--dry-run", action="store_true", help="Print what would be removed; change nothing"
     )
 
     # add
@@ -436,6 +455,7 @@ def main(argv=None):
     # Dispatch
     handlers = {
         "quickstart": _cmd_quickstart,
+        "teardown": _cmd_teardown,
         "init": _cmd_init,
         "add": _cmd_add,
         "recall": _cmd_recall,

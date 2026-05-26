@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import stat
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -14,6 +14,9 @@ from attestor.cli.commands.quickstart import (
     _ensure_env,
     _write_config_toml,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = pytest.mark.unit
 
@@ -47,7 +50,9 @@ def test_write_config_toml_is_three_role_with_env_refs(tmp_path: Path) -> None:
     assert 'password = "$NEO4J_PASSWORD"' in text
     assert "v4 = true" in text
     # Canonical three roles — Postgres (document) + Pinecone (vector) + Neo4j (graph).
-    assert "[postgres]" in text and "[neo4j]" in text and "[pinecone]" in text
+    assert "[postgres]" in text
+    assert "[neo4j]" in text
+    assert "[pinecone]" in text
     assert 'backends = ["postgres", "pinecone", "neo4j"]' in text
     # Pinecone Local routed for the vector role at the default host + 1024-D index.
     assert "localhost:5080" in text
