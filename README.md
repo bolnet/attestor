@@ -1,6 +1,15 @@
 # Attestor
 
-**The memory layer for agent teams.** Self-hosted, deterministic retrieval, zero LLM in the critical path.
+**Cut your agent's token burn 21×. Two API calls.**
+
+Full-context replay re-reads the whole conversation every turn — input tokens that grow O(n²) and a bill that compounds with every session. Attestor retrieves only what's needed: flat ~200 tokens per call, 21× fewer input tokens by turn 100, 100% recall — measured across six models, open and closed.
+
+```python
+await attestor.add(namespace, content)          # when new information arrives
+facts = await attestor.recall(namespace, query) # ~200 flat tokens, always
+```
+
+Self-hosted, deterministic retrieval, zero LLM in the critical path. The memory layer for agent teams that need shared, tenant-isolated memory with bi-temporal replay and an auditable supersession chain.
 
 [![PyPI](https://img.shields.io/pypi/v/attestor?label=PyPI&color=C15F3C&labelColor=1A1614)](https://pypi.org/project/attestor/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/attestor?label=installs%2Fmo&color=C15F3C&labelColor=1A1614)](https://pypi.org/project/attestor/)
@@ -35,6 +44,14 @@ pip install attestor
 ## What it is
 
 Attestor is a memory store for agent teams that need a **shared, tenant-isolated memory** with **bi-temporal replay**, **deterministic retrieval**, and an **auditable supersession chain**. It runs as a Python library, a Starlette REST service, or an MCP server — same API in all three.
+
+**The token math:** Full-context replay is O(n²) — every turn re-reads the whole history. Attestor replaces that with O(n) targeted retrieval. Per-call context stays flat at ~200 tokens whether the agent is on turn 1 or turn 100. One Claude Opus 4 session at 100 turns: $24.15 → $1.24. Verify it yourself with [context-clock](https://github.com/bolnet/context-clock).
+
+| Turn | Full-context replay | Attestor | Reduction |
+|---|---|---|---|
+| t24 | growing | ~200 tok | 5.6× |
+| t50 | growing | ~200 tok | 11× |
+| t100 | 8,709 tok/call | ~200 tok | **21.5×** |
 
 It is built around three claims, each grounded in code:
 
