@@ -25,12 +25,76 @@ _mem = None
 _mem_lock = threading.Lock()
 
 
+def _pinecone_config_from_env() -> dict[str, Any] | None:
+    """Resolve the Pinecone (vector-role) backend config for the env path.
+
+    The env path (POSTGRES_URL / NEO4J_URI) is for cloud deploys that bind
+    secrets via env. It used to register only postgres (document) + neo4j
+    (graph) and silently drop the vector role — so semantic recall degraded
+    to tag+graph on every env-driven deploy. (The vector role moved from the
+    Postgres pgvector column to a dedicated Pinecone backend on 2026-04-29;
+    this path was never updated, so ``recall`` ran with ``_vector_store=None``.)
+
+    The YAML stack is the source of truth for the non-secret index settings
+    (index_name / cloud / region / metric / dimension). The secret (api_key)
+    and connection host may be overridden via ``PINECONE_API_KEY`` /
+    ``PINECONE_HOST`` / ``PINECONE_INDEX`` so cloud deploys never bake the key
+    into a config file.
+
+    Returns the pinecone config dict, or None when neither YAML nor env
+    defines a vector backend — legacy pgvector-only deploys then keep running
+    without a separate vector store (the prior behavior).
+    """
+    pcn: dict[str, Any] = {}
+
+    try:
+        from attestor.config import get_stack
+
+        stack = get_stack()
+        if stack.pinecone is not None:
+            pcn = {
+                "index_name": stack.pinecone.index_name,
+                "metric": stack.pinecone.metric,
+                "cloud": stack.pinecone.cloud,
+                "region": stack.pinecone.region,
+                "dimension": stack.embedder.dimensions,
+            }
+            if stack.pinecone.host:
+                pcn["host"] = stack.pinecone.host
+            yaml_key = os.environ.get(stack.pinecone.api_key_env)
+            if yaml_key:
+                pcn["api_key"] = yaml_key
+    except (Exception, SystemExit):  # noqa: BLE001 — YAML may be absent or
+        # missing required env on a pure-env deploy; the loader raises
+        # SystemExit (not Exception) in that case. Fall back to PINECONE_*.
+        pass
+
+    # Env overrides win over YAML for the secret + connection target.
+    api_key = os.environ.get("PINECONE_API_KEY")
+    host = os.environ.get("PINECONE_HOST")
+    index = os.environ.get("PINECONE_INDEX")
+    if api_key:
+        pcn["api_key"] = api_key
+    if host:
+        pcn["host"] = host
+    if index:
+        pcn["index_name"] = index
+
+    # Register the vector backend only when we can actually reach an index.
+    # An index_name is the minimum; without it there is nothing to query.
+    if not pcn.get("index_name"):
+        return None
+    return pcn
+
+
 def _build_config() -> dict[str, Any] | None:
     """Build backend config. Returns None when no backend can be resolved.
 
     Resolution order (top wins):
-        1. Explicit env vars: POSTGRES_URL [+ NEO4J_URI] / NEO4J_URI alone /
-           ARANGO_URL — preserved for cloud deploys that bind secrets via env.
+        1. Explicit env vars: POSTGRES_URL [+ NEO4J_URI] / NEO4J_URI alone —
+           preserved for cloud deploys that bind secrets via env. The vector
+           role (Pinecone) is folded in from the YAML SoT + PINECONE_* env so
+           it is never silently dropped.
         2. ``configs/attestor.yaml`` via ``attestor.config.get_stack()`` —
            when no env vars are set we honor the YAML SoT. Pass
            ATTESTOR_CONFIG=/path/to/yaml to override the default file.
@@ -68,6 +132,13 @@ def _build_config() -> dict[str, Any] | None:
         }
 
     if backends:
+        # On the env-driven path, preserve the Pinecone vector role. Without
+        # this the vector store is silently absent and recall loses its
+        # semantic lane (see _pinecone_config_from_env for the regression).
+        pinecone_cfg = _pinecone_config_from_env()
+        if pinecone_cfg is not None:
+            backends.append("pinecone")
+            cfg["pinecone"] = pinecone_cfg
         cfg["backends"] = backends
         return cfg
 
