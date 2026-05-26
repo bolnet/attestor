@@ -1,6 +1,6 @@
 [project]
 name = "attestor"
-version = "4.1.3"
+version = "4.1.4"
 description = "Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval."
 readme = "README.md"
 license = "MIT"
@@ -37,10 +37,17 @@ dependencies = [
     # The codebase imports postgres + neo4j eagerly
     # (attestor/conversation/episodes.py, store/postgres_backend.py,
     # store/neo4j_backend.py), so they must be present at install time for
-    # `import attestor.conversation` to even resolve. Pinecone is lazy-loaded
-    # so the dependency is declared as the `pinecone` extra below.
+    # `import attestor.conversation` to even resolve.
     "psycopg2-binary>=2.9.0",
     "neo4j>=5.0.0",
+    # Pinecone is the DEFAULT vector role (incl. Pinecone Local via `attestor
+    # quickstart`), so it must ship in the base install — not an optional extra.
+    # The local emulator path goes through `pinecone.grpc.PineconeGRPC`, and
+    # pinecone 9.x DROPPED the `[grpc]` extra, so `grpcio` must be declared
+    # explicitly or the local vector lane dies with "No module named 'pinecone'"
+    # / a missing-grpc import. grpcio ships cp310–cp314 wheels (no source build).
+    "pinecone>=5.0.0",
+    "grpcio>=1.60.0",
     # `requests` is used by health probes and ad-hoc HTTP calls
     # throughout the codebase (e.g. cloud doctor, MCP health pings).
     "requests>=2.28.0",

@@ -2,6 +2,10 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.4] — 2026-05-26
+
+**Fix: the default vector lane actually works on a fresh install.** With Pinecone Local as the canonical default vector role (4.1.2), a fresh `pipx install attestor` had **no `pinecone` module** — it was only an optional extra — so the vector backend silently fell back to tag+graph (`doctor` reported `healthy: false`, "No module named 'pinecone'"). `pinecone>=5.0.0` and `grpcio>=1.60.0` are now **base dependencies**. (Pinecone 9.x dropped the `[grpc]` extra, so `grpcio` — needed by the `pinecone.grpc` local-emulator client — must be declared explicitly; it ships cp310–cp314 wheels, so no source build, incl. Python 3.14.)
+
 ## [4.1.3] — 2026-05-26
 
 **Fix: MCP server + hooks now find `attestor` on PATH.** Claude Code spawns hooks and the MCP server with a minimal, non-interactive PATH that excludes `~/.local/bin` (the pipx shim), so the wrappers hit `bash: attestor: command not found` — the MCP server failed to attach and lifecycle hooks silently captured nothing. Both the hook command and the MCP entry now prepend `export PATH="$HOME/.local/bin:$PATH"` before invoking `attestor`.
