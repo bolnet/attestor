@@ -10,6 +10,26 @@ You are completely uninstalling **Attestor** (PyPI: `attestor`) from this machin
 
 A full install touches **six surfaces** — reverse each, in this order. Scan first, report, then act. Destructive steps (data deletion) need explicit confirmation; config/wiring removal does not.
 
+---
+
+## Quick path (one command — recommended if installed via `attestor quickstart`)
+
+```bash
+attestor teardown            # removes containers + ~/.attestor + MCP entry + hooks (KEEPS data volumes)
+attestor teardown --purge    # ALSO deletes Docker volumes — wipes all stored memories
+attestor teardown --dry-run  # preview only; changes nothing
+```
+
+`attestor teardown` is the zero-question reverse of `quickstart`: it tears down surfaces **[2] store config**, **[3] MCP entry (`./.mcp.json`) + the 3 lifecycle hooks** (content-matched on `attestor hook` — never other tools'), and **[4] the `postgres` + `neo4j` + `pinecone` containers**, printing each step. **Data-safe by default** (named volumes kept → a later `quickstart` reconnects to the same memories); `--purge` wipes them.
+
+It deliberately does **not** touch the two remaining surfaces — run those yourself:
+- **[1] package:** `cd ~ && pipx uninstall attestor` (from `$HOME`, not the repo — the source tree's `attestor/` dir shadows the name)
+- **[6] plugin:** `/plugin uninstall attestor` (inside Claude Code)
+
+For a manual / forensic reverse — or if the `attestor` binary isn't on PATH — follow the six-surface procedure below.
+
+---
+
 Rules:
 - **Never** remove another tool's hooks. Match Attestor hooks by command content `attestor hook` only.
 - **Back up** every JSON settings file to `*.bak` before editing; read → parse → mutate in memory → write atomically. Never `jq -e` mid-edit.

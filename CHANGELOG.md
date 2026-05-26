@@ -2,6 +2,10 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.5] — 2026-05-26
+
+**`attestor teardown` — zero-question reverse of `quickstart`.** One command removes exactly what `quickstart` created: the `postgres` + `neo4j` + `pinecone` containers, the store config (`~/.attestor`), the MCP entry in `./.mcp.json`, and the Attestor lifecycle hooks in `~/.claude/settings.json` (content-matched on `attestor hook` — never other tools'). **Data-safe by default** (Docker named volumes kept → a later `quickstart` reconnects to the same memories); `--purge` deletes the volumes (wipes memories), `--dry-run` previews. It leaves the pipx package + plugin alone (separate surfaces) and prints their removal commands. The `/uninstall-attestor` prompt now leads with this quick path.
+
 ## [4.1.4] — 2026-05-26
 
 **Fix: the default vector lane actually works on a fresh install.** With Pinecone Local as the canonical default vector role (4.1.2), a fresh `pipx install attestor` had **no `pinecone` module** — it was only an optional extra — so the vector backend silently fell back to tag+graph (`doctor` reported `healthy: false`, "No module named 'pinecone'"). `pinecone>=5.0.0` and `grpcio>=1.60.0` are now **base dependencies**. (Pinecone 9.x dropped the `[grpc]` extra, so `grpcio` — needed by the `pinecone.grpc` local-emulator client — must be declared explicitly; it ships cp310–cp314 wheels, so no source build, incl. Python 3.14.)
