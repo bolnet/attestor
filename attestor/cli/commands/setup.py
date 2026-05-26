@@ -11,6 +11,7 @@ from pathlib import Path
 from attestor.cli._setup_helpers import (
     _configure_claude_hooks,
     _configure_claude_mcp,
+    _print_active_config,
     _print_mcp_config,
 )
 from attestor.core import AgentMemory
@@ -21,6 +22,10 @@ def _cmd_setup_claude_code(args: argparse.Namespace) -> None:
 
     attestor_bin = shutil.which("attestor") or "attestor"
     abs_path = str(Path(args.path).resolve())
+
+    # Always show which config file is in effect + the resolved stack, so the
+    # user knows exactly what this install will run on.
+    _print_active_config()
 
     if not getattr(args, "install", False):
         print(f"Tip: Use 'attestor init {args.path} --install' for full setup.\n")

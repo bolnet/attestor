@@ -17,6 +17,7 @@ from pathlib import Path
 from attestor.cli._setup_helpers import (
     _configure_claude_hooks,
     _configure_claude_mcp,
+    _print_active_config,
     _print_mcp_config,
 )
 from attestor.core import AgentMemory
@@ -79,6 +80,9 @@ def _cmd_init(args: argparse.Namespace) -> None:
 
     attestor_bin = shutil.which("attestor") or "attestor"
     abs_path = str(store_path)
+
+    # Show which single config file drives this install + the resolved stack.
+    _print_active_config()
 
     tool = args.tool
     if not tool:

@@ -62,6 +62,42 @@ def _configure_claude_mcp(binary: str, store_path: str) -> None:
     print(f"\nClaude Code MCP server 'memory' configured in {settings_path}")
 
 
+def _print_active_config() -> None:
+    """Show which single config file Attestor uses + the resolved stack.
+
+    Attestor reads every stack / model / embedder / retrieval setting from
+    one YAML file. Surfacing it during install makes the contract obvious:
+    to change any setting, edit this file and re-run — there is no second
+    place to look. Never crashes the install; if the file is missing it
+    prints a pointer instead.
+    """
+    from attestor.config import (
+        get_stack,
+        print_stack_banner,
+        resolved_config_path,
+    )
+
+    print("\nAttestor reads every setting from a single config file.")
+    try:
+        stack = get_stack()
+    except SystemExit as exc:
+        print(f"  {exc}")
+        print(
+            "  Create configs/attestor.yaml (or set ATTESTOR_CONFIG) and re-run — "
+            "it is the single source of truth."
+        )
+        return
+    path = resolved_config_path()
+    if path is not None:
+        print(f"  Config file in use: {path}")
+    print("\nThis is how your current config looks like:")
+    print_stack_banner(stack, run_label="setup")
+    print(
+        "To change any setting (embedder, models, backends, retrieval budget), "
+        "edit that file and re-run setup — never hand-edit config elsewhere.\n"
+    )
+
+
 def _hook_command(binary: str, subcommand: str) -> str:
     """Build a hook command that loads the user's env before invoking attestor.
 
