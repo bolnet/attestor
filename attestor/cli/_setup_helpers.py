@@ -43,6 +43,10 @@ def _mcp_entry(binary: str, store_path: str) -> dict:
         "command": "bash",
         "args": [
             "-c",
+            # Claude Code spawns the MCP server with a minimal, non-interactive
+            # PATH that excludes ~/.local/bin (the pipx shim), so a bare
+            # `attestor` is "command not found". Prepend it explicitly first.
+            'export PATH="$HOME/.local/bin:$PATH"; '
             'set -a; [ -f "$HOME/.attestor/.env" ] && . "$HOME/.attestor/.env"; '
             f"set +a; exec attestor mcp --path {shlex.quote(str(store_path))}",
         ],
@@ -149,9 +153,12 @@ def _hook_command(binary: str, subcommand: str) -> str:
     """
     cfg = os.environ.get("ATTESTOR_CONFIG")
     cfg_prefix = f'ATTESTOR_CONFIG="{cfg}" ' if cfg else ""
+    # ~/.local/bin (pipx shim) is not on the hook subprocess's minimal PATH, so
+    # a bare `attestor` is "command not found" and the hook silently saves
+    # nothing. Prepend it before anything else.
     return (
-        'bash -c \'set -a; [ -f "$HOME/.attestor/.env" ] && '
-        '. "$HOME/.attestor/.env"; set +a; '
+        'bash -c \'export PATH="$HOME/.local/bin:$PATH"; set -a; '
+        '[ -f "$HOME/.attestor/.env" ] && . "$HOME/.attestor/.env"; set +a; '
         f"{cfg_prefix}{binary} hook {subcommand}'"
     )
 

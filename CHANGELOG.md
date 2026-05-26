@@ -2,6 +2,10 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.3] — 2026-05-26
+
+**Fix: MCP server + hooks now find `attestor` on PATH.** Claude Code spawns hooks and the MCP server with a minimal, non-interactive PATH that excludes `~/.local/bin` (the pipx shim), so the wrappers hit `bash: attestor: command not found` — the MCP server failed to attach and lifecycle hooks silently captured nothing. Both the hook command and the MCP entry now prepend `export PATH="$HOME/.local/bin:$PATH"` before invoking `attestor`.
+
 ## [4.1.2] — 2026-05-26
 
 **Zero-question install: `attestor quickstart`.** A single command that stands up the canonical three-role local stack — Postgres (document) + Pinecone Local (vector) + Neo4j (graph) + Ollama `bge-m3` embedder — with no prompts and one default profile. It prints everything, asks nothing.
