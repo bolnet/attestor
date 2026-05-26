@@ -7,9 +7,9 @@ A step-by-step guide to installing and verifying Attestor across different topol
 | # | Topology | Backend |
 |---|----------|---------|
 | [00](#chapter-00--install-via-claude-code-recommended) | **Install via Claude Code** (one prompt · cold start) | Postgres + Pinecone + Neo4j |
-| [01](#chapter-01--local-stack-with-docker-compose) | Local stack (Docker Compose) | Postgres + pgvector, Neo4j + GDS |
+| [01](#chapter-01--local-stack-with-docker-compose) | Local stack (Docker Compose) | Postgres + Pinecone + Neo4j |
 | [02](#chapter-02--sidecar-rest-api) | Sidecar REST API | Same stack, exposed over HTTP |
-| [03](#chapter-03--cloud-managed) | Cloud managed | Managed Postgres + Neo4j / Arango / AWS / Azure / GCP |
+| [03](#chapter-03--cloud-managed) | Cloud managed | Managed Postgres + Pinecone + Neo4j |
 
 ---
 
@@ -17,7 +17,7 @@ A step-by-step guide to installing and verifying Attestor across different topol
 
 **The one instruction.** Tell Claude Code **"install attestor to claude code"** (or run `/install-attestor`, or paste the prompt below). Claude **scans your machine first, looks up the current docs for every tool via Context7, then installs** — it brings up the three backend containers, installs the `attestor` package, wires the MCP server + hooks, and verifies. It assumes you start with **nothing installed**.
 
-> Chapters 01–03 describe the lower-level / older pgvector topologies. Chapter 00 reflects the current **canonical stack: Postgres (document) + Pinecone (vector) + Neo4j (graph)**.
+> Every chapter targets the same **canonical stack: Postgres (document) + Pinecone (vector) + Neo4j (graph)**, with the embedder, models, and retrieval budget coming from the single source of truth, [`configs/attestor.yaml`](../configs/attestor.yaml). Chapter 00 is the fastest path; 01–03 are the manual local / sidecar / cloud setups.
 
 ### The three backends — one clearly-named Docker instance per storage role
 
@@ -88,79 +88,84 @@ NOTES
 
 After it finishes you can use the `memory_*` tools immediately, and every project you open gets its own hard-isolated memory automatically.
 
+> Hooks load the user environment before calling `attestor`. The wired hook command is
+> `bash -c 'set -a; [ -f "$HOME/.attestor/.env" ] && . "$HOME/.attestor/.env"; set +a; attestor hook <event>'`.
+> The `set -a` matters: a bare `source` of a `.env` with un-exported `KEY=value` lines leaves
+> those vars shell-local, so the `attestor` subprocess never sees `ATTESTOR_CONFIG` / provider keys
+> and the hook silently saves nothing.
+
 ---
 
 ## Chapter 01 — Local stack with Docker Compose
 
-Attestor needs two services: a Postgres with pgvector (document + vector roles) and a Neo4j with GDS (graph role). The easiest way to run both on a laptop is the included Docker Compose stack in `attestor/infra/local/`.
+Attestor's canonical stack is three services: **Postgres** (document role, source of truth), **Pinecone Local** (vector role, the free `:5080` Docker emulator), and **Neo4j + GDS** (graph role). The bundled Compose stack in `attestor/infra/local/` brings all three up on a laptop.
+
+> The detailed, copy-paste-ready walkthrough — including the four health checks — lives in
+> **[`docs/LOCAL_DOCKER_SETUP.md`](LOCAL_DOCKER_SETUP.md)** (and its agent-driven variant
+> **[`docs/CLAUDE_LOCAL_SETUP_PROMPT.md`](CLAUDE_LOCAL_SETUP_PROMPT.md)**). This chapter is the short version.
 
 ### Prerequisites
 
-- Python 3.10 or later
-- `pip`, `pipx`, or `poetry`
-- Docker + Docker Compose
-- An embedding provider — default is OpenAI `text-embedding-3-large` (1536 dims). Set `OPENAI_API_KEY` in `.env`.
+- Python 3.10 or later; `pip`, `pipx`, or `poetry`
+- Docker + Docker Compose (v2). The Pinecone Local image is `linux/amd64`; Apple Silicon runs it under emulation automatically.
+- A repo-root `.env` (gitignored) with the keys the configured stack needs. With the default `configs/attestor.yaml` embedder (Voyage `voyage-4`, 1024-D) that is:
 
-### Step 1 — Start Postgres + Neo4j
+  ```bash
+  VOYAGE_API_KEY=...        # embedder (matches configs/attestor.yaml)
+  NEO4J_PASSWORD=attestor
+  OPENROUTER_API_KEY=...    # answer/judge model calls (optional for plain add/recall)
+  ```
+
+  Swap the embedder by editing `configs/attestor.yaml` (Pinecone Inference / OpenAI / Ollama) — the `.env` keys follow whatever provider you choose.
+
+### Step 1 — Start the three backends
 
 ```bash
 cd attestor/infra/local
-cp .env.example .env            # add OPENAI_API_KEY (and optionally OPENROUTER_API_KEY)
-docker compose up -d postgres neo4j
+cp .env.example .env            # fill in the keys above
+docker compose up -d postgres neo4j pinecone
 ```
 
-This brings up two healthy containers:
+This brings up three containers:
 
-| Container | Image | Port | Purpose |
-|-----------|-------|------|---------|
-| `attestor-pg-local` | `attestor/db-postgres:16` (pgvector) | `5432` | Document + vector |
-| `attestor-neo4j-local` | `neo4j:5.24-community` (+ GDS plugin) | `7474`, `7687` | Graph + PageRank / Leiden |
+| Container | Image | Port | Role |
+|-----------|-------|------|------|
+| `attestor-pg-local` | `attestor/db-postgres:16` (pgvector) | `5432` | Document |
+| `attestor-pinecone-local` | `ghcr.io/pinecone-io/pinecone-local:latest` | `5080-5090` | Vector |
+| `attestor-neo4j-local` | `neo4j:5.24-community` (+ GDS plugin) | `7474`, `7687` | Graph |
 
-Wait for both to report healthy:
+Wait for all three to report healthy:
 
 ```bash
-docker compose ps
+docker ps --filter name=attestor- --format '{{.Names}}\t{{.Status}}'
 ```
 
 ### Step 2 — Install the CLI
 
 ```bash
-# Via pip
-pip install attestor
-
-# Via pipx (isolated CLI)
-pipx install attestor
-
-# Via poetry (project dependency)
-poetry add attestor
-```
-
-Verify:
-
-```bash
+pipx install attestor      # isolated CLI (recommended)
+# or: pip install attestor / poetry add attestor
 attestor --help
 ```
 
 ### Step 3 — Point Attestor at the stack
 
-Export connection info (matches the Compose defaults):
+Connection details come from `configs/attestor.yaml` (the source of truth). For a one-off override, env vars win:
 
 ```bash
 export POSTGRES_URL="postgresql://postgres:attestor@localhost:5432/attestor"
 export NEO4J_URI="bolt://localhost:7687"
 export NEO4J_USERNAME="neo4j"
 export NEO4J_PASSWORD="attestor"
-export OPENAI_API_KEY="sk-..."
+# Pinecone Local needs no key; Pinecone Cloud uses PINECONE_API_KEY.
 ```
-
-Or put the same values in a `config.toml` under your store path.
 
 ### Step 4 — Write your first memory
 
 ```python
 from attestor import AgentMemory
 
-mem = AgentMemory()   # reads env / config.toml
+mem = AgentMemory()   # reads configs/attestor.yaml / env
 
 mem.add(
     "The order service uses event sourcing with a 30-day retention policy",
@@ -169,8 +174,9 @@ mem.add(
 )
 ```
 
-This writes across roles:
-- **Document + vector** (Postgres) — content, tags, entity, timestamp, confidence, pgvector embedding
+Every memory is persisted across all three roles:
+- **Document** (Postgres) — content, tags, entity, timestamp, confidence, provenance
+- **Vector** (Pinecone) — the dense embedding for cosine search
 - **Graph** (Neo4j) — entity node `order-service` + typed edges
 
 ### Step 5 — Recall
@@ -181,55 +187,27 @@ for r in results:
     print(f"[{r.score:.2f}] {r.memory.content}")
 ```
 
-The 5-layer retrieval pipeline runs:
-1. **Tag match** — Postgres FTS / trigram finds memories tagged with relevant terms
-2. **Graph expansion** — Neo4j BFS depth=2 finds related entities
-3. **Vector search** — pgvector cosine similarity on the query embedding
-4. **Fusion + rank** — RRF (k=60) merges all candidates, applies PageRank and confidence decay
-5. **Diversity + fit** — MMR (λ=0.7) removes near-duplicates, greedy packs under the token budget
+The deterministic **6-step retrieval pipeline** runs (no LLM in the hot path):
+1. **Vector top-K** — Pinecone cosine on the query embedding (optional HyDE v2 lane)
+2. **BM25 lane** (optional) — Postgres FTS
+3. **RRF blend** — reciprocal-rank fusion (k=60) merges vector + BM25
+4. **Graph narrow** — Neo4j BFS depth=2 affinity bonus + synthetic-triple injection
+5. **MMR diversity** (λ=0.7) + confidence decay
+6. **Token-budget pack** — greedy fit under the recall budget
 
-### Step 6 — Run the doctor
+### Step 6 — Verify
 
 ```bash
-attestor doctor
+attestor doctor <store-path>
 ```
 
-Expected:
-
-```
-Attestor Doctor
-==================================================
-
-Overall: ALL HEALTHY
-
-  [OK] PostgresBackend (document + vector)
-  [OK] Neo4jBackend (graph)
-  [OK] Retrieval Pipeline
-```
-
-All checks must show `[OK]`. If the vector or graph role shows `[FAIL]`, retrieval degrades: the document path is the only hard dependency.
-
-### Step 7 — Verify from the CLI
+Expect Document (Postgres), Vector (Pinecone), Graph (Neo4j), and the Retrieval pipeline all healthy. If the vector or graph role fails, retrieval degrades gracefully — the document store is the only hard dependency.
 
 ```bash
 attestor add "API rate limit is 1000 req/min" --tags api,limits
 attestor recall "what are the rate limits?"
-attestor timeline --limit 10
 attestor stats
 ```
-
-### What's on disk
-
-The Docker volumes hold all state:
-
-| Volume | Purpose |
-|--------|---------|
-| `postgres_data` | Postgres data directory (documents, pgvector index) |
-| `neo4j_data` | Neo4j data directory (graph) |
-| `neo4j_logs` | Neo4j logs |
-| `neo4j_plugins` | GDS plugin |
-
-Wipe everything with `docker compose down -v`.
 
 ### Degradation
 
@@ -239,86 +217,88 @@ Attestor's retrieval pipeline tolerates partial outages:
 - **Graph down** — falls back to tag match + vector search
 - **Document store** is the only hard dependency
 
-Non-fatal errors in vector or graph layers are caught and logged; the document path never breaks.
+Non-fatal errors in the vector or graph layers are caught and logged; the document path never breaks.
 
 ### Claude Code integration
 
-The fastest path for Claude Code users:
-
-```
-> install attestor
-```
-
-The interactive wizard configures MCP scope, Postgres + Neo4j connections, hooks, namespace, and token budget.
-
-Or add manually to `~/.claude/.mcp.json`:
+The fastest path is Chapter 00. To wire it manually, add the MCP server to `.mcp.json` (project) or `~/.claude/settings.json` (global):
 
 ```json
 {
   "mcpServers": {
-    "memory": {
+    "attestor": {
       "command": "attestor",
       "args": ["mcp"],
       "env": {
-        "POSTGRES_URL": "postgresql://postgres:attestor@localhost:5432/attestor",
-        "NEO4J_URI": "bolt://localhost:7687",
-        "NEO4J_USERNAME": "neo4j",
-        "NEO4J_PASSWORD": "attestor",
-        "OPENAI_API_KEY": "sk-..."
+        "ATTESTOR_CONFIG": "/absolute/path/to/configs/attestor.yaml"
       }
     }
   }
 }
 ```
 
+The MCP server inherits the `env` block above. The lifecycle hooks (SessionStart / PostToolUse / Stop) run as separate subprocesses that do **not** inherit your interactive shell, so they load `~/.attestor/.env` themselves:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command",
+      "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook session-start'" }] }],
+    "PostToolUse": [{ "matcher": "Write|Edit|Bash", "hooks": [{ "type": "command",
+      "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook post-tool-use'" }] }],
+    "Stop": [{ "hooks": [{ "type": "command",
+      "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook stop'" }] }]
+  }
+}
+```
+
+`attestor setup-claude-code` writes exactly this wiring for you. The `set -a` is required — without it, un-exported `.env` vars never reach the hook subprocess and hooks save nothing.
+
 ### Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `attestor: command not found` | Not on PATH | Use `pipx install attestor` or check `pip show attestor` |
-| `connection refused` on 5432/7687 | Containers not healthy yet | `docker compose ps`; wait for both to report `healthy` |
-| Neo4j auth error | Password mismatch between env and container | Align `NEO4J_PASSWORD` in `.env` with `NEO4J_AUTH` |
-| pgvector extension missing | Stock Postgres image without pgvector | Use the bundled `postgres.Dockerfile` (pgvector preinstalled) |
-| OpenAI 401 on add/recall | Missing `OPENAI_API_KEY` | Export it or put it in `.env` before `docker compose up` |
-| Doctor: 0 vectors but N memories | Embedding failed for some memories | Re-add affected memories; check `OPENAI_API_KEY` and network egress |
-
-### Next steps
-
-- **Chapter 02** — Run the REST API as a sidecar for non-Python agents
-- **Chapter 03** — Switch to managed cloud backends for shared multi-agent deployments
+| `attestor: command not found` | Not on PATH | `pipx install attestor`, or check `pip show attestor` |
+| `connection refused` on 5432 / 5080 / 7687 | Containers not healthy yet | `docker ps`; wait for all three to report `healthy` |
+| Neo4j auth error | Password mismatch | Align `NEO4J_PASSWORD` in `.env` with the container's `NEO4J_AUTH` |
+| Embedder fails to initialize | Provider key missing for the `configs/attestor.yaml` embedder | Set the matching key in `.env` (e.g. `VOYAGE_API_KEY`) |
+| Hooks save nothing | `.env` vars not exported to the subprocess | Use the `set -a; . "$HOME/.attestor/.env"; set +a; …` form above; check hook stderr for the error envelope |
+| Doctor: 0 vectors but N memories | Embed dim ≠ schema `vector(N)` | Keep the embedder dim and the schema dim locked together |
 
 ---
 
 ## Chapter 02 — Sidecar REST API
 
-Bring up the same stack plus the API container:
+Bring up the same three backends plus the API container, exposing the full `AgentMemory` surface over HTTP so non-Python agents can read/write memory:
 
 ```bash
 cd attestor/infra/local
-docker compose up -d                 # postgres + neo4j + attestor-api
-curl localhost:8080/health
+docker compose up -d            # postgres + pinecone + neo4j + attestor-api
+curl localhost:8080/health      # {"ok": true, "data": {"healthy": true, ...}}
 ```
 
-The API container (`attestor-api-local`) exposes the same surface as `AgentMemory` over HTTP, so any language can read/write memory via `MemoryClient` or raw REST. See `attestor/api.py` for the route list.
+The API container (`attestor-api-local`) serves the same routes as the library — `/add`, `/recall`, `/search`, `/timeline`, `/forget`, `/memory/{id}`, `/health`, `/stats` (see [`attestor/api.py`](../attestor/api.py)). Any language can drive it via `MemoryClient` or raw REST. Backend config resolves from env (`POSTGRES_URL` / `NEO4J_URI` + `PINECONE_*`) and otherwise from `configs/attestor.yaml`; the vector (Pinecone) role is always preserved.
 
 ---
 
 ## Chapter 03 — Cloud Managed
 
-Swap the local Compose services for managed equivalents. Connection config is the only change.
+The stack is the same; only connection strings change. Swap the local Compose services for managed equivalents and bind secrets via env:
 
-| Provider | Document + vector | Graph |
-|----------|-------------------|-------|
-| Neon / RDS / Cloud SQL / AlloyDB | Postgres + pgvector | Neo4j AuraDB |
-| ArangoDB Oasis | ArangoDB (doc + vector + graph in one) | — |
-| AWS | DynamoDB + OpenSearch Serverless | Neptune |
-| Azure | Cosmos DB DiskANN | NetworkX in-process (Azure extra ships `networkx`) |
-| GCP | AlloyDB (pgvector + ScaNN) | Apache AGE on AlloyDB |
+| Role | Local | Managed options |
+|------|-------|-----------------|
+| Document | Postgres (Compose) | Neon · RDS · Cloud SQL · AlloyDB-as-PG · Cosmos PG flex |
+| Vector | Pinecone Local | Pinecone Cloud (free Starter tier, or Standard from $50/mo) |
+| Graph | Neo4j (Compose) | Neo4j AuraDB (or self-hosted Neo4j 5 + GDS) |
 
-Reference Terraform lives under `attestor/infra/` for AWS, Azure, and GCP. Pick the backend via `config.toml`:
-
-```toml
-backend = "postgres"     # or "arangodb", "aws", "azure", "gcp"
+```bash
+export POSTGRES_URL="postgresql://user:pass@managed-pg-host:5432/attestor"
+export NEO4J_URI="neo4j+s://<auradb-id>.databases.neo4j.io"
+export NEO4J_USERNAME="neo4j"
+export NEO4J_PASSWORD="..."
+export PINECONE_API_KEY="pcsk_..."   # Pinecone Cloud — index settings from configs/attestor.yaml
 ```
 
-Per-provider credentials are read from environment variables — never commit them. See each backend module (`attestor/store/*_backend.py`) for the exact variables expected.
+Run the API container (or your own image) with those env vars; `configs/attestor.yaml` remains the source of truth for the embedder, models, and retrieval budget. Validated reference deploys (App Runner / Cloud Run / Container Apps in front of managed Postgres + Pinecone + Neo4j) follow the same pattern — only DB hostnames and secrets differ.
+
+> **Operational notes** (from cloud-deploy validation): Neo4j needs ≥512 MB RAM even idle (the JVM + GDS plugin OOM in 0.5 GB containers — use the next size up). Don't put Neo4j behind HTTP-only compute (`bolt://` is TCP/7687 — use a small VM in the same VPC, or a TCP-capable platform). Keep the embedder dim and the schema `vector(N)` locked together. Tighten ingress (5432 / 7687) to your compute's egress range before production.
