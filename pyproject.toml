@@ -89,6 +89,10 @@ include = [
     # FileResponse serves them directly so they MUST be in the wheel.
     { path = "attestor/ui/static/*", format = ["sdist", "wheel"] },
     { path = "attestor/ui/templates/*.html", format = ["sdist", "wheel"] },
+    # Local-default stack config — `attestor init` copies this to
+    # ~/.attestor/attestor.yaml; it MUST be in the wheel or a fresh install
+    # has no stack config and get_stack() fails.
+    { path = "attestor/config/defaults/*.yaml", format = ["sdist", "wheel"] },
 ]
 
 [tool.poetry.group.dev.dependencies]

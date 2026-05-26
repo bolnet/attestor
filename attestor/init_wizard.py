@@ -125,6 +125,27 @@ def _redact_credentials(options: Mapping[str, Any] | None) -> dict[str, Any] | N
     return redacted
 
 
+def _write_default_stack_config(store_path: Path) -> Path | None:
+    """Copy the bundled local-default ``attestor.yaml`` into the store if absent.
+
+    Ships at ``attestor/config/defaults/local.yaml`` (in the wheel). The caller
+    points ``ATTESTOR_CONFIG`` at the written file. Returns the path, or None if
+    the template can't be located / already present.
+    """
+    dest = store_path / "attestor.yaml"
+    if dest.exists():
+        return dest
+    try:
+        from importlib import resources
+
+        tmpl = resources.files("attestor.config").joinpath("defaults", "local.yaml").read_text()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Could not load bundled local.yaml template: %s", exc)
+        return None
+    dest.write_text(tmpl)
+    return dest
+
+
 def _set_secure_permissions(path: Path) -> None:
     """Chmod 0o600 on Unix; best-effort on other platforms."""
     try:
@@ -205,6 +226,12 @@ def init_store(
     doc = _build_config(backend, safe_options)
     config_file.write_text(tomlkit.dumps(doc))
     _set_secure_permissions(config_file)
+
+    # Drop the bundled local-default stack config (embedder/models/retrieval)
+    # next to config.toml. Without it a fresh install has no attestor.yaml and
+    # get_stack() fails / falls back to the bench config. The store config.toml
+    # handles connections; this handles the stack.
+    _write_default_stack_config(path)
 
     verified = False
     if verify:
