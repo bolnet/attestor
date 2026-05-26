@@ -112,11 +112,16 @@ Same API across all three. Only configuration changes.
 
 **Prompt-first.** Install / setup / uninstall are driven by **prompts that Claude Code executes itself** — `commands/install-attestor.md` and `commands/uninstall-attestor.md` are the source of truth. The Python helpers (`attestor setup-claude-code`, `scripts/attestor_uninstall.py`) encode the same steps for **testing/CI only**; keep them in sync with the prompts, but the prompt is the canonical path.
 
-Three install paths (all detailed in `docs/INSTALL.md`):
+**One install path — the guided wizard** (`commands/install-attestor.md`): an interactive, Claude-driven interview (scope, Postgres / Pinecone / Neo4j connections, embedder = Pinecone Inference default, hook wiring) that installs the package, brings up the backends, wires MCP + hooks, and runs `attestor doctor`. **Four ways to launch the same wizard** (≤3 words each — Claude reads this repo and runs it end-to-end):
 
-1. **Plugin (recommended).** `/plugin marketplace add bolnet/attestor` then `/plugin install attestor`. The plugin manifest (`.claude-plugin/plugin.json`) auto-wires the MCP server (`.mcp.json`) and the SessionStart / PostToolUse / Stop hooks (`hooks/hooks.json`) by convention. Still requires `pipx install attestor` (so the `attestor` binary is on PATH) plus reachable backends.
-2. **Guided wizard.** `/install-attestor` runs `commands/install-attestor.md`, an interactive interview — scope (global `~/.claude` vs project), Postgres / Pinecone / Neo4j connections, embedding provider (Pinecone Inference default, or Voyage / OpenAI / Ollama), hook wiring — then installs `attestor`, merges the MCP + hook config, and runs `attestor doctor`.
-3. **Copy-paste prompt.** For a cold Claude Code session with nothing installed, paste the detailed install prompt from `docs/INSTALL.md` and Claude executes the whole flow.
+| # | Way | Type this |
+|---|-----|-----------|
+| 1 | Plugin (recommended) | `/plugin install attestor` |
+| 2 | Command | `/install-attestor` |
+| 3 | Repo URL | `github.com/bolnet/attestor` |
+| 4 | Natural language | `install attestor` |
+
+First-time plugin use needs `/plugin marketplace add bolnet/attestor` once; the plugin manifest (`.claude-plugin/plugin.json`) additionally auto-wires the MCP server (`.mcp.json`) + hooks (`hooks/hooks.json`) by convention, but the wizard still handles package install + backends + verify. All require the `attestor` binary on PATH (`pipx install attestor`, 4.1.0) + reachable backends.
 
 **Uninstall.** `/uninstall-attestor` (or "uninstall attestor") runs `commands/uninstall-attestor.md` — Claude reverses all six install surfaces itself: package (pipx — run from `$HOME` so the repo `attestor/` subdir doesn't shadow the name), `~/.attestor/`, the MCP entry + Attestor's own hooks (content-matched on `attestor hook`, never other tools'), the Docker backends + volumes (confirm — deletes memory), the plugin, and stray repo artifacts.
 
