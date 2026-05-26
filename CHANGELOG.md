@@ -2,6 +2,10 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.9] — 2026-05-26
+
+**One consistent recall token budget: 2048.** The recall cap was inconsistent across paths (MCP `memory_recall` default 2000, CLI `recall` 16000, store config 10000). Unified to **2048** everywhere: MCP tool schema + default, CLI `--budget` default, `init`'s generated `config.toml` (`default_token_budget`), and the bundled `local.yaml` (`stack.budget`). Per-benchmark budgets (locomo/mab/longmemeval) are left as-is (they're harness-tuned). Per-call override via `--budget` / the MCP `budget` arg still works.
+
 ## [4.1.8] — 2026-05-26
 
 **Consistent `attestor_` Docker naming.** Every container, volume, and the compose network/project is now named `attestor_…`, so `docker ps -a | grep attestor` (and `docker volume ls | grep attestor`, `docker network ls | grep attestor`) lists everything Attestor owns. Renamed: `attestor_postgres_document_db`, `attestor_pinecone_vector_db`, `attestor_neo4j_graph_db` (+ `attestor_api`); compose project → `attestor` (volumes become `attestor_postgres_data`, … and the network `attestor_default`). `quickstart`'s health-wait + all docs/uninstall scans updated to match; the uninstall docker filter broadened to `name=attestor` so it catches both the new underscore names and the legacy `attestor-*-local` ones.

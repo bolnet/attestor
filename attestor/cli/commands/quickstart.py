@@ -289,7 +289,7 @@ def _print_profile(store: Path) -> None:
     print(f"  embedder ........ Ollama {OLLAMA_EMBED_MODEL} @{EMBED_DIM}d (local, zero cloud key)")
     print("  llm keys ........ none required (recall/add work fully local)")
     print(f"  passwords ....... '{DEFAULT_PASSWORD}' (localhost dev default; Pinecone key 'local')")
-    print("  token budget ........ 10000")
+    print("  token budget ........ 2048")
     print()
 
 
