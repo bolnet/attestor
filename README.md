@@ -13,6 +13,12 @@
 pip install attestor
 ```
 
+> **Using Claude Code?** Paste this repo's link and say *"install attestor"* — Claude scans your machine, brings up the backends, installs the package, and wires the MCP server + hooks for you. See **[Install for Claude Code](#install-for-claude-code)**.
+>
+> ```
+> https://github.com/bolnet/attestor  — install attestor to claude code
+> ```
+
 | | |
 |---|---|
 | **Version** | `4.0.0` (stable; greenfield rebuild — no v3 migration path) |
@@ -807,23 +813,29 @@ Wire them up via the installer (next section) or by hand in `~/.claude/settings.
 
 ## Install for Claude Code
 
-Single instruction users can give Claude Code:
+**The one instruction.** Open Claude Code, paste this repo's URL, and say **"install attestor"**:
 
 ```
-install attestor
+https://github.com/bolnet/attestor  — install attestor to claude code
 ```
 
-(Or run `/install-attestor`.) The installer interviews you on:
+Claude Code reads this repo's install guide ([`docs/INSTALL.md`](docs/INSTALL.md) → *Chapter 00*), then **scans your machine first, looks up current docs via Context7, and installs** — it brings up the three backend containers, installs the `attestor` package, wires the MCP server + hooks, and verifies. It assumes you start with nothing installed.
 
-1. **Scope** — global (`~/.claude/.mcp.json`) vs project (`.mcp.json`)
-2. **Postgres connection** — local Docker, Neon, RDS, etc.
-3. **Neo4j connection** — local Docker, AuraDB, etc.
-4. **Backend override** — default `postgres+neo4j`, or `arangodb` / `aws` / `azure` / `gcp`
-5. **Embedding provider** — local Ollama (default), OpenAI, or cloud-native
-6. **Hooks** — whether to wire `session-start` / `post-tool-use` / `stop`
-7. **Namespace + default token budget**
+Three ways in (full detail in [`docs/INSTALL.md`](docs/INSTALL.md)):
 
-Then it installs `attestor` via pipx, writes the MCP config, optionally writes `settings.json` hooks, and runs `attestor doctor` to verify.
+1. **Plugin (recommended)** — `/plugin marketplace add bolnet/attestor` then `/plugin install attestor`. Auto-wires the MCP server (`.mcp.json`) and the SessionStart / PostToolUse / Stop hooks (`hooks/hooks.json`) by convention. Requires `pipx install attestor` (so the `attestor` binary is on PATH) plus reachable backends.
+2. **Guided wizard** — `/install-attestor` runs an interactive interview (scope, Postgres / Pinecone / Neo4j connections, embedding provider, hook wiring), installs `attestor`, merges the config, and runs `attestor doctor`.
+3. **Copy-paste prompt** — for a cold session, paste the detailed install prompt from [`docs/INSTALL.md` Chapter 00](docs/INSTALL.md).
+
+**Memory is isolated per project automatically** — each working directory (git root, else cwd) is its own hard-isolated tenant, so projects never share memory. No namespace to configure.
+
+The backends come up as three clearly-named Docker instances, one per storage role:
+
+| Container | Type | Storage role |
+|---|---|---|
+| `attestor-postgres` | Postgres 16 + pgvector | Document — source of truth |
+| `attestor-pinecone` | Pinecone Local | Vector — embeddings |
+| `attestor-neo4j` | Neo4j 5 + GDS | Graph — PageRank / BFS |
 
 ---
 
