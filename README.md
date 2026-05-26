@@ -22,15 +22,15 @@ Self-hosted, deterministic retrieval, zero LLM in the critical path. The memory 
 pip install attestor
 ```
 
-> **Using Claude Code?** Paste this repo's link and say *"install attestor"* — Claude follows the repo's install guide to scan your machine, bring up the backends, install the package, and wire the MCP server + hooks (it asks you for credentials when it needs them). See **[Install for Claude Code](#install-for-claude-code)**.
+> **Using Claude Code?** `pipx install attestor` then **`attestor quickstart`** — one command, zero questions: it brings up the local backends (Postgres + Pinecone Local + Neo4j), uses a local Ollama embedder (no cloud key), and wires the MCP server + hooks. Reverse it with `attestor teardown`. Or drive it from inside Claude Code via the plugin (`/plugin install attestor` → `/attestor:install-attestor`). See **[Install for Claude Code](#install-for-claude-code)**.
 >
 > ```
-> https://github.com/bolnet/attestor  — install attestor to claude code
+> pipx install attestor && attestor quickstart
 > ```
 
 | | |
 |---|---|
-| **Version** | `4.0.0` (stable; greenfield rebuild — no v3 migration path) |
+| **Version** | `4.1.6` (stable; greenfield rebuild — no v3 migration path) |
 | **PyPI** | `attestor` |
 | **Import** | `attestor` |
 | **Live site** | <https://attestor.dev/> |
@@ -101,58 +101,29 @@ Same image is mirrored to:
 
 The image's default entrypoint is `attestor mcp` (MCP server over stdio). For full production use, point the container at an external Postgres + Neo4j via env vars (or compose them with `attestor/infra/local/docker-compose.yml`); override the entrypoint to run `attestor doctor`, `attestor api`, etc.
 
-### 2. Bring up local Postgres + Pinecone + Neo4j
+### 2. Stand up the local stack — one command, zero questions
 
 ```bash
-attestor setup local                                       # writes attestor/infra/local/docker-compose.yml
-
-# Vector role: Pinecone Local is a SEPARATE container (not in the compose file) — start it first.
-docker run -d --name pinecone-local -e PORT=5080 -e PINECONE_HOST=localhost \
-  -p 5080-5090:5080-5090 --platform linux/amd64 \
-  ghcr.io/pinecone-io/pinecone-local:latest
-
-# Compose loads its env file from the compose file's own directory, so pass the
-# repo-root .env explicitly (it holds PINECONE_API_KEY / VOYAGE_API_KEY / etc).
-docker compose --env-file .env -f attestor/infra/local/docker-compose.yml up -d --build
+attestor quickstart
 ```
 
-> **New here? Read [docs/LOCAL_DOCKER_SETUP.md](docs/LOCAL_DOCKER_SETUP.md)** for the full step-by-step
-> container walkthrough, the exact verify command, and a Troubleshooting section covering the common
-> first-run gotchas (missing `--env-file`, Pinecone Local not running, and the host-vs-container
-> `localhost:5080` nuance).
+`attestor quickstart` does the whole local install non-interactively and prints every step: it writes `~/.attestor/{config.toml,attestor.yaml,.env}`, brings up the **three-role local stack** in Docker, uses a local **Ollama `bge-m3`** embedder (no cloud key), wires the Claude Code MCP server (`./.mcp.json`) + lifecycle hooks, and runs `attestor doctor`.
 
-The default stack ships **three containers** (one per storage role):
+**Prerequisites:** Docker running, and Ollama serving `bge-m3` (`ollama pull bge-m3`). `quickstart` runs a preflight that scans the ports/tools and tells you if anything is missing — it never prompts.
 
 | Container | Role | Port | Purpose |
 |---|---|---|---|
 | Postgres 16 | Document | `5432` | Source of truth — content, tags, entity, ts, provenance, RLS-isolated by `user_id` |
-| **Pinecone Local** | Vector | `5080-5089` | Dense embeddings, free per-namespace isolation, plain gRPC (no HTTPS) |
+| **Pinecone Local** | Vector | `5080-5089` | Dense embeddings, per-namespace isolation, plain gRPC (no HTTPS) |
 | Neo4j 5 + GDS | Graph | `7687` | Entity nodes + typed edges, PageRank / BFS / Leiden |
 
-`pgvector` remains in the Postgres schema as an opt-in fallback for single-process / self-contained deploys, but the **default vector role is Pinecone** as of 2026-04-29 — it delivered the +10pp LME-S temporal-reasoning lift in the most recent bench-up.
+To reverse it later: **`attestor teardown`** (zero-question; keeps your data volumes by default — `--purge` also wipes them, `--dry-run` previews).
 
-### 3. Configure the embedder
+**In Claude Code**, drive the same install conversationally: `/plugin marketplace add bolnet/attestor` → `/plugin install attestor` (then enable it), and run **`/attestor:install-attestor`** — it runs `attestor quickstart` for you. Cloud/managed backends (Neon / RDS / Cloud SQL, Pinecone Cloud, Neo4j AuraDB) and alternative embedders (Pinecone Inference `llama-text-embed-v2`, Voyage `voyage-4`, OpenAI `text-embedding-3`) are configured in `~/.attestor/attestor.yaml` (the single source of truth) — see [docs/INSTALL.md](docs/INSTALL.md).
 
-The default embedder is **Pinecone Inference `llama-text-embed-v2`** (NVIDIA-hosted, 1024-D) — one vendor for embedder + storage, free Starter tier (5M tokens/month per organization, see [§ Cost & runtime guide](#cost--runtime-guide)). It is declared in `configs/attestor.yaml` (`stack.embedder`, the single source of truth); set `PINECONE_API_KEY` in `.env` and the loader picks it up.
+`attestor doctor` (run automatically at the end, or any time) checks all four subsystems: **Document Store** (Postgres), **Vector Store** (Pinecone), **Graph Store** (Neo4j), **Retrieval Pipeline**. The only hard dependency that *cannot* be down is the document store (Postgres); transient vector-probe failures are surfaced in the response trace rather than swallowed (`retrieval/orchestrator.py` — `vector_error` field).
 
-```bash
-echo "PINECONE_API_KEY=pcsk_…" >> .env       # cloud key for the embedder; storage can stay local
-```
-
-**Alternative providers** (override via `ATTESTOR_EMBEDDING_PROVIDER` / `ATTESTOR_EMBEDDING_MODEL`):
-- `voyage` — Voyage AI `voyage-4` (1024-D, paid)
-- `openai` — `text-embedding-3-small` (1024-D via Matryoshka)
-- `ollama` — `bge-m3` local-first (free, requires `ollama pull bge-m3`)
-
-### 4. Verify (mandatory)
-
-```bash
-attestor doctor
-```
-
-All four checks must be green for the default install: **Document Store** (Postgres), **Vector Store** (Pinecone Local or Cloud), **Graph Store** (Neo4j), **Retrieval Pipeline**. Graph (Neo4j) is required — the 6-step retrieval pipeline narrows on graph neighborhoods and the conversation ingest path writes typed edges (`uses`, `authored-by`, `supersedes`). The only hard dependency that *cannot* be down is the document store (Postgres); transient vector-probe failures are surfaced in the response trace rather than swallowed (`retrieval/orchestrator.py` — `vector_error` field).
-
-### 5. Use it
+### 3. Use it
 
 ```python
 from attestor import AgentMemory, AgentContext, AgentRole
@@ -179,7 +150,7 @@ for r in results:
 
 > **SOLO mode (zero-config).** In v4, `AgentMemory().add('foo')` auto-provisions a singleton `local` user, an Inbox project (`metadata.is_inbox=true`), and a daily session — so the snippet above works on a fresh database without configuring identity (`core.py:179-209`). For multi-tenant production use, pass an explicit `AgentContext` with a real `namespace`.
 
-### 6. Run a smoke benchmark (optional)
+### 4. Run a smoke benchmark (optional)
 
 Verify your install end-to-end against a tiny LongMemEval slice. Defaults come from `configs/attestor.yaml`: Pinecone Inference `llama-text-embed-v2` (1024-D) embedder + Pinecone vector store, `openai/gpt-5.5` answerer, dual judges (`openai/gpt-5.5` + `anthropic/claude-sonnet-4-6`), `parallel=2`.
 
@@ -778,8 +749,9 @@ export ATTESTOR_EMBEDDING_MODEL=text-embedding-3-large
 
 | Command | Purpose |
 |---------|---------|
-| `attestor init` | Create a starter config |
-| `attestor setup local` | Generate Docker Compose for Postgres + Neo4j |
+| `attestor quickstart` | **Zero-question local install** — backends + config + MCP/hooks + doctor |
+| `attestor teardown` | Reverse `quickstart` (containers + config + MCP/hooks; `--purge` wipes data) |
+| `attestor init` | Create a starter store config (lower-level; `quickstart` is the easy path) |
 | `attestor doctor` | Health-check every store + the retrieval pipeline |
 | `attestor add` / `recall` / `search` / `list` | CRUD-ish memory ops |
 | `attestor timeline` | Entity timeline (uses bi-temporal manager) |
@@ -830,36 +802,36 @@ Wire them up via the installer (next section) or by hand in `~/.claude/settings.
 
 ## Install for Claude Code
 
-**The one instruction.** Open Claude Code, paste this repo's URL, and say **"install attestor"**:
+**The one command.** `pipx install attestor` then **`attestor quickstart`** — zero questions, one default profile. It brings up the local backends, uses a local Ollama `bge-m3` embedder (no cloud key), wires the MCP server (`./.mcp.json`) + lifecycle hooks, runs `attestor doctor`, and prints every step. Reverse it any time with **`attestor teardown`**.
+
+```bash
+pipx install attestor && attestor quickstart    # install (zero questions)
+attestor teardown                                # uninstall (--purge also wipes data volumes)
+```
+
+**Prerequisites:** Docker running + Ollama serving `bge-m3` (`ollama pull bge-m3`). `quickstart`'s preflight scans for these and reports what's missing — it never prompts.
+
+**Driving it from inside Claude Code (plugin).** Install the plugin once, then run the command it provides:
 
 ```
-https://github.com/bolnet/attestor  — install attestor to claude code
+/plugin marketplace add bolnet/attestor     # one-time
+/plugin install attestor                     # then ENABLE it in the /plugin → Installed menu
+/attestor:install-attestor                   # runs `attestor quickstart` for you
 ```
 
-Claude Code reads this repo's install guide ([`docs/INSTALL.md` → Chapter 00](docs/INSTALL.md#chapter-00--install-via-claude-code-recommended)), then **scans your machine first, looks up current docs via Context7, and installs** — it brings up the three backend containers, installs the `attestor` package, wires the MCP server + hooks, and verifies. It assumes you start with nothing installed.
-
-**One install path — the guided wizard** ([`commands/install-attestor.md`](commands/install-attestor.md)). Whatever you type, Claude reads this repo and runs the wizard end-to-end: scan → package → Postgres + Pinecone + Neo4j backends → MCP server + hooks → `attestor doctor`. Four ways to launch it — type any of:
-
-| # | Way | Type this |
-|---|-----|-----------|
-| 1 | Plugin (recommended) | `/plugin install attestor` |
-| 2 | Command | `/install-attestor` |
-| 3 | Repo URL | `github.com/bolnet/attestor` |
-| 4 | Natural language | `install attestor` |
-
-> All four launch the same guided wizard. First-time plugin use needs `/plugin marketplace add bolnet/attestor` once. The plugin also auto-wires the MCP server + hooks; the wizard handles package + backends + verify.
+> Plugin commands are **namespaced**: the command is `/attestor:install-attestor` (and `/attestor:uninstall-attestor`), not a bare `/install-attestor`. A freshly-installed plugin can be **disabled** — enable it in the `/plugin` → Installed menu and `/reload-plugins`, or the command won't resolve.
 
 **Memory is isolated per project automatically** — each working directory (git root, else cwd) is its own hard-isolated tenant, so projects never share memory. No namespace to configure.
 
-The backends come up as three clearly-named Docker instances, one per storage role:
+The local backends come up as three Docker containers (the bundled `attestor/infra/local/docker-compose.yml`, which `quickstart` runs):
 
 | Container | Type | Storage role |
 |---|---|---|
-| `attestor-postgres` | Postgres 16 + pgvector | Document — source of truth |
-| `attestor-pinecone` | Pinecone Local | Vector — embeddings |
-| `attestor-neo4j` | Neo4j 5 + GDS | Graph — PageRank / BFS |
+| `attestor-pg-local` | Postgres 16 + pgvector | Document — source of truth |
+| `attestor-pinecone-local` | Pinecone Local | Vector — embeddings |
+| `attestor-neo4j-local` | Neo4j 5 + GDS | Graph — PageRank / BFS |
 
-> These are the names the Chapter 00 cold-start installer uses (public images). The legacy `attestor/infra/local/docker-compose.yml` dev stack uses different names (`attestor-pg-local`, `attestor-neo4j-local`, Pinecone started separately) — see [`docs/INSTALL.md`](docs/INSTALL.md) Chapter 01.
+Cloud / managed backends (Neon · RDS · Cloud SQL, Pinecone Cloud, Neo4j AuraDB) and alternative embedders (Pinecone Inference `llama-text-embed-v2`, Voyage `voyage-4`, OpenAI `text-embedding-3`) are configured in `~/.attestor/attestor.yaml` — see [`docs/INSTALL.md`](docs/INSTALL.md).
 
 ---
 
@@ -1011,7 +983,7 @@ It probes Document Store (Postgres), Vector Store (pgvector), Graph Store (Neo4j
 
 ## Status & versioning
 
-- **Version:** 4.0.0 (stable) — published to [PyPI](https://pypi.org/project/attestor/) and the [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=attestor) as `io.github.bolnet/attestor`. `pip install attestor` returns 4.0.0 (no `--pre` flag needed).
+- **Version:** 4.1.6 (stable) — published to [PyPI](https://pypi.org/project/attestor/) and the [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=attestor) as `io.github.bolnet/attestor`. `pip install attestor` returns the latest 4.1.x (no `--pre` flag needed).
 - **v3 → v4:** greenfield rebuild on a v4-native Postgres schema with hard tenant isolation, bi-temporal facts, and a no-LLM retrieval critical path. **There is no automated migration.** v3 was alpha-only with no production users; drop your v3 DB and reinstall.
 - See [`CHANGELOG.md`](./CHANGELOG.md) for the full track-by-track changelog.
 

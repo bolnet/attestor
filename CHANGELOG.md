@@ -2,6 +2,10 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.7] — 2026-05-26
+
+**Docs: refreshed the README (the PyPI page was dated).** Replaced the old manual install (pip + separately-started Pinecone Local container + Pinecone-Inference cloud key + manual `doctor`) with the one-command `attestor quickstart` flow; fixed the stale `4.0.0` version stamps → 4.1.x; corrected the "Install for Claude Code" section (namespaced `/attestor:install-attestor`, plugin-must-be-enabled, real `attestor-*-local` container names); added `quickstart` + `teardown` to the CLI table and dropped the nonexistent `attestor setup local`. No code changes.
+
 ## [4.1.6] — 2026-05-26
 
 **Two install papercuts from the live 4.1.5 test.**
