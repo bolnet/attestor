@@ -1,7 +1,7 @@
 ---
 name: attestor-memory
 description: Enterprise memory layer for agent teams — durable, deterministic recall with bi-temporal facts, RBAC, and audit trails. Self-hosted Postgres + Pinecone + Neo4j; zero LLM in the critical path.
-version: 4.1.9
+version: 4.1.10
 capabilities:
   - memory.recall
   - memory.add

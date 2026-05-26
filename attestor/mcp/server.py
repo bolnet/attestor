@@ -325,8 +325,8 @@ def create_server(memory_path: str):
                         },
                         "budget": {
                             "type": "integer",
-                            "description": "Max tokens to return (default: 2048)",
-                            "default": 2048,
+                            "description": "Max tokens to return (default: 1000000)",
+                            "default": 1000000,
                         },
                         "namespace": {
                             "type": "string",
@@ -525,7 +525,7 @@ def _handle_tool(
     elif name == "memory_recall":
         results = mem.recall(
             args["query"],
-            budget=args.get("budget", 2048),
+            budget=args.get("budget", 1000000),
             namespace=_ns,
             user_id=args.get("user_id") or default_user_id,
         )

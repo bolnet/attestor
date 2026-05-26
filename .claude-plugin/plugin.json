@@ -1,6 +1,6 @@
 {
   "name": "attestor",
-  "version": "4.1.9",
+  "version": "4.1.10",
   "description": "The memory layer for agent teams. Deterministic retrieval, hard per-project isolation, zero LLM in the critical path.",
   "author": {
     "name": "Surendra Singh",
