@@ -2,6 +2,13 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.6] — 2026-05-26
+
+**Two install papercuts from the live 4.1.5 test.**
+
+- **CLI auto-loads `<store>/.env`.** A bare `attestor add/recall/doctor <store>` ran without the MCP/hook wrapper's `.env` sourcing, so `$PGPASSWORD` (referenced by `config.toml`) was unset and Postgres auth failed. The CLI now loads the store's `.env` itself (`setdefault` — an already-exported shell value still wins), so direct commands work without `source ~/.attestor/.env` (and no more repeated shell-source permission prompts).
+- **Pinecone 9.x gRPC compatibility.** The local-emulator path imported `GRPCClientConfig`, which pinecone 9.x removed; init died with an import error and the vector lane fell back to tag+graph. Now constructs `GrpcIndex(host=…, api_key=…, secure=False)` directly (the 9.x way to select insecure http transport for Pinecone Local).
+
 ## [4.1.5] — 2026-05-26
 
 **`attestor teardown` — zero-question reverse of `quickstart`.** One command removes exactly what `quickstart` created: the `postgres` + `neo4j` + `pinecone` containers, the store config (`~/.attestor`), the MCP entry in `./.mcp.json`, and the Attestor lifecycle hooks in `~/.claude/settings.json` (content-matched on `attestor hook` — never other tools'). **Data-safe by default** (Docker named volumes kept → a later `quickstart` reconnects to the same memories); `--purge` deletes the volumes (wipes memories), `--dry-run` previews. It leaves the pipx package + plugin alone (separate surfaces) and prints their removal commands. The `/uninstall-attestor` prompt now leads with this quick path.
