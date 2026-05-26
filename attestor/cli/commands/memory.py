@@ -128,6 +128,15 @@ def _cmd_recall(args: argparse.Namespace) -> None:
             print(f"[{r.match_source}:{r.score:.2f}] ({m.id}) {m.content}")
             if m.tags:
                 print(f"  tags: {', '.join(m.tags)}")
+        if getattr(args, "show_tokens", False):
+            from attestor.utils.tokens import estimate_tokens
+
+            packed = sum(estimate_tokens(r.memory.content) for r in results)
+            print(
+                f"\n[tokens] packed {packed} tokens across {len(results)} memories "
+                f"(cap {args.budget}). This payload is flat regardless of conversation "
+                f"length — full-context replay grows unbounded."
+            )
 
 
 def _cmd_search(args: argparse.Namespace) -> None:

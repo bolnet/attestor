@@ -2,6 +2,10 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.11] — 2026-05-26
+
+**`attestor recall --show-tokens`.** Prints the packed token count of the recall payload (`[tokens] packed N tokens across M memories (cap …)`) so you can *see* the flat per-call size and decide a tuned budget from real data — the missing readout for the token-savings story.
+
 ## [4.1.10] — 2026-05-26
 
 **Recall budget set very high (1,000,000) instead of capped at 2048.** Rather than artificially limiting recall now, the budget is effectively uncapped so recall returns everything relevant (still bounded by `vector_top_k`); we'll analyze real token usage and tune the cap from data later. Applied consistently: MCP default, CLI `--budget`, `init`'s `config.toml`, bundled `local.yaml`. Per-call override still works.
