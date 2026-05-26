@@ -106,7 +106,7 @@ stack:
       max_entities_per_cluster: 20
       subgraph_depth: 2
       cost_per_summary_usd: 0.005
-  budget: 10000
+  budget: 2048
   parallel: 2
   self_consistency:
     enabled: false

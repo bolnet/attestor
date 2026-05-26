@@ -186,7 +186,7 @@ def main(argv=None):
     p_recall = subparsers.add_parser("recall", help="Recall relevant memories")
     p_recall.add_argument("path", help="Memory store path")
     p_recall.add_argument("query", help="Query string")
-    p_recall.add_argument("--budget", type=int, default=16000, help="Token budget")
+    p_recall.add_argument("--budget", type=int, default=2048, help="Token budget")
     p_recall.add_argument("--namespace", default=None, help="Namespace filter")
 
     # search

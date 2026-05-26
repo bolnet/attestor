@@ -58,7 +58,7 @@ def _build_config(backend: str, backend_options: Mapping[str, Any] | None) -> to
     doc.add(tomlkit.nl())
 
     doc["backends"] = ["postgres", "neo4j"]
-    doc["default_token_budget"] = 10000
+    doc["default_token_budget"] = 2048
     doc.add(tomlkit.nl())
 
     # Document + vector role. v4 enables the pgvector embedding column (vector
