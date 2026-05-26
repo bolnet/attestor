@@ -2,6 +2,10 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.10] — 2026-05-26
+
+**Recall budget set very high (1,000,000) instead of capped at 2048.** Rather than artificially limiting recall now, the budget is effectively uncapped so recall returns everything relevant (still bounded by `vector_top_k`); we'll analyze real token usage and tune the cap from data later. Applied consistently: MCP default, CLI `--budget`, `init`'s `config.toml`, bundled `local.yaml`. Per-call override still works.
+
 ## [4.1.9] — 2026-05-26
 
 **One consistent recall token budget: 2048.** The recall cap was inconsistent across paths (MCP `memory_recall` default 2000, CLI `recall` 16000, store config 10000). Unified to **2048** everywhere: MCP tool schema + default, CLI `--budget` default, `init`'s generated `config.toml` (`default_token_budget`), and the bundled `local.yaml` (`stack.budget`). Per-benchmark budgets (locomo/mab/longmemeval) are left as-is (they're harness-tuned). Per-call override via `--budget` / the MCP `budget` arg still works.
