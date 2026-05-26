@@ -2,7 +2,10 @@
   "mcpServers": {
     "attestor": {
       "command": "attestor",
-      "args": ["mcp"]
+      "args": ["mcp"],
+      "env": {
+        "ATTESTOR_CONFIG": "/Users/aarjay/Documents/attestor/configs/attestor.yaml"
+      }
     }
   }
 }

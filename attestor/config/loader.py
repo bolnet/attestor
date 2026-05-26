@@ -53,7 +53,30 @@ from attestor.config.resolver import _require, _resolve_env_password
 # repo root preserves the historical semantics of the pre-split
 # ``attestor/config.py`` (which used two hops).
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFAULT_CONFIG = REPO_ROOT / "configs" / "attestor.yaml"
+_REPO_CONFIG = REPO_ROOT / "configs" / "attestor.yaml"
+_USER_CONFIG = Path.home() / ".config" / "attestor" / "attestor.yaml"
+
+
+def _default_config_path() -> Path:
+    """Resolve config path without an explicit override.
+
+    Search order (first existing wins):
+    1. ``$ATTESTOR_CONFIG`` env var
+    2. ``configs/attestor.yaml`` relative to cwd (dev / repo layout)
+    3. ``~/.config/attestor/attestor.yaml`` (installed-package user config)
+    4. Repo-relative path (works when running from the repo tree)
+    """
+    if env := os.environ.get("ATTESTOR_CONFIG"):
+        return Path(env)
+    cwd_cfg = Path.cwd() / "configs" / "attestor.yaml"
+    if cwd_cfg.exists():
+        return cwd_cfg
+    if _USER_CONFIG.exists():
+        return _USER_CONFIG
+    return _REPO_CONFIG
+
+
+DEFAULT_CONFIG = _default_config_path()
 
 
 def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
