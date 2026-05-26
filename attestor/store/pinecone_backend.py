@@ -104,9 +104,8 @@ class PineconeBackend:
         )
 
         if self._is_local:
-            from pinecone.grpc import PineconeGRPC, GRPCClientConfig
             from pinecone import ServerlessSpec
-            self._grpc_config_cls = GRPCClientConfig
+            from pinecone.grpc import PineconeGRPC
             self._serverless_spec_cls = ServerlessSpec
             self._pc = PineconeGRPC(api_key=self._api_key, host=self._host)
         else:
@@ -146,9 +145,12 @@ class PineconeBackend:
         # falls back to a different backend). See ``_ensure_ready``.
         if self._is_local:
             desc = self._pc.describe_index(self._index_name)
-            self._index = self._pc.Index(
-                host=desc.host,
-                grpc_config=self._grpc_config_cls(secure=False),
+            # pinecone 9.x: GRPCClientConfig is gone and PineconeGRPC.Index()
+            # rejects a `secure=` kwarg, so construct GrpcIndex directly —
+            # `secure=False` selects http (the local emulator's transport).
+            from pinecone.grpc import GrpcIndex
+            self._index = GrpcIndex(
+                host=desc.host, api_key=self._api_key, secure=False
             )
         else:
             self._index = self._pc.Index(name=self._index_name)

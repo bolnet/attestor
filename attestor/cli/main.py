@@ -12,6 +12,7 @@ byte-identical.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import sys
 from pathlib import Path
@@ -47,6 +48,30 @@ from attestor.cli.commands.server import (
 )
 from attestor.cli.commands.setup import _cmd_doctor, _cmd_setup_claude_code
 from attestor.cli.commands.teardown import _cmd_teardown
+
+
+def _autoload_store_env(args: argparse.Namespace) -> None:
+    """Load ``<store>/.env`` into the environment for store-scoped commands.
+
+    Claude Code's MCP/hook wrappers source ``~/.attestor/.env`` before invoking
+    ``attestor``, but a bare ``attestor add/recall/doctor <store>`` runs without
+    it — so ``$PGPASSWORD`` (referenced by ``config.toml``) is unset and Postgres
+    auth fails. Mirror the wrappers: when a store path is given and has a
+    ``.env``, load it. ``setdefault`` means an already-exported shell value wins.
+    """
+    store = getattr(args, "path", None)
+    if not store:
+        return
+    env_file = Path(store).expanduser() / ".env"
+    if not env_file.is_file():
+        return
+    # never let env loading break the command
+    with contextlib.suppress(Exception):
+        from dotenv import dotenv_values
+
+        for key, value in dotenv_values(env_file).items():
+            if value is not None:
+                os.environ.setdefault(key, value)
 
 
 def main(argv=None):
@@ -451,6 +476,10 @@ def main(argv=None):
         # previous fall-through returned 0 silently.
         parser.print_help()
         sys.exit(1)
+
+    # Bare CLI calls don't get the MCP/hook wrapper's `.env` sourcing — load
+    # the store's .env here so `attestor add/recall/doctor <store>` just work.
+    _autoload_store_env(args)
 
     # Dispatch
     handlers = {
