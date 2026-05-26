@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import sys
 from pathlib import Path
 
@@ -19,7 +20,7 @@ def _print_mcp_config(tool: str, binary: str, store_path: str):
     entry = _mcp_entry(binary, store_path)
     config = {"mcpServers": {"attestor": entry}}
     if tool == "claude-code":
-        print("\nClaude Code -- add to .claude/settings.json:")
+        print("\nClaude Code -- add to ./.mcp.json (project) or ~/.claude.json mcpServers (global):")
     elif tool == "cursor":
         print("\nCursor -- add to .cursor/mcp.json:")
     else:
@@ -28,19 +29,24 @@ def _print_mcp_config(tool: str, binary: str, store_path: str):
 
 
 def _mcp_entry(binary: str, store_path: str) -> dict:
-    """Canonical shape of the attestor MCP server entry.
+    """A `.env`-sourcing bash-wrapper MCP entry.
 
-    When a config file was passed from outside (``--config`` / ``$ATTESTOR_CONFIG``)
-    we pin it into the server's ``env`` so the long-running MCP process resolves
-    the *same* single source of truth the CLI used at install — otherwise the
-    spawned server would fall back to default config resolution and silently
-    diverge from what you installed with.
+    Claude Code spawns the MCP server with a **minimal environment**, so it
+    needs `ATTESTOR_CONFIG` + the DB/embedder secrets + `PATH` (`~/.local/bin`
+    for the pipx shim). An `env:{}` block can't source a file and would have to
+    inline secrets; instead we source `~/.attestor/.env` (the same pattern the
+    hooks use), which gives the server everything and keeps secrets out of the
+    committed config. `set -a` is required so un-`export`ed `.env` lines reach
+    the child.
     """
-    entry: dict = {"command": binary, "args": ["mcp", "--path", store_path]}
-    cfg = os.environ.get("ATTESTOR_CONFIG")
-    if cfg:
-        entry["env"] = {"ATTESTOR_CONFIG": cfg}
-    return entry
+    return {
+        "command": "bash",
+        "args": [
+            "-c",
+            'set -a; [ -f "$HOME/.attestor/.env" ] && . "$HOME/.attestor/.env"; '
+            f"set +a; exec attestor mcp --path {shlex.quote(str(store_path))}",
+        ],
+    }
 
 
 def _load_claude_settings(settings_path: Path) -> dict:
@@ -62,19 +68,27 @@ def _load_claude_settings(settings_path: Path) -> dict:
 
 
 def _configure_claude_mcp(binary: str, store_path: str) -> None:
-    """Write the attestor MCP server entry into ~/.claude/settings.json."""
-    settings_path = Path.home() / ".claude" / "settings.json"
-    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    """Write the attestor MCP server entry into the project ``./.mcp.json``.
 
-    settings = _load_claude_settings(settings_path)
+    Target choice matters: Claude Code reliably loads **project ``./.mcp.json``**
+    and **global ``~/.claude.json`` ``mcpServers``** — it does NOT read
+    ``~/.claude/.mcp.json`` and (per the install-test) servers written to
+    ``~/.claude/settings.json`` don't get picked up either. We default to the
+    project file: scoped, reliably loaded, and we never have to rewrite the
+    user's large global ``~/.claude.json``. (For a global install, add the same
+    entry to ``~/.claude.json`` ``mcpServers``.)
+    """
+    mcp_path = Path.cwd() / ".mcp.json"
+
+    settings = _load_claude_settings(mcp_path)
     mcp_servers = settings.setdefault("mcpServers", {})
     mcp_servers["attestor"] = _mcp_entry(binary, store_path)
     # Drop the pre-2026-05 server name so a re-run doesn't leave a stale
     # duplicate 'memory' entry alongside the canonical 'attestor' one.
     mcp_servers.pop("memory", None)
 
-    settings_path.write_text(json.dumps(settings, indent=2) + "\n")
-    print(f"\nClaude Code MCP server 'attestor' configured in {settings_path}")
+    mcp_path.write_text(json.dumps(settings, indent=2) + "\n")
+    print(f"\nClaude Code MCP server 'attestor' configured in {mcp_path}")
 
 
 def _print_active_config() -> None:

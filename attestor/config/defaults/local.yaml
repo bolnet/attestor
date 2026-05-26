@@ -1,0 +1,195 @@
+# Attestor — LOCAL-DEFAULT stack config (generated; ships in the wheel).
+# Fully local, zero cloud keys: Postgres + pgvector (document + vector) +
+# Neo4j (graph) + Ollama `bge-m3` embedder via the OpenAI-compatible route
+# (set OPENAI_BASE_URL to the local Ollama endpoint, OPENAI_API_KEY=ollama).
+# `attestor init` copies this to ~/.attestor/attestor.yaml; edit that copy
+# (the single source of truth for your stack). Flip embedder.provider to
+# voyage/openai-cloud, add a `pinecone:` block for a dedicated vector store,
+# or enable hyde/reranker once you have an LLM/embedding key.
+
+stack:
+  postgres:
+    url: postgresql://localhost:5432/attestor
+    v4: true
+    skip_schema_init: false
+  neo4j:
+    url: bolt://localhost:7687
+    auth:
+      username: neo4j
+      password_env: NEO4J_PASSWORD
+    database: neo4j
+  embedder:
+    provider: openai
+    model: bge-m3
+    dimensions: 1024
+    api_key_env: OPENAI_API_KEY
+  llm:
+    provider: openrouter
+    providers:
+      openai:
+        base_url: https://api.openai.com/v1
+        api_key_env: OPENAI_API_KEY
+      openrouter:
+        base_url: https://openrouter.ai/api/v1
+        api_key_env: OPENROUTER_API_KEY
+      anthropic:
+        base_url: https://api.anthropic.com/v1/
+        api_key_env: ANTHROPIC_API_KEY
+    default_provider: openai
+  models:
+    answerer: openrouter/openai/gpt-5.4-mini
+    judge: openrouter/openai/gpt-4o-2024-08-06
+    extraction: openrouter/openai/gpt-4.1
+    distill: anthropic/claude-haiku-4-5-20251001
+    verifier: anthropic/claude-sonnet-4-6
+    planner: anthropic/claude-opus-4.7
+    benchmark_default: openrouter/openai/gpt-4o-2024-08-06
+    reasoning_effort:
+      answerer: high
+      judge: high
+      extraction: low
+      distill: low
+      verifier: medium
+      planner: medium
+      benchmark_default: low
+    max_tokens:
+      answerer: 32000
+      judge: 32000
+      extraction: 32000
+      distill: 32000
+      verifier: 32000
+      planner: 32000
+      benchmark_default: 32000
+  retrieval:
+    vector_top_k: 50
+    mmr_lambda: 0.7
+    vector_weight: 0.7
+    graph_weight: 0.3
+    graph_affinity_bonus:
+      0: 0.3
+      1: 0.2
+      2: 0.1
+    graph_unreachable_penalty: -0.05
+    long_context_default_max_tokens: 200000
+    multi_query:
+      enabled: false
+      n: 3
+      rewriter_model: null
+      rewriter_reasoning_effort: low
+      merge: rrf
+    temporal_prefilter:
+      enabled: true
+      tolerance_days: 3
+    hyde:
+      enabled: false
+      generator_model: null
+      generator_reasoning_effort: low
+      merge: rrf
+    reranker:
+      enabled: false
+      provider: bge
+      top_k: 10
+      top_n_input: 50
+      bge:
+        model: BAAI/bge-reranker-v2-gemma
+      cohere:
+        model: rerank-english-v3.0
+      llm:
+        model: anthropic/claude-haiku-4.5
+    global_query:
+      enabled: false
+      classifier_model: anthropic/claude-haiku-4.5
+      summary_model: anthropic/claude-haiku-4.5
+      max_clusters: 8
+      max_entities_per_cluster: 20
+      subgraph_depth: 2
+      cost_per_summary_usd: 0.005
+  budget: 10000
+  parallel: 2
+  self_consistency:
+    enabled: false
+    k: 5
+    temperature: 0.7
+    voter: majority
+    judge_model: null
+  memory:
+    layers:
+      default_recall:
+      - episodic
+      - semantic
+      weights:
+        episodic: 0.0
+        semantic: 0.05
+        procedural: 0.0
+        working: 0.0
+  ingest:
+    contextual_embedding:
+      enabled: false
+      model: anthropic/claude-haiku-4.5
+      session_window: 5
+      max_prefix_chars: 200
+      cache: true
+    llm_entity_extraction:
+      enabled: false
+      model: anthropic/claude-haiku-4.5
+      timeout_s: 15.0
+      cache: true
+  critique_revise:
+    enabled: false
+    critic_model: null
+    revise_model: null
+    max_revisions: 1
+  compliance:
+    pii:
+      mode: 'off'
+      llm_model: anthropic/claude-haiku-4.5
+    retention:
+      apply_on_schedule: false
+      apply_interval_minutes: 1440
+      dry_run_first: true
+      audit_retention_days: 3650
+      forget_user:
+        delete_doc: true
+        delete_vector: true
+        delete_graph: true
+        delete_state: true
+  consolidation:
+    enabled: false
+    target_count: 5
+    source_limit: 50
+    since_days: null
+    model: null
+    dry_run: false
+audit:
+  dashboard:
+    enabled: false
+  trace_log_path: ~/.attestor/trace.jsonl
+image:
+  ref: ghcr.io/bolnet/attestor:latest
+  api_ref_template: ghcr.io/bolnet/attestor:api-{version}
+  registries:
+    ghcr: ghcr.io/bolnet/attestor
+    dockerhub: bolnet2025/attestor
+    quay: quay.io/bolnet/attestor
+    aws_ecr: public.ecr.aws/m6h5j7o3/attestor
+    gcp_ar: us-central1-docker.pkg.dev/coral-marker-452616-n4/attestor/attestor
+    azure_acr: memwright.azurecr.io/attestor
+clouds:
+  gcp:
+    region: us-central1
+    compute: cloud_run
+    postgres: cloud_sql
+    neo4j: auradb
+    image_ref_key: gcp_ar
+  azure:
+    region: eastus
+    compute: container_apps
+    postgres: azure_postgres_flex
+    neo4j: auradb
+    image_ref_key: azure_acr
+  aws:
+    region: us-east-1
+    compute: app_runner
+    postgres: rds_postgres
+    neo4j: auradb
+    image_ref_key: aws_ecr

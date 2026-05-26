@@ -1,6 +1,6 @@
 [project]
 name = "attestor"
-version = "4.1.0"
+version = "4.1.1"
 description = "Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval."
 readme = "README.md"
 license = "MIT"
@@ -25,6 +25,14 @@ dependencies = [
     "tomlkit>=0.12.0",
     "starlette>=0.27.0",
     "uvicorn>=0.23.0",
+    # PyYAML is REQUIRED, not optional: attestor/config/loader.py imports
+    # `yaml` on every get_stack() (embedder/model resolution), so a base
+    # install without it dies with "No module named 'yaml'" on first use.
+    "PyYAML>=6.0",
+    # The default embedder route goes through the OpenAI SDK (also how the
+    # local Ollama OpenAI-compatible endpoint is reached), so `openai` must
+    # be present for any write to embed. Without it: "No module named 'openai'".
+    "openai>=1.0.0",
     # Canonical stack: Postgres (document) + Pinecone (vector) + Neo4j (graph).
     # The codebase imports postgres + neo4j eagerly
     # (attestor/conversation/episodes.py, store/postgres_backend.py,
@@ -81,6 +89,10 @@ include = [
     # FileResponse serves them directly so they MUST be in the wheel.
     { path = "attestor/ui/static/*", format = ["sdist", "wheel"] },
     { path = "attestor/ui/templates/*.html", format = ["sdist", "wheel"] },
+    # Local-default stack config — `attestor init` copies this to
+    # ~/.attestor/attestor.yaml; it MUST be in the wheel or a fresh install
+    # has no stack config and get_stack() fails.
+    { path = "attestor/config/defaults/*.yaml", format = ["sdist", "wheel"] },
 ]
 
 [tool.poetry.group.dev.dependencies]

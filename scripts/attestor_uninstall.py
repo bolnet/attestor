@@ -57,6 +57,8 @@ def _settings_files() -> list[Path]:
     home = Path.home()
     candidates = [
         home / ".claude" / "settings.json",
+        home / ".claude" / ".mcp.json",   # stale-entry location seen in the wild
+        home / ".claude.json",            # global mcpServers live here
         Path.cwd() / ".claude" / "settings.json",
         Path.cwd() / ".mcp.json",
     ]
