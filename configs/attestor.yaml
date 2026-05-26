@@ -66,10 +66,10 @@ stack:
   #   - voyage   — voyage-4, 1024-D (Anthropic recommended; paid).
   #                Set VOYAGE_API_KEY.
   embedder:
-    provider: pinecone
-    model: llama-text-embed-v2
+    provider: voyage
+    model: voyage-4
     dimensions: 1024
-    api_key_env: PINECONE_API_KEY      # resolved from environment
+    api_key_env: VOYAGE_API_KEY      # resolved from environment
 
   # ─── LLM client routing ───────────────────────────────────────────────
   # Where chat-completion calls land. Multi-provider mode: route by
@@ -124,18 +124,30 @@ stack:
   # ─── Models (per-role assignment) ────────────────────────────────────
   models:
     # Answerer — synthesises the final reply from retrieved context.
-    answerer: openrouter/openai/gpt-5.5
+    answerer: openrouter/openai/gpt-5.4-mini
 
-    # Judge — single-judge accuracy verdict.
-    judge: openrouter/openai/gpt-5.5
+    # Judge — REQUIRED key (loader is strict), but BEHAVIORALLY UNUSED
+    # for benchmarking. The runner is invoked with skip_judge=True in
+    # submission mode, so this model is never called during a bench.
+    # All accuracy grading happens post-hoc via
+    # evals/braintrust_lme_s_score.py against saved submission JSONLs.
+    # Kept at gpt-4o-2024-08-06 in case anyone runs the legacy inline
+    # path (skip_judge=False).
+    judge: openrouter/openai/gpt-4o-2024-08-06
 
-    # Extraction / distillation — runs once per turn during ingest to
-    # pull explicit facts out of the conversation.
-    extraction: openrouter/openai/gpt-5.5
-    distill:    openrouter/openai/gpt-5.5
+    # Extraction — question-side LLM. Used by HyDE generator and
+    # entity-extraction at ingest.
+    extraction: openrouter/openai/gpt-4.1
 
-    # Verifier — second-pass cross-check after Judge. Anthropic
-    # complements OpenAI for cross-model validation.
+    # Distill — periodic consolidation pass (off by default; see
+    # consolidation.enabled). DORMANT during bench (consolidation.enabled=false).
+    distill:    anthropic/claude-haiku-4-5-20251001
+
+    # Verifier — REQUIRED key (loader is strict), but BEHAVIORALLY
+    # UNUSED for benchmarking. Verifier only fires when verify=True is
+    # passed AND the judge already ran; both conditions are false in
+    # submission mode. Kept at sonnet-4.6 for any non-bench code path
+    # that opts into cross-model verification.
     verifier: anthropic/claude-sonnet-4-6
 
     # Planner — query rewriting + multi-step query decomposition.
@@ -145,7 +157,7 @@ stack:
     # Generic CLI default — used when an ad-hoc command (e.g.
     # `attestor locomo`) is invoked without an explicit `--model` flag
     # and no specific role applies.
-    benchmark_default: openrouter/openai/gpt-5.5
+    benchmark_default: openrouter/openai/gpt-4o-2024-08-06
 
     # ─── Reasoning effort (gpt-5.x reasoning-model param) ──────────────
     # Higher effort = more internal CoT tokens spent before the visible
@@ -316,11 +328,13 @@ stack:
   budget: 4000   # tokens for the pack sent to the answerer
 
   # Concurrency for bulk operations across samples.
-  # Set to 1 to serialize sample workers — Pinecone Local index creation
-  # has a race condition under concurrent init (409 ALREADY_EXISTS), and
-  # the degraded path then hangs. Bump back up once the backend's
-  # create-or-use logic is idempotent.
-  parallel: 1
+  # parallel=2 — two samples in flight at a time. Voyage-4 ceiling
+  # before 429 retries is 4 (per project_lme_voyage_parallel_ceiling
+  # 2026-05-02); 2 leaves headroom for retries and stays well under
+  # the 2000 RPM cap. Pinecone Local's index-init race only fires on
+  # first create — wipe + warm-up create the index up-front, after
+  # which parallel writes are safe.
+  parallel: 2
 
   # Self-consistency answerer. When enabled, the answerer draws K
   # independent samples at non-zero temperature and elects the
