@@ -87,7 +87,7 @@ semantic-first (vector → BM25 → RRF → graph → MMR → fit) as of 2026-04
 a separate tag-match utility lives at `attestor/retrieval/tag_matcher.py`
 but is consumed by the entity extractor, not the recall pipeline.
 
-**Multi-agent primitives:** 6 RBAC roles (ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR) — **enforced at the AgentContext layer** via `ROLE_PERMISSIONS` in `attestor/context.py`. Matrix: ORCHESTRATOR = READ+WRITE+FORGET; PLANNER/EXECUTOR/RESEARCHER = READ+WRITE; REVIEWER/MONITOR = READ only. `read_only=True` is an independent kill switch that strips WRITE+FORGET regardless of role. Direct `AgentMemory.add()` calls (without an AgentContext) bypass the matrix — RBAC is a context-layer guarantee, not a backend one. Namespace isolation is row-level on Postgres but **not yet enforced on Neo4j** (graph entity nodes are global across namespaces). Provenance tracking, write quotas, and per-agent token budgets are wired.
+**Multi-agent primitives:** 6 RBAC roles (ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR) — **enforced at the AgentContext layer** via `ROLE_PERMISSIONS` in `attestor/context.py`. Matrix: ORCHESTRATOR = READ+WRITE+FORGET; PLANNER/EXECUTOR/RESEARCHER = READ+WRITE; REVIEWER/MONITOR = READ only. `read_only=True` is an independent kill switch that strips WRITE+FORGET regardless of role. Direct `AgentMemory.add()` calls (without an AgentContext) bypass the matrix — RBAC is a context-layer guarantee, not a backend one. Namespace isolation is enforced across all three roles: row-level + RLS on Postgres (policies keyed to `attestor.current_user_id`), per-namespace on Pinecone, and a `namespace` property with a composite `(key, namespace)` constraint plus namespace-scoped BFS on Neo4j (`store/neo4j_backend.py`). One known caveat: the Neo4j PageRank GDS projection (`neo4j_backend.py:pagerank`) is **not** namespace-scoped — it computes entity importance over the global graph. This is a ranking *signal* only (it reorders results that are already namespace-filtered); it does not surface another project's memories. The Claude Code plugin keys each project (git root, else cwd) to its own RLS tenant (`external_id=cc-project:<sha256(root)>`, hashed so it fits `VARCHAR(256)` and avoids path-separator issues; the human path is kept in user metadata) via `attestor/_project.py` + `attestor/hooks/_tenant.py`, so memory never bleeds across projects. Provenance tracking, write quotas, and per-agent token budgets are wired.
 
 **Temporal:** Contradiction detection auto-supersedes older facts; nothing is deleted. Every fact has a validity window; `recall(as_of=...)` replays the past.
 
@@ -108,19 +108,15 @@ Same API across all three. Only configuration changes.
 
 ## Install for Claude Code
 
-Single instruction users can give Claude Code: **`install attestor`** (or run `/install-attestor`).
+**The one instruction:** a user tells Claude Code **"install attestor to claude code"** (or runs `/install-attestor`) and Claude does the rest — installs the package, wires the MCP server + hooks, sets up the backends, and verifies. The full guide, **including the copy-paste install prompt for a cold session**, is **[`docs/INSTALL.md`](docs/INSTALL.md)** (start at *Chapter 00 — Install via Claude Code*).
 
-This triggers `commands/install-attestor.md` which interviews the user on:
-1. Scope — global (`~/.claude/.mcp.json`) vs project (`.mcp.json`)
-2. Postgres connection (local Docker, Neon, RDS, etc.)
-3. Pinecone connection (Local Docker via `localhost:5080`, or Cloud via `*.pinecone.io` host + API key)
-4. Neo4j connection (local Docker, AuraDB, etc.)
-5. Backend override (default postgres+pinecone+neo4j, or pgvector / arangodb / aws / azure / gcp)
-6. Embedding provider — Pinecone Inference (default), Voyage, OpenAI, or local Ollama
-7. Hooks — whether to wire session-start / post-tool-use / stop
-8. Namespace + default token budget
+Three install paths (all detailed in `docs/INSTALL.md`):
 
-Then it installs `attestor` via pipx/pip, writes the MCP config, optionally writes `settings.json` hooks, and runs `attestor doctor` to verify.
+1. **Plugin (recommended).** `/plugin marketplace add bolnet/attestor` then `/plugin install attestor`. The plugin manifest (`.claude-plugin/plugin.json`) auto-wires the MCP server (`.mcp.json`) and the SessionStart / PostToolUse / Stop hooks (`hooks/hooks.json`) by convention. Still requires `pipx install attestor` (so the `attestor` binary is on PATH) plus reachable backends.
+2. **Guided wizard.** `/install-attestor` runs `commands/install-attestor.md`, an interactive interview — scope (global `~/.claude` vs project), Postgres / Pinecone / Neo4j connections, embedding provider (Pinecone Inference default, or Voyage / OpenAI / Ollama), hook wiring — then installs `attestor`, merges the MCP + hook config, and runs `attestor doctor`.
+3. **Copy-paste prompt.** For a cold Claude Code session with nothing installed, paste the detailed install prompt from `docs/INSTALL.md` and Claude executes the whole flow.
+
+**Per-project isolation is automatic.** Each working directory (git root, else cwd) is its own hard-isolated memory tenant (`attestor/_project.py` + `attestor/hooks/_tenant.py`) — no namespace to configure, and memory never bleeds across projects. Other MCP clients (Cursor, etc.) and runtimes (library / sidecar / shared service) are covered in `docs/INSTALL.md`.
 
 ## Health Check
 

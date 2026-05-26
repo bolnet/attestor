@@ -6,9 +6,87 @@ A step-by-step guide to installing and verifying Attestor across different topol
 
 | # | Topology | Backend |
 |---|----------|---------|
+| [00](#chapter-00--install-via-claude-code-recommended) | **Install via Claude Code** (one prompt · cold start) | Postgres + Pinecone + Neo4j |
 | [01](#chapter-01--local-stack-with-docker-compose) | Local stack (Docker Compose) | Postgres + pgvector, Neo4j + GDS |
 | [02](#chapter-02--sidecar-rest-api) | Sidecar REST API | Same stack, exposed over HTTP |
 | [03](#chapter-03--cloud-managed) | Cloud managed | Managed Postgres + Neo4j / Arango / AWS / Azure / GCP |
+
+---
+
+## Chapter 00 — Install via Claude Code (recommended)
+
+**The one instruction.** Tell Claude Code **"install attestor to claude code"** (or run `/install-attestor`, or paste the prompt below). Claude **scans your machine first, looks up the current docs for every tool via Context7, then installs** — it brings up the three backend containers, installs the `attestor` package, wires the MCP server + hooks, and verifies. It assumes you start with **nothing installed**.
+
+> Chapters 01–03 describe the lower-level / older pgvector topologies. Chapter 00 reflects the current **canonical stack: Postgres (document) + Pinecone (vector) + Neo4j (graph)**.
+
+### The three backends — one clearly-named Docker instance per storage role
+
+Each storage role is its own container, all `attestor-`prefixed and labeled by type:
+
+| Container | Type | Storage role | Image | Ports |
+|-----------|------|--------------|-------|-------|
+| `attestor-postgres` | **Postgres 16 + pgvector** | **Document** — source of truth (content, tags, entity, ts, provenance, confidence) | `pgvector/pgvector:pg16` | `5432` |
+| `attestor-pinecone` | **Pinecone Local** | **Vector** — dense embeddings, per-namespace cosine search | `ghcr.io/pinecone-io/pinecone-local:latest` | `5080-5090` |
+| `attestor-neo4j` | **Neo4j 5 + GDS** | **Graph** — entity nodes + typed edges, PageRank / BFS | `neo4j:5.24-community` | `7474`, `7687` |
+
+### The install prompt — paste into a fresh Claude Code session
+
+```text
+Install Attestor as my agent-memory layer and wire it natively into Claude Code.
+Assume a COLD machine — I may have nothing installed. Work in this order and ask
+me only when you hit a real decision or need a secret.
+
+PHASE 1 — SCAN (install nothing yet)
+Detect and show me a table of present vs missing:
+- OS + arch; Python (need >=3.10); pip / pipx; Docker + Docker Compose (running?).
+- Existing Attestor: `attestor --version`, ~/.attestor, an MCP entry in
+  ~/.claude or ./.mcp.json, attestor hooks in settings.json.
+- Running backend containers (`docker ps`) and listeners on 5432 / 5080 / 7687.
+Then tell me what you'll INSTALL, REUSE, and SKIP before doing anything.
+
+PHASE 2 — LOOK UP CURRENT DOCS WITH CONTEXT7 (before every install step)
+Before you install or run ANY tool, fetch its current docs via the Context7 MCP
+(resolve-library-id -> query-docs): pipx, pgvector, Pinecone Local, Neo4j GDS,
+the `attestor` PyPI package, and the Claude Code plugin / MCP / hooks format.
+Use the commands and versions Context7 returns — not ones from memory. If
+Context7 is unavailable, tell me and pause.
+
+PHASE 3 — BACKENDS: three clearly-named Docker instances (attestor- prefix), one per role
+Start exactly these and confirm each reports healthy:
+- attestor-postgres  Postgres 16 + pgvector   DOCUMENT store   :5432         pgvector/pgvector:pg16
+- attestor-pinecone  Pinecone Local           VECTOR store     :5080-5090    ghcr.io/pinecone-io/pinecone-local:latest
+- attestor-neo4j     Neo4j 5 + GDS            GRAPH store      :7474/:7687   neo4j:5.24-community (NEO4J_PLUGINS=["graph-data-science"])
+Use a single password (default `attestor`) and put every secret in a gitignored
+.env — never hardcode. Persist data in named volumes.
+
+PHASE 4 — INSTALL THE ATTESTOR PACKAGE
+`pipx install attestor` (fallback `pip install --user attestor`). Confirm
+`attestor --version`. The `attestor` binary must be on PATH — the plugin's hooks
+and MCP server call it directly.
+
+PHASE 5 — WIRE INTO CLAUDE CODE (prefer the plugin)
+Ask my scope: global (~/.claude) or this project only. Then:
+- Plugin (recommended): `/plugin marketplace add bolnet/attestor` then
+  `/plugin install attestor` — this auto-wires the MCP server (.mcp.json) and the
+  SessionStart / PostToolUse / Stop hooks by convention.
+- If I decline the plugin: merge the attestor MCP server into .mcp.json and the
+  three hooks into settings.json yourself, without clobbering existing entries.
+Ask my embedding provider (Pinecone Inference default, else Voyage / OpenAI /
+Ollama) and store its API key in .env.
+
+PHASE 6 — VERIFY
+Run `attestor doctor <store-path>` (expect Document / Vector / Graph / Retrieval
+all healthy) and call the `memory_health` MCP tool. Then prove per-project
+isolation: add a memory here, and confirm a different project directory does NOT
+see it. Show me the results.
+
+NOTES
+- Memory is automatically isolated per project — each git-root (else cwd) is its
+  own tenant. There is no namespace to configure.
+- If any phase fails, STOP and tell me exactly what failed. Do not continue silently.
+```
+
+After it finishes you can use the `memory_*` tools immediately, and every project you open gets its own hard-isolated memory automatically.
 
 ---
 

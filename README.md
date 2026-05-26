@@ -13,6 +13,12 @@
 pip install attestor
 ```
 
+> **Using Claude Code?** Paste this repo's link and say *"install attestor"* — Claude follows the repo's install guide to scan your machine, bring up the backends, install the package, and wire the MCP server + hooks (it asks you for credentials when it needs them). See **[Install for Claude Code](#install-for-claude-code)**.
+>
+> ```
+> https://github.com/bolnet/attestor  — install attestor to claude code
+> ```
+
 | | |
 |---|---|
 | **Version** | `4.0.0` (stable; greenfield rebuild — no v3 migration path) |
@@ -82,8 +88,21 @@ The image's default entrypoint is `attestor mcp` (MCP server over stdio). For fu
 
 ```bash
 attestor setup local                                       # writes attestor/infra/local/docker-compose.yml
-docker compose -f attestor/infra/local/docker-compose.yml up -d
+
+# Vector role: Pinecone Local is a SEPARATE container (not in the compose file) — start it first.
+docker run -d --name pinecone-local -e PORT=5080 -e PINECONE_HOST=localhost \
+  -p 5080-5090:5080-5090 --platform linux/amd64 \
+  ghcr.io/pinecone-io/pinecone-local:latest
+
+# Compose loads its env file from the compose file's own directory, so pass the
+# repo-root .env explicitly (it holds PINECONE_API_KEY / VOYAGE_API_KEY / etc).
+docker compose --env-file .env -f attestor/infra/local/docker-compose.yml up -d --build
 ```
+
+> **New here? Read [docs/LOCAL_DOCKER_SETUP.md](docs/LOCAL_DOCKER_SETUP.md)** for the full step-by-step
+> container walkthrough, the exact verify command, and a Troubleshooting section covering the common
+> first-run gotchas (missing `--env-file`, Pinecone Local not running, and the host-vs-container
+> `localhost:5080` nuance).
 
 The default stack ships **three containers** (one per storage role):
 
@@ -794,23 +813,31 @@ Wire them up via the installer (next section) or by hand in `~/.claude/settings.
 
 ## Install for Claude Code
 
-Single instruction users can give Claude Code:
+**The one instruction.** Open Claude Code, paste this repo's URL, and say **"install attestor"**:
 
 ```
-install attestor
+https://github.com/bolnet/attestor  — install attestor to claude code
 ```
 
-(Or run `/install-attestor`.) The installer interviews you on:
+Claude Code reads this repo's install guide ([`docs/INSTALL.md` → Chapter 00](docs/INSTALL.md#chapter-00--install-via-claude-code-recommended)), then **scans your machine first, looks up current docs via Context7, and installs** — it brings up the three backend containers, installs the `attestor` package, wires the MCP server + hooks, and verifies. It assumes you start with nothing installed.
 
-1. **Scope** — global (`~/.claude/.mcp.json`) vs project (`.mcp.json`)
-2. **Postgres connection** — local Docker, Neon, RDS, etc.
-3. **Neo4j connection** — local Docker, AuraDB, etc.
-4. **Backend override** — default `postgres+neo4j`, or `arangodb` / `aws` / `azure` / `gcp`
-5. **Embedding provider** — local Ollama (default), OpenAI, or cloud-native
-6. **Hooks** — whether to wire `session-start` / `post-tool-use` / `stop`
-7. **Namespace + default token budget**
+Three ways in (full detail in [`docs/INSTALL.md`](docs/INSTALL.md)):
 
-Then it installs `attestor` via pipx, writes the MCP config, optionally writes `settings.json` hooks, and runs `attestor doctor` to verify.
+1. **Plugin (recommended)** — `/plugin marketplace add bolnet/attestor` then `/plugin install attestor`. On **Claude Code v2.1+** the MCP server (`.mcp.json`) and the SessionStart / PostToolUse / Stop hooks (`hooks/hooks.json`) are auto-loaded by convention; on older versions, use the wizard (below) to wire them. Either way you still need `pipx install attestor` (so the `attestor` binary is on PATH) plus reachable backends.
+2. **Guided wizard** — `/install-attestor` runs an interactive interview (scope, Postgres / Pinecone / Neo4j connections, embedding provider, hook wiring), installs `attestor`, merges the config, and runs `attestor doctor`.
+3. **Copy-paste prompt** — for a cold session, paste the detailed install prompt from [`docs/INSTALL.md` Chapter 00](docs/INSTALL.md#chapter-00--install-via-claude-code-recommended).
+
+**Memory is isolated per project automatically** — each working directory (git root, else cwd) is its own hard-isolated tenant, so projects never share memory. No namespace to configure.
+
+The backends come up as three clearly-named Docker instances, one per storage role:
+
+| Container | Type | Storage role |
+|---|---|---|
+| `attestor-postgres` | Postgres 16 + pgvector | Document — source of truth |
+| `attestor-pinecone` | Pinecone Local | Vector — embeddings |
+| `attestor-neo4j` | Neo4j 5 + GDS | Graph — PageRank / BFS |
+
+> These are the names the Chapter 00 cold-start installer uses (public images). The legacy `attestor/infra/local/docker-compose.yml` dev stack uses different names (`attestor-pg-local`, `attestor-neo4j-local`, Pinecone started separately) — see [`docs/INSTALL.md`](docs/INSTALL.md) Chapter 01.
 
 ---
 

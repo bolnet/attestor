@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "attestor hook session-start" }
+        ],
+        "description": "Inject this project's relevant memories at session start (project-scoped)."
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          { "type": "command", "command": "attestor hook post-tool-use" }
+        ],
+        "description": "Capture file changes and commands into this project's memory (secrets redacted)."
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "attestor hook stop" }
+        ],
+        "description": "Write a project-scoped session summary on exit."
+      }
+    ]
+  }
+}

@@ -10,6 +10,8 @@ You are installing **Attestor** (PyPI: `attestor`, import: `attestor`) — a mem
 
 This command is **interactive**. The wizard is the single source of truth for every install input — scope, paths, backends, credentials, secrets, hook wiring, verification. **Do NOT silently apply defaults when state already exists. Do NOT collect secrets out-of-band. If the install needs a value, the wizard asks for it.**
 
+> **Plugin mode:** When Attestor is installed as a Claude Code plugin (`/plugin install attestor`), the MCP server (`.mcp.json`) and the session-start / post-tool-use / stop hooks (`hooks/hooks.json`) are **auto-wired by the plugin** — Claude Code v2.1+ loads them by convention. In that case this wizard only needs to: (a) `pip`/`pipx install attestor` so the `attestor` binary is on PATH, (b) collect backend connection details (Postgres + Pinecone + Neo4j; local Docker or cloud), (c) collect the embedding provider, and (d) run `attestor doctor`. **Skip the `settings.json` MCP + hook writing steps in plugin mode** — they only apply to manual, non-plugin installs and would duplicate the plugin's wiring. Memory is automatically isolated per project: each working directory (git root, else cwd) becomes its own RLS tenant, so projects never share memory.
+
 Rules:
 - Ask **one** question at a time via `AskUserQuestion` — never batch.
 - Ask Q0 (pre-existing state) questions first — only ask the ones whose preconditions were detected in Step 1.

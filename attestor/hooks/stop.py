@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from attestor.hooks._base import run_hook
+from attestor.hooks._tenant import resolve_tenant
 
 _EMPTY_RESPONSE: dict[str, Any] = {}
 
@@ -34,11 +35,20 @@ def handle(payload: dict[str, Any]) -> dict[str, Any]:
 
         mem = AgentMemory(store_path)
         try:
+            user_id, namespace = resolve_tenant(mem, cwd)
+
+            # The captures from PostToolUse were written under this project's
+            # RLS user. A fresh AgentMemory sets RLS to the SOLO user at init,
+            # so we must switch RLS to the project user BEFORE the read or the
+            # time-window query would see another tenant's rows (or none).
+            if user_id is not None and getattr(mem._store, "_v4", False):
+                mem._resolve(user_id=user_id, autostart=False)
+
             # Query memories from the last hour (this session's captures)
             one_hour_ago = (
                 datetime.now(timezone.utc) - timedelta(hours=1)
             ).isoformat()
-            recent = mem.search(after=one_hour_ago, limit=50)
+            recent = mem.search(after=one_hour_ago, limit=50, namespace=namespace)
 
             if not recent:
                 return _EMPTY_RESPONSE
@@ -46,7 +56,14 @@ def handle(payload: dict[str, Any]) -> dict[str, Any]:
             # Build rule-based summary
             summary = _build_summary(recent)
             if summary:
-                mem.add(summary, tags=["session-summary"], category="session")
+                mem.add(
+                    summary,
+                    tags=["session-summary"],
+                    category="session",
+                    user_id=user_id,
+                    namespace=namespace,
+                    scope="project",
+                )
 
             return _EMPTY_RESPONSE
         finally:

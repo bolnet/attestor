@@ -10,11 +10,28 @@ import sys
 from typing import Any
 
 from attestor import _branding as _brand
+from attestor._project import (
+    project_external_id,
+    project_namespace,
+    resolve_project_root,
+)
 from attestor.core import AgentMemory
 
 _URI_SCHEME: str = _brand.MCP_URI_SCHEME
 _ENTITY_PREFIX: str = f"{_URI_SCHEME}://entity/"
 _MEMORY_PREFIX: str = f"{_URI_SCHEME}://memory/"
+
+
+def _default_tenant_for_cwd() -> tuple[str, str]:
+    """Return ``(external_id, namespace)`` for the server's launch directory.
+
+    Claude Code launches the MCP server with cwd = the workspace root, so the
+    project the user is working in is ``os.getcwd()`` at server start. Pure —
+    no DB call; the server resolves the external_id to a real user_id lazily on
+    first tool use.
+    """
+    root = resolve_project_root(os.getcwd())
+    return project_external_id(root), project_namespace(root)
 
 
 def _build_handlers(mem: AgentMemory) -> dict:
@@ -384,6 +401,12 @@ def create_server(memory_path: str):
             ),
         ]
 
+    # Per-server project tenant, resolved lazily on first tool call. Claude
+    # Code launches one MCP server per workspace, so the launch cwd identifies
+    # the project. All tools default to this tenant so memory never bleeds
+    # across projects; an explicit ``namespace`` arg still overrides.
+    _tenant: dict[str, Any] = {"resolved": False, "user_id": None, "namespace": None}
+
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         if mem is None:
@@ -392,8 +415,28 @@ def create_server(memory_path: str):
                          "Provide working Postgres + Neo4j connections (ATTESTOR_PATH or config.toml) and unset "
                          "ATTESTOR_MCP_TOLERATE_INIT_FAILURE to enable tool execution.",
             }))]
+
+        # Resolve the project tenant once (DB lookup), then pin RLS to it on
+        # every call so read-only tools (search/timeline/get) are scoped too.
+        if not _tenant["resolved"]:
+            ext_id, _tenant["namespace"] = _default_tenant_for_cwd()
+            try:
+                _tenant["user_id"] = mem.ensure_user(external_id=ext_id).id
+            except Exception:  # noqa: BLE001 -- v3 / degraded: namespace-only
+                _tenant["user_id"] = None
+            _tenant["resolved"] = True
+        if _tenant["user_id"] and getattr(mem._store, "_v4", False):
+            try:
+                mem._resolve(user_id=_tenant["user_id"], autostart=False)
+            except Exception:  # noqa: BLE001 -- never fail a tool on RLS pin
+                pass
+
         try:
-            result = _handle_tool(mem, name, arguments)
+            result = _handle_tool(
+                mem, name, arguments,
+                default_user_id=_tenant["user_id"],
+                default_namespace=_tenant["namespace"],
+            )
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
         except (ValueError, KeyError, TypeError) as e:
             # User-input failures: surface the message so the MCP client
@@ -439,16 +482,28 @@ def create_server(memory_path: str):
     return server
 
 
-def _handle_tool(mem: AgentMemory, name: str, args: dict) -> dict:
+def _handle_tool(
+    mem: AgentMemory,
+    name: str,
+    args: dict,
+    default_user_id: str | None = None,
+    default_namespace: str | None = None,
+) -> dict:
+    # Project tenant defaults: an explicit ``namespace`` arg always wins so a
+    # caller can intentionally reach a shared/user scope; otherwise the
+    # per-project namespace + RLS user keep memory isolated to this project.
+    _ns = args.get("namespace") or default_namespace
     if name == "memory_add":
         memory = mem.add(
             content=args["content"],
             tags=args.get("tags", []),
             category=args.get("category", "general"),
             entity=args.get("entity"),
-            namespace=args.get("namespace", "default"),
+            namespace=_ns or "default",
             event_date=args.get("event_date"),
             confidence=args.get("confidence", 1.0),
+            user_id=args.get("user_id") or default_user_id,
+            scope=args.get("scope", "project"),
         )
         return {"id": memory.id, "content": memory.content, "status": "stored"}
 
@@ -471,7 +526,8 @@ def _handle_tool(mem: AgentMemory, name: str, args: dict) -> dict:
         results = mem.recall(
             args["query"],
             budget=args.get("budget", 2000),
-            namespace=args.get("namespace"),
+            namespace=_ns,
+            user_id=args.get("user_id") or default_user_id,
         )
         return {
             "count": len(results),
@@ -494,7 +550,7 @@ def _handle_tool(mem: AgentMemory, name: str, args: dict) -> dict:
             query=args.get("query"),
             category=args.get("category"),
             entity=args.get("entity"),
-            namespace=args.get("namespace"),
+            namespace=_ns,
             status=args.get("status", "active"),
             after=args.get("after"),
             before=args.get("before"),
@@ -520,7 +576,7 @@ def _handle_tool(mem: AgentMemory, name: str, args: dict) -> dict:
         return {"success": success, "memory_id": args["memory_id"]}
 
     elif name == "memory_timeline":
-        memories = mem.timeline(args["entity"], namespace=args.get("namespace"))
+        memories = mem.timeline(args["entity"], namespace=_ns)
         return {
             "entity": args["entity"],
             "count": len(memories),

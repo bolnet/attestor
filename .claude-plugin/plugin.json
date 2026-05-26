@@ -1,0 +1,22 @@
+{
+  "name": "attestor",
+  "version": "4.0.0",
+  "description": "The memory layer for agent teams. Deterministic retrieval, hard per-project isolation, zero LLM in the critical path.",
+  "author": {
+    "name": "Surendra Singh",
+    "url": "https://github.com/bolnet/attestor"
+  },
+  "homepage": "https://github.com/bolnet/attestor",
+  "repository": "https://github.com/bolnet/attestor",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "mcp",
+    "agents",
+    "rag",
+    "postgres",
+    "pinecone",
+    "neo4j",
+    "claude-code"
+  ]
+}
