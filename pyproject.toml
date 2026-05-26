@@ -1,6 +1,6 @@
 [project]
 name = "attestor"
-version = "4.1.1"
+version = "4.1.2"
 description = "Production-grade memory infrastructure for multi-agent systems. Namespace isolation, RBAC, provenance, ranked retrieval."
 readme = "README.md"
 license = "MIT"
@@ -93,6 +93,12 @@ include = [
     # ~/.attestor/attestor.yaml; it MUST be in the wheel or a fresh install
     # has no stack config and get_stack() fails.
     { path = "attestor/config/defaults/*.yaml", format = ["sdist", "wheel"] },
+    # Local Docker backends — `attestor quickstart` runs `docker compose` against
+    # this bundled compose (+ its postgres build context), so the compose file,
+    # the postgres Dockerfile, and the extension-init SQL MUST ship in the wheel.
+    { path = "attestor/infra/local/docker-compose.yml", format = ["sdist", "wheel"] },
+    { path = "attestor/infra/local/postgres.Dockerfile", format = ["sdist", "wheel"] },
+    { path = "attestor/infra/local/init-extensions.sql", format = ["sdist", "wheel"] },
 ]
 
 [tool.poetry.group.dev.dependencies]

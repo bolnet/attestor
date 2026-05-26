@@ -1,11 +1,13 @@
 # Attestor — LOCAL-DEFAULT stack config (generated; ships in the wheel).
-# Fully local, zero cloud keys: Postgres + pgvector (document + vector) +
-# Neo4j (graph) + Ollama `bge-m3` embedder via the OpenAI-compatible route
-# (set OPENAI_BASE_URL to the local Ollama endpoint, OPENAI_API_KEY=ollama).
-# `attestor init` copies this to ~/.attestor/attestor.yaml; edit that copy
-# (the single source of truth for your stack). Flip embedder.provider to
-# voyage/openai-cloud, add a `pinecone:` block for a dedicated vector store,
-# or enable hyde/reranker once you have an LLM/embedding key.
+# Canonical three roles, fully local, zero cloud keys: Postgres (document) +
+# Pinecone Local (vector, localhost:5080) + Neo4j (graph) + Ollama `bge-m3`
+# embedder via the OpenAI-compatible route (OPENAI_BASE_URL -> local Ollama,
+# OPENAI_API_KEY=ollama; Pinecone Local needs PINECONE_API_KEY=local). The
+# vector-store CONNECTION lives in config.toml ([pinecone] backend); this file
+# is the stack (embedder/models/retrieval). `attestor quickstart` writes both.
+# Edit this copy at ~/.attestor/attestor.yaml — the single source of truth for
+# your stack. Flip embedder.provider to voyage/openai-cloud, point Pinecone at
+# the cloud, or enable hyde/reranker once you have an LLM/embedding key.
 
 stack:
   postgres:

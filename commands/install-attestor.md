@@ -1,224 +1,82 @@
 ---
-description: Install Attestor for Claude Code — interactive configuration
-argument-hint: "(no args — will ask)"
-allowed-tools: Bash, Read, Write, Edit, Glob
+description: Install Attestor for Claude Code — one default profile, zero questions
+argument-hint: "(no args — installs the local default, asks nothing)"
+allowed-tools: Bash, Read
 ---
 
 # Install Attestor for Claude Code
 
 You are installing **Attestor** (PyPI: `attestor`, import: `attestor`) — a memory layer for agent teams — into the user's Claude Code setup.
 
-**This prompt is the source of truth — drive the whole install yourself by following it.** Attestor is prompt-first for Claude Code + local use: you do the install/setup by reading and acting on this prompt, not by deferring to a script. The Python helpers (`attestor setup-claude-code` / `scripts/`) exist as a test/reference of the same steps; prefer doing each step here directly so you can adapt to the machine's actual state.
+**This install is ZERO-QUESTION and ONE-PERMISSION by design.** There is ONE default profile. You do NOT interview the user, you do NOT call `AskUserQuestion`, and you do NOT pause for per-setting choices. You **announce** the defaults, **run one command**, and **report**. Print everything; ask nothing.
 
-This command is **interactive**. The wizard is the single source of truth for every install input — scope, paths, backends, credentials, secrets, hook wiring, verification. **Do NOT silently apply defaults when state already exists. Do NOT collect secrets out-of-band. If the install needs a value, the wizard asks for it.**
+> **Why no questions:** the single command `attestor quickstart` writes the entire config from the bundled local default, brings up the backends, wires the MCP server + hooks, and runs the health check — non-interactively. Every value is fixed and printed below; there is nothing to ask. (If the user explicitly wants a cloud/custom stack, point them to `docs/INSTALL.md` — but the default path asks nothing.)
 
-> **Plugin mode — do NOT trust plugin auto-wiring; wire it yourself.** When installed via `/plugin install attestor` the plugin *ships* an `.mcp.json` + `hooks/hooks.json`, but **clean-machine testing showed they do NOT take effect**: the bundled `.mcp.json` hard-codes the author's dev path, and the plugin hooks are **not merged** into a `settings.json` already owned by another tool (GSD/ECC/continuous-learning) — so after install + restart there were **zero attestor hooks and no `mcp__attestor__*` tools**. Therefore, in plugin mode this wizard STILL must: (a) `pipx install attestor`; (b) bring up backends + write `~/.attestor/{config.toml,attestor.yaml,.env}`; (c) **write the MCP entry to a file Claude Code actually reads** — the project `./.mcp.json` (default) or global `~/.claude.json` `mcpServers`, **never** `~/.claude/.mcp.json` or `~/.claude/settings.json` — as a `.env`-sourcing bash wrapper; (d) **merge the 3 hooks into the active `settings.json`, appended alongside any existing hooks** (do not skip, do not clobber); (e) run `attestor doctor` **and** a live add+recall to confirm it actually works. Memory is automatically isolated per project (git root, else cwd) — no namespace to set.
+## The single default profile (fixed — printed, never asked)
 
-Rules:
-- Ask **one** question at a time via `AskUserQuestion` — never batch.
-- Ask Q0 (pre-existing state) questions first — only ask the ones whose preconditions were detected in Step 1.
-- Skip sub-questions that don't apply to the chosen branch (e.g. skip Q-embed-provider when cloud backend selected).
-- Never write secrets into config files — always reference env vars. The wizard asks **where** to persist each secret (gitignored `.env` / shell profile / this-session-only).
-- Merge JSON configs; never clobber existing `mcpServers` or `hooks` entries without an explicit user choice.
-- If a step fails, stop and report — do not retry silently.
-
----
-
-## Step 1 — Detect current state (before asking anything)
-
-Run these checks in parallel:
-
-```bash
-command -v attestor || echo "NOT_INSTALLED"
-command -v pipx || echo "NO_PIPX"
-python3 --version
-ls ~/.attestor >/dev/null 2>&1 && echo "STORE_EXISTS" || echo "STORE_NEW"
-ls ~/.claude/.mcp.json >/dev/null 2>&1 && echo "GLOBAL_MCP_EXISTS" || echo "GLOBAL_MCP_NONE"
-ls .mcp.json >/dev/null 2>&1 && echo "PROJECT_MCP_EXISTS" || echo "PROJECT_MCP_NONE"
-grep -l "attestor" ~/.claude/settings.json 2>/dev/null && echo "HOOKS_WIRED" || echo "HOOKS_NONE"
-```
-
-Report a one-line summary and move to Step 2.
-
----
-
-## Step 2 — Interview (one question per turn, use AskUserQuestion)
-
-### Q0 — Pre-existing state handling (ask ONLY the ones that apply)
-
-**Q0a. Existing MCP entry** (if any `mcpServers` entry named `memory` or `attestor` already exists)
-- `Update in place` *(Recommended)* — overwrite with wizard settings.
-- `Keep as-is` — skip MCP changes.
-- `Add alongside` — keep existing, add a second entry under a different key.
-
-**Q0b. Existing hooks** (if `settings.json` hooks already reference `attestor`)
-- `Keep as-is` *(Recommended)*
-- `Replace with wizard selection`
-- `Remove all Attestor hooks`
-
-**Q0c. Existing store** (if `STORE_PATH` already exists)
-- `Reuse` *(Recommended)* — keep memories and settings, apply new config only.
-- `Pick a new path` — create a fresh store elsewhere.
-- `Reset (destructive)` — wipe and start clean. Requires explicit re-confirm.
-
-### Q1. Scope
-- `Global (~/.claude/.mcp.json)` *(Recommended)*
-- `Project (./.mcp.json)`
-
-### Q2. Store location
-- `Default (~/.attestor/)` *(Recommended)*
-- `Custom path` — follow-up free-text for absolute path.
-
-### Q3. Backend topology (Local vs Cloud — the same three roles either way)
-
-The canonical stack is **Postgres (document) + Pinecone (vector) + Neo4j (graph)**; only the connection details differ. (The single-DB pgvector bundle and the Arango / AWS-native / Cosmos / AlloyDB backends were removed on 2026-05-02 — do not offer them.)
-
-- `Local Docker` *(Recommended)* — three containers on this machine: `attestor-postgres` (`pgvector/pgvector:pg16`), `attestor-pinecone` (Pinecone Local emulator), `attestor-neo4j` (`neo4j:5.24-community` + GDS). Full walkthrough: `docs/LOCAL_DOCKER_SETUP.md`.
-- `Cloud-managed` — managed Postgres (Neon / RDS / Cloud SQL / AlloyDB-as-PG), Pinecone Cloud, Neo4j AuraDB.
-
-### Q-backend-creds — Credentials (collect after Q3, before install)
-
-Non-secret settings live in `configs/attestor.yaml`; only secrets vary by environment. Required keys:
-
-| Topology | Required env vars |
+| Setting | Default |
 |---|---|
-| Local Docker | `PINECONE_API_KEY` (Pinecone Inference embedder — cloud-only), `NEO4J_PASSWORD`, `OPENROUTER_API_KEY` (LLM calls). Pinecone **Local** + Postgres need no key. |
-| Cloud-managed | `POSTGRES_URL`, `NEO4J_URI`, `NEO4J_PASSWORD`, `PINECONE_API_KEY`, `OPENROUTER_API_KEY` |
+| Store path | `~/.attestor` |
+| Document | Postgres 16 (local Docker) |
+| Vector | Pinecone Local emulator @ `localhost:5080` (local Docker) |
+| Graph | Neo4j 5 + GDS (local Docker) |
+| Embedder | Ollama `bge-m3` @1024-D — **local, zero cloud key** |
+| LLM keys | none required (add/recall work fully local) |
+| Passwords | `attestor` (localhost-only dev default); Pinecone key `local` |
+| Token budget | 10000 |
+| MCP server | written to project `./.mcp.json` as a `.env`-sourcing wrapper |
+| Hooks | SessionStart + PostToolUse + Stop, merged into `~/.claude/settings.json` |
 
-If you change the embedder in `configs/attestor.yaml` (Q4), swap `PINECONE_API_KEY` for that provider's key.
+This is the canonical **three-role** stack — Postgres + Pinecone + Neo4j — running locally; `quickstart` brings up all three containers (and skips the standalone `attestor-api` container, unused for the Claude Code path).
 
-**Q-backend-creds.1 — How to collect:**
-- `Use existing env vars` *(Recommended if already exported)* — detect and confirm.
-- `Paste them now` — prompt free-text per key.
-- `Skip` — write config with placeholder; user fills in before restart.
-
-**Q-backend-creds.2 — Where to persist** (only if user pasted values):
-- `Gitignored .env file (~/.attestor/.env, chmod 600)` *(Recommended)*
-- `Shell profile (~/.zshrc or ~/.bashrc)`
-- `This session only` — hold in memory; user must re-export before restart.
-
-### Q4. Embedder (the `configs/attestor.yaml` default — only change if asked)
-
-Whichever is chosen, set it under `stack.embedder` in `configs/attestor.yaml` (the single source of truth) and put the key in `.env`:
-- `Pinecone Inference llama-text-embed-v2 (1024-D)` *(Recommended — the default)* — needs `PINECONE_API_KEY` (cloud-only; pairs with the Pinecone vector role).
-- `Voyage voyage-4 (1024-D)` — needs `VOYAGE_API_KEY`.
-- `OpenAI text-embedding-3-* (→1024-D)` — needs `OPENAI_API_KEY`.
-- `Ollama bge-m3 (local, free)` — provider `openai` + `OPENAI_BASE_URL` pointed at the local Ollama endpoint.
-
-### Q5. Claude Code hooks (multi-select)
-- `session-start` *(Recommended)* — inject this project's relevant memories at session start.
-- `post-tool-use` *(Recommended)* — auto-capture file changes + commands into this project's memory.
-- `stop` — write a project-scoped session summary on exit.
-- `none` — MCP only, no hooks.
-
-> No namespace to configure — memory is **automatically isolated per project**: each working directory (git root, else cwd) is its own RLS tenant, so projects never share memory.
-
-### Q6. Default token budget for `recall()`
-- `2000`
-- `5000`
-- `10000` *(Recommended for multi-agent)*
-- `Custom`
-
-### Q7. Verification & restart preferences
-- `Run doctor + print MCP config automatically` *(Recommended)*
-- `Skip verification`
-
-Always end with a printed restart reminder. No auto-restart.
+Memory is automatically isolated per project (git root, else cwd) — no namespace to set.
 
 ---
 
-## Step 3 — Install the package
-
-If attestor is not on PATH:
-```bash
-pipx install attestor || python3 -m pip install --user attestor
-```
-If already installed:
-```bash
-pipx upgrade attestor || python3 -m pip install --user -U attestor
-```
-Confirm with `attestor --help | head -5`.
-
----
-
-## Step 4 — Provision the store (respects Q0c answer)
-
-- If Q0c = Reuse → skip creation, just run doctor.
-- If Q0c = Pick new path → `mkdir -p "$STORE_PATH"`.
-- If Q0c = Reset → re-confirm, then `rm -rf "$STORE_PATH"` and recreate.
-
-Then: `attestor doctor "$STORE_PATH"` must report OK for Document / Vector / Graph / Retrieval.
-
----
-
-## Step 5 — Persist secrets (respects Q-backend-creds.2 / Q-embed-creds)
-
-- **Gitignored `.env`**: write `KEY=value` lines to `~/.attestor/.env`, `chmod 600`, ensure `.env` is in `.gitignore`.
-- **Shell profile**: append `export KEY=value` to `~/.zshrc` (or `~/.bashrc`). Tell the user to `source` it.
-- **Session-only**: hold in memory for the install run; print a reminder to re-export before restart.
-
-Never inline secrets into `~/.claude/.mcp.json` or `settings.json`.
-
----
-
-## Step 6 — Write MCP config (respects Q0a + Q1 + Q3)
-
-Merge into the chosen MCP config file. Read first, then update the chosen `mcpServers` entry:
-
-```json
-{
-  "mcpServers": {
-    "attestor": {
-      "command": "attestor",
-      "args": ["mcp", "--path", "<STORE_PATH>"],
-      "env": {
-        "ATTESTOR_CONFIG": "<ABSOLUTE_PATH_TO_attestor.yaml>"
-      }
-    }
-  }
-}
-```
-
-`ATTESTOR_CONFIG` is the single source of truth — pin it to the **absolute** path of the `attestor.yaml` this install uses, so the long-running MCP server resolves the same config the CLI did (not a cwd-relative guess). Use the resolved path that `attestor setup-claude-code` prints under "Config file in use". Backend secrets are never inlined — they come from the shell / `~/.attestor/.env`.
-
----
-
-## Step 7 — Wire hooks (respects Q0b + Q5)
-
-Edit `~/.claude/settings.json` (or `.claude/settings.json` for project scope). Only emit the hooks the user selected in Q5.
-
-**Critical — the hook command MUST load the user env before calling `attestor`.** Claude Code spawns hooks without the interactive shell's environment, so a bare `attestor hook ...` runs with no `ATTESTOR_CONFIG` / provider keys, the embedder fails to init, and the hook silently saves nothing. Wrap every hook in `set -a; source ~/.attestor/.env; set +a` — and `set -a` is required, because un-`export`ed `KEY=value` lines in `.env` otherwise stay shell-local and never reach the subprocess:
-
-```json
-{
-  "hooks": {
-    "SessionStart": [
-      { "matcher": "*", "hooks": [{ "type": "command", "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook session-start'" }] }
-    ],
-    "PostToolUse": [
-      { "matcher": "Write|Edit|Bash", "hooks": [{ "type": "command", "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook post-tool-use'" }] }
-    ],
-    "Stop": [
-      { "matcher": "*", "hooks": [{ "type": "command", "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook stop'" }] }
-    ]
-  }
-}
-```
-
-If a non-default config is in play, bake it in too: `… set +a; ATTESTOR_CONFIG="<abs path>" attestor hook stop`. If Q0b = Replace, strip existing Attestor hook entries (any command containing `attestor hook`) before merging.
-
----
-
-## Step 8 — Verify (if Q7 = Run doctor)
+## Step 1 — Ensure the binary (one command)
 
 ```bash
-attestor doctor "$STORE_PATH" && echo "--- MCP config ---" && cat "$MCP_CONFIG_FILE"
+command -v attestor >/dev/null 2>&1 || pipx install attestor || python3 -m pip install --user attestor
 ```
 
-Then tell the user (≤6 lines):
-- What was installed and where
-- Which MCP config file was touched
-- Which hooks were wired
-- Which secrets were written and where
-- The sanity-check command: `attestor doctor ~/.attestor`
-- That they must **restart Claude Code** for the MCP server to attach
+(If already present, optionally `pipx upgrade attestor`.) Confirm with `attestor --help | head -3`.
+
+---
+
+## Step 2 — Run the zero-question installer (the one command)
+
+```bash
+attestor quickstart
+```
+
+That single command does **all** of it, non-interactively, printing each step:
+
+1. writes `~/.attestor/attestor.yaml` (stack) + `~/.attestor/config.toml` (connection, `$PGPASSWORD`/`$NEO4J_PASSWORD` env refs, `v4=true`),
+2. writes `~/.attestor/.env` (local passwords + the Ollama embedder route) — idempotent, `chmod 600`, never clobbers existing values,
+3. brings up the local Docker backends (Postgres + Neo4j + Pinecone Local) and waits for PG/Neo4j health,
+4. wires the Claude Code MCP server (`./.mcp.json`) + the 3 lifecycle hooks (`~/.claude/settings.json`), both `.env`-sourcing — it does **not** trust the plugin's bundled `.mcp.json` (which hard-codes a dev path),
+5. runs `attestor doctor` and prints the resolved config.
+
+It **bypasses** `init`'s fresh-store gate by force-writing `config.toml`, so a background MCP server's tuning-only `config.json` cannot block the connection config.
+
+**Do not second-guess it with questions.** If a sub-step fails (e.g. Docker not running, Ollama/`bge-m3` not pulled), the command prints the exact remedy — relay that, don't start an interview.
+
+Useful flags (only if the user explicitly asks): `--no-docker`, `--no-wire`, `--no-verify`, or a custom store path as the positional arg.
+
+---
+
+## Step 3 — Report (≤6 lines) and remind to restart
+
+After `attestor quickstart` returns, tell the user:
+- ✅ Installed `attestor`, wrote `~/.attestor/{config.toml,attestor.yaml,.env}`, brought up Postgres + Neo4j.
+- ✅ MCP server `attestor` → `./.mcp.json`; hooks → `~/.claude/settings.json`.
+- The `doctor` result (note: **Vector Store may show "Not initialized"** — that's cosmetic; pgvector serves the vector role and recall returns `source: vector`).
+- To prove it: after restart, `/mcp` shows `attestor` (8 tools); ask it to remember something, then recall it.
+- **You must restart Claude Code** so the MCP server + hooks attach (they load at session start).
+- To change ANY setting later: edit `~/.attestor/attestor.yaml` (the single source of truth) and re-run `attestor quickstart`.
+
+---
+
+## Prerequisites (state them, don't ask about them)
+
+The fully-local default needs **Docker** (for Postgres + Neo4j + Pinecone Local) and **Ollama** serving `bge-m3` (`ollama pull bge-m3`). `attestor quickstart` runs a preflight that scans these ports/tools and prints their state first. If something's missing, it still writes all config and prints what to start — report that and let the user start it, then re-run `attestor quickstart` (it's idempotent).
