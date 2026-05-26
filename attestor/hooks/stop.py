@@ -80,7 +80,10 @@ def handle(payload: dict[str, Any]) -> dict[str, Any]:
             return _EMPTY_RESPONSE
         finally:
             mem.close()
-    except Exception:  # noqa: BLE001 -- handler must never crash the host
+    except Exception as exc:  # noqa: BLE001 -- handler must never crash the host
+        from attestor.hooks._base import log_hook_error
+
+        log_hook_error("stop", exc)
         return _EMPTY_RESPONSE
 
 

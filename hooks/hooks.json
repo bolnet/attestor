@@ -5,7 +5,7 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "attestor hook session-start" }
+          { "type": "command", "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook session-start'" }
         ],
         "description": "Inject this project's relevant memories at session start (project-scoped)."
       }
@@ -14,7 +14,7 @@
       {
         "matcher": "Write|Edit|Bash",
         "hooks": [
-          { "type": "command", "command": "attestor hook post-tool-use" }
+          { "type": "command", "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook post-tool-use'" }
         ],
         "description": "Capture file changes and commands into this project's memory (secrets redacted)."
       }
@@ -23,7 +23,7 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "attestor hook stop" }
+          { "type": "command", "command": "bash -c 'set -a; [ -f \"$HOME/.attestor/.env\" ] && . \"$HOME/.attestor/.env\"; set +a; attestor hook stop'" }
         ],
         "description": "Write a project-scoped session summary on exit."
       }

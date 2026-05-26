@@ -62,6 +62,28 @@ def _configure_claude_mcp(binary: str, store_path: str) -> None:
     print(f"\nClaude Code MCP server 'memory' configured in {settings_path}")
 
 
+def _hook_command(binary: str, subcommand: str) -> str:
+    """Build a hook command that loads the user's env before invoking attestor.
+
+    Claude Code spawns hooks without the interactive shell's environment, so
+    ``ATTESTOR_CONFIG`` and the embedding-provider keys are absent — the hook
+    then falls back to the bundled default config, the embedder fails to
+    initialize, and (because the handler logs but returns an empty response)
+    the hook silently saves nothing.
+
+    ``set -a`` auto-exports everything sourced from ``~/.attestor/.env`` so the
+    ``attestor`` subprocess actually inherits it. A bare ``source`` is NOT
+    enough: ``KEY=value`` lines without ``export`` stay shell-local and never
+    reach the child process. The file is optional (``[ -f ]``) so installs that
+    bind config purely via the MCP ``env`` block still work.
+    """
+    return (
+        'bash -c \'set -a; [ -f "$HOME/.attestor/.env" ] && '
+        '. "$HOME/.attestor/.env"; set +a; '
+        f"{binary} hook {subcommand}'"
+    )
+
+
 def _configure_claude_hooks(binary: str):
     """Write Claude Code lifecycle hooks to ~/.claude/settings.json."""
     settings_path = Path.home() / ".claude" / "settings.json"
@@ -71,9 +93,9 @@ def _configure_claude_hooks(binary: str):
     hooks = settings.setdefault("hooks", {})
 
     hook_defs = {
-        "SessionStart": {"command": f"{binary} hook session-start"},
-        "PostToolUse": {"command": f"{binary} hook post-tool-use"},
-        "Stop": {"command": f"{binary} hook stop"},
+        "SessionStart": {"command": _hook_command(binary, "session-start")},
+        "PostToolUse": {"command": _hook_command(binary, "post-tool-use")},
+        "Stop": {"command": _hook_command(binary, "stop")},
     }
 
     for event, hook_cfg in hook_defs.items():
