@@ -37,6 +37,7 @@ from attestor.cli.commands.memory import (
     _cmd_timeline,
     _cmd_update,
 )
+from attestor.cli.commands.quickstart import _cmd_quickstart
 from attestor.cli.commands.server import (
     _cmd_api,
     _cmd_hook,
@@ -107,6 +108,25 @@ def main(argv=None):
         action="store_true",
         dest="install_mcp",
         help="Write MCP server entry into ~/.claude/settings.json",
+    )
+
+    # quickstart (zero-question, one-command local install — all defaults)
+    p_quickstart = subparsers.add_parser(
+        "quickstart",
+        help="Zero-question local install: writes config + brings up backends + "
+        "wires Claude Code MCP/hooks + runs doctor, all with defaults. Asks nothing.",
+    )
+    p_quickstart.add_argument(
+        "path", nargs="?", default=None, help="Store path (default: ~/.attestor)"
+    )
+    p_quickstart.add_argument(
+        "--no-docker", action="store_true", help="Skip bringing up the Docker backends"
+    )
+    p_quickstart.add_argument(
+        "--no-wire", action="store_true", help="Skip Claude Code MCP/hook wiring"
+    )
+    p_quickstart.add_argument(
+        "--no-verify", action="store_true", help="Skip the post-install health check"
     )
 
     # add
@@ -415,6 +435,7 @@ def main(argv=None):
 
     # Dispatch
     handlers = {
+        "quickstart": _cmd_quickstart,
         "init": _cmd_init,
         "add": _cmd_add,
         "recall": _cmd_recall,

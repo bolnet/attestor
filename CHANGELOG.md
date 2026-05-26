@@ -2,6 +2,15 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.2] — 2026-05-26
+
+**Zero-question install: `attestor quickstart`.** A single command that stands up the canonical three-role local stack — Postgres (document) + Pinecone Local (vector) + Neo4j (graph) + Ollama `bge-m3` embedder — with no prompts and one default profile. It prints everything, asks nothing.
+
+- **`attestor quickstart`** — runs a preflight scan (Docker + ports 5432/7687/5080/11434 + Ollama `bge-m3`), then writes `~/.attestor/{attestor.yaml,config.toml,.env}`, brings up the local Docker backends (`postgres` + `neo4j` + `pinecone`; skips the standalone `attestor-api`), wires the Claude Code MCP server (`./.mcp.json`) + lifecycle hooks (both `.env`-sourcing), and runs the health check. Flags: `--no-docker`, `--no-wire`, `--no-verify`, optional store-path positional.
+- **Force-writes `config.toml`** via the canonical writer, bypassing `init`'s fresh-store gate — so a background MCP server's tuning-only `config.json` can no longer block the connection config. Routes the vector role to Pinecone Local (`localhost:5080`, dim 1024 to match `bge-m3`); secrets stay `$ENV_VAR` refs (`$PGPASSWORD`/`$NEO4J_PASSWORD`, `PINECONE_API_KEY=local`).
+- **Install command** (`/install-attestor`) rewritten to be zero-question / one-permission: announce the fixed default profile, run `attestor quickstart`, report — no interview.
+- Ships the local Docker compose + `postgres.Dockerfile` + extension SQL explicitly in the wheel (needed by `quickstart`); compose gains the Pinecone Local service.
+
 ## [4.0.0] — 2026-04-28
 
 First stable 4.x release. **`pip install attestor` now returns this version.** Promoting the alpha line to stable so the documented install path matches the documented architecture (Postgres + pgvector + Neo4j + Voyage AI + the four-role gpt-4.1 / claude-sonnet-4-6 model lineup). Eight PRs landed today on top of `4.0.0a5`:

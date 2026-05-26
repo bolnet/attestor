@@ -68,12 +68,27 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  # ──────────────────────── Vector: Pinecone Local ────────────────────────
+  # pinecone-local ships amd64-only; on Apple Silicon Docker uses Rosetta.
+  # The explicit platform directive ensures Rosetta is engaged and the server
+  # process binds correctly.
+  pinecone:
+    image: ghcr.io/pinecone-io/pinecone-local:latest
+    platform: linux/amd64
+    container_name: attestor-pinecone-local
+    ports:
+      - "5080-5090:5080-5090"
+    environment:
+      PORT: 5080
+      PINECONE_HOST: localhost
+    restart: unless-stopped
+
   # ───────────────────────── API: slim, separate ──────────────────────────
   attestor-api:
     build:
       context: ../../..
       dockerfile: attestor/infra/local/api.Dockerfile
-    image: attestor/api:3.0.0
+    image: attestor/api:4.0.0
     container_name: attestor-api-local
     ports:
       - "8080:8080"
@@ -85,26 +100,31 @@ services:
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USERNAME: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-attestor}
-      # Secrets — substituted from the env file Compose loads (pass the
-      # repo-root .env explicitly: `docker compose --env-file .env -f …`).
-      # Embedder/vector choice live in configs/attestor.yaml (default:
-      # voyage-4 embedder + Pinecone vector); the container reads them via
-      # attestor.config.get_stack(), so BOTH keys must be present:
-      #   VOYAGE_API_KEY   → embedder (voyage-4)
-      #   PINECONE_API_KEY → vector store (Pinecone cloud)
+      # Stack config — ATTESTOR_CONFIG overrides the baked-in configs/attestor.yaml.
+      # Local dev mounts ~/.attestor/attestor.yaml (Ollama embedder, no cloud keys
+      # required). Cloud deploys: omit ATTESTOR_CONFIG (uses the baked-in Voyage
+      # default) and supply VOYAGE_API_KEY + PINECONE_API_KEY instead.
+      ATTESTOR_CONFIG: ${ATTESTOR_CONFIG:-/data/config/attestor.yaml}
+      # Ollama on the host — host.docker.internal resolves to the Docker host.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-ollama}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-http://host.docker.internal:11434/v1}
       VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
-      PINECONE_API_KEY: ${PINECONE_API_KEY:-}
+      # Pinecone Local requires a non-empty key; "local" works for the local server.
+      # Override by exporting PINECONE_API_KEY before running compose for cloud deploys.
+      PINECONE_API_KEY: local
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ATTESTOR_DATA_DIR: /data/attestor
     volumes:
       - attestor_data:/data/attestor
+      - ./docker-attestor.yaml:/data/config/attestor.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy
       neo4j:
         condition: service_healthy
+      pinecone:
+        condition: service_started
     restart: unless-stopped
 
 volumes:
