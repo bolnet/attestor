@@ -8,18 +8,18 @@ decision (2026-04-18): **Postgres SQL + pgvector + Neo4j**.
 
 | Container | Image | Role |
 |---|---|---|
-| `attestor-api-local` | `attestor/api:3.0.0` | Slim HTTP API. **No** embedded DB, no sentence-transformers, no torch. |
-| `attestor-pg-local` | `attestor/db-postgres:16` (built from `pgvector/pgvector:pg16`) | Postgres 16 + `pgvector` — document store + vector HNSW. |
-| `attestor-neo4j-local` | `neo4j:5.24-community` | Neo4j 5 + GDS Community plugin — graph + community detection. |
+| `attestor_api` | `attestor/api:3.0.0` | Slim HTTP API. **No** embedded DB, no sentence-transformers, no torch. |
+| `attestor_postgres_document_db` | `attestor/db-postgres:16` (built from `pgvector/pgvector:pg16`) | Postgres 16 + `pgvector` — document store + vector HNSW. |
+| `attestor_neo4j_graph_db` | `neo4j:5.24-community` | Neo4j 5 + GDS Community plugin — graph + community detection. |
 
 ## Topology
 
 ```
 ┌────── localhost ─────────┐
 │                          │
-│  :8080  attestor-api  ───┼──► attestor-pg-local      :5432  (doc + vector)
+│  :8080  attestor-api  ───┼──► attestor_postgres_document_db      :5432  (doc + vector)
 │                          │
-│                          └──► attestor-neo4j-local   :7687  (graph)
+│                          └──► attestor_neo4j_graph_db   :7687  (graph)
 │                                                      :7474  (browser UI)
 └──────────────────────────┘
 ```

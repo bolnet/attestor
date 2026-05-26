@@ -47,8 +47,8 @@ OLLAMA_BASE_URL = "http://localhost:11434/v1"
 OLLAMA_EMBED_MODEL = "bge-m3"
 EMBED_DIM = 1024  # bge-m3 output dim == Pinecone index dim
 PINECONE_LOCAL_HOST = "http://localhost:5080"
-PG_CONTAINER = "attestor-pg-local"
-NEO4J_CONTAINER = "attestor-neo4j-local"
+PG_CONTAINER = "attestor_postgres_document_db"
+NEO4J_CONTAINER = "attestor_neo4j_graph_db"
 HEALTH_TIMEOUT_S = 120
 
 # Ports the local stack uses — scanned up front so the user sees what's already

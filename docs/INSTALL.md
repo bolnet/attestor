@@ -139,9 +139,9 @@ This brings up three containers:
 
 | Container | Image | Port | Role |
 |-----------|-------|------|------|
-| `attestor-pg-local` | `attestor/db-postgres:16` (pgvector) | `5432` | Document |
-| `attestor-pinecone-local` | `ghcr.io/pinecone-io/pinecone-local:latest` | `5080-5090` | Vector |
-| `attestor-neo4j-local` | `neo4j:5.24-community` (+ GDS plugin) | `7474`, `7687` | Graph |
+| `attestor_postgres_document_db` | `attestor/db-postgres:16` (pgvector) | `5432` | Document |
+| `attestor_pinecone_vector_db` | `ghcr.io/pinecone-io/pinecone-local:latest` | `5080-5090` | Vector |
+| `attestor_neo4j_graph_db` | `neo4j:5.24-community` (+ GDS plugin) | `7474`, `7687` | Graph |
 
 Wait for all three to report healthy:
 
@@ -286,7 +286,7 @@ docker compose up -d            # postgres + pinecone + neo4j + attestor-api
 curl localhost:8080/health      # {"ok": true, "data": {"healthy": true, ...}}
 ```
 
-The API container (`attestor-api-local`) serves the same routes as the library — `/add`, `/recall`, `/search`, `/timeline`, `/forget`, `/memory/{id}`, `/health`, `/stats` (see [`attestor/api.py`](../attestor/api.py)). Any language can drive it via `MemoryClient` or raw REST. Backend config resolves from env (`POSTGRES_URL` / `NEO4J_URI` + `PINECONE_*`) and otherwise from `configs/attestor.yaml`; the vector (Pinecone) role is always preserved.
+The API container (`attestor_api`) serves the same routes as the library — `/add`, `/recall`, `/search`, `/timeline`, `/forget`, `/memory/{id}`, `/health`, `/stats` (see [`attestor/api.py`](../attestor/api.py)). Any language can drive it via `MemoryClient` or raw REST. Backend config resolves from env (`POSTGRES_URL` / `NEO4J_URI` + `PINECONE_*`) and otherwise from `configs/attestor.yaml`; the vector (Pinecone) role is always preserved.
 
 ---
 

@@ -161,7 +161,7 @@ def _remove_containers(*, dry: bool) -> None:
         print("  (docker not available)")
         return
     names = subprocess.run(
-        ["docker", "ps", "-aq", "--filter", "name=attestor-"],
+        ["docker", "ps", "-aq", "--filter", "name=attestor"],
         capture_output=True, text=True, check=False,
     ).stdout.split()
     if names:

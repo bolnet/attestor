@@ -5,8 +5,8 @@
 Measures P50/P95/P99 latency for `/add` and `/recall` against the single
 API container started by `docker-compose.yml` in this directory:
 
-    http://localhost:8080  ->  attestor-api-local
-    (talks to attestor-pg-local and attestor-neo4j-local)
+    http://localhost:8080  ->  attestor_api
+    (talks to attestor_postgres_document_db and attestor_neo4j_graph_db)
 
 Usage:
     python bench_latency.py                    # 50 iters, 10x seed corpus

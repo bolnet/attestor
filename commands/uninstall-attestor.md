@@ -44,7 +44,7 @@ Rules:
 echo "[1] package:"   ; (command -v attestor && pipx list 2>/dev/null | grep attestor) || echo "  none"
 echo "[2] ~/.attestor:"; ls -la ~/.attestor 2>/dev/null || echo "  none"
 echo "[3] wiring:"     ; for f in ~/.claude/settings.json ~/.claude/.mcp.json ~/.claude.json ./.claude/settings.json ./.mcp.json; do echo "  $f"; grep -o '"attestor"\|attestor hook' "$f" 2>/dev/null | sort -u | sed 's/^/    /'; done
-echo "[4] docker:"     ; docker ps -a --filter name=attestor- --format '  {{.Names}}' 2>/dev/null; docker volume ls -q --filter name=attestor 2>/dev/null | sed 's/^/  vol /'
+echo "[4] docker:"     ; docker ps -a --filter name=attestor --format '  {{.Names}}' 2>/dev/null; docker volume ls -q --filter name=attestor 2>/dev/null | sed 's/^/  vol /'
 echo "[5] artifacts:"  ; ls -d .cc_attestor_probe_store config.json logs 2>/dev/null | sed 's/^/  /' || echo "  none"
 echo "[6] plugin:"     ; grep -l "bolnet/attestor" ~/.claude.json 2>/dev/null && echo "  plugin ref present" || echo "  none"
 ```
@@ -92,7 +92,7 @@ Ask via `AskUserQuestion`: "Remove the Attestor Docker containers and volumes? T
 On yes:
 
 ```bash
-docker rm -f $(docker ps -aq --filter name=attestor-) 2>/dev/null
+docker rm -f $(docker ps -aq --filter name=attestor) 2>/dev/null
 docker volume rm $(docker volume ls -q --filter name=attestor) 2>/dev/null
 ```
 
@@ -119,7 +119,7 @@ command -v attestor || echo "binary gone"
 pipx list 2>/dev/null | grep -c attestor
 [ -e ~/.attestor ] && echo "HOME present" || echo "HOME gone"
 for f in ~/.claude/settings.json ~/.claude/.mcp.json ~/.claude.json ./.claude/settings.json ./.mcp.json; do grep -c "attestor hook\|\"attestor\"" "$f" 2>/dev/null; done
-docker ps -aq --filter name=attestor- | wc -l
+docker ps -aq --filter name=attestor | wc -l
 ```
 
 Report a ≤8-line summary of what was **removed** vs **preserved** (and which `*.bak` backups were left). Remind the user to **restart Claude Code** so it drops the now-orphaned MCP server process + hooks.

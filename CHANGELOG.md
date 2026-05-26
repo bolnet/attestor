@@ -2,6 +2,10 @@
 
 All notable changes to Attestor (formerly Memwright) are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.8] — 2026-05-26
+
+**Consistent `attestor_` Docker naming.** Every container, volume, and the compose network/project is now named `attestor_…`, so `docker ps -a | grep attestor` (and `docker volume ls | grep attestor`, `docker network ls | grep attestor`) lists everything Attestor owns. Renamed: `attestor_postgres_document_db`, `attestor_pinecone_vector_db`, `attestor_neo4j_graph_db` (+ `attestor_api`); compose project → `attestor` (volumes become `attestor_postgres_data`, … and the network `attestor_default`). `quickstart`'s health-wait + all docs/uninstall scans updated to match; the uninstall docker filter broadened to `name=attestor` so it catches both the new underscore names and the legacy `attestor-*-local` ones.
+
 ## [4.1.7] — 2026-05-26
 
 **Docs: refreshed the README (the PyPI page was dated).** Replaced the old manual install (pip + separately-started Pinecone Local container + Pinecone-Inference cloud key + manual `doctor`) with the one-command `attestor quickstart` flow; fixed the stale `4.0.0` version stamps → 4.1.x; corrected the "Install for Claude Code" section (namespaced `/attestor:install-attestor`, plugin-must-be-enabled, real `attestor-*-local` container names); added `quickstart` + `teardown` to the CLI table and dropped the nonexistent `attestor setup local`. No code changes.

@@ -1,20 +1,20 @@
-# Attestor local stack — three independent containers.
+# Attestor local stack — three storage-role containers (+ optional API).
 #
-#   attestor-api-local      Slim HTTP API. Talks to PG (doc + vector) + Neo4j (graph).
-#   attestor-pg-local       Postgres 16 + pgvector — document store + vector HNSW.
-#   attestor-neo4j-local    Neo4j 5 Community + GDS plugin — graph + community detection.
+#   attestor_postgres_document_db   Postgres 16 + pgvector — document store.
+#   attestor_pinecone_vector_db     Pinecone Local emulator — vector store.
+#   attestor_neo4j_graph_db         Neo4j 5 Community + GDS plugin — graph store.
+#   attestor_api                    Optional slim HTTP API (not started by quickstart).
 #
-# Layer 0 backend per project decision (2026-04-18):
-#   PG (relational SQL + pgvector) is SoT for doc + vector + bi-temporal.
-#   Neo4j is graph (Cypher + GDS).
+# Naming convention: every container/resource is `attestor_<meaningful>` — the
+# compose project name (`attestor`) also prefixes the named volumes
+# (attestor_postgres_data, attestor_neo4j_data, …).
 #
 # Usage:
-#   cp .env.example .env && $EDITOR .env       # add OPENROUTER_API_KEY
-#   docker compose up --build                  # builds + starts everything
-#   curl localhost:8080/health                 # API
-#   docker compose down -v                     # stop + wipe volumes
+#   docker compose up -d postgres neo4j pinecone   # what `attestor quickstart` runs
+#   docker compose down                            # stop (keeps volumes/data)
+#   docker compose down -v                         # stop + wipe volumes (deletes memories)
 
-name: attestor-local
+name: attestor
 
 services:
 
@@ -24,7 +24,7 @@ services:
       context: .
       dockerfile: postgres.Dockerfile
     image: attestor/db-postgres:16
-    container_name: attestor-pg-local
+    container_name: attestor_postgres_document_db
     ports:
       - "5432:5432"
     environment:
@@ -44,7 +44,7 @@ services:
   # ─────────────────── DB: Neo4j 5 Community + GDS ────────────────────────
   neo4j:
     image: neo4j:5.24-community
-    container_name: attestor-neo4j-local
+    container_name: attestor_neo4j_graph_db
     ports:
       - "7474:7474"   # HTTP / Browser UI
       - "7687:7687"   # Bolt
@@ -75,7 +75,7 @@ services:
   pinecone:
     image: ghcr.io/pinecone-io/pinecone-local:latest
     platform: linux/amd64
-    container_name: attestor-pinecone-local
+    container_name: attestor_pinecone_vector_db
     ports:
       - "5080-5090:5080-5090"
     environment:
@@ -89,7 +89,7 @@ services:
       context: ../../..
       dockerfile: attestor/infra/local/api.Dockerfile
     image: attestor/api:4.0.0
-    container_name: attestor-api-local
+    container_name: attestor_api
     ports:
       - "8080:8080"
     environment:
@@ -116,7 +116,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ATTESTOR_DATA_DIR: /data/attestor
     volumes:
-      - attestor_data:/data/attestor
+      - api_data:/data/attestor
       - ./docker-attestor.yaml:/data/config/attestor.yaml:ro
     depends_on:
       postgres:
@@ -127,9 +127,12 @@ services:
         condition: service_started
     restart: unless-stopped
 
+# Project name `attestor` (above) prefixes every named volume → they all become
+# attestor_postgres_data, attestor_neo4j_data, … so `docker volume ls | grep attestor`
+# catches them all.
 volumes:
   postgres_data:
   neo4j_data:
   neo4j_logs:
   neo4j_plugins:
-  attestor_data:
+  api_data:

@@ -49,7 +49,7 @@ compose file's own directory and misses the repo-root .env), and build:
   docker compose --env-file .env -f attestor/infra/local/docker-compose.yml up -d --build
   Then show status: `docker compose --env-file .env -f attestor/infra/local/docker-compose.yml ps`
   Confirm the key reached the container (presence only, no value):
-  `docker exec attestor-api-local sh -c '[ -n "$PINECONE_API_KEY" ] && echo SET || echo EMPTY'`
+  `docker exec attestor_api sh -c '[ -n "$PINECONE_API_KEY" ] && echo SET || echo EMPTY'`
 
 STEP 4 — Verify the FULLY-GREEN path with a host-run API. The containerized API
 at :8080 cannot reach Pinecone Local (its config pins host=localhost:5080, which
