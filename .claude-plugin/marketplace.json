@@ -11,7 +11,7 @@
       "name": "attestor",
       "source": "./",
       "description": "Self-hosted memory layer for Claude Code with hard per-project isolation (Postgres RLS + Pinecone + Neo4j).",
-      "version": "4.1.0",
+      "version": "4.1.1",
       "author": {
         "name": "Surendra Singh",
         "url": "https://github.com/bolnet/attestor"
