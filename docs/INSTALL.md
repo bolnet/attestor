@@ -108,15 +108,15 @@ Attestor's canonical stack is three services: **Postgres** (document role, sourc
 
 - Python 3.10 or later; `pip`, `pipx`, or `poetry`
 - Docker + Docker Compose (v2). The Pinecone Local image is `linux/amd64`; Apple Silicon runs it under emulation automatically.
-- A repo-root `.env` (gitignored) with the keys the configured stack needs. With the default `configs/attestor.yaml` embedder (Voyage `voyage-4`, 1024-D) that is:
+- A repo-root `.env` (gitignored) with the keys the configured stack needs. With the default `configs/attestor.yaml` embedder (Pinecone Inference `llama-text-embed-v2`, 1024-D) that is:
 
   ```bash
-  VOYAGE_API_KEY=...        # embedder (matches configs/attestor.yaml)
+  PINECONE_API_KEY=...      # Pinecone Inference embedder — cloud-only, app.pinecone.io (matches configs/attestor.yaml)
   NEO4J_PASSWORD=attestor
   OPENROUTER_API_KEY=...    # answer/judge model calls (optional for plain add/recall)
   ```
 
-  Swap the embedder by editing `configs/attestor.yaml` (Pinecone Inference / OpenAI / Ollama) — the `.env` keys follow whatever provider you choose.
+  The vector *store* can stay on Pinecone Local (no key); the Inference *embedder* is cloud-only, hence `PINECONE_API_KEY`. Swap the embedder by editing `configs/attestor.yaml` (Voyage / OpenAI / Ollama) — the `.env` keys follow whatever provider you choose.
 
 ### Step 1 — Start the three backends
 
@@ -261,7 +261,7 @@ The MCP server inherits the `env` block above. The lifecycle hooks (SessionStart
 | `attestor: command not found` | Not on PATH | `pipx install attestor`, or check `pip show attestor` |
 | `connection refused` on 5432 / 5080 / 7687 | Containers not healthy yet | `docker ps`; wait for all three to report `healthy` |
 | Neo4j auth error | Password mismatch | Align `NEO4J_PASSWORD` in `.env` with the container's `NEO4J_AUTH` |
-| Embedder fails to initialize | Provider key missing for the `configs/attestor.yaml` embedder | Set the matching key in `.env` (e.g. `VOYAGE_API_KEY`) |
+| Embedder fails to initialize | Provider key missing for the `configs/attestor.yaml` embedder | Set the matching key in `.env` (e.g. `PINECONE_API_KEY` for Pinecone Inference) |
 | Hooks save nothing | `.env` vars not exported to the subprocess | Use the `set -a; . "$HOME/.attestor/.env"; set +a; …` form above; check hook stderr for the error envelope |
 | Doctor: 0 vectors but N memories | Embed dim ≠ schema `vector(N)` | Keep the embedder dim and the schema dim locked together |
 

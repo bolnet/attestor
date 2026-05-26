@@ -133,7 +133,7 @@ The default stack ships **three containers** (one per storage role):
 
 ### 3. Configure the embedder
 
-The default embedder is **Pinecone Inference `llama-text-embed-v2`** (NVIDIA-hosted, 1024-D) — one vendor for embedder + storage, free Starter tier (5M tokens/month per organization, see [§ Cost & runtime guide](#cost--runtime-guide)). Set `PINECONE_API_KEY` in `.env` and the auto-detect chain in `attestor/store/embeddings.py` picks it up.
+The default embedder is **Pinecone Inference `llama-text-embed-v2`** (NVIDIA-hosted, 1024-D) — one vendor for embedder + storage, free Starter tier (5M tokens/month per organization, see [§ Cost & runtime guide](#cost--runtime-guide)). It is declared in `configs/attestor.yaml` (`stack.embedder`, the single source of truth); set `PINECONE_API_KEY` in `.env` and the loader picks it up.
 
 ```bash
 echo "PINECONE_API_KEY=pcsk_…" >> .env       # cloud key for the embedder; storage can stay local

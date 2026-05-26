@@ -6,8 +6,9 @@ store) on your own machine using Docker, and verify that all four health
 checks go green.
 
 This guide reflects the **out-of-the-box default stack** declared in
-`configs/attestor.yaml`: the **Voyage `voyage-4`** embedder (1024-D) and the
-**Pinecone** vector role, backed by **Pinecone Local** (the `:5080` emulator).
+`configs/attestor.yaml`: the **Pinecone Inference `llama-text-embed-v2`**
+embedder (1024-D, cloud-only) and the **Pinecone** vector role, backed by
+**Pinecone Local** (the `:5080` emulator).
 
 ---
 
@@ -17,13 +18,13 @@ This guide reflects the **out-of-the-box default stack** declared in
    legacy `docker-compose`). The Pinecone Local image is `linux/amd64`; on
    Apple Silicon it runs under emulation automatically (`--platform
    linux/amd64`, shown below).
-2. **A repo-root `.env`** with the four keys the default stack needs:
+2. **A repo-root `.env`** with the three keys the default stack needs:
 
    ```dotenv
-   PINECONE_API_KEY=...      # Pinecone (vector role + cloud fallback)
-   VOYAGE_API_KEY=...        # Voyage voyage-4 embedder
+   PINECONE_API_KEY=...      # Pinecone Inference embedder (cloud-only) + Pinecone Cloud vector role
    NEO4J_PASSWORD=...        # Neo4j graph store (compose default: "attestor")
    OPENROUTER_API_KEY=...    # LLM calls (extraction / answerer)
+   # VOYAGE_API_KEY=...      # optional — only if you flip the embedder to voyage in configs/attestor.yaml
    ```
 
    `.env` is **gitignored** (`.gitignore` lists `.env` and `.env.*`) — never
@@ -100,13 +101,12 @@ whereas the containerized API cannot (see the important note below).
 ### Recommended: host-run API → all 4 checks green
 
 Run the API on the host (it talks to the containers via their published
-ports). Export **only the four required keys** — do **not** `source` your whole
+ports). Export **only the three required keys** — do **not** `source` your whole
 `.env`, which may contain unrelated vars (e.g. a stray `NEO4J_URI` /
 `POSTGRES_URL`) that hijack the API's backend resolution (Troubleshooting #5):
 
 ```bash
 export PINECONE_API_KEY=$(grep -E '^PINECONE_API_KEY=' .env | cut -d= -f2-)
-export VOYAGE_API_KEY=$(grep -E '^VOYAGE_API_KEY=' .env | cut -d= -f2-)
 export OPENROUTER_API_KEY=$(grep -E '^OPENROUTER_API_KEY=' .env | cut -d= -f2-)
 export NEO4J_PASSWORD=attestor
 unset NEO4J_URI POSTGRES_URL ARANGO_URL    # avoid env-based backend override
@@ -180,19 +180,19 @@ non-vector roles.
 
 These are the issues a brand-new user hits, in the order they tend to surface.
 
-### 1. `ModuleNotFoundError: No module named 'voyageai'` (or `pinecone`) at API startup
+### 1. `ModuleNotFoundError: No module named 'pinecone'` (or `voyageai`) at API startup
 
 The base image historically installed only the Postgres + Neo4j + OpenAI
-clients, but the **default** stack is **Voyage embedder + Pinecone vector**. The
-local API Dockerfile (`attestor/infra/local/api.Dockerfile`) now pip-installs
-`voyageai>=0.3.0` and `pinecone>=5.0.0` so the image can honor the default
-`configs/attestor.yaml` out of the box. If you see this error, rebuild with
-`--build`.
+clients, but the **default** stack is the **Pinecone Inference embedder +
+Pinecone vector**. The local API Dockerfile (`attestor/infra/local/api.Dockerfile`)
+now pip-installs `pinecone>=5.0.0` (and `voyageai>=0.3.0` for the voyage
+alternative) so the image can honor the default `configs/attestor.yaml` out of
+the box. If you see this error, rebuild with `--build`.
 
-> Running the API **on the host** (Step 3)? Use an environment that has these
-> libs installed (e.g. a project virtualenv: `pip install voyageai pinecone`),
-> otherwise the Voyage embedder fails with *"embedder provider 'voyage' failed
-> to initialize"*.
+> Running the API **on the host** (Step 3)? Use an environment that has the
+> `pinecone` client installed (e.g. a project virtualenv: `pip install pinecone`),
+> otherwise the embedder fails with *"embedder provider 'pinecone' failed to
+> initialize"*.
 
 ### 2. Config loader hard-fails: `... missing in configs/attestor.yaml`
 
@@ -251,7 +251,6 @@ docker compose --env-file .env -f attestor/infra/local/docker-compose.yml up -d 
 
 # 3. Verify (host-run API → all 4 green)
 export PINECONE_API_KEY=$(grep -E '^PINECONE_API_KEY=' .env | cut -d= -f2-)
-export VOYAGE_API_KEY=$(grep -E '^VOYAGE_API_KEY=' .env | cut -d= -f2-)
 export OPENROUTER_API_KEY=$(grep -E '^OPENROUTER_API_KEY=' .env | cut -d= -f2-)
 export NEO4J_PASSWORD=attestor
 unset NEO4J_URI POSTGRES_URL ARANGO_URL

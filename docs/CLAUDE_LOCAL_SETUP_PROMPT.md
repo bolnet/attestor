@@ -6,31 +6,34 @@ step-by-step prompt that drives an agent to bring up the full local stack and
 verify all four health checks.
 
 > Before running: make sure Docker is running and a repo-root `.env` exists with
-> `PINECONE_API_KEY`, `VOYAGE_API_KEY`, `NEO4J_PASSWORD`, and
-> `OPENROUTER_API_KEY`. The agent must **never** print, commit, or echo these
-> values.
+> `PINECONE_API_KEY`, `NEO4J_PASSWORD`, and `OPENROUTER_API_KEY` (the
+> `configs/attestor.yaml` default uses the Pinecone Inference embedder, so
+> `VOYAGE_API_KEY` is only needed if you flip the embedder to voyage). The agent
+> must **never** print, commit, or echo these values.
 
 ---
 
 ```text
 You are setting up Attestor to run locally with Docker containers. Work from the
 repository root. The default stack is: Postgres (document) + Pinecone (vector,
-via the Pinecone Local emulator) + Neo4j (graph), with the Voyage voyage-4
-embedder. Do all of the following, in order, and report results after each step.
+via the Pinecone Local emulator) + Neo4j (graph), with the Pinecone Inference
+llama-text-embed-v2 embedder (cloud-only, from configs/attestor.yaml). Do all of
+the following, in order, and report results after each step.
 
 SAFETY RULES (follow strictly):
 - Never print, echo, log, or commit secret values. The required keys live in the
-  repo-root .env (PINECONE_API_KEY, VOYAGE_API_KEY, NEO4J_PASSWORD,
-  OPENROUTER_API_KEY). .env is gitignored — leave it untouched.
+  repo-root .env (PINECONE_API_KEY, NEO4J_PASSWORD, OPENROUTER_API_KEY;
+  VOYAGE_API_KEY only if the embedder is flipped to voyage). .env is gitignored —
+  leave it untouched.
 - Do NOT edit configs/attestor.yaml.
 - Reference keys only via ${VAR} interpolation or by extracting a single value
   from .env at the moment you export it — and only check presence, never value.
 
 STEP 1 — Preconditions.
 - Confirm Docker is running: `docker info` (just check it succeeds).
-- Confirm the repo-root .env exists and lists the 4 required keys by NAME only:
-  `grep -oE '^(PINECONE_API_KEY|VOYAGE_API_KEY|NEO4J_PASSWORD|OPENROUTER_API_KEY)=' .env | sort -u`
-  Report which of the four are present. If any are missing, STOP and tell the user.
+- Confirm the repo-root .env exists and lists the 3 required keys by NAME only:
+  `grep -oE '^(PINECONE_API_KEY|NEO4J_PASSWORD|OPENROUTER_API_KEY)=' .env | sort -u`
+  Report which of the three are present. If any are missing, STOP and tell the user.
 
 STEP 2 — Start Pinecone Local (the vector emulator; it is a SEPARATE container,
 not in the compose file). If a container named `pinecone-local` is already
@@ -52,15 +55,14 @@ STEP 4 — Verify the FULLY-GREEN path with a host-run API. The containerized AP
 at :8080 cannot reach Pinecone Local (its config pins host=localhost:5080, which
 inside the container is the container itself, not the host) — so its Vector
 Store will read "Not initialized". The verified all-green path is the host-run
-API. Export ONLY the four required keys (do not `source` the whole .env — a stray
+API. Export ONLY the three required keys (do not `source` the whole .env — a stray
 NEO4J_URI/POSTGRES_URL in it would hijack backend resolution), and unset those
 overrides:
   export PINECONE_API_KEY=$(grep -E '^PINECONE_API_KEY=' .env | cut -d= -f2-)
-  export VOYAGE_API_KEY=$(grep -E '^VOYAGE_API_KEY=' .env | cut -d= -f2-)
   export OPENROUTER_API_KEY=$(grep -E '^OPENROUTER_API_KEY=' .env | cut -d= -f2-)
   export NEO4J_PASSWORD=attestor
   unset NEO4J_URI POSTGRES_URL ARANGO_URL
-  # Use a Python environment that has voyageai + pinecone installed (e.g. the
+  # Use a Python environment that has the pinecone client installed (e.g. the
   # project virtualenv at .venv). If `attestor` isn't on PATH, run the module:
   attestor api --port 8090     # or: .venv/bin/python -m attestor.cli api --port 8090
 Then check health (retry a few times; first hit may race on cold init):

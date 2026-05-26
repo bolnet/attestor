@@ -66,10 +66,10 @@ stack:
   #   - voyage   — voyage-4, 1024-D (Anthropic recommended; paid).
   #                Set VOYAGE_API_KEY.
   embedder:
-    provider: voyage
-    model: voyage-4
+    provider: pinecone
+    model: llama-text-embed-v2
     dimensions: 1024
-    api_key_env: VOYAGE_API_KEY      # resolved from environment
+    api_key_env: PINECONE_API_KEY    # cloud key from app.pinecone.io (Inference is cloud-only)
 
   # ─── LLM client routing ───────────────────────────────────────────────
   # Where chat-completion calls land. Multi-provider mode: route by
