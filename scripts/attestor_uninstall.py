@@ -40,11 +40,11 @@ _HOOK_MARKER = "attestor hook"
 _MCP_KEYS = ("attestor", "memory")  # "memory" = pre-2026-05 server name
 
 
-def _run(cmd: list[str], *, dry: bool) -> None:
+def _run(cmd: list[str], *, dry: bool, cwd: str | None = None) -> None:
     print(f"  $ {' '.join(cmd)}")
     if dry:
         return
-    subprocess.run(cmd, check=False)
+    subprocess.run(cmd, check=False, cwd=cwd)
 
 
 def _settings_files() -> list[Path]:
@@ -117,10 +117,15 @@ def _clean_settings(*, dry: bool) -> None:
 
 def _uninstall_package(*, dry: bool) -> None:
     print("\n[1] Package")
+    # Run from $HOME, never the repo: if cwd has an ``attestor/`` subdir, pipx
+    # reads "attestor" as a path and refuses ("looks like a path") instead of
+    # treating it as the package name.
+    neutral = str(Path.home())
     if shutil.which("pipx") and _pipx_has_attestor():
-        _run(["pipx", "uninstall", "attestor"], dry=dry)
+        _run(["pipx", "uninstall", "attestor"], dry=dry, cwd=neutral)
     else:
-        _run([sys.executable, "-m", "pip", "uninstall", "-y", "attestor"], dry=dry)
+        _run([sys.executable, "-m", "pip", "uninstall", "-y", "attestor"],
+             dry=dry, cwd=neutral)
 
 
 def _pipx_has_attestor() -> bool:
