@@ -11,6 +11,7 @@ import re
 from typing import Any
 
 from attestor.hooks._base import run_hook
+from attestor.hooks._tenant import resolve_tenant
 
 # Same wall-clock deadline contract as the SessionStart hook. PostToolUse
 # fires on every Write/Edit/Bash so a stalled DB on this path blocks every
@@ -41,6 +42,7 @@ _SECRET_PATTERNS = (
     (re.compile(r"\bsk-ant-[A-Za-z0-9_-]{20,}"),    "<REDACTED:anthropic>"),
     (re.compile(r"\bsk-[A-Za-z0-9_-]{32,}"),        "<REDACTED:openai>"),
     (re.compile(r"\bpa-[A-Za-z0-9_-]{30,}"),        "<REDACTED:voyage>"),
+    (re.compile(r"\bpcsk_[A-Za-z0-9_-]{20,}"),      "<REDACTED:pinecone>"),
     (re.compile(r"\bghp_[A-Za-z0-9]{30,}"),         "<REDACTED:github>"),
     (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{30,}"), "<REDACTED:github>"),
     (re.compile(r"\bAKIA[A-Z0-9]{16}\b"),           "<REDACTED:aws>"),
@@ -143,7 +145,15 @@ def handle(payload: dict[str, Any]) -> dict[str, Any]:
             def _do_add() -> None:
                 mem = AgentMemory(store_path)
                 try:
-                    mem.add(content, tags=tags, category=category)
+                    user_id, namespace = resolve_tenant(mem, cwd)
+                    mem.add(
+                        content,
+                        tags=tags,
+                        category=category,
+                        user_id=user_id,
+                        namespace=namespace,
+                        scope="project",
+                    )
                 finally:
                     mem.close()
 

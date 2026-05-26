@@ -10,6 +10,7 @@ from typing import Any
 
 from attestor import _branding as brand
 from attestor.hooks._base import run_hook
+from attestor.hooks._tenant import resolve_tenant
 
 _EMPTY_RESPONSE: dict[str, Any] = {"additionalContext": ""}
 
@@ -26,8 +27,12 @@ _SESSION_QUERY = "session context project overview recent decisions"
 _HOOK_TIMEOUT_S = float(os.environ.get("ATTESTOR_HOOK_TIMEOUT_S", "5.0"))
 
 
-def _do_recall() -> dict[str, Any]:
-    """The actual recall + pagerank pass — runs inside the timeout shim."""
+def _do_recall(cwd: str) -> dict[str, Any]:
+    """The actual recall + pagerank pass — runs inside the timeout shim.
+
+    Scopes the recall to the project that owns ``cwd`` so a session never
+    surfaces another project's memories.
+    """
     from attestor._paths import resolve_store_path
     from attestor.core import AgentMemory
     from attestor.retrieval.scorer import pagerank_boost
@@ -35,7 +40,13 @@ def _do_recall() -> dict[str, Any]:
     store_path = resolve_store_path()
     mem = AgentMemory(store_path)
     try:
-        results = mem.recall(_SESSION_QUERY, budget=_SESSION_BUDGET)
+        user_id, namespace = resolve_tenant(mem, cwd)
+        results = mem.recall(
+            _SESSION_QUERY,
+            budget=_SESSION_BUDGET,
+            user_id=user_id,
+            namespace=namespace,
+        )
 
         pr_scores = mem.pagerank()
         if pr_scores and results:
@@ -67,7 +78,7 @@ def handle(payload: dict[str, Any]) -> dict[str, Any]:
         # for now, but the host session is unblocked. Pre-fix this hook
         # could hang the user's terminal forever on a stalled DB.
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-            fut = ex.submit(_do_recall)
+            fut = ex.submit(_do_recall, cwd)
             try:
                 return fut.result(timeout=_HOOK_TIMEOUT_S)
             except concurrent.futures.TimeoutError:
