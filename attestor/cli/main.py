@@ -188,6 +188,11 @@ def main(argv=None):
     p_recall.add_argument("query", help="Query string")
     p_recall.add_argument("--budget", type=int, default=1000000, help="Token budget")
     p_recall.add_argument("--namespace", default=None, help="Namespace filter")
+    p_recall.add_argument(
+        "--show-tokens",
+        action="store_true",
+        help="Print the packed token count of the recall payload (flat per call)",
+    )
 
     # search
     p_search = subparsers.add_parser("search", help="Search memories with filters")
