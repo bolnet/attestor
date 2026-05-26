@@ -12,7 +12,9 @@ byte-identical.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+from pathlib import Path
 
 from attestor.cli._common import _add_backend_args, _suppress_noisy_output
 from attestor.cli.commands.bench import (
@@ -50,6 +52,14 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="attestor",
         description="Memory for AI agents (Postgres + Neo4j).",
+    )
+    parser.add_argument(
+        "--config",
+        metavar="PATH",
+        default=None,
+        help="Path to the Attestor config YAML (the single source of truth). "
+             "Overrides $ATTESTOR_CONFIG and propagates to install, the MCP "
+             "server, and hooks. Default: $ATTESTOR_CONFIG or configs/attestor.yaml.",
     )
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
@@ -384,6 +394,17 @@ def main(argv=None):
     hook_sub.add_parser("stop", help="Stop hook")
 
     args = parser.parse_args(argv)
+
+    # A config passed from outside (--config or $ATTESTOR_CONFIG) is the single
+    # source of truth for this process AND for whatever install wires up — the
+    # MCP server entry and the hook commands read it back from os.environ. We
+    # resolve to an absolute path and fail loudly if it's missing; silently
+    # falling back to the bundled default is exactly the drift we want to kill.
+    if getattr(args, "config", None):
+        cfg = Path(args.config).expanduser().resolve()
+        if not cfg.is_file():
+            parser.error(f"--config: file not found: {cfg}")
+        os.environ["ATTESTOR_CONFIG"] = str(cfg)
 
     if not args.command:
         # No subcommand → print help and exit 1 so CI / scripts that
