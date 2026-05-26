@@ -13,7 +13,7 @@
 pip install attestor
 ```
 
-> **Using Claude Code?** Paste this repo's link and say *"install attestor"* — Claude scans your machine, brings up the backends, installs the package, and wires the MCP server + hooks for you. See **[Install for Claude Code](#install-for-claude-code)**.
+> **Using Claude Code?** Paste this repo's link and say *"install attestor"* — Claude follows the repo's install guide to scan your machine, bring up the backends, install the package, and wire the MCP server + hooks (it asks you for credentials when it needs them). See **[Install for Claude Code](#install-for-claude-code)**.
 >
 > ```
 > https://github.com/bolnet/attestor  — install attestor to claude code
@@ -819,13 +819,13 @@ Wire them up via the installer (next section) or by hand in `~/.claude/settings.
 https://github.com/bolnet/attestor  — install attestor to claude code
 ```
 
-Claude Code reads this repo's install guide ([`docs/INSTALL.md`](docs/INSTALL.md) → *Chapter 00*), then **scans your machine first, looks up current docs via Context7, and installs** — it brings up the three backend containers, installs the `attestor` package, wires the MCP server + hooks, and verifies. It assumes you start with nothing installed.
+Claude Code reads this repo's install guide ([`docs/INSTALL.md` → Chapter 00](docs/INSTALL.md#chapter-00--install-via-claude-code-recommended)), then **scans your machine first, looks up current docs via Context7, and installs** — it brings up the three backend containers, installs the `attestor` package, wires the MCP server + hooks, and verifies. It assumes you start with nothing installed.
 
 Three ways in (full detail in [`docs/INSTALL.md`](docs/INSTALL.md)):
 
-1. **Plugin (recommended)** — `/plugin marketplace add bolnet/attestor` then `/plugin install attestor`. Auto-wires the MCP server (`.mcp.json`) and the SessionStart / PostToolUse / Stop hooks (`hooks/hooks.json`) by convention. Requires `pipx install attestor` (so the `attestor` binary is on PATH) plus reachable backends.
+1. **Plugin (recommended)** — `/plugin marketplace add bolnet/attestor` then `/plugin install attestor`. On **Claude Code v2.1+** the MCP server (`.mcp.json`) and the SessionStart / PostToolUse / Stop hooks (`hooks/hooks.json`) are auto-loaded by convention; on older versions, use the wizard (below) to wire them. Either way you still need `pipx install attestor` (so the `attestor` binary is on PATH) plus reachable backends.
 2. **Guided wizard** — `/install-attestor` runs an interactive interview (scope, Postgres / Pinecone / Neo4j connections, embedding provider, hook wiring), installs `attestor`, merges the config, and runs `attestor doctor`.
-3. **Copy-paste prompt** — for a cold session, paste the detailed install prompt from [`docs/INSTALL.md` Chapter 00](docs/INSTALL.md).
+3. **Copy-paste prompt** — for a cold session, paste the detailed install prompt from [`docs/INSTALL.md` Chapter 00](docs/INSTALL.md#chapter-00--install-via-claude-code-recommended).
 
 **Memory is isolated per project automatically** — each working directory (git root, else cwd) is its own hard-isolated tenant, so projects never share memory. No namespace to configure.
 
@@ -836,6 +836,8 @@ The backends come up as three clearly-named Docker instances, one per storage ro
 | `attestor-postgres` | Postgres 16 + pgvector | Document — source of truth |
 | `attestor-pinecone` | Pinecone Local | Vector — embeddings |
 | `attestor-neo4j` | Neo4j 5 + GDS | Graph — PageRank / BFS |
+
+> These are the names the Chapter 00 cold-start installer uses (public images). The legacy `attestor/infra/local/docker-compose.yml` dev stack uses different names (`attestor-pg-local`, `attestor-neo4j-local`, Pinecone started separately) — see [`docs/INSTALL.md`](docs/INSTALL.md) Chapter 01.
 
 ---
 

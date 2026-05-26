@@ -18,7 +18,5 @@
     "pinecone",
     "neo4j",
     "claude-code"
-  ],
-  "skills": ["./skills/"],
-  "commands": ["./commands/"]
+  ]
 }
