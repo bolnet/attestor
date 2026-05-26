@@ -1,0 +1,133 @@
+# Docker-specific Attestor config for the local compose stack.
+#
+# Differences from ~/.attestor/attestor.yaml (host MCP config):
+#   - Pinecone Local uses compose service name (pinecone:5080), not localhost
+#   - Ollama uses host.docker.internal instead of localhost
+#   - LLM routes through OpenRouter (same as production default)
+#
+# Mounted read-only into attestor_api at /data/config/attestor.yaml.
+# Do not use this file for the host MCP server — use ~/.attestor/attestor.yaml.
+
+stack:
+
+  postgres:
+    url: postgresql://postgres:${POSTGRES_PASSWORD:-attestor}@postgres:5432/attestor
+    v4: true
+    skip_schema_init: false
+
+  # Pinecone Local running as a compose service — reachable at pinecone:5080
+  # within the Docker network.
+  pinecone:
+    host: http://pinecone:5080
+    api_key_env: PINECONE_API_KEY
+    index_name: attestor
+    metric: cosine
+    cloud: aws
+    region: us-east-1
+
+  neo4j:
+    url: bolt://neo4j:7687
+    auth:
+      username: neo4j
+      password_env: NEO4J_PASSWORD
+    database: neo4j
+
+  # Ollama running on the Docker host — reachable via host.docker.internal.
+  # OPENAI_BASE_URL and OPENAI_API_KEY are set by the compose environment.
+  embedder:
+    provider: openai
+    model: bge-m3
+    dimensions: 1024
+    api_key_env: OPENAI_API_KEY
+
+  llm:
+    provider: openrouter
+    providers:
+      openai:
+        base_url: https://api.openai.com/v1
+        api_key_env: OPENAI_API_KEY
+      openrouter:
+        base_url: https://openrouter.ai/api/v1
+        api_key_env: OPENROUTER_API_KEY
+      anthropic:
+        base_url: https://api.anthropic.com/v1/
+        api_key_env: ANTHROPIC_API_KEY
+    default_provider: openai
+
+  models:
+    answerer: openrouter/openai/gpt-5.4-mini
+    judge: openrouter/openai/gpt-4o-2024-08-06
+    extraction: openrouter/openai/gpt-4.1
+    distill: anthropic/claude-haiku-4-5-20251001
+    verifier: anthropic/claude-sonnet-4-6
+    planner: anthropic/claude-opus-4.7
+    benchmark_default: openrouter/openai/gpt-4o-2024-08-06
+
+  retrieval:
+    vector_top_k: 50
+    mmr_lambda: 0.7
+    vector_weight: 0.7
+    graph_weight: 0.3
+    graph_affinity_bonus:
+      0: 0.30
+      1: 0.20
+      2: 0.10
+    graph_unreachable_penalty: -0.05
+    temporal_prefilter:
+      enabled: true
+      tolerance_days: 3
+    hyde:
+      enabled: true
+      generator_model: null
+      generator_reasoning_effort: low
+      merge: rrf
+    reranker:
+      enabled: false
+      provider: bge
+      top_k: 10
+      top_n_input: 50
+    global_query:
+      enabled: false
+      classifier_model: anthropic/claude-haiku-4.5
+      summary_model: anthropic/claude-haiku-4.5
+      max_clusters: 8
+
+  budget: 4000
+  parallel: 2
+
+  self_consistency:
+    enabled: false
+    k: 5
+    temperature: 0.7
+    voter: majority
+
+  memory:
+    layers:
+      default_recall: ["episodic", "semantic"]
+      weights:
+        episodic: 0.0
+        semantic: 0.05
+        procedural: 0.0
+        working: 0.0
+
+  ingest:
+    contextual_embedding:
+      enabled: false
+    llm_entity_extraction:
+      enabled: false
+
+  critique_revise:
+    enabled: false
+
+  compliance:
+    pii:
+      mode: "off"
+    retention:
+      apply_on_schedule: false
+
+  consolidation:
+    enabled: false
+
+audit:
+  dashboard:
+    enabled: false

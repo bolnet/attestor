@@ -827,9 +827,11 @@ The local backends come up as three Docker containers (the bundled `attestor/inf
 
 | Container | Type | Storage role |
 |---|---|---|
-| `attestor-pg-local` | Postgres 16 + pgvector | Document — source of truth |
-| `attestor-pinecone-local` | Pinecone Local | Vector — embeddings |
-| `attestor-neo4j-local` | Neo4j 5 + GDS | Graph — PageRank / BFS |
+| `attestor_postgres_document_db` | Postgres 16 + pgvector | Document — source of truth |
+| `attestor_pinecone_vector_db` | Pinecone Local | Vector — embeddings |
+| `attestor_neo4j_graph_db` | Neo4j 5 + GDS | Graph — PageRank / BFS |
+
+> Every container, volume, and the compose network/project is named `attestor_…`, so `docker ps -a \| grep attestor` (and `docker volume ls \| grep attestor`) lists everything Attestor owns.
 
 Cloud / managed backends (Neon · RDS · Cloud SQL, Pinecone Cloud, Neo4j AuraDB) and alternative embedders (Pinecone Inference `llama-text-embed-v2`, Voyage `voyage-4`, OpenAI `text-embedding-3`) are configured in `~/.attestor/attestor.yaml` — see [`docs/INSTALL.md`](docs/INSTALL.md).
 

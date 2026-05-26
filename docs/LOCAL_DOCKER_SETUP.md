@@ -80,9 +80,9 @@ client libraries and bakes in `configs/`) and starts:
 
 | Container             | Role     | Port(s)      |
 | --------------------- | -------- | ------------ |
-| `attestor-pg-local`   | Document | `5432`       |
-| `attestor-neo4j-local`| Graph    | `7474`, `7687` |
-| `attestor-api-local`  | REST API | `8080`       |
+| `attestor_postgres_document_db`   | Document | `5432`       |
+| `attestor_neo4j_graph_db`| Graph    | `7474`, `7687` |
+| `attestor_api`  | REST API | `8080`       |
 
 Watch them become healthy:
 
@@ -215,7 +215,7 @@ docker compose --env-file .env -f attestor/infra/local/docker-compose.yml up -d 
 Confirm a key reached the container (presence only, never print the value):
 
 ```bash
-docker exec attestor-api-local sh -c '[ -n "$PINECONE_API_KEY" ] && echo SET || echo EMPTY'
+docker exec attestor_api sh -c '[ -n "$PINECONE_API_KEY" ] && echo SET || echo EMPTY'
 ```
 
 ### 4. Vector Store: "Not initialized (localhost:5080 connection refused)"
