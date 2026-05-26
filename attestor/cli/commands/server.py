@@ -56,8 +56,32 @@ def _cmd_api(args: argparse.Namespace) -> None:
     )
 
 
+def _load_dotenv_for_mcp() -> None:
+    """Load .env from cwd or ATTESTOR_CONFIG's directory, if present.
+
+    Only runs if python-dotenv is available; silently skips otherwise.
+    This lets the MCP server pick up API keys without requiring the user
+    to export them in their shell profile.
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    cfg_env = os.environ.get("ATTESTOR_CONFIG")
+    candidates = [
+        Path(cfg_env).parent / ".env" if cfg_env else None,
+        Path.cwd() / ".env",
+        Path.home() / ".config" / "attestor" / ".env",
+    ]
+    for candidate in candidates:
+        if candidate and candidate.exists():
+            load_dotenv(candidate, override=False)
+            break
+
+
 def _cmd_mcp_serve(args: argparse.Namespace) -> None:
     """Start MCP server with default store path (zero-config)."""
+    _load_dotenv_for_mcp()
     try:
         from attestor.mcp.server import run_server
     except ImportError:

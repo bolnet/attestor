@@ -365,8 +365,15 @@ def _try_openai() -> EmbeddingProvider | None:
 
     Controlled by env:
         OPENAI_API_KEY              required
-        OPENAI_EMBEDDING_MODEL      default ``text-embedding-3-large``
-        OPENAI_EMBEDDING_DIMENSIONS default ``1536`` (Matryoshka reduction)
+        OPENAI_BASE_URL             optional; set to point at Ollama or another
+                                    OpenAI-compatible endpoint
+        OPENAI_EMBEDDING_MODEL      fallback when YAML stack.embedder.model is
+                                    absent; default ``text-embedding-3-large``
+        OPENAI_EMBEDDING_DIMENSIONS fallback when YAML stack.embedder.dimensions
+                                    is absent; default ``1536``
+
+    YAML ``stack.embedder.{model,dimensions}`` take precedence over the env
+    vars so the config file remains the single source of truth.
 
     Returns ``None`` when ``OPENAI_API_KEY`` is unset; the strict dispatch
     in ``get_embedding_provider`` then raises with a config-pointing message.
@@ -375,20 +382,38 @@ def _try_openai() -> EmbeddingProvider | None:
     if not openai_key:
         return None
 
-    model = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
+    # Prefer YAML values; fall back to env vars / hardcoded defaults.
+    yaml_model: str | None = None
+    yaml_dim: int | None = None
+    try:
+        from attestor.config import get_stack
+        emb_cfg = get_stack().embedder
+        if getattr(emb_cfg, "provider", None) == "openai":
+            yaml_model = getattr(emb_cfg, "model", None) or None
+            raw_dim = getattr(emb_cfg, "dimensions", None)
+            if raw_dim:
+                yaml_dim = int(raw_dim)
+    except Exception:
+        pass
+
+    model = yaml_model or os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
     dim_env = os.environ.get("OPENAI_EMBEDDING_DIMENSIONS", "1536")
     try:
-        dimensions: int | None = int(dim_env) if dim_env else None
+        dimensions: int | None = yaml_dim or (int(dim_env) if dim_env else None)
     except ValueError:
         dimensions = None
+
+    base_url = os.environ.get("OPENAI_BASE_URL") or None
 
     try:
         provider = OpenAIEmbeddingProvider(
             api_key=openai_key,
             model=model,
             dimensions=dimensions,
+            base_url=base_url,
         )
-        logger.info("Using %s (%dD)", model, provider.dimension)
+        logger.info("Using %s (%dD)%s", model, provider.dimension,
+                    f" via {base_url}" if base_url else "")
         return provider
     except Exception as e:
         logger.warning("OpenAI embeddings failed: %s", e)

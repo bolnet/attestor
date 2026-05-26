@@ -85,6 +85,7 @@ from attestor.config.loader import (
     load_stack,
     print_stack_banner,
     reset_stack,
+    resolved_config_path,
     set_stack,
     verify_neo4j_reachable,
 )
@@ -126,6 +127,7 @@ __all__ = [
     "load_stack",
     "print_stack_banner",
     "reset_stack",
+    "resolved_config_path",
     "set_stack",
     "verify_neo4j_reachable",
 ]

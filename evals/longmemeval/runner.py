@@ -102,6 +102,15 @@ VALID_CATEGORIES = (
     "knowledge-update",
 )
 
+# Round-robin order for submission runs — matches user directive 2026-05-05.
+# KU first (smallest, fastest signal), then SSU, then the two larger groups.
+SUBMISSION_CATEGORIES: tuple[str, ...] = (
+    "knowledge-update",
+    "single-session-user",
+    "temporal-reasoning",
+    "multi-session",
+)
+
 
 def run(
     *,
@@ -180,6 +189,228 @@ def run(
     return summary
 
 
+# ── Submission mode (round-robin, sequential, resumable) ─────────────────
+
+
+def _round_robin(
+    by_category: dict[str, list[Any]],
+    categories: tuple[str, ...] = SUBMISSION_CATEGORIES,
+) -> list[Any]:
+    """Interleave samples across categories.
+
+    Round 0 emits the first sample from each category that still has one,
+    in ``categories`` order; round 1 emits the second; etc. Smaller
+    categories drop out as their list runs dry. Deterministic — no shuffle.
+    """
+    schedule: list[Any] = []
+    rounds = max((len(by_category.get(c, [])) for c in categories), default=0)
+    for r in range(rounds):
+        for cat in categories:
+            bucket = by_category.get(cat, [])
+            if r < len(bucket):
+                schedule.append(bucket[r])
+    return schedule
+
+
+def _load_done(submission_dir: Path) -> dict[str, set[str]]:
+    """Scan per-category jsonls and build {category: {question_ids_done}}.
+
+    Source of truth is the jsonl files (one ``{"question_id", "hypothesis"}``
+    per line). PROGRESS.md is a human-readable mirror, not authoritative —
+    if the two disagree, the jsonl wins.
+    """
+    done: dict[str, set[str]] = {c: set() for c in SUBMISSION_CATEGORIES}
+    for cat in SUBMISSION_CATEGORIES:
+        path = submission_dir / f"lme_s_{cat}.jsonl"
+        if not path.exists():
+            continue
+        with path.open() as fp:
+            for line in fp:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    logger.warning("skipping malformed line in %s: %r", path, line[:60])
+                    continue
+                qid = obj.get("question_id")
+                if qid:
+                    done[cat].add(qid)
+    return done
+
+
+def _append_jsonl(path: Path, payload: dict) -> None:
+    """Append one JSON object as a line, fsync to survive crashes."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(payload, ensure_ascii=False) + "\n"
+    with path.open("a", encoding="utf-8") as fp:
+        fp.write(line)
+        fp.flush()
+        import os
+        os.fsync(fp.fileno())
+
+
+def _write_progress_md(
+    submission_dir: Path,
+    done: dict[str, set[str]],
+    targets: dict[str, int],
+    started_at: str,
+) -> None:
+    """Render PROGRESS.md from the in-memory ``done`` map.
+
+    Whole file is rewritten on each update — cheap (4 categories) and
+    avoids partial-line corruption under crash.
+    """
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    lines = [
+        "# LME-S submission progress",
+        "",
+        f"- started: `{started_at}`",
+        f"- updated: `{now}`",
+        f"- output dir: `{submission_dir.resolve()}`",
+        "",
+        "| category | done | target | jsonl |",
+        "| --- | ---: | ---: | --- |",
+    ]
+    for cat in SUBMISSION_CATEGORIES:
+        if cat not in done:
+            continue  # category was filtered out via --submission-categories
+        n_done = len(done[cat])
+        target = targets.get(cat, 0)
+        lines.append(
+            f"| {cat} | {n_done} | {target} | "
+            f"`lme_s_{cat}.jsonl` |"
+        )
+    lines.append("")
+    lines.append("## Resume")
+    lines.append("")
+    lines.append(
+        "Re-run the same command — already-done `question_id`s are skipped "
+        "(source of truth = the per-category jsonl files)."
+    )
+    (submission_dir / "PROGRESS.md").write_text("\n".join(lines) + "\n")
+
+
+def submission_run(
+    *,
+    mem_factory: Callable[[], Any],
+    submission_dir: Path | str,
+    variant: str = "s",
+    cache_dir: Optional[Path | str] = None,
+    answer_model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    budget: int = 4000,
+    sample_limit: Optional[int] = None,
+    fresh: bool = False,
+    parallel: Optional[int] = None,
+    categories: Optional[tuple[str, ...]] = None,
+) -> dict[str, int]:
+    """Round-robin, resumable LME-S submission run.
+
+    - One question from each of 4 categories (KU → SSU → temporal → MS),
+      then round-2, etc. Deterministic dataset order, no shuffle.
+    - ``parallel`` defaults to ``stack.parallel`` from the YAML config
+      (currently 2). Pass an explicit value to override.
+    - skip_judge=True — emits ``{question_id, hypothesis}`` only.
+    - Resume by reading existing per-category jsonls in ``submission_dir``.
+    - PROGRESS.md updated after each completed sample (fsync per line).
+
+    Returns: ``{category: count_completed_after_run}``.
+    """
+    from attestor.longmemeval import (
+        DEFAULT_MODEL, load_or_download, run_async,
+    )
+    from datetime import datetime, timezone
+
+    active_categories: tuple[str, ...] = (
+        tuple(categories) if categories else SUBMISSION_CATEGORIES
+    )
+    for c in active_categories:
+        if c not in SUBMISSION_CATEGORIES:
+            raise ValueError(
+                f"unknown category {c!r}; valid: {SUBMISSION_CATEGORIES}"
+            )
+
+    sub_dir = Path(submission_dir)
+    sub_dir.mkdir(parents=True, exist_ok=True)
+
+    if fresh:
+        for cat in active_categories:
+            p = sub_dir / f"lme_s_{cat}.jsonl"
+            if p.exists():
+                p.unlink()
+        prog = sub_dir / "PROGRESS.md"
+        if prog.exists():
+            prog.unlink()
+
+    samples = load_or_download(cache_dir=cache_dir, variant=variant)
+
+    by_category: dict[str, list[Any]] = {c: [] for c in active_categories}
+    for s in samples:
+        if s.question_type in by_category:
+            by_category[s.question_type].append(s)
+
+    if sample_limit is not None and sample_limit > 0:
+        for cat in by_category:
+            by_category[cat] = by_category[cat][:sample_limit]
+
+    targets = {cat: len(by_category[cat]) for cat in active_categories}
+    full_done = _load_done(sub_dir)
+    done = {cat: full_done.get(cat, set()) for cat in active_categories}
+
+    schedule = _round_robin(by_category, categories=active_categories)
+    pending = [
+        s for s in schedule
+        if s.question_id not in done[s.question_type]
+    ]
+
+    started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    _write_progress_md(sub_dir, done, targets, started_at)
+
+    logger.info(
+        "submission_run: %d pending of %d scheduled (already done: %d) — "
+        "writing to %s",
+        len(pending), len(schedule),
+        sum(len(d) for d in done.values()),
+        sub_dir,
+    )
+
+    if not pending:
+        logger.info("submission_run: nothing to do — all samples already in jsonls")
+        return {cat: len(done[cat]) for cat in active_categories}
+
+    def _on_complete(_done_n: int, _total: int, report: Any) -> None:
+        cat = report.category
+        path = sub_dir / f"lme_s_{cat}.jsonl"
+        _append_jsonl(path, {
+            "question_id": report.question_id,
+            "hypothesis": report.answer,
+        })
+        done[cat].add(report.question_id)
+        _write_progress_md(sub_dir, done, targets, started_at)
+
+    if parallel is None:
+        from attestor.config import get_stack
+        parallel = max(1, int(getattr(get_stack(), "parallel", 1) or 1))
+
+    asyncio.run(run_async(
+        pending,
+        mem_factory=mem_factory,
+        answer_model=answer_model or DEFAULT_MODEL,
+        judge_models=[],
+        api_key=api_key,
+        budget=budget,
+        parallel=parallel,
+        skip_judge=True,
+        progress_callback=_on_complete,
+        verbose=True,
+    ))
+
+    return {cat: len(done[cat]) for cat in active_categories}
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────
 
 
@@ -230,7 +461,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--variant", default="s", help="LME dataset variant (s|m|oracle)")
     parser.add_argument("--limit", type=int, default=None, help="cap samples")
     parser.add_argument("--budget", type=int, default=4000)
-    parser.add_argument("--parallel", type=int, default=4)
+    parser.add_argument(
+        "--parallel", type=int, default=None,
+        help="override stack.parallel from YAML; default = read from config",
+    )
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--cache-dir", default=None)
     parser.add_argument(
@@ -240,16 +474,60 @@ def main(argv: Optional[list[str]] = None) -> int:
             f"{'|'.join(VALID_CATEGORIES)}"
         ),
     )
+    parser.add_argument(
+        "--submission-dir", default=None,
+        help=(
+            "ROUND-ROBIN SUBMISSION MODE. When set, runs sequentially across "
+            "the 4 LME-S categories (KU → SSU → temporal → MS), forces "
+            "parallel=1, skips the judge, and writes per-category jsonl "
+            "files with {question_id, hypothesis} plus a human-readable "
+            "PROGRESS.md. Resumes from existing jsonl files automatically. "
+            "--limit caps PER CATEGORY in this mode."
+        ),
+    )
+    parser.add_argument(
+        "--fresh", action="store_true",
+        help="submission mode: wipe existing jsonls + PROGRESS.md before starting",
+    )
+    parser.add_argument(
+        "--submission-categories", nargs="+", default=None,
+        choices=list(SUBMISSION_CATEGORIES),
+        help=(
+            "submission mode: subset of categories to run "
+            "(default: all 4). Order is preserved from SUBMISSION_CATEGORIES."
+        ),
+    )
     args = parser.parse_args(argv)
 
     _factory = _build_mem_factory()
+
+    if args.submission_dir is not None:
+        counts = submission_run(
+            mem_factory=_factory,
+            submission_dir=args.submission_dir,
+            variant=args.variant,
+            cache_dir=args.cache_dir,
+            budget=args.budget,
+            categories=tuple(args.submission_categories) if args.submission_categories else None,
+            sample_limit=args.limit,
+            fresh=args.fresh,
+            parallel=args.parallel,
+        )
+        print(json.dumps({"submission_counts": counts}, indent=2))
+        return 0
+
+    if args.parallel is None:
+        from attestor.config import get_stack
+        resolved_parallel = max(1, int(getattr(get_stack(), "parallel", 4) or 4))
+    else:
+        resolved_parallel = args.parallel
 
     summary = run(
         mem_factory=_factory,
         variant=args.variant,
         cache_dir=args.cache_dir,
         budget=args.budget,
-        parallel=args.parallel,
+        parallel=resolved_parallel,
         output_dir=args.output_dir,
         sample_limit=args.limit,
         category=args.category,

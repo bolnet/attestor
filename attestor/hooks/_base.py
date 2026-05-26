@@ -57,6 +57,18 @@ def run_hook(
     # Implicit exit 0. Never call sys.exit with non-zero from a hook.
 
 
+def log_hook_error(name: str, exc: BaseException) -> None:
+    """Surface a hook-internal failure to stderr without crashing the host.
+
+    Handlers that catch their own exceptions (to return a valid empty
+    response shape) MUST call this first — otherwise the failure is
+    invisible and the hook silently saves nothing. This was the root cause
+    of "hooks aren't saving": a blanket ``except`` returned ``{}`` and the
+    embedder/config error never surfaced anywhere.
+    """
+    _emit_error(name, exc)
+
+
 def _emit_error(name: str, exc: BaseException) -> None:
     """Write a structured JSON error envelope to stderr.
 

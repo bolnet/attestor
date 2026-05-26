@@ -9,6 +9,7 @@ Extracted from the legacy ``attestor/cli.py`` byte-for-byte.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from pathlib import Path
 def _print_mcp_config(tool: str, binary: str, store_path: str):
     """Print MCP config for a specific tool."""
     entry = _mcp_entry(binary, store_path)
-    config = {"mcpServers": {"memory": entry}}
+    config = {"mcpServers": {"attestor": entry}}
     if tool == "claude-code":
         print("\nClaude Code -- add to .claude/settings.json:")
     elif tool == "cursor":
@@ -27,8 +28,19 @@ def _print_mcp_config(tool: str, binary: str, store_path: str):
 
 
 def _mcp_entry(binary: str, store_path: str) -> dict:
-    """Canonical shape of the attestor MCP server entry."""
-    return {"command": binary, "args": ["mcp", "--path", store_path]}
+    """Canonical shape of the attestor MCP server entry.
+
+    When a config file was passed from outside (``--config`` / ``$ATTESTOR_CONFIG``)
+    we pin it into the server's ``env`` so the long-running MCP process resolves
+    the *same* single source of truth the CLI used at install — otherwise the
+    spawned server would fall back to default config resolution and silently
+    diverge from what you installed with.
+    """
+    entry: dict = {"command": binary, "args": ["mcp", "--path", store_path]}
+    cfg = os.environ.get("ATTESTOR_CONFIG")
+    if cfg:
+        entry["env"] = {"ATTESTOR_CONFIG": cfg}
+    return entry
 
 
 def _load_claude_settings(settings_path: Path) -> dict:
@@ -56,10 +68,78 @@ def _configure_claude_mcp(binary: str, store_path: str) -> None:
 
     settings = _load_claude_settings(settings_path)
     mcp_servers = settings.setdefault("mcpServers", {})
-    mcp_servers["memory"] = _mcp_entry(binary, store_path)
+    mcp_servers["attestor"] = _mcp_entry(binary, store_path)
+    # Drop the pre-2026-05 server name so a re-run doesn't leave a stale
+    # duplicate 'memory' entry alongside the canonical 'attestor' one.
+    mcp_servers.pop("memory", None)
 
     settings_path.write_text(json.dumps(settings, indent=2) + "\n")
-    print(f"\nClaude Code MCP server 'memory' configured in {settings_path}")
+    print(f"\nClaude Code MCP server 'attestor' configured in {settings_path}")
+
+
+def _print_active_config() -> None:
+    """Show which single config file Attestor uses + the resolved stack.
+
+    Attestor reads every stack / model / embedder / retrieval setting from
+    one YAML file. Surfacing it during install makes the contract obvious:
+    to change any setting, edit this file and re-run — there is no second
+    place to look. Never crashes the install; if the file is missing it
+    prints a pointer instead.
+    """
+    from attestor.config import (
+        get_stack,
+        print_stack_banner,
+        resolved_config_path,
+    )
+
+    print("\nAttestor reads every setting from a single config file.")
+    try:
+        stack = get_stack()
+    except SystemExit as exc:
+        print(f"  {exc}")
+        print(
+            "  Create configs/attestor.yaml (or set ATTESTOR_CONFIG) and re-run — "
+            "it is the single source of truth."
+        )
+        return
+    path = resolved_config_path()
+    if path is not None:
+        print(f"  Config file in use: {path}")
+    print("\nThis is how your current config looks like:")
+    print_stack_banner(stack, run_label="setup")
+    print(
+        "To change any setting (embedder, models, backends, retrieval budget), "
+        "edit that file and re-run setup — never hand-edit config elsewhere.\n"
+    )
+
+
+def _hook_command(binary: str, subcommand: str) -> str:
+    """Build a hook command that loads the user's env before invoking attestor.
+
+    Claude Code spawns hooks without the interactive shell's environment, so
+    ``ATTESTOR_CONFIG`` and the embedding-provider keys are absent — the hook
+    then falls back to the bundled default config, the embedder fails to
+    initialize, and (because the handler logs but returns an empty response)
+    the hook silently saves nothing.
+
+    ``set -a`` auto-exports everything sourced from ``~/.attestor/.env`` so the
+    ``attestor`` subprocess actually inherits it. A bare ``source`` is NOT
+    enough: ``KEY=value`` lines without ``export`` stay shell-local and never
+    reach the child process. The file is optional (``[ -f ]``) so installs that
+    bind config purely via the MCP ``env`` block still work.
+
+    If a config was passed from outside (``--config`` / ``$ATTESTOR_CONFIG``) we
+    bake it into the command *after* sourcing ``.env`` so the explicit choice
+    wins over anything the env file sets — the hook resolves the same single
+    source of truth as the CLI and the MCP server.
+    """
+    cfg = os.environ.get("ATTESTOR_CONFIG")
+    cfg_prefix = f'ATTESTOR_CONFIG="{cfg}" ' if cfg else ""
+    return (
+        'bash -c \'set -a; [ -f "$HOME/.attestor/.env" ] && '
+        '. "$HOME/.attestor/.env"; set +a; '
+        f"{cfg_prefix}{binary} hook {subcommand}'"
+    )
 
 
 def _configure_claude_hooks(binary: str):
@@ -71,9 +151,9 @@ def _configure_claude_hooks(binary: str):
     hooks = settings.setdefault("hooks", {})
 
     hook_defs = {
-        "SessionStart": {"command": f"{binary} hook session-start"},
-        "PostToolUse": {"command": f"{binary} hook post-tool-use"},
-        "Stop": {"command": f"{binary} hook stop"},
+        "SessionStart": {"command": _hook_command(binary, "session-start")},
+        "PostToolUse": {"command": _hook_command(binary, "post-tool-use")},
+        "Stop": {"command": _hook_command(binary, "stop")},
     }
 
     for event, hook_cfg in hook_defs.items():

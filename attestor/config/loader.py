@@ -53,7 +53,30 @@ from attestor.config.resolver import _require, _resolve_env_password
 # repo root preserves the historical semantics of the pre-split
 # ``attestor/config.py`` (which used two hops).
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFAULT_CONFIG = REPO_ROOT / "configs" / "attestor.yaml"
+_REPO_CONFIG = REPO_ROOT / "configs" / "attestor.yaml"
+_USER_CONFIG = Path.home() / ".config" / "attestor" / "attestor.yaml"
+
+
+def _default_config_path() -> Path:
+    """Resolve config path without an explicit override.
+
+    Search order (first existing wins):
+    1. ``$ATTESTOR_CONFIG`` env var
+    2. ``configs/attestor.yaml`` relative to cwd (dev / repo layout)
+    3. ``~/.config/attestor/attestor.yaml`` (installed-package user config)
+    4. Repo-relative path (works when running from the repo tree)
+    """
+    if env := os.environ.get("ATTESTOR_CONFIG"):
+        return Path(env)
+    cwd_cfg = Path.cwd() / "configs" / "attestor.yaml"
+    if cwd_cfg.exists():
+        return cwd_cfg
+    if _USER_CONFIG.exists():
+        return _USER_CONFIG
+    return _REPO_CONFIG
+
+
+DEFAULT_CONFIG = _default_config_path()
 
 
 def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
@@ -463,6 +486,16 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
 
 _cached_stack: StackConfig | None = None
 
+# The actual file the last ``load_stack`` read. Lets the CLI tell the user
+# exactly which config is in effect (the env override, a cwd repo file, or
+# the installed-package user config) instead of guessing "configs/attestor.yaml".
+_resolved_config_path: Path | None = None
+
+
+def resolved_config_path() -> Path | None:
+    """Return the config file the most recent load read, or None if not loaded yet."""
+    return _resolved_config_path
+
 
 def load_stack(path: Path | str | None = None, *, strict: bool = False) -> StackConfig:
     """Read ``configs/attestor.yaml`` (or override path) and resolve env refs.
@@ -482,6 +515,8 @@ def load_stack(path: Path | str | None = None, *, strict: bool = False) -> Stack
             "        configs/attestor.yaml is required — fallback "
             "constants were removed; YAML is the only source of truth."
         )
+    global _resolved_config_path
+    _resolved_config_path = cfg_path
     return _parse_yaml(cfg_path, strict=strict)
 
 
@@ -687,8 +722,10 @@ def chat_kwargs_for_role(
 def print_stack_banner(stack: StackConfig, *, run_label: str) -> None:
     """Print the resolved stack so users sanity-check before any
     expensive call."""
+    src = _resolved_config_path or DEFAULT_CONFIG
     print("=" * 72)
-    print(f"[{run_label}] resolved Attestor stack (configs/attestor.yaml):")
+    print(f"[{run_label}] resolved Attestor stack")
+    print(f"  config file      {src}")
     print(f"  document/vector  postgres @ {stack.postgres.url}")
     print(f"  graph            neo4j    @ {stack.neo4j.url} ({stack.neo4j.database})")
     print(f"  embedder         {stack.embedder.provider}:{stack.embedder.model}"

@@ -563,6 +563,7 @@ async def _process_sample(
     distill_model: str | None = None,
     verify: bool = False,
     verify_model: str | None = None,
+    skip_judge: bool = False,
 ) -> SampleReport:
     """Ingest → answer → judge one sample on its own AgentMemory instance.
 
@@ -629,14 +630,17 @@ async def _process_sample(
                     api_key=api_key,
                 )
 
-        judge_results = await asyncio.gather(
-            *[_bounded_judge(jm) for jm in judge_models],
-            return_exceptions=True,
-        )
-        judgments = {
-            jm: _safe_judge_dict(jm, res)
-            for jm, res in zip(judge_models, judge_results)
-        }
+        if skip_judge:
+            judgments = {}
+        else:
+            judge_results = await asyncio.gather(
+                *[_bounded_judge(jm) for jm in judge_models],
+                return_exceptions=True,
+            )
+            judgments = {
+                jm: _safe_judge_dict(jm, res)
+                for jm, res in zip(judge_models, judge_results)
+            }
 
         # Dimension B — multi-dimensional scoring computed inline so the
         # per-sample report is self-describing and post-hoc analysis doesn't
@@ -652,7 +656,7 @@ async def _process_sample(
         # RECOMMENDATION mode. One judge call per sample (not per
         # judge_model) — cheap; uses the first configured judge model.
         personalization_dict: dict | None = None
-        if predicted_mode == "recommendation" and judge_models:
+        if predicted_mode == "recommendation" and judge_models and not skip_judge:
             judge_for_pers = judge_models[0]
             try:
                 pj = await asyncio.to_thread(
@@ -723,6 +727,7 @@ async def run_async(
     output_path: Path | str | None = None,
     dataset_path: Path | str | None = None,
     progress_callback: Callable[[int, int, SampleReport], None] | None = None,
+    skip_judge: bool = False,
 ) -> LMERunReport:
     """Parallel LongMemEval orchestrator — ingest → answer → judge per sample.
 
@@ -751,7 +756,10 @@ async def run_async(
     """
     from dataclasses import asdict
 
-    judge_models = list(judge_models or list(DEFAULT_JUDGES))
+    if skip_judge:
+        judge_models = list(judge_models or [])
+    else:
+        judge_models = list(judge_models or list(DEFAULT_JUDGES))
     if distill_model is None or verify_model is None:
         from attestor.config import get_stack
         s = get_stack()
@@ -784,6 +792,7 @@ async def run_async(
                     max_facts=max_facts,
                     verify=verify,
                     verify_model=verify_model,
+                    skip_judge=skip_judge,
                 )
             except Exception as e:  # noqa: BLE001 — one bad sample must not sink the run
                 logger.exception(
@@ -796,7 +805,7 @@ async def run_async(
                     question=sample.question,
                     gold=sample.answer,
                     answer=f"pipeline_error: {type(e).__name__}: {e}",
-                    judgments={
+                    judgments=({} if skip_judge else {
                         jm: {
                             "label": "WRONG",
                             "correct": False,
@@ -804,7 +813,7 @@ async def run_async(
                             "judge_model": jm,
                         }
                         for jm in judge_models
-                    },
+                    }),
                     answer_latency_ms=0.0,
                     ingest_turns=0,
                     ingest_memories=0,
@@ -819,13 +828,17 @@ async def run_async(
             nonlocal_done[0] += 1
             done = nonlocal_done[0]
             if verbose:
-                verdicts = ", ".join(
-                    f"{jm.split('/')[-1]}={report.judgments[jm]['label']}"
-                    for jm in judge_models
-                )
+                if skip_judge or not judge_models:
+                    snippet = (report.answer or "")[:80].replace("\n", " ")
+                    line = f"answer={snippet!r}"
+                else:
+                    line = ", ".join(
+                        f"{jm.split('/')[-1]}={report.judgments[jm]['label']}"
+                        for jm in judge_models
+                    )
                 print(
                     f"[{done}/{len(samples)}] {sample.question_id} "
-                    f"[{sample.question_type}] → {verdicts}",
+                    f"[{sample.question_type}] → {line}",
                     flush=True,
                 )
             if progress_callback is not None:
@@ -963,6 +976,7 @@ def run(
     output_path: Path | str | None = None,
     dataset_path: Path | str | None = None,
     progress_callback: Callable[[int, int, SampleReport], None] | None = None,
+    skip_judge: bool = False,
 ) -> LMERunReport:
     """Synchronous entry point — thin wrapper over ``run_async``.
 
@@ -999,5 +1013,6 @@ def run(
             output_path=output_path,
             dataset_path=dataset_path,
             progress_callback=progress_callback,
+            skip_judge=skip_judge,
         )
     )
