@@ -15,87 +15,30 @@ A step-by-step guide to installing and verifying Attestor across different topol
 
 ## Chapter 00 — Install via Claude Code (recommended)
 
-**One install path — the guided wizard** ([`../commands/install-attestor.md`](../commands/install-attestor.md)). Whatever you type, Claude reads this repo and runs the wizard end-to-end: it **scans your machine first, looks up current docs via Context7**, then installs the `attestor` package, brings up the three backend containers, wires the MCP server + hooks, and verifies. It assumes you start with **nothing installed**. Four ways to launch it — type any of:
+**The one install:** `pipx install attestor && attestor quickstart` — zero questions, one default profile. It brings up the local backends (Postgres + Pinecone Local + Neo4j), uses a local **Ollama `bge-m3`** embedder (no cloud key), wires the Claude Code MCP server (`./.mcp.json`) + lifecycle hooks, and runs `attestor doctor`.
 
-| # | Way | Type this |
-|---|-----|-----------|
-| 1 | Plugin (recommended) | `/plugin install attestor` |
-| 2 | Command | `/install-attestor` |
-| 3 | Repo URL | `github.com/bolnet/attestor` |
-| 4 | Natural language | `install attestor` |
+**Prerequisites:** Docker running, and Ollama serving `bge-m3` (`ollama pull bge-m3`). `quickstart` runs a preflight that scans the ports/tools and tells you if anything is missing — it never prompts.
 
-First-time plugin use needs `/plugin marketplace add bolnet/attestor` once. The detailed cold-start prompt below is what the wizard runs — paste it directly only if you want to drive a bare session by hand.
+Alternatively, **drive it from inside Claude Code via the plugin** (optional):
+1. `/plugin marketplace add bolnet/attestor` (one-time)
+2. `/plugin install attestor` (then ENABLE it in the `/plugin` → Installed menu)
+3. `/attestor:install-attestor` (namespaced command — runs `attestor quickstart` for you)
+
+> **Note:** Plugin commands are namespaced — the command is `/attestor:install-attestor`, not bare `/install-attestor`. A freshly-installed plugin can be disabled; enable it in the `/plugin` → Installed menu and `/reload-plugins`, or the command won't resolve.
 
 > Every chapter targets the same **canonical stack: Postgres (document) + Pinecone (vector) + Neo4j (graph)**, with the embedder, models, and retrieval budget coming from the single source of truth, [`configs/attestor.yaml`](../configs/attestor.yaml). Chapter 00 is the fastest path; 01–03 are the manual local / sidecar / cloud setups.
 
-### The three backends — one clearly-named Docker instance per storage role
+### The three backends — three Docker containers (attestor_ prefix), one per role
 
-Each storage role is its own container, all `attestor-`prefixed and labeled by type:
+Each storage role is its own container, all `attestor_*` prefixed:
 
-| Container | Type | Storage role | Image | Ports |
-|-----------|------|--------------|-------|-------|
-| `attestor-postgres` | **Postgres 16 + pgvector** | **Document** — source of truth (content, tags, entity, ts, provenance, confidence) | `pgvector/pgvector:pg16` | `5432` |
-| `attestor-pinecone` | **Pinecone Local** | **Vector** — dense embeddings, per-namespace cosine search | `ghcr.io/pinecone-io/pinecone-local:latest` | `5080-5090` |
-| `attestor-neo4j` | **Neo4j 5 + GDS** | **Graph** — entity nodes + typed edges, PageRank / BFS | `neo4j:5.24-community` | `7474`, `7687` |
+| Container | Type | Storage role | Ports |
+|-----------|------|--------------|-------|
+| `attestor_postgres_document_db` | **Postgres 16 + pgvector** | **Document** — source of truth (content, tags, entity, ts, provenance, confidence) | `5432` |
+| `attestor_pinecone_vector_db` | **Pinecone Local** | **Vector** — dense embeddings, per-namespace cosine search | `5080-5089` |
+| `attestor_neo4j_graph_db` | **Neo4j 5 + GDS** | **Graph** — entity nodes + typed edges, PageRank / BFS | `7687` |
 
-### The install prompt — paste into a fresh Claude Code session
-
-```text
-Install Attestor as my agent-memory layer and wire it natively into Claude Code.
-Assume a COLD machine — I may have nothing installed. Work in this order and ask
-me only when you hit a real decision or need a secret.
-
-PHASE 1 — SCAN (install nothing yet)
-Detect and show me a table of present vs missing:
-- OS + arch; Python (need >=3.10); pip / pipx; Docker + Docker Compose (running?).
-- Existing Attestor: `attestor --version`, ~/.attestor, an MCP entry in
-  ~/.claude or ./.mcp.json, attestor hooks in settings.json.
-- Running backend containers (`docker ps`) and listeners on 5432 / 5080 / 7687.
-Then tell me what you'll INSTALL, REUSE, and SKIP before doing anything.
-
-PHASE 2 — LOOK UP CURRENT DOCS WITH CONTEXT7 (before every install step)
-Before you install or run ANY tool, fetch its current docs via the Context7 MCP
-(resolve-library-id -> query-docs): pipx, pgvector, Pinecone Local, Neo4j GDS,
-the `attestor` PyPI package, and the Claude Code plugin / MCP / hooks format.
-Use the commands and versions Context7 returns — not ones from memory. If
-Context7 is unavailable, tell me and pause.
-
-PHASE 3 — BACKENDS: three clearly-named Docker instances (attestor- prefix), one per role
-Start exactly these and confirm each reports healthy:
-- attestor-postgres  Postgres 16 + pgvector   DOCUMENT store   :5432         pgvector/pgvector:pg16
-- attestor-pinecone  Pinecone Local           VECTOR store     :5080-5090    ghcr.io/pinecone-io/pinecone-local:latest
-- attestor-neo4j     Neo4j 5 + GDS            GRAPH store      :7474/:7687   neo4j:5.24-community (NEO4J_PLUGINS=["graph-data-science"])
-Use a single password (default `attestor`) and put every secret in a gitignored
-.env — never hardcode. Persist data in named volumes.
-
-PHASE 4 — INSTALL THE ATTESTOR PACKAGE
-`pipx install attestor` (fallback `pip install --user attestor`). Confirm
-`attestor --version`. The `attestor` binary must be on PATH — the plugin's hooks
-and MCP server call it directly.
-
-PHASE 5 — WIRE INTO CLAUDE CODE (prefer the plugin)
-Ask my scope: global (~/.claude) or this project only. Then:
-- Plugin (recommended): `/plugin marketplace add bolnet/attestor` then
-  `/plugin install attestor` — this auto-wires the MCP server (.mcp.json) and the
-  SessionStart / PostToolUse / Stop hooks by convention.
-- If I decline the plugin: merge the attestor MCP server into .mcp.json and the
-  three hooks into settings.json yourself, without clobbering existing entries.
-Ask my embedding provider (Pinecone Inference default, else Voyage / OpenAI /
-Ollama) and store its API key in .env.
-
-PHASE 6 — VERIFY
-Run `attestor doctor <store-path>` (expect Document / Vector / Graph / Retrieval
-all healthy) and call the `memory_health` MCP tool. Then prove per-project
-isolation: add a memory here, and confirm a different project directory does NOT
-see it. Show me the results.
-
-NOTES
-- Memory is automatically isolated per project — each git-root (else cwd) is its
-  own tenant. There is no namespace to configure.
-- If any phase fails, STOP and tell me exactly what failed. Do not continue silently.
-```
-
-After it finishes you can use the `memory_*` tools immediately, and every project you open gets its own hard-isolated memory automatically.
+After `attestor quickstart` finishes, you can use the `memory_*` MCP tools immediately, and every project you open gets its own hard-isolated memory automatically.
 
 > Hooks load the user environment before calling `attestor`. The wired hook command is
 > `bash -c 'set -a; [ -f "$HOME/.attestor/.env" ] && . "$HOME/.attestor/.env"; set +a; attestor hook <event>'`.
@@ -105,13 +48,14 @@ After it finishes you can use the `memory_*` tools immediately, and every projec
 
 ---
 
-## Chapter 01 — Local stack with Docker Compose
+## Chapter 01 — Manual local stack (Docker Compose only)
+
+**Recommended: use `attestor quickstart` (Chapter 00) instead.** This chapter is for advanced users who want to bring up the backends manually without the preflight checks and auto-wiring.
 
 Attestor's canonical stack is three services: **Postgres** (document role, source of truth), **Pinecone Local** (vector role, the free `:5080` Docker emulator), and **Neo4j + GDS** (graph role). The bundled Compose stack in `attestor/infra/local/` brings all three up on a laptop.
 
 > The detailed, copy-paste-ready walkthrough — including the four health checks — lives in
-> **[`docs/LOCAL_DOCKER_SETUP.md`](LOCAL_DOCKER_SETUP.md)** (and its agent-driven variant
-> **[`docs/CLAUDE_LOCAL_SETUP_PROMPT.md`](CLAUDE_LOCAL_SETUP_PROMPT.md)**). This chapter is the short version.
+> **[`docs/LOCAL_DOCKER_SETUP.md`](LOCAL_DOCKER_SETUP.md)**. This chapter is the short version.
 
 ### Prerequisites
 
@@ -132,21 +76,21 @@ Attestor's canonical stack is three services: **Postgres** (document role, sourc
 ```bash
 cd attestor/infra/local
 cp .env.example .env            # fill in the keys above
-docker compose up -d postgres neo4j pinecone
+docker compose up -d
 ```
 
 This brings up three containers:
 
-| Container | Image | Port | Role |
-|-----------|-------|------|------|
-| `attestor_postgres_document_db` | `attestor/db-postgres:16` (pgvector) | `5432` | Document |
-| `attestor_pinecone_vector_db` | `ghcr.io/pinecone-io/pinecone-local:latest` | `5080-5090` | Vector |
-| `attestor_neo4j_graph_db` | `neo4j:5.24-community` (+ GDS plugin) | `7474`, `7687` | Graph |
+| Container | Port | Role |
+|-----------|------|------|
+| `attestor_postgres_document_db` | `5432` | Document |
+| `attestor_pinecone_vector_db` | `5080-5090` | Vector |
+| `attestor_neo4j_graph_db` | `7474`, `7687` | Graph |
 
 Wait for all three to report healthy:
 
 ```bash
-docker ps --filter name=attestor- --format '{{.Names}}\t{{.Status}}'
+docker compose ps
 ```
 
 ### Step 2 — Install the CLI
@@ -230,7 +174,7 @@ Non-fatal errors in the vector or graph layers are caught and logged; the docume
 
 ### Claude Code integration
 
-The fastest path is Chapter 00. To wire it manually, add the MCP server to `.mcp.json` (project) or `~/.claude/settings.json` (global):
+The fastest path is Chapter 00 (`attestor quickstart`). To wire MCP + hooks manually afterward, add to `.mcp.json` (project) or `~/.claude/settings.json` (global):
 
 ```json
 {
@@ -246,7 +190,7 @@ The fastest path is Chapter 00. To wire it manually, add the MCP server to `.mcp
 }
 ```
 
-The MCP server inherits the `env` block above. The lifecycle hooks (SessionStart / PostToolUse / Stop) run as separate subprocesses that do **not** inherit your interactive shell, so they load `~/.attestor/.env` themselves:
+The lifecycle hooks (SessionStart / PostToolUse / Stop) run as separate subprocesses that do **not** inherit your interactive shell, so they load `~/.attestor/.env` themselves:
 
 ```json
 {
@@ -261,7 +205,7 @@ The MCP server inherits the `env` block above. The lifecycle hooks (SessionStart
 }
 ```
 
-`attestor setup-claude-code` writes exactly this wiring for you. The `set -a` is required — without it, un-exported `.env` vars never reach the hook subprocess and hooks save nothing.
+The `set -a` is required — without it, un-exported `.env` vars never reach the hook subprocess and hooks save nothing.
 
 ### Troubleshooting
 
@@ -316,13 +260,12 @@ Run the API container (or your own image) with those env vars; `configs/attestor
 
 ## Uninstall
 
-Attestor is **prompt-first**: tell Claude Code **"uninstall attestor"** (or run **`/uninstall-attestor`**) and it reverses all six install surfaces itself — following `commands/uninstall-attestor.md`:
+**The one command:** `attestor teardown` — zero-question reverse of `attestor quickstart`. It removes Docker backends + volumes (confirm — deletes all memory), MCP entry, hooks, plugin, and stray artifacts. Keeps `~/.attestor/` by default; add `--purge` to also wipe config + `.env`.
 
-1. **Package** — `pipx uninstall attestor` (run from `$HOME`, not the repo: a local `attestor/` dir makes pipx read the name as a path).
-2. **`~/.attestor/`** — config + `.env` (no memory data lives here).
-3. **Claude Code wiring** — the `attestor` MCP entry + Attestor's own hooks, content-matched on `attestor hook` so other tools' hooks are never touched (project `.claude/settings.json` / `.mcp.json`; the global file usually has none).
-4. **Docker backends** — `attestor-*` containers + volumes (**confirm — this deletes all stored memory**).
-5. **Plugin** — `/plugin uninstall attestor` (interactive).
-6. **Stray repo artifacts** — `.cc_attestor_probe_store`, root `config.json`, `logs/`.
+```bash
+attestor teardown                    # preview only
+attestor teardown --yes              # execute (keeps data volumes)
+attestor teardown --yes --purge      # also wipe data volumes + ~/.attestor
+```
 
-For local testing / CI there's a dry-run-by-default script that encodes the same procedure: `python scripts/attestor_uninstall.py` (add `--yes --containers --artifacts` to execute). It is a test/reference of the prompt above, not the primary path. Restart Claude Code afterward so it drops the orphaned MCP server + hooks.
+You can also drive this from inside Claude Code: `/uninstall-attestor` runs the same uninstall. Restart Claude Code afterward so it drops the orphaned MCP server + hooks.
