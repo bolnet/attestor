@@ -4,6 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Attestor — governed memory for multi-agent production meshes</title>
+<meta name="description" content="Self-hosted memory for agent meshes that have to answer to someone. Role-based access, provenance on every memory, per-agent budgets, a deterministic read path, as_of replay, hard tenant isolation, auditable forget. MIT.">
+<meta property="og:title" content="Attestor — memory your agent mesh can be audited on">
+<meta property="og:description" content="Who may write, who may forget, what an answer was built from — enforced in code, not in a policy document. Open source, MIT.">
+<meta property="og:image" content="https://attestor.dev/og-image.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d1f3c'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Georgia,serif' font-style='italic' font-weight='700' font-size='20' fill='%23cfe8d4'%3Ea%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,138 +20,143 @@
   --ink:#0f0e0c;--ink2:#3a3630;--ink3:#625e56;
   --paper:#faf8f4;--paper2:#f3f0ea;--paper3:#e8e3d8;--rule:#d4cfc3;
   --g:#1a3a26;--g2:#2a5c3a;--g3:#cfe8d4;--g4:#f0f7f2;
-  --r:#7a1a1a;--r2:#f7ecec;--amber:#b07a00;
+  --r:#7a1a1a;--amber:#b07a00;
   --navy:#0d1f3c;--navy2:#1a3460;--navy3:#d4dff0;--navy4:#f0f4fb;
   --mono:'JetBrains Mono','SF Mono','Fira Code',ui-monospace,monospace;
   --serif:'Newsreader',Georgia,'Times New Roman',serif;
-  --sans:var(--serif);
   --maxw:1120px;
 }
 @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
-body{background:var(--paper3);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;font-optical-sizing:auto;-webkit-tap-highlight-color:transparent}
+body{background:var(--paper3);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.6;overflow-x:clip;-webkit-font-smoothing:antialiased;font-optical-sizing:auto;-webkit-tap-highlight-color:transparent}
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
 a{color:inherit;text-underline-offset:0.16em;text-decoration-thickness:1px}
-.mono{font-family:var(--mono)}
+code,.mono{font-family:var(--mono)}
+p code,li code,td code,h3 code{font-size:.85em}
 ::selection{background:var(--g3);color:var(--g)}
 :focus-visible{outline:2px solid var(--navy2);outline-offset:3px;border-radius:2px}
 button,a.btn{touch-action:manipulation}
-h1,h2,h3,h4{text-wrap:balance}
+h1,h2,h3{text-wrap:balance}
 p{text-wrap:pretty}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
-nav{position:sticky;top:0;z-index:50;background:rgba(250,248,244,0.9);backdrop-filter:blur(8px);border-bottom:0.5px solid var(--rule)}
+/* nav */
+nav{position:sticky;top:0;z-index:50;background:rgba(250,248,244,0.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--rule)}
 .nav-in{max-width:var(--maxw);margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
 .brand{font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:-0.01em;color:var(--navy);text-decoration:none}
 .brand b{color:var(--g2);font-weight:600}
 .nav-links{display:flex;gap:26px;align-items:center}
 .nav-links a{font-size:15.5px;color:var(--ink2);text-decoration:none}
 .nav-links a:not(.btn):hover{color:var(--navy);text-decoration:underline}
-.btn{display:inline-block;text-decoration:none;font-weight:600;border-radius:4px;white-space:nowrap;transition:transform .15s cubic-bezier(.2,.7,.2,1),background-color .15s ease}
+@media(max-width:720px){.nav-links a:not(.btn){display:none}}
+
+/* buttons */
+.btn{display:inline-block;text-decoration:none;font-weight:600;border-radius:4px;white-space:nowrap;transition:transform .15s cubic-bezier(.2,.7,.2,1),background-color .15s ease,border-color .15s ease}
 .btn:hover{transform:translateY(-1px)}
 .btn:active{transform:translateY(0)}
 .btn-n{background:var(--navy);color:#fff;padding:9px 18px;font-size:15px}
 .btn-n:hover{background:var(--navy2)}
 .nav-links a.btn-n{color:#fff}
-.btn-g{background:var(--g);color:var(--g4);padding:9px 18px;font-size:15px}
 .btn-ghost{background:transparent;border:1px solid var(--rule);color:var(--ink);padding:8px 16px;font-size:15px}
 .btn-ghost:hover{border-color:var(--ink2)}
-@media(max-width:680px){.nav-links a:not(.btn){display:none}}
+.btn-lg{padding:13px 24px;font-size:16px}
 
+/* hero */
 .hero{padding:72px 0 64px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr);gap:56px;align-items:center}
 @media(max-width:980px){.hero{grid-template-columns:1fr;gap:36px;padding:48px 0 40px}}
-.hero-copy{min-width:0}
 h1{font-family:var(--serif);font-weight:600;font-size:clamp(38px,5vw,64px);line-height:1.02;letter-spacing:-0.03em;max-width:14ch;color:var(--navy)}
-h1 .ital{font-style:italic;font-weight:500;color:var(--g2)}
+h1 .ital,h2 .ital{font-style:italic;font-weight:500;color:var(--g2)}
 .lede{font-size:clamp(18px,1.6vw,21px);color:var(--ink2);margin-top:26px;max-width:46ch;line-height:1.5}
 .lede strong{color:var(--ink);font-weight:600}
-.hero-meta{margin-top:18px;font-size:14.5px;color:var(--ink3)}
 .hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px;align-items:center}
-.btn-lg{padding:13px 24px;font-size:16px}
-.code-line{background:var(--ink);color:#a8e6c0;font-family:var(--mono);font-size:13px;padding:22px 24px;border-radius:6px;line-height:1.75;overflow-x:auto;white-space:nowrap;box-shadow:0 18px 40px -24px rgba(15,14,12,.55)}
-.code-line.hero-code{margin:0;max-width:none}
-@media(max-width:1180px){.code-line.hero-code{font-size:12.25px}}
-.code-line .cm{color:rgba(168,230,192,0.4);font-style:italic}
-.code-line .kw{color:#7ee8ff}
-.code-line .fn{color:#ffd479}
+.hero-meta{margin-top:18px;font-size:14.5px;color:var(--ink3);max-width:52ch}
+.code{background:var(--ink);color:#a8e6c0;font-family:var(--mono);font-size:13px;padding:22px 24px;border-radius:6px;line-height:1.75;overflow-x:auto;white-space:nowrap;box-shadow:0 18px 40px -24px rgba(15,14,12,.55)}
+@media(max-width:1180px){.hero .code{font-size:12.25px}}
+.code .cm{color:rgba(168,230,192,0.45);font-style:italic}
+.code .kw{color:#7ee8ff}
+.code .fn{color:#ffd479}
+.code .err{color:#ff9a8a}
 
-
+/* sections */
 section{padding:72px 0;border-top:1px solid var(--rule)}
 @media(max-width:680px){section{padding:52px 0}}
 h2{font-family:var(--serif);font-weight:600;font-size:clamp(30px,3.8vw,44px);line-height:1.08;letter-spacing:-0.025em;max-width:22ch;color:var(--navy)}
-h2 .ital{font-style:italic;font-weight:500;color:var(--g2)}
 .sec-lede{font-size:18px;color:var(--ink2);margin-top:18px;max-width:62ch}
-.facts{margin-top:22px;font-size:15.5px;color:var(--ink3);display:flex;flex-wrap:wrap;gap:6px 0}
-.facts span+span::before{content:'·';margin:0 10px;color:var(--rule)}
-.facts b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.sec-lede a{color:var(--g2)}
+.two{display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);gap:56px;align-items:start}
+@media(max-width:860px){.two{grid-template-columns:1fr;gap:28px}}
+.prose p{font-size:17px;color:var(--ink2);margin-bottom:14px;max-width:60ch}
+.prose p strong{color:var(--ink);font-weight:600}
+.prose p:last-child{margin-bottom:0}
 
-/* chart */
-.chartwrap{margin-top:34px;background:var(--paper);border:0.5px solid var(--rule);border-radius:12px;padding:24px}
-.chart-hud{display:flex;gap:28px;flex-wrap:wrap;align-items:baseline;margin-bottom:8px}
-.hud-item .n{font-family:var(--serif);font-size:24px;font-weight:700}
-.hud-item .n.r{color:var(--r)}.hud-item .n.g{color:var(--g2)}.hud-item .n.k{color:var(--ink)}
-.hud-item .l{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink3)}
-svg .draw{stroke-dasharray:2400;stroke-dashoffset:2400;animation:draw 2.2s ease forwards}
-svg .draw.mem{animation-delay:.3s}
-@keyframes draw{to{stroke-dashoffset:0}}
-.chart-leg{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--ink2);font-family:var(--mono)}
-.swatch{display:inline-block;width:18px;height:3px;border-radius:2px;vertical-align:middle;margin-right:7px}
+/* the three questions */
+.qs{margin-top:8px;border-top:1px solid var(--ink2)}
+.q{padding:22px 0;border-bottom:1px solid var(--rule)}
+.q h3{font-family:var(--serif);font-size:clamp(22px,2.4vw,28px);font-weight:500;font-style:italic;color:var(--navy);line-height:1.15;letter-spacing:-0.01em}
+.q p{margin-top:8px;font-size:16px;color:var(--ink2);max-width:52ch}
 
-/* cost vs */
-.cost-vs{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;margin-top:26px;padding:26px;background:var(--paper);border-radius:12px;border:0.5px solid var(--rule)}
-.cv-side{text-align:center}
-.cv-num{font-family:var(--serif);font-size:clamp(30px,5vw,46px);font-weight:700;line-height:1;margin-bottom:6px}
-.cv-bad{color:var(--r)}.cv-good{color:var(--g2)}
-.cv-lbl{font-size:12px;color:var(--ink3);line-height:1.4}
-.cv-arrow{font-family:var(--serif);font-size:28px;color:var(--ink3)}
+/* ledger */
+.ledger{margin-top:40px;border-top:1px solid var(--rule)}
+.row{display:grid;grid-template-columns:minmax(0,0.42fr) minmax(0,1fr);gap:12px 48px;padding:26px 0;border-bottom:1px solid var(--rule)}
+.row h3{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--navy);line-height:1.15;letter-spacing:-0.01em;max-width:18ch}
+.row h3 code{font-weight:400;font-size:.78em}
+.row p{font-size:16px;color:var(--ink2);line-height:1.55;max-width:66ch}
+.row p strong{color:var(--ink);font-weight:600}
+.row .src{display:block;grid-column:2;margin-top:2px;font-family:var(--mono);font-size:12px;color:var(--ink3)}
+.row.soon h3,.row.soon p{color:var(--ink3)}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:0.04em;background:var(--navy3);color:var(--navy);padding:3px 8px;border-radius:3px;margin-left:8px;vertical-align:middle;position:relative;top:-2px}
+@media(max-width:760px){.row{grid-template-columns:1fr;gap:8px;padding:22px 0}.row .src{grid-column:1}}
+.frame{margin-top:40px;padding-top:24px;border-top:1px solid var(--ink2);font-size:17px;color:var(--ink2);line-height:1.55;max-width:66ch}
+.frame strong{color:var(--ink);font-weight:600}
 
-/* model table */
-.mtab{margin-top:30px;border:0.5px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--paper)}
-.mtab-head,.mtab-row{display:grid;grid-template-columns:1.6fr 1fr 1.2fr;gap:8px;padding:13px 20px;align-items:center}
-.mtab-head{background:var(--paper3);font-family:var(--mono);font-size:10.5px;letter-spacing:0.07em;text-transform:uppercase;color:var(--ink3)}
-.mtab-row{border-top:0.5px solid var(--rule)}
-.mtab-row .nm{font-family:var(--mono);font-size:13.5px}
-.mtab-row .mult{font-family:var(--serif);font-size:19px;font-weight:700;color:var(--g2)}
-.mtab-row .cost{font-family:var(--mono);font-size:12.5px;color:var(--ink3)}
-.mtab-row.hl{background:var(--navy4)}
-.open{display:inline-block;background:var(--g3);color:var(--g);font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:middle}
+/* read path: full-bleed lighter band so the page alternates density */
+#read{background:var(--paper);margin-inline:calc(50% - 50vw);padding-inline:calc(50vw - 50%);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+#read+section{border-top:0}
+#read .code{box-shadow:none}
+/* pipeline — an ordered sequence, so the numbers carry information */
+.pipe{margin-top:36px;counter-reset:step;list-style:none;border-top:1px solid var(--paper3)}
+.pipe li{counter-increment:step;display:grid;grid-template-columns:56px minmax(0,0.5fr) minmax(0,1fr);gap:8px 24px;padding:18px 0;border-bottom:1px solid var(--paper3);align-items:baseline}
+.pipe li::before{content:counter(step,decimal-leading-zero);font-family:var(--mono);font-size:13px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.pipe h3{font-family:var(--serif);font-size:20px;font-weight:600;color:var(--navy);line-height:1.2}
+.pipe p{font-size:15.5px;color:var(--ink2);line-height:1.5}
+@media(max-width:680px){.pipe li{grid-template-columns:44px 1fr}.pipe p{grid-column:2}}
+.aside{margin-top:36px;padding-top:24px;border-top:1px solid var(--ink2);max-width:66ch}
+.aside h3{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--navy);margin-bottom:10px}
+.aside p{font-size:16px;color:var(--ink2);line-height:1.55}
+.aside .code{margin-top:16px;font-size:12.5px;white-space:pre-wrap}
 
-/* audience tabs */
-.tabs{display:flex;gap:8px;margin-top:30px;flex-wrap:wrap}
-.tab{font-family:var(--serif);font-size:16px;padding:9px 16px;border-radius:999px;border:1px solid var(--rule);background:transparent;color:var(--ink2);cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease}
-.tab:hover{border-color:var(--ink2);color:var(--ink)}
-.tab[aria-selected="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
-.tab .dot{display:none}
-.panel{display:none;margin-top:28px;padding:0;max-width:66ch}
-.panel[data-active="true"]{display:block;animation:fade .3s cubic-bezier(.2,.7,.2,1)}
-@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.panel h3{font-family:var(--serif);font-size:clamp(24px,2.4vw,30px);font-weight:600;color:var(--navy);line-height:1.15;letter-spacing:-0.015em;margin-bottom:16px;max-width:28ch}
-.panel .hook{font-size:20px;font-style:italic;font-weight:400;color:var(--ink);margin:0 0 18px;line-height:1.4;padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
-.panel p{font-size:16.5px;color:var(--ink2);margin-bottom:12px;line-height:1.55}
-.panel p strong{color:var(--ink);font-weight:600}
-.panel ul{list-style:none;margin:4px 0 18px}
-.panel ul li{font-size:16px;color:var(--ink2);padding-left:18px;position:relative;margin-bottom:6px;line-height:1.5}
-.panel ul li::before{content:'';position:absolute;left:0;top:.68em;width:8px;height:1px;background:var(--g2)}
-.panel .pcta{margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
-.minicode{background:var(--ink);color:#a8e6c0;font-family:var(--mono);font-size:12.5px;padding:14px 16px;border-radius:8px;margin:6px 0 14px;line-height:1.9}
-.minicode .cm{color:rgba(168,230,192,0.4);font-style:italic}.minicode .kw{color:#7ee8ff}.minicode .fn{color:#ffd479}
+/* situations */
+.sits{margin-top:40px;border-top:1px solid var(--ink2)}
+.sit{display:grid;grid-template-columns:minmax(0,0.45fr) minmax(0,1fr);gap:10px 48px;padding:32px 0;border-bottom:1px solid var(--rule)}
+.sit h3{font-family:var(--serif);font-size:clamp(24px,2.6vw,32px);font-weight:600;color:var(--navy);line-height:1.1;letter-spacing:-0.02em;max-width:14ch;grid-row:1/3}
+.sit .ask{font-size:17px;font-style:italic;color:var(--ink);line-height:1.45;max-width:52ch}
+.sit p{margin-top:10px;font-size:16px;color:var(--ink2);line-height:1.55;max-width:60ch}
+.sit p strong{color:var(--ink);font-weight:600}
+.sit .k{grid-column:2}
+@media(max-width:760px){.sit{grid-template-columns:1fr;gap:6px;padding:26px 0}.sit .k{grid-column:1}.sit h3{grid-row:auto;margin-bottom:6px}}
 
-/* arch compare */
-.cmp{width:100%;border-collapse:collapse;margin-top:34px;font-size:16px;line-height:1.45}
-.cmp th,.cmp td{text-align:left;vertical-align:top;padding:16px 20px 16px 0;border-top:1px solid var(--rule)}
-.cmp th{font-weight:600;color:var(--navy);font-size:17px}
-.cmp thead th{border-top:0;padding-top:0;padding-bottom:12px;font-size:15px;color:var(--ink3);font-weight:500}
-.cmp thead th.good{color:var(--g2)}
-.cmp td.dim{color:var(--ink3);font-size:15px;width:22%}
-.cmp td.good{color:var(--ink);font-weight:500}
-.cmp td .n{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums}
-@media(max-width:680px){.cmp,.cmp thead,.cmp tbody,.cmp tr,.cmp td,.cmp th{display:block}
-  .cmp thead{display:none}.cmp tr{border-top:1px solid var(--rule);padding:14px 0}
-  .cmp td,.cmp th{border:0;padding:4px 0}.cmp td.dim{width:auto;font-size:13.5px;text-transform:uppercase;letter-spacing:.04em}
-  .cmp td[data-h]::before{content:attr(data-h) ' — ';color:var(--ink3);font-size:14px}}
+/* runs where you run */
+.modes{margin-top:36px;border-top:1px solid var(--rule)}
+.mode{display:grid;grid-template-columns:minmax(0,0.42fr) minmax(0,1fr);gap:8px 48px;padding:20px 0;border-bottom:1px solid var(--rule);align-items:baseline}
+.mode h3{font-family:var(--serif);font-size:20px;font-weight:600;color:var(--navy)}
+.mode p{font-size:16px;color:var(--ink2);line-height:1.5;max-width:60ch}
+@media(max-width:760px){.mode{grid-template-columns:1fr;gap:4px}}
+.install{margin-top:36px;display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);gap:32px 48px;align-items:center}
+@media(max-width:860px){.install{grid-template-columns:1fr}}
+.install p{font-size:16px;color:var(--ink2);max-width:44ch}
+.install .code{white-space:pre-wrap;font-size:13.5px}
 
+/* provenance */
+.prov{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:start;margin-top:8px}
+@media(max-width:860px){.prov{grid-template-columns:1fr;gap:24px}}
+.prov ul{list-style:none;border-top:1px solid var(--ink2)}
+.prov li{padding:14px 0;border-bottom:1px solid var(--rule);font-size:16px;color:var(--ink2);line-height:1.5}
+.prov li strong{color:var(--ink);font-weight:600}
+.prov li code{font-size:.85em}
+
+/* band */
 .band{background:var(--navy);color:#dfe7f4;border-radius:8px;padding:52px 56px;margin-top:72px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;align-items:end}
 @media(max-width:820px){.band{grid-template-columns:1fr;padding:40px 28px;gap:28px}}
-.band h3{font-family:var(--serif);font-size:clamp(28px,3.6vw,42px);font-weight:600;color:#fff;line-height:1.1;letter-spacing:-0.02em;max-width:20ch;margin:0 0 16px}
+.band h2{font-size:clamp(28px,3.6vw,42px);color:#fff;line-height:1.1;letter-spacing:-0.02em;max-width:20ch;margin:0 0 16px}
 .band p{font-size:17px;color:#b7c4da;max-width:44ch;margin:0}
 .band-cta{display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end}
 @media(max-width:820px){.band-cta{justify-content:flex-start}}
@@ -154,13 +165,13 @@ svg .draw.mem{animation-delay:.3s}
 .btn-outline{background:transparent;border:1px solid rgba(255,255,255,0.35);color:#fff;padding:13px 22px;font-size:16px}
 .btn-outline:hover{border-color:#fff}
 
-footer{border-top:0.5px solid var(--rule);padding:38px 0 60px}
+footer{border-top:1px solid var(--rule);padding:38px 0 60px}
 .foot-in{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
 .foot-links{display:flex;gap:18px;flex-wrap:wrap}
 .foot-links a{font-size:15px;color:var(--ink2);text-decoration:none}
 .foot-links a:hover{color:var(--navy);text-decoration:underline}
 .foot-note{font-size:14px;color:var(--ink3)}
-.tag{font-family:var(--mono);font-size:11px;letter-spacing:0.04em;background:var(--navy3);color:var(--navy);padding:3px 8px;border-radius:3px}
+.foot-note .tag{margin:0 8px 0 0;top:0}
 </style>
 </head>
 <body>
@@ -169,35 +180,35 @@ footer{border-top:0.5px solid var(--rule);padding:38px 0 60px}
   <div class="nav-in">
     <a href="#top" class="brand">attestor<b>.dev</b></a>
     <div class="nav-links">
-      <a href="#governance">Governance</a>
-      <a href="#who">Who it's for</a>
-      <a href="#how">How it works</a>
-      <a href="inside_attestor.html" class="btn btn-n">Get started →</a>
+      <a href="#governance">What it enforces</a>
+      <a href="#read">How a read happens</a>
+      <a href="#situations">Who it's for</a>
+      <a href="#run">Install</a>
+      <a href="inside_attestor.html" class="btn btn-n">Read the architecture →</a>
     </div>
   </div>
 </nav>
 
 <main id="top" class="wrap">
 
-  <!-- HERO -->
   <header class="hero">
-    <div class="hero-copy">
-    <h1>Memory your agent mesh can be <span class="ital">audited</span> on.</h1>
-    <p class="lede">When many agents share one memory, recall is the easy part. The hard part is <strong>who may write, who may forget, and what an answer was built from</strong> — and proving it later. Attestor enforces those in code, across Postgres, Pinecone and Neo4j.</p>
-    <div class="hero-cta">
-      <a href="inside_attestor.html" class="btn btn-n btn-lg">Read the architecture →</a>
-      <a href="https://github.com/bolnet/attestor" class="btn btn-ghost btn-lg">Read the source</a>
+    <div>
+      <h1>Memory your agent mesh can be <span class="ital">audited</span> on.</h1>
+      <p class="lede">When many agents share one memory, recall is the easy part. The hard part is <strong>who may write, who may forget, and what an answer was built from</strong> — and proving it later. Attestor enforces those in code, across Postgres, Pinecone and Neo4j.</p>
+      <div class="hero-cta">
+        <a href="inside_attestor.html" class="btn btn-n btn-lg">Read the architecture →</a>
+        <a href="https://github.com/bolnet/attestor" class="btn btn-ghost btn-lg">Read the source</a>
+      </div>
+      <p class="hero-meta">Self-hosted. Open source, MIT. Runs as a Python library, a REST sidecar, or an MCP server with one API.</p>
     </div>
-    <p class="hero-meta">Open source, MIT. Six enforced roles, no LLM in the read path by default, and <code class="mono">as_of</code> replay of any past belief.</p>
-    </div>
-    <div class="code-line hero-code">
+    <div class="code" aria-label="Example: role enforcement and as_of replay">
 <span class="cm"># identity, role, namespace, budget</span><br>
 ctx = <span class="fn">AgentContext</span>(<br>
 &nbsp;&nbsp;&nbsp;&nbsp;agent_id=<span class="kw">"reviewer-1"</span>,<br>
 &nbsp;&nbsp;&nbsp;&nbsp;role=AgentRole.REVIEWER,<br>
 &nbsp;&nbsp;&nbsp;&nbsp;namespace=<span class="kw">"acme-prod"</span>,<br>
 )<br><br>
-<span class="cm"># PermissionError — REVIEWER is read-only</span><br>
+<span class="cm"># <span class="err">PermissionError</span>: REVIEWER lacks 'write'</span><br>
 ctx.<span class="fn">add_memory</span>(<span class="kw">"..."</span>)<br><br>
 <span class="cm"># belief as of then; nothing is deleted</span><br>
 mem.<span class="fn">recall</span>(<span class="kw">"..."</span>, context=ctx,<br>
@@ -205,226 +216,178 @@ mem.<span class="fn">recall</span>(<span class="kw">"..."</span>, context=ctx,<b
     </div>
   </header>
 
+  <!-- THE PROBLEM -->
+  <section id="why">
+    <div class="two">
+      <div>
+        <h2>Recall is the <span class="ital">easy</span> part.</h2>
+        <div class="prose" style="margin-top:18px">
+          <p>Any vector store can hand an agent something relevant. A mesh in production has a harder problem: the memory is shared, the agents are not equally trusted, and one day someone who was not in the room will ask how a decision was made.</p>
+          <p>Most memory layers leave the three questions on the right to the calling application. Attestor answers them in the memory layer itself, so every agent, every client, and every future engineer gets the same answer.</p>
+        </div>
+      </div>
+      <div class="qs">
+        <div class="q">
+          <h3>Who wrote this, on whose behalf?</h3>
+          <p>Every memory carries the agent, session, namespace and role that produced it. Child contexts accumulate the trail; Ed25519 signing makes it non-repudiable.</p>
+        </div>
+        <div class="q">
+          <h3>Who is allowed to forget it?</h3>
+          <p>Six roles, enforced before any backend is touched. Forgetting writes its audit row first, then walks every store and reports per-backend counts.</p>
+        </div>
+        <div class="q">
+          <h3>What did the system believe last Friday?</h3>
+          <p>Contradictions supersede; nothing is deleted. Every fact has valid time and transaction time, and <code>recall(as_of=…)</code> replays the belief of any past moment.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- GOVERNANCE -->
-  <style>
-  .gov-grid{margin-top:40px;border-top:1px solid var(--rule)}
-  .gov-card{display:grid;grid-template-columns:minmax(0,0.42fr) minmax(0,1fr);gap:12px 48px;padding:26px 0;border-bottom:1px solid var(--rule)}
-  .gov-card h3{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--navy);line-height:1.15;letter-spacing:-0.01em;max-width:18ch}
-  .gov-card h3 code{font-family:var(--mono);font-size:.78em;font-weight:400}
-  .gov-card p{font-size:16px;color:var(--ink2);line-height:1.55;max-width:66ch}
-  .gov-card p strong{color:var(--ink);font-weight:600}
-  .gov-card p code{font-family:var(--mono);font-size:.85em}
-  .gov-card .src{display:block;grid-column:2;margin-top:2px;font-family:var(--mono);font-size:12px;color:var(--ink3)}
-  .gov-card.soon h3,.gov-card.soon p{color:var(--ink3)}
-  .gov-card .tag{margin-left:8px;vertical-align:middle;font-size:11px;position:relative;top:-2px}
-  .gov-frame{margin-top:40px;padding-top:24px;border-top:1px solid var(--ink2);font-size:17px;color:var(--ink2);line-height:1.55;max-width:66ch}
-  .gov-frame strong{color:var(--ink);font-weight:600}
-  @media(max-width:760px){.gov-card{grid-template-columns:1fr;gap:8px;padding:22px 0}.gov-card .src{grid-column:1}}
-  </style>
   <section id="governance">
     <h2>Every write has an author. Every read has a ranking you can <span class="ital">replay</span>.</h2>
     <p class="sec-lede">Governance enforced in code, not in a policy document. Each row names the guarantee, what the code does, and the file that does it. If it is not in the code, it is not on this page.</p>
 
-    <div class="gov-grid">
-      <div class="gov-card">
+    <div class="ledger">
+      <div class="row">
         <h3>Role-based access, six roles</h3>
         <p><strong>ORCHESTRATOR</strong> may read, write and forget. <strong>PLANNER</strong>, <strong>EXECUTOR</strong> and <strong>RESEARCHER</strong> may read and write. <strong>REVIEWER</strong> and <strong>MONITOR</strong> read only. <code>read_only=True</code> strips write and forget regardless of role. A violation raises before any backend is touched.</p>
         <span class="src">attestor/context.py · ROLE_PERMISSIONS</span>
       </div>
-      <div class="gov-card">
+      <div class="row">
         <h3>Provenance on every memory</h3>
-        <p>Every write carries agent, session, namespace and role; child contexts accumulate an agent trail, so "which agent said this, on whose behalf" is always answerable. The source episode is set by the consolidation path, not by every write. Supersession never deletes; rows leave only through an explicit forget, a retention delete policy, or <code>compact()</code>. Optional Ed25519 signing gives cryptographic non-repudiation, verified with <code>verify_memory()</code>.</p>
+        <p>Every write carries agent, session, namespace and role; child contexts accumulate an agent trail, so "which agent said this, on whose behalf" is always answerable. Supersession never deletes; rows leave only through an explicit forget, a retention delete policy, or <code>compact()</code>. Optional Ed25519 signing gives cryptographic non-repudiation, verified with <code>verify_memory()</code>.</p>
         <span class="src">attestor/context.py · attestor/identity/signing.py</span>
       </div>
-      <div class="gov-card">
+      <div class="row">
         <h3>Per-agent budgets and write quotas</h3>
-        <p>A token budget bounds what <code>recall()</code> packs for one context; it never limits writes. A per-context write cap (an in-memory counter that resets with a new context) and a per-user daily quota bound what can be added. The cap is a property of the context, so a misbehaving sub-agent is contained by construction.</p>
+        <p>A token budget bounds what <code>recall()</code> packs for one context. A per-context write cap and a per-user daily quota bound what can be added. The cap is a property of the context, so a misbehaving sub-agent is contained by construction.</p>
         <span class="src">attestor/context.py · attestor/core/agent_memory.py</span>
       </div>
-      <div class="gov-card">
+      <div class="row">
         <h3>Deterministic read path</h3>
         <p>Ranking is vector → BM25 → RRF → graph → MMR → budget fit, with no LLM in scoring by default. The optional reranker is off by default. Same query, same order — unit-testable, replayable, and explainable to an auditor line by line.</p>
         <span class="src">attestor/retrieval/orchestrator/core.py · scorer.py · reranker.py</span>
       </div>
-      <div class="gov-card">
+      <div class="row">
         <h3>Temporal supersession, <code>as_of</code> replay</h3>
-        <p>Contradictions supersede older facts; supersession never deletes. Every fact carries valid time and transaction time. <code>recall(as_of=…)</code> filters candidates on transaction time at document hydration and in the BM25 lane; the Pinecone lane ignores <code>as_of</code>.</p>
+        <p>Contradictions supersede older facts; supersession never deletes. Every fact carries valid time and transaction time. <code>recall(as_of=…)</code> filters candidates on transaction time at document hydration and in the BM25 lane; the Pinecone lane ignores <code>as_of</code> and says so in the log.</p>
         <span class="src">attestor/temporal/manager.py</span>
       </div>
-      <div class="gov-card">
+      <div class="row">
         <h3>Hard tenant isolation, all three stores</h3>
-        <p>Tenant is the user. Postgres row-level security keyed to the current user, with namespace stamped into metadata; Pinecone one index with a namespace partition on every call; Neo4j namespace property with a composite constraint and namespace-scoped traversal. The PageRank projection is global and is a ranking signal only.</p>
+        <p>Postgres row-level security keyed to the current user, with namespace stamped into metadata; Pinecone one index with a namespace partition on every call; Neo4j namespace property with a composite constraint and namespace-scoped traversal. The PageRank projection is global and is a ranking signal only.</p>
         <span class="src">attestor/store/schema.sql · pinecone_backend.py · neo4j_backend.py</span>
       </div>
-      <div class="gov-card">
+      <div class="row">
         <h3>Auditable forget-user and retention</h3>
-        <p><code>forget_user()</code> writes an RLS-exempt, append-only by convention audit row <strong>before</strong> deleting, then walks document → state → vector → graph and reports per-backend counts, so partial success is visible rather than silent. Declarative retention policies (archive or delete) apply first and write the audit row after. Full export for subject-access requests.</p>
+        <p><code>forget_user()</code> writes an RLS-exempt audit row <strong>before</strong> deleting, then walks document → state → vector → graph and reports per-backend counts, so partial success is visible rather than silent. Declarative retention policies (archive or delete) apply first and write the audit row after. Full export for subject-access requests.</p>
         <span class="src">attestor/compliance/retention.py</span>
       </div>
-      <div class="gov-card soon">
+      <div class="row soon">
         <h3>Durable governance jobs<span class="tag">IN PROGRESS</span></h3>
-        <p>Consolidation, derived-state repair, the forget-user saga and retention sweeps are moving onto Temporal workflows with retry policies and an operator UI. Opt-in extra. The read path and the editor hooks never touch it.</p>
-        <span class="src">docs/plans/temporal-integration.md</span>
+        <p>Consolidation, derived-state rebuild, retention sweeps, session sweeps and the forget-user saga are moving onto Temporal workflows with retry policies and an operator UI. Opt-in extra; job state only — Postgres stays the source of truth. The read path and the editor hooks never touch it.</p>
+        <span class="src">attestor/durable/ · docs/plans/temporal-integration.md</span>
       </div>
     </div>
 
-    <div class="gov-frame"><strong>How to evaluate it.</strong> The nearest neighbours are the temporal-knowledge-graph memory layers (Zep, Graphiti). For a production mesh the useful comparison is not benchmark accuracy — it is whether the memory layer itself enforces roles, budgets, tenancy, provenance and auditable deletion, or leaves each of those to the calling application. Hold every option, including this one, to the checklist above with file references.</div>
+    <p class="frame"><strong>How to evaluate it.</strong> The nearest neighbours are the temporal-knowledge-graph memory layers (Zep, Graphiti). For a production mesh the useful comparison is not benchmark accuracy — it is whether the memory layer itself enforces roles, budgets, tenancy, provenance and auditable deletion, or leaves each of those to the calling application. Hold every option, including this one, to the checklist above with file references.</p>
   </section>
 
-  <!-- WHO -->
-  <section id="who">
-    <h2>One architecture. <span class="ital">Three rooms.</span></h2>
-    <p class="sec-lede">The token curve is the same problem whether you're underwriting it, operating it, or building it. Pick your seat.</p>
+  <!-- READ PATH -->
+  <section id="read">
+    <h2>How a read <span class="ital">happens</span>.</h2>
+    <p class="sec-lede">Six steps, in this order, every time. No model is asked to score anything unless you turn the reranker on. That is what makes a ranking something you can replay in front of an auditor.</p>
 
-    <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" id="tab-pe" aria-controls="pe" data-tab="pe"><span class="dot"></span>PE · VC · Founders</button>
-      <button class="tab" role="tab" aria-selected="false" id="tab-ent" aria-controls="ent" data-tab="ent"><span class="dot"></span>Enterprise · Platform</button>
-      <button class="tab" role="tab" aria-selected="false" id="tab-dev" aria-controls="dev" data-tab="dev"><span class="dot"></span>Developers · AI Eng</button>
+    <ol class="pipe">
+      <li><h3>Vector candidates</h3><p>Cosine top-K from Pinecone, scoped to the caller's namespace. An optional HyDE lane can widen the net.</p></li>
+      <li><h3>Lexical candidates</h3><p>BM25 over Postgres full-text search, filtered on transaction time when <code>as_of</code> is set.</p></li>
+      <li><h3>Reciprocal-rank fusion</h3><p>Both lists fold into one rank with a fixed constant. No weights to tune, nothing learned.</p></li>
+      <li><h3>Graph affinity</h3><p>A bounded breadth-first walk in Neo4j, inside the namespace, adds a bonus for candidates connected to the query's entities.</p></li>
+      <li><h3>Diversity and decay</h3><p>Maximal marginal relevance removes near-duplicates; confidence decays with age and supersession.</p></li>
+      <li><h3>Budget fit</h3><p>Greedy pack to the context's token budget, best first. The payload is flat per call however long the conversation is.</p></li>
+    </ol>
+
+    <div class="aside">
+      <h3>Ask it what it injected.</h3>
+      <p>Every recall can report the packed payload it just handed the model — from the CLI or in the MCP response — so the cost of memory is a number you read, not one you estimate. Full-context replay has to re-send a growing transcript each turn; this does not.</p>
+      <div class="code" aria-label="attestor recall --show-tokens">$ attestor recall ~/.attestor "what did we decide about auth?" --show-tokens
+
+[tokens] packed <span class="kw">N</span> tokens across <span class="kw">M</span> memories (cap <span class="kw">budget</span>).
+This payload is flat regardless of conversation length —
+full-context replay grows unbounded.</div>
     </div>
+  </section>
 
-    <!-- PE -->
-    <div class="panel" role="tabpanel" aria-labelledby="tab-pe" data-active="true" id="pe">
-      <h3>The diligence question: is cost per session linear or quadratic?</h3>
-      <div class="hook">Full-context replay is O(n²). Your most engaged users become your most expensive liabilities — and the curve compounds with every session they run.</div>
-      <p>Token governance is now a CFO-level line item. Salesforce reported <strong>20 trillion tokens</strong> consumed in a quarter; teams burn annual AI budgets in months. A product whose cost grows quadratically with engagement has a margin problem hiding in plain sight.</p>
-      <ul>
-        <li>One Claude Opus 4 session, 100 turns: <strong>$24.15 → $1.24</strong> with Attestor.</li>
-        <li>The fix is <strong>architectural, not a model swap</strong> — it survives the next model.</li>
-        <li>Both tools are open-source: the benchmark <em>is</em> the diligence, and it's free.</li>
-      </ul>
-      <div class="pcta"><a href="inside_attestor.html" class="btn btn-n">Review the benchmark →</a><a href="https://github.com/bolnet/context-clock" class="btn btn-ghost">Audit a pipeline: context-clock</a></div>
-    </div>
+  <!-- SITUATIONS -->
+  <section id="situations">
+    <h2>Built for the day someone <span class="ital">asks</span>.</h2>
+    <p class="sec-lede">Three situations where "the agent remembered something" is not an answer, and what you can say instead.</p>
 
-    <!-- ENT -->
-    <div class="panel" role="tabpanel" aria-labelledby="tab-ent" id="ent">
-      <h3>Deterministic recall and a bitemporal audit trail — without the exponential token tax.</h3>
-      <div class="hook">Cap context to control cost and you trigger silent memory loss: recall decays 100% → 0% by turn 10, identical across every model. Truncation is mechanical — bigger models don't save you.</div>
-      <p>Attestor replaces transcript replay with targeted retrieval over a graph + vector store with <strong>bitemporal semantics</strong>: every fact is timestamped across valid-time and transaction-time, so agent state is immutable, auditable, and reproducible. Per-call context stays flat at ~200 tokens whether the agent is on turn 1 or turn 100.</p>
-      <ul>
-        <li>Flat ~200 tok/call → cost fixed per turn, not compounding.</li>
-        <li>Bitemporal log → replayable, auditable agent state.</li>
-        <li>100% deterministic recall — no black-box forgetting at scale.</li>
-      </ul>
-      <div class="pcta"><a href="inside_attestor.html" class="btn btn-n">Read the architecture →</a><a href="https://github.com/bolnet/context-clock" class="btn btn-ghost">Run the benchmark</a></div>
-    </div>
-
-    <!-- DEV -->
-    <div class="panel" role="tabpanel" aria-labelledby="tab-dev" id="dev">
-      <h3>Cut token burn 21× with two API calls. No model change, no prompt rewrite.</h3>
-      <div class="hook">By turn 100 your agent reads 8,700 input tokens per call just to answer one question. You built that in. Here's the entire fix:</div>
-      <div class="minicode">
-<span class="kw">await</span> attestor.<span class="fn">add</span>(namespace, content)<br>
-facts = <span class="kw">await</span> attestor.<span class="fn">recall</span>(namespace, query)
+    <div class="sits">
+      <div class="sit">
+        <h3>A security review is next quarter.</h3>
+        <p class="ask">"Which of your agents can modify shared state, and how do you know a compromised sub-agent can't wipe it?"</p>
+        <p class="k">Roles are enforced at the context layer, before any backend call. Forget is a separate permission from write. Budgets and write caps are properties of the context, so containment is by construction. The reviewer can read <code>ROLE_PERMISSIONS</code> and stop there.</p>
       </div>
-      <p>That's it. Per-call context drops from a climbing parabola to a flat ~200 tokens, your session-length caps come off, and recall holds at 100% across all 100 turns. <strong>Measure first</strong> — context-clock runs locally on Ollama, no API keys.</p>
-      <ul>
-        <li>Drop-in: no pipeline overhaul, no lock-in (MIT).</li>
-        <li>DeepSeek-v3.2 session cost: <strong>$0.16 → $0.009</strong>.</li>
-        <li>99 tests — reproduce every number on this page.</li>
-      </ul>
-      <div class="pcta"><a href="inside_attestor.html" class="btn btn-g">Ship the fix →</a><a href="https://github.com/bolnet/context-clock" class="btn btn-ghost">Fork the benchmark</a></div>
-    </div>
-  </section>
-
-  <!-- HOW -->
-  <section id="how">
-    <h2>Stop replaying. <span class="ital">Start retrieving.</span></h2>
-    <p class="sec-lede">Two failure modes, one architecture that beats both — without sacrificing what the model remembers.</p>
-    <table class="cmp">
-      <thead><tr><th></th><th>Full-context replay, the default</th><th class="good">Attestor, retrieved memory</th></tr></thead>
-      <tbody>
-        <tr><td class="dim">Input tokens per call</td><td data-h="Replay">Grow with the transcript: <span class="n">O(n²)</span> over a session</td><td class="good" data-h="Attestor">Flat at <span class="n">~200</span> tokens, turn 1 or turn 100</td></tr>
-        <tr><td class="dim">Under a context cap</td><td data-h="Replay">Silent memory loss; recall falls <span class="n">100% → 0%</span> by turn 10</td><td class="good" data-h="Attestor">No truncation, no forgetting; recall held on every turn</td></tr>
-        <tr><td class="dim">Determinism and audit</td><td data-h="Replay">Non-deterministic at scale, no trail of what was believed when</td><td class="good" data-h="Attestor">Bitemporal log; any past state is reproducible</td></tr>
-        <tr><td class="dim">Cost as engagement grows</td><td data-h="Replay">Compounds; your most engaged users cost the most</td><td class="good" data-h="Attestor">Fixed per turn. Two API calls. MIT.</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <!-- DETAIL (benchmark) -->
-  <style>
-  /* Content is visible by default; motion is additive (bars grow from their final width when observed). */
-  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:40px}
-  .dcard h3{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--navy);line-height:1.15;margin-bottom:20px;letter-spacing:-0.01em}
-  .dcard p{font-size:15.5px;color:var(--ink2);margin-top:18px;line-height:1.5;max-width:44ch}
-  @media(max-width:760px){.detail-grid{grid-template-columns:1fr;gap:40px}}
-  .cbar{display:flex;align-items:center;gap:14px;margin-bottom:14px}
-  .cbar-lbl{font-family:var(--mono);font-size:12px;color:var(--ink3);min-width:128px}
-  .cbar-track{flex:1;height:14px;background:var(--paper)}
-  .cbar-fill{height:100%;transform-origin:left;transition:transform 1.2s cubic-bezier(.2,.7,.2,1)}
-  .cbar-val{font-family:var(--mono);font-size:14px;font-weight:600;min-width:56px;text-align:right;font-variant-numeric:tabular-nums}
-  .rcurve{display:flex;flex-direction:column;gap:12px}
-  .rc{display:flex;align-items:center;gap:14px}
-  .rc>span{font-family:var(--mono);font-size:12px;color:var(--ink3);min-width:40px}
-  .rc-track{flex:1;height:14px;background:var(--paper)}
-  .rc-fill{height:100%;background:var(--g2);transform-origin:left;transition:transform 1s cubic-bezier(.2,.7,.2,1)}
-  .rc>b{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--g2);min-width:52px;text-align:right;font-variant-numeric:tabular-nums}
-  .method{margin-top:48px;padding-top:28px;border-top:1px solid var(--ink2);max-width:72ch}
-  .method h3{font-family:var(--serif);font-size:20px;font-weight:600;color:var(--navy);margin-bottom:12px}
-  .method ul{list-style:none;margin:6px 0 22px}
-  .method li{font-size:16px;color:var(--ink2);padding-left:18px;position:relative;margin-bottom:8px;line-height:1.5}
-  .method li::before{content:'';position:absolute;left:0;top:.68em;width:8px;height:1px;background:var(--g2)}
-  .method code{font-family:var(--mono);font-size:.85em;background:var(--paper);padding:1px 5px;border-radius:3px}
-  </style>
-  <section id="detail">
-    <h2>The benchmark, in <span class="ital">detail</span>.</h2>
-    <p class="sec-lede">Every claim here is measured on a deterministic, single-fact workload — verify it yourself with the open-source <a href="https://github.com/bolnet/context-clock" style="color:var(--g2)">context-clock</a> harness.</p>
-    <p class="facts"><span><b>6</b> models, open and closed</span><span><b>100</b> turns per session</span><span><b>99</b> tests, every number reproducible</span><span><b>100%</b> recall held on every turn</span></p>
-
-    <div class="detail-grid">
-      <div class="dcard">
-        <h3>Per-call context — what the model reads each turn</h3>
-        <div class="cbar"><span class="cbar-lbl">replay · turn 100</span><div class="cbar-track"><div class="cbar-fill grow" data-w="100" style="width:100%;background:#7a1a1a"></div></div><span class="cbar-val" style="color:#7a1a1a">8,709</span></div>
-        <div class="cbar"><span class="cbar-lbl">attestor · any turn</span><div class="cbar-track"><div class="cbar-fill grow" data-w="2.4" style="width:2.4%;background:#2a5c3a"></div></div><span class="cbar-val" style="color:#2a5c3a">~209</span></div>
-        <p>Replay climbs every turn toward the window; Attestor stays flat at ~209 tokens from turn 1 to turn 100.</p>
+      <div class="sit">
+        <h3>A regulator can ask what the system believed on a date.</h3>
+        <p class="ask">"Reconstruct the information your agent had when it made this recommendation on the fourteenth."</p>
+        <p class="k"><code>recall(as_of=…)</code> returns the belief of that moment. Nothing was deleted to get there — later contradictions superseded earlier facts, and both are still in the log with valid time and transaction time. Provenance names the agent and session for every row.</p>
       </div>
-      <div class="dcard">
-        <h3>The gap widens with session length</h3>
-        <div class="rcurve">
-          <div class="rc"><span>t24</span><div class="rc-track"><div class="rc-fill grow" data-w="26" style="width:26%"></div></div><b>5.6×</b></div>
-          <div class="rc"><span>t50</span><div class="rc-track"><div class="rc-fill grow" data-w="51" style="width:51%"></div></div><b>11.0×</b></div>
-          <div class="rc"><span>t75</span><div class="rc-track"><div class="rc-fill grow" data-w="75" style="width:75%"></div></div><b>16.2×</b></div>
-          <div class="rc"><span>t100</span><div class="rc-track"><div class="rc-fill grow" data-w="100" style="width:100%"></div></div><b>21.5×</b></div>
-        </div>
-        <p>Input-token reduction (gpt-5.4). A straight line against a parabola: the ratio is unbounded.</p>
+      <div class="sit">
+        <h3>It's 3 a.m. and an agent did something wrong.</h3>
+        <p class="ask">"Which memory did it act on, who wrote that memory, and why did it rank first?"</p>
+        <p class="k">The read path is deterministic: re-run the query with the same context and you get the same order, step by step. The memory carries its author, its session and, if signing is on, a verifiable signature. Then fix the fact, supersede it, and the next call sees the correction.</p>
       </div>
     </div>
+  </section>
 
-    <div class="method">
-      <h3>Method, and honest scope</h3>
-      <ul>
-        <li>One unique code per memo (needle-in-a-haystack), retrieved <b>top-1</b>, no distractors — isolates "does the agent still have the fact?"</li>
-        <li><b>Native context window</b> — models run at full capacity; capping is shown only to reproduce the cap-and-rot failure mode.</li>
-        <li>100% recall = the right memo is reliably found and read — not a claim about hard multi-hop or conflicting-fact retrieval.</li>
-        <li><b>temperature 0</b>, deterministic; real billed cost from OpenRouter <code>usage.cost</code>, never list-price math.</li>
-      </ul>
-      <a href="context-clock-benchmark.html" class="btn btn-n">Full methodology + per-turn data →</a>
+  <!-- RUN -->
+  <section id="run">
+    <h2>Runs where you <span class="ital">run</span>.</h2>
+    <p class="sec-lede">One API across three topologies. Only the configuration changes. Postgres is the source of truth; Pinecone vectors and the Neo4j graph are derived state, rebuildable from it.</p>
+
+    <div class="modes">
+      <div class="mode"><h3>Embedded library</h3><p><code>AgentMemory(config)</code> in process, talking directly to the three stores. The Claude Code plugin and MCP server run this way.</p></div>
+      <div class="mode"><h3>Sidecar</h3><p><code>attestor api</code> on localhost; any language talks HTTP to the same stores. RBAC stays an <code>AgentContext</code> guarantee; the REST surface relies on its own auth.</p></div>
+      <div class="mode"><h3>Shared service</h3><p>One Attestor in front of a mesh — App Runner, Cloud Run or Container Apps — on managed Postgres, Pinecone and Neo4j.</p></div>
+    </div>
+
+    <div class="install">
+      <div>
+        <h3 style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--navy);margin-bottom:10px">Local, in one command.</h3>
+        <p>Zero questions. It writes the config, brings up Postgres, Pinecone Local and Neo4j in Docker, wires the MCP server and hooks for Claude Code, and runs <code>attestor doctor</code>. <code>attestor teardown</code> reverses it and keeps your data unless you say otherwise.</p>
+      </div>
+      <div class="code" aria-label="install command">$ pipx install attestor
+$ attestor quickstart</div>
     </div>
   </section>
-  <script>
-  (function(){
-    /* Bars render at their final width without JS. With JS and motion allowed, each bar
-       grows from zero the first time it scrolls into view — motion is additive, never gating. */
-    if(!('IntersectionObserver' in window))return;
-    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    var bars=document.querySelectorAll('.grow');
-    bars.forEach(function(b){b.style.transition='none';b.style.transform='scaleX(0)';});
-    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;var t=e.target;
-      t.style.transition='';requestAnimationFrame(function(){t.style.transform='scaleX(1)';});
-      io.unobserve(t);})},{threshold:.4});
-    bars.forEach(function(b){io.observe(b)});
-  })();
-  </script>
 
-  <!-- CTA BAND -->
+  <!-- PROVENANCE OF THE CODE -->
+  <section id="provenance">
+    <div class="prov">
+      <div>
+        <h2>Provenance, all the way <span class="ital">down</span>.</h2>
+        <p class="sec-lede">A memory layer that sells auditability should be auditable itself. The repository is held to the same standard as the data it stores.</p>
+      </div>
+      <ul>
+        <li><strong>Every source file carries an SPDX header</strong> naming its author and licence, so a copy is a copy with a name on it.</li>
+        <li><strong>Commits are SSH-signed</strong> and the repository runs in vigilant mode, so unsigned history shows as such.</li>
+        <li><strong>Releases are timestamped on Bitcoin</strong> with OpenTimestamps — the <code>.ots</code> proofs ship in <code>artifacts/provenance/</code> and verify offline against the chain.</li>
+        <li><strong>No benchmark numbers in the repo.</strong> Figures go stale; the harness that produces them is open and you run it yourself.</li>
+      </ul>
+    </div>
+  </section>
+
   <div class="band">
     <div>
-      <h3>Tokenmaxing isn't a model swap. It's an architecture.</h3>
-      <p>Measure your agent's token waste with context-clock, then fix it with Attestor — flat context, 21× fewer input tokens, 100% recall. Both free, both open source.</p>
+      <h2>Hold every option to the checklist.</h2>
+      <p>Roles, budgets, tenancy, provenance, replay, auditable forget — with file references. Including this one.</p>
     </div>
     <div class="band-cta">
       <a href="inside_attestor.html" class="btn btn-white">Read the architecture →</a>
-      <a href="https://github.com/bolnet/context-clock" class="btn btn-outline">Run the benchmark first</a>
+      <a href="https://github.com/bolnet/attestor" class="btn btn-outline">Read the source</a>
     </div>
   </div>
 
@@ -433,84 +396,13 @@ facts = <span class="kw">await</span> attestor.<span class="fn">recall</span>(na
 <footer>
   <div class="wrap foot-in">
     <div class="foot-links">
-      <a href="inside_attestor.html">attestor.dev</a>
-      <a href="https://github.com/bolnet/context-clock">github.com/bolnet/context-clock</a>
+      <a href="https://github.com/bolnet/attestor">github.com/bolnet/attestor</a>
+      <a href="https://pypi.org/project/attestor/">pypi.org/project/attestor</a>
+      <a href="inside_attestor.html">Architecture</a>
     </div>
-    <span class="foot-note"><span class="tag">FREE · OPEN SOURCE · MIT</span> &nbsp; Attestor — bitemporal memory for agents</span>
+    <span class="foot-note"><span class="tag">MIT</span>Attestor — governed memory for multi-agent production meshes</span>
   </div>
 </footer>
-
-<script>
-  const tabs=[...document.querySelectorAll('.tab')];
-  const panels=[...document.querySelectorAll('.panel')];
-  function select(t){
-    tabs.forEach(x=>{x.setAttribute('aria-selected', x===t);x.tabIndex=x===t?0:-1;});
-    panels.forEach(p=>p.setAttribute('data-active', p.id===t.dataset.tab));
-  }
-  tabs.forEach((t,i)=>{
-    t.tabIndex=t.getAttribute('aria-selected')==='true'?0:-1;
-    t.addEventListener('click',()=>select(t));
-    t.addEventListener('keydown',e=>{
-      const d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0; if(!d)return;
-      e.preventDefault(); const n=tabs[(i+d+tabs.length)%tabs.length]; select(n); n.focus();
-    });
-  });
-</script>
-
-<script>
-/* Parabola growth — cumulative-input chart grows turn-by-turn (linear in turns,
-   y follows t²): creeps early, accelerates late. Dot + turn label ride the curve;
-   pulse ring every 10 turns. Triggers on scroll; click chart to replay. */
-(function(){
-  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function fmt(n){return n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?Math.round(n/1e3)+'K':Math.round(n);}
-  function run(svg){
-    var rl=svg.querySelector('.c-raw'),rf=svg.querySelector('.c-rawfill'),ml=svg.querySelector('.c-mem'),
-        rd=svg.querySelector('.c-rawdot'),md=svg.querySelector('.c-memdot'),lb=svg.querySelector('.c-lbl'),
-        tn=svg.querySelector('.c-turn'),pg=svg.querySelector('.c-pulses');
-    if(!rl)return;
-    var X0=70,X1=730,Y0=290,RT=42,MT=279,N=100,DUR=reduce?0:4200,RAWMAX=1326734,MEMMAX=61818;
-    var hud=(svg.parentNode&&svg.parentNode.querySelector)?svg.parentNode.querySelector('.chart-hud'):null,
-        ns=hud?hud.querySelectorAll('.hud-item .n'):[];
-    function x(t){return X0+(X1-X0)*t;} function ry(t){return Y0-(Y0-RT)*t*t;} function my(t){return Y0-(Y0-MT)*t;}
-    function pulse(cx,cy){
-      if(reduce||!pg)return;
-      var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
-      c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('fill','none');
-      c.setAttribute('stroke','#7a1a1a');c.setAttribute('stroke-width','2');pg.appendChild(c);
-      var s=null;(function pf(t){if(!s)s=t;var q=Math.min(1,(t-s)/640);
-        c.setAttribute('r',(6+q*24).toFixed(1));c.setAttribute('opacity',(0.7*(1-q)).toFixed(2));
-        if(q<1)requestAnimationFrame(pf);else if(c.parentNode)pg.removeChild(c);})(performance.now());
-      rd.setAttribute('r','8');setTimeout(function(){rd.setAttribute('r','5');},170);
-    }
-    while(pg&&pg.firstChild)pg.removeChild(pg.firstChild);
-    var lastMile=0,start=null;
-    (function frame(ts){if(!start)start=ts;var p=DUR?Math.min(1,(ts-start)/DUR):1;
-      var d='M'+X0+' '+Y0;
-      for(var i=1;i<=N;i++){var t=p*i/N;d+=' L'+x(t).toFixed(1)+' '+ry(t).toFixed(1);}
-      rl.setAttribute('d',d); rf.setAttribute('d',d+' L'+x(p).toFixed(1)+' '+Y0+' Z');
-      ml.setAttribute('d','M'+X0+' '+Y0+' L'+x(p).toFixed(1)+' '+my(p).toFixed(1));
-      rd.setAttribute('cx',x(p));rd.setAttribute('cy',ry(p));md.setAttribute('cx',x(p));md.setAttribute('cy',my(p));
-      var turn=Math.round(p*100);
-      if(tn){tn.setAttribute('opacity',(p>0.02&&p<0.99)?'1':'0');tn.setAttribute('x',x(p));tn.setAttribute('y',(ry(p)-12).toFixed(1));tn.textContent='t'+turn;}
-      if(ns.length>=3){ns[0].textContent='t'+turn;ns[1].textContent=fmt(RAWMAX*p*p);ns[2].textContent=fmt(MEMMAX*p);}
-      var mile=Math.floor(turn/10);
-      if(mile>lastMile&&turn>0&&turn<100){lastMile=mile;pulse(x(p),ry(p));}
-      if(lb)lb.setAttribute('opacity',(p>0.85?(p-0.85)/0.15:0).toFixed(2));
-      if(p<1)requestAnimationFrame(frame);
-      else{if(ns.length>=3){ns[0].textContent='t100';ns[1].textContent='1.33M';ns[2].textContent='61.8K';}
-           if(tn)tn.setAttribute('opacity','0');pulse(x(1),ry(1));}
-    })(performance.now());
-  }
-  document.querySelectorAll('svg').forEach(function(svg){
-    if(!svg.querySelector('.c-raw'))return;
-    var fired=false;
-    new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&!fired){fired=true;run(svg);}});},{threshold:.35}).observe(svg);
-    var wrap=svg.closest('.chartwrap')||svg.parentNode;
-    if(wrap){wrap.style.cursor='pointer';wrap.setAttribute('title','click to replay');wrap.addEventListener('click',function(){run(svg);});}
-  });
-})();
-</script>
 
 </body>
 </html>
