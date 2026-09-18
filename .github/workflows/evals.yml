@@ -68,6 +68,41 @@ jobs:
           "
 
   # ────────────────────────────────────────────────────────────────────────
+  # Always-on: durable (Temporal) unit tests. The time-skipping test
+  # server binary (~64 MB) is cached by temporalio version and handed to
+  # the fixture via ATTESTOR_TEMPORAL_TEST_SERVER_DIR
+  # (tests/conftest.py::temporal_env). No live Temporal server needed;
+  # the live test stays env-gated on ATTESTOR_TEMPORAL_ADDRESS.
+  # ────────────────────────────────────────────────────────────────────────
+  durable-unit:
+    name: Unit tests (durable / Temporal)
+    runs-on: ubuntu-latest
+    env:
+      ATTESTOR_TEMPORAL_TEST_SERVER_DIR: ${{ github.workspace }}/.temporal-test-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install project + durable extra
+        run: poetry install --with dev --extras durable
+
+      - name: Cache Temporal test-server binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ATTESTOR_TEMPORAL_TEST_SERVER_DIR }}
+          key: temporal-test-server-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+
+      - name: Run durable tests
+        run: poetry run pytest -q tests/test_durable_*.py
+
+  # ────────────────────────────────────────────────────────────────────────
   # Always-on: gate. Runs after unit tests pass. Loads any uploaded
   # benchmark summaries (none in the unit-test job — uploads come from
   # the heavy benchmark job below) and compares them to the published

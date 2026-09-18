@@ -147,6 +147,30 @@ class ConsolidationQueue:
         self._conn.commit()
         return [QueuedEpisode.from_row(dict(r)) for r in rows]
 
+    # ── Re-read ──────────────────────────────────────────────────────────
+
+    def fetch_claimed(self, episode_id: str, *, user_id: str) -> QueuedEpisode | None:
+        """Return the row for ``episode_id`` iff it is currently claimed
+        (``processing``) and owned by ``user_id``; else ``None``.
+
+        Used by the durable worker, which receives only identifiers from
+        Temporal and must re-read the conversation text from Postgres.
+        Scoping on ``user_id`` keeps an admin-bypass connection from
+        consolidating one user's row under another user's RLS scope.
+        """
+        with self._conn.cursor(
+            cursor_factory=psycopg2.extras.RealDictCursor,
+        ) as cur:
+            cur.execute(
+                "SELECT * FROM episodes "
+                "WHERE id = %s AND user_id = %s "
+                "  AND consolidation_state = 'processing'",
+                (episode_id, user_id),
+            )
+            row = cur.fetchone()
+        self._conn.commit()
+        return QueuedEpisode.from_row(dict(row)) if row else None
+
     # ── Lifecycle ────────────────────────────────────────────────────────
 
     def mark_done(self, episode_id: str) -> None:

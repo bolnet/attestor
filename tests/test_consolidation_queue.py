@@ -184,6 +184,34 @@ def test_dequeue_returns_empty_when_drained(admin_conn, seeded_episodes):
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# fetch_claimed — re-read a claimed row by (id, user) for the durable worker
+# ──────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.live
+def test_fetch_claimed_returns_processing_row_for_owner(admin_conn, seeded_episodes):
+    from attestor.consolidation.queue import ConsolidationQueue
+    q = ConsolidationQueue(admin_conn)
+    claimed = q.dequeue_batch(limit=1)[0]
+    row = q.fetch_claimed(claimed.id, user_id=claimed.user_id)
+    assert row is not None
+    assert row.id == claimed.id
+    assert row.user_turn_text == claimed.user_turn_text
+
+
+@pytest.mark.live
+def test_fetch_claimed_returns_none_for_pending_or_other_user(admin_conn, seeded_episodes):
+    from attestor.consolidation.queue import ConsolidationQueue
+    q = ConsolidationQueue(admin_conn)
+    claimed = q.dequeue_batch(limit=1)[0]
+    pending_id = seeded_episodes[-1]
+    assert q.fetch_claimed(pending_id, user_id=claimed.user_id) is None
+    assert q.fetch_claimed(claimed.id, user_id=str(uuid.uuid4())) is None
+    q.mark_done(claimed.id)
+    assert q.fetch_claimed(claimed.id, user_id=claimed.user_id) is None
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # Lifecycle transitions
 # ──────────────────────────────────────────────────────────────────────────
 

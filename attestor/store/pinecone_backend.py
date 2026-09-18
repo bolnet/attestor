@@ -36,7 +36,12 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, ClassVar
+from collections.abc import Callable  # noqa: TC003 - runtime use in _data_plane
+from typing import Any, ClassVar, TypeVar
+
+from attestor.store._pinecone_grpc import bind_local_grpc_index
+
+T = TypeVar("T")
 
 logger = logging.getLogger("attestor.store.pinecone")
 
@@ -119,20 +124,8 @@ class PineconeBackend:
         # Create the index if missing. Pinecone Local accepts the same
         # ServerlessSpec shape as cloud — region/cloud are recorded
         # but irrelevant for the emulator.
-        existing = {i.name for i in self._pc.list_indexes()}
-        if self._index_name not in existing:
-            logger.info(
-                "Pinecone: creating index %r (dim=%d, metric=%s)",
-                self._index_name, self._dimension, self._metric,
-            )
-            self._pc.create_index(
-                name=self._index_name,
-                dimension=self._dimension,
-                metric=self._metric,
-                spec=self._serverless_spec_cls(
-                    cloud=self._cloud, region=self._region,
-                ),
-            )
+        if not self._index_exists():
+            self._create_index()
 
         # Bind the data-plane client. For Local, route to the index's
         # localhost port via gRPC + insecure config.
@@ -143,17 +136,7 @@ class PineconeBackend:
         # which made every caller pay the readiness cost up front, even
         # if no Pinecone calls ever happened (e.g. when the orchestrator
         # falls back to a different backend). See ``_ensure_ready``.
-        if self._is_local:
-            desc = self._pc.describe_index(self._index_name)
-            # pinecone 9.x: GRPCClientConfig is gone and PineconeGRPC.Index()
-            # rejects a `secure=` kwarg, so construct GrpcIndex directly —
-            # `secure=False` selects http (the local emulator's transport).
-            from pinecone.grpc import GrpcIndex
-            self._index = GrpcIndex(
-                host=desc.host, api_key=self._api_key, secure=False
-            )
-        else:
-            self._index = self._pc.Index(name=self._index_name)
+        self._bind_index()
 
         # Embedder — same provider chain as pgvector for an apples-to-
         # apples comparison.
@@ -178,7 +161,7 @@ class PineconeBackend:
                 desc = self._pc.describe_index(self._index_name)
                 if getattr(desc.status, "ready", False):
                     return
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.debug(
                     "Pinecone: describe_index probe failed: %s", e,
                 )
@@ -187,20 +170,86 @@ class PineconeBackend:
             f"Pinecone index {self._index_name!r} not ready within {timeout}s",
         )
 
-    def _ensure_ready(self) -> None:
-        """Block until the Pinecone index is reported ``ready``, exactly once.
+    def _index_exists(self) -> bool:
+        """True when the control plane lists our index. A control-plane
+        outage reports True so we never try to create during a blip; the
+        readiness probe then fails transiently, as before."""
+        try:
+            return self._index_name in {i.name for i in self._pc.list_indexes()}
+        except Exception as e:
+            logger.debug("Pinecone: list_indexes failed: %s", e)
+            return True
 
-        Called at the top of every public method that touches the
-        index. After the first successful probe ``self._ready`` flips
-        to True and subsequent calls are O(1). The flag isn't lock-
-        guarded — a race between two concurrent first-callers is
-        harmless because the underlying Pinecone client serializes
-        on the same TCP/gRPC pool anyway.
-        """
+    def _create_index(self) -> None:
+        logger.info(
+            "Pinecone: creating index %r (dim=%d, metric=%s)",
+            self._index_name, self._dimension, self._metric,
+        )
+        self._pc.create_index(
+            name=self._index_name,
+            dimension=self._dimension,
+            metric=self._metric,
+            spec=self._serverless_spec_cls(cloud=self._cloud, region=self._region),
+        )
+
+    def _bind_index(self) -> None:
+        """Bind the data-plane handle. Local → SDK-version-aware insecure
+        gRPC (see ``_pinecone_grpc``); cloud → the standard client."""
+        if self._is_local:
+            desc = self._pc.describe_index(self._index_name)
+            self._index = bind_local_grpc_index(
+                self._pc, index_name=self._index_name,
+                host=desc.host, api_key=self._api_key,
+            )
+        else:
+            self._index = self._pc.Index(name=self._index_name)
+
+    def _heal_index(self) -> None:
+        """Recreate + rebind after the index vanished (Pinecone Local is
+        in-memory, so a container restart drops it; a cloud index can be
+        deleted). Derived state is rebuildable from Postgres, so an empty
+        recreated index is the correct recovery, not an error."""
+        self._ready = False
+        if not self._index_exists():
+            logger.warning(
+                "Pinecone: index %r is missing; recreating it "
+                "(run `attestor durable rebuild` to repopulate)", self._index_name,
+            )
+            self._create_index()
+        self._wait_until_ready(timeout=30.0)
+        self._bind_index()
+        self._ready = True
+
+    def _ensure_ready(self) -> None:
+        """Block until the index is reported ``ready``, exactly once per
+        healthy period. A missing index is healed here; a data-plane
+        failure after the flag is cached is healed by ``_data_plane``."""
         if self._ready:
+            return
+        if not self._index_exists():
+            self._heal_index()
             return
         self._wait_until_ready(timeout=30.0)
         self._ready = True
+
+    def _data_plane(self, op: Callable[[], T]) -> T:
+        """Run one index call; on failure heal the index once and retry once."""
+        self._ensure_ready()
+        try:
+            return op()
+        except Exception as first:
+            logger.warning(
+                "Pinecone: data-plane call failed (%s: %s); healing index once",
+                type(first).__name__, first,
+            )
+            try:
+                self._heal_index()
+            except Exception as heal_exc:
+                # Surface the ORIGINAL failure — the heal is a best-effort
+                # recovery, not the error the caller needs to see.
+                logger.warning("Pinecone: heal failed (%s: %s)", type(heal_exc).__name__, heal_exc)
+                raise first from None
+            return op()
 
     def _embed(self, text: str) -> list[float]:
         """Run the configured embedder. Defensive: a missing embedder
@@ -224,16 +273,15 @@ class PineconeBackend:
         same scoping shape as pgvector. Default namespace ("default")
         matches the Postgres path's behavior.
         """
-        self._ensure_ready()
         embedding = self._embed(content)
-        self._index.upsert(
+        self._data_plane(lambda: self._index.upsert(
             vectors=[{
                 "id": memory_id,
                 "values": embedding,
                 "metadata": {"namespace": namespace},
             }],
             namespace=namespace,
-        )
+        ))
 
     def upsert_with_embedding(
         self,
@@ -248,12 +296,11 @@ class PineconeBackend:
         (e.g. the bakeoff's hermetic re-runs that re-use the same
         Voyage cache across pgvector AND Pinecone).
         """
-        self._ensure_ready()
         meta = {"namespace": namespace, **(metadata or {})}
-        self._index.upsert(
+        self._data_plane(lambda: self._index.upsert(
             vectors=[{"id": memory_id, "values": embedding, "metadata": meta}],
             namespace=namespace,
-        )
+        ))
 
     def search(
         self,
@@ -282,16 +329,15 @@ class PineconeBackend:
                 "ignoring (returning non-temporal results).",
             )
 
-        self._ensure_ready()
         query_vec = self._embed(query_text)
         ns = namespace or "default"
-        result = self._index.query(
+        result = self._data_plane(lambda: self._index.query(
             vector=query_vec,
             top_k=int(limit),
             namespace=ns,
             include_values=False,
             include_metadata=False,
-        )
+        ))
 
         out: list[dict[str, Any]] = []
         for match in (result.matches or []):
@@ -302,52 +348,94 @@ class PineconeBackend:
             })
         return out
 
-    def delete(self, memory_id: str) -> bool:
-        """Delete one vector by id from the default namespace.
+    def delete(self, memory_id: str, namespace: str = "default") -> bool:
+        """Delete one vector by id from ``namespace``.
+
+        ``namespace`` MUST be the namespace the memory was written to
+        (see ``add()``) — a memory living in a non-default namespace
+        that's deleted against ``"default"`` silently survives while
+        the caller is told the delete succeeded. Defaulting to
+        ``"default"`` here only preserves behavior for callers that
+        never adopted namespaces; every namespace-aware caller must
+        pass the memory's actual namespace explicitly.
 
         Returns True for the common case (Pinecone delete is
         idempotent — it doesn't tell you whether the id existed).
         """
         self._ensure_ready()
         try:
-            self._index.delete(ids=[memory_id], namespace="default")
+            self._index.delete(ids=[memory_id], namespace=namespace)
             return True
-        except Exception as e:  # noqa: BLE001
-            logger.debug("Pinecone delete failed for %s: %s", memory_id, e)
+        except Exception as e:
+            logger.debug(
+                "Pinecone delete failed for %s (namespace=%s): %s",
+                memory_id, namespace, e,
+            )
             return False
+
+    def _list_namespaces(self) -> list[str]:
+        """Enumerate every namespace currently present in the index.
+
+        An empty / fresh index reports no namespaces → ``["default"]``.
+        A failing stats probe is NOT swallowed: it goes through
+        ``_data_plane`` (one heal + retry) and then propagates, so an
+        outage never turns a delete into a silent no-op.
+        """
+        stats = self._data_plane(lambda: self._index.describe_index_stats())
+        namespaces = list(getattr(stats, "namespaces", None) or {})
+        return namespaces or ["default"]
 
     def delete_by_user(self, user_id: str) -> int:
         """GDPR-style purge: delete every vector tagged with this
-        ``user_id``. Best-effort — Pinecone supports metadata-filter
-        deletes on Standard plans only (Free / Local Docker reject the
-        ``filter=`` argument); on those tiers we fall back to scanning
-        the user's namespace and dropping all ids in it. Returns the
-        count of vectors removed when it can be determined; 0 when the
-        backend reports no useful tally.
+        ``user_id`` across EVERY namespace in the index.
+
+        A user's memories are not guaranteed to live in a single
+        namespace (multi-project / multi-tenant callers write into
+        namespace-per-tenant), so a delete scoped to only "default"
+        leaves those vectors behind while reporting success — this is
+        the bug this method fixes.
+
+        Best-effort — Pinecone supports metadata-filter deletes on
+        Standard plans only (Free / Local Docker reject the ``filter=``
+        argument); on those tiers we fall back, per namespace, to a
+        full ``delete_all`` ONLY for a namespace whose name equals the
+        user id (the single-tenant-per-namespace convention some
+        callers use). We never ``delete_all`` a namespace that isn't
+        provably scoped to this user — that would silently destroy
+        other users' vectors in a shared namespace, which is worse
+        than under-deleting. Returns the count of vectors removed when
+        it can be determined; 0 when the backend reports no useful
+        tally.
         """
         self._ensure_ready()
-        # Try metadata-filter delete first (Standard plans).
-        try:
-            self._index.delete(
-                filter={"user_id": {"$eq": str(user_id)}},
-                namespace="default",
-            )
+        namespaces = self._list_namespaces()
+        metadata_filter = {"user_id": {"$eq": str(user_id)}}
+        filter_delete_ok = False
+        for ns in namespaces:
+            try:
+                self._index.delete(filter=metadata_filter, namespace=ns)
+                filter_delete_ok = True
+            except Exception as e:
+                logger.debug(
+                    "Pinecone delete_by_user metadata-filter rejected on "
+                    "namespace=%r (plan may not support filtered delete): %s",
+                    ns, e,
+                )
+        if filter_delete_ok:
             return 0  # Pinecone doesn't return a count; treat as opaque success
-        except Exception as e:  # noqa: BLE001
-            logger.debug(
-                "Pinecone delete_by_user metadata-filter rejected "
-                "(plan may not support filtered delete): %s", e,
-            )
-        # Fallback: drop every vector in the user's namespace. Callers
-        # that key Pinecone by user_id-as-namespace get a clean wipe;
-        # callers that share a namespace get nothing here and the
-        # forget_audit row will surface zero vectors deleted.
-        try:
-            self._index.delete(delete_all=True, namespace=str(user_id))
-            return 0
-        except Exception as e:  # noqa: BLE001
-            logger.debug("Pinecone delete_by_user fallback failed: %s", e)
-            return 0
+
+        # Fallback: drop every vector in a namespace that IS the user id.
+        # Callers that key Pinecone by user_id-as-namespace get a clean
+        # wipe; namespaces that merely happen to contain the user's
+        # vectors alongside others are left alone here — the
+        # forget_audit row will surface zero vectors deleted so the
+        # gap is visible rather than silently wiping shared data.
+        if str(user_id) in namespaces:
+            try:
+                self._index.delete(delete_all=True, namespace=str(user_id))
+            except Exception as e:
+                logger.debug("Pinecone delete_by_user fallback failed: %s", e)
+        return 0
 
     def count(self) -> int:
         """Total vectors across all namespaces."""
@@ -355,7 +443,7 @@ class PineconeBackend:
         try:
             stats = self._index.describe_index_stats()
             return int(getattr(stats, "total_vector_count", 0))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.debug("Pinecone count failed: %s", e)
             return 0
 
@@ -373,7 +461,7 @@ class PineconeBackend:
 
         try:
             self._pc.delete_index(self._index_name)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.debug("Pinecone reset: delete failed: %s", e)
         self._pc.create_index(
             name=self._index_name,
@@ -387,5 +475,5 @@ class PineconeBackend:
         # flag we just set.
         self._ready = False
         self._wait_until_ready()
+        self._bind_index()
         self._ready = True
-        self._index = self._pc.Index(name=self._index_name)

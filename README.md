@@ -1,15 +1,14 @@
 # Attestor
 
-**Cut your agent's token burn 21×. Two API calls.**
+**Governed memory for multi-agent production meshes.**
 
-Full-context replay re-reads the whole conversation every turn — input tokens that grow O(n²) and a bill that compounds with every session. Attestor retrieves only what's needed: flat ~200 tokens per call, 21× fewer input tokens by turn 100, 100% recall — measured across six models, open and closed.
+When many agents share one memory, recall is the easy part. The hard part is who may write, who may forget, what an answer was built from, and whether you can prove all of it later. Attestor is a self-hosted memory service that makes those properties enforceable in code rather than in policy documents: role-based access at the `AgentContext` layer, provenance on every memory (optionally Ed25519-signed), per-agent token budgets and write quotas, a deterministic ranking path with no LLM in it, temporal supersession you can query as of any past moment, hard tenant isolation across all three storage roles, an auditable, audit-first forget-user path with declarative retention, and governance jobs that run as durable Temporal workflows: retried by policy, resumed after a crash, visible in an operator UI, and never on the read path. It runs as a Python library, a REST sidecar, or an MCP server with the same API. Role enforcement is an `AgentContext` guarantee and runs in process. The REST and MCP surfaces call the store directly and rely on their own auth.
 
 ```python
-await attestor.add(namespace, content)          # when new information arrives
-facts = await attestor.recall(namespace, query) # ~200 flat tokens, always
+ctx = AgentContext(agent_id="reviewer-1", role=AgentRole.REVIEWER, namespace="acme-prod")
+ctx.add_memory("...")                              # PermissionError: REVIEWER lacks 'write'
+mem.recall("...", context=ctx, as_of=last_friday)  # what the mesh believed then — nothing is deleted
 ```
-
-Self-hosted, deterministic retrieval, zero LLM in the critical path. The memory layer for agent teams that need shared, tenant-isolated memory with bi-temporal replay and an auditable supersession chain.
 
 [![PyPI](https://img.shields.io/pypi/v/attestor?label=PyPI&color=C15F3C&labelColor=1A1614)](https://pypi.org/project/attestor/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/attestor?label=installs%2Fmo&color=C15F3C&labelColor=1A1614)](https://pypi.org/project/attestor/)
@@ -22,15 +21,9 @@ Self-hosted, deterministic retrieval, zero LLM in the critical path. The memory 
 pip install attestor
 ```
 
-> **Using Claude Code?** `pipx install attestor` then **`attestor quickstart`** — one command, zero questions: it brings up the local backends (Postgres + Pinecone Local + Neo4j), uses a local Ollama embedder (no cloud key), and wires the MCP server + hooks. Reverse it with `attestor teardown`. Or drive it from inside Claude Code via the plugin (`/plugin install attestor` → `/attestor:install-attestor`). See **[Install for Claude Code](#install-for-claude-code)**.
->
-> ```
-> pipx install attestor && attestor quickstart
-> ```
-
 | | |
 |---|---|
-| **Version** | `4.1.6` (stable; greenfield rebuild — no v3 migration path) |
+| **Version** | `4.1.11` (stable; greenfield rebuild — no v3 migration path) |
 | **PyPI** | `attestor` |
 | **Import** | `attestor` |
 | **Live site** | <https://attestor.dev/> |
@@ -43,33 +36,40 @@ pip install attestor
 
 ## What it is
 
-Attestor is a memory store for agent teams that need a **shared, tenant-isolated memory** with **bi-temporal replay**, **deterministic retrieval**, and an **auditable supersession chain**. It runs as a Python library, a Starlette REST service, or an MCP server — same API in all three.
+Attestor is the memory layer for an agent mesh that has to answer to someone — a security review, a regulator, a customer, or the engineer paged at 3 a.m. Every memory is stored once in Postgres (the source of truth) and derived into Pinecone (vectors) and Neo4j (graph). Every read and write goes through an `AgentContext` that carries identity, role, namespace, and budget, and the store keeps enough history that any past state can be reconstructed.
 
-**The token math:** Full-context replay is O(n²) — every turn re-reads the whole history. Attestor replaces that with O(n) targeted retrieval. Per-call context stays flat at ~200 tokens whether the agent is on turn 1 or turn 100. One Claude Opus 4 session at 100 turns: $24.15 → $1.24. Verify it yourself with [context-clock](https://github.com/bolnet/context-clock).
+### What it enforces
 
-| Turn | Full-context replay | Attestor | Reduction |
-|---|---|---|---|
-| t24 | growing | ~200 tok | 5.6× |
-| t50 | growing | ~200 tok | 11× |
-| t100 | 8,709 tok/call | ~200 tok | **21.5×** |
+Each guarantee below is a property of the code, not a roadmap item. File references point at the enforcing implementation.
 
-It is built around three claims, each grounded in code:
+| Guarantee | What the code does | Where |
+|---|---|---|
+| **Role-based access, six roles** | `ORCHESTRATOR` = read + write + forget; `PLANNER` / `EXECUTOR` / `RESEARCHER` = read + write; `REVIEWER` / `MONITOR` = read only. `read_only=True` is an independent kill switch that strips write + forget regardless of role. Violations raise `PermissionError` before any backend is touched. | `attestor/context.py` — `ROLE_PERMISSIONS`, `_require_permission` |
+| **Provenance on every memory** | Every write carries `agent_id`, `session_id`, `namespace`, and role; child contexts accumulate an `agent_trail`, so "which agent said this, on whose behalf" is answerable. `source_episode_id` is set by the episode consolidation path, not by every write. Supersession never deletes. Rows leave only through an explicit `forget_user()` (audited first), a retention `delete` policy (audited after), or `compact()` (not audited). Optional Ed25519 signing of `id ‖ agent_id ‖ t_created ‖ content_hash`, verified with `verify_memory()`. | `attestor/context.py`, `attestor/identity/signing.py` |
+| **Per-agent budgets and write quotas** | `token_budget` bounds what `recall()` packs for one `AgentContext`; it never limits writes. `max_writes_per_agent` is an in-memory counter on the context and resets with a new context. `set_quota()` sets a per-user daily write limit enforced on `add()`; it is per user, not per agent. | `attestor/context.py`, `attestor/core/quota_service.py`, `attestor/core/agent_memory.py` |
+| **Deterministic read path** | Ranking is vector → BM25 → RRF → graph → MMR → budget fit, with no LLM in scoring by default. Same query, same order, unit-testable and replayable. Query-expansion lanes (HyDE, multi-query) are YAML flags that add candidates; they never touch scoring. An optional reranker (`bge`, `cohere`, or `llm` provider) can re-score candidates; it is off by default. | `attestor/retrieval/orchestrator/core.py`, `attestor/retrieval/scorer.py`, `attestor/retrieval/reranker.py` |
+| **Temporal supersession, `as_of` replay** | Contradictions supersede older facts; supersession never deletes. Every fact carries valid time (`valid_from`, `valid_until`) and transaction time (`t_created`, `t_expired`). `recall(as_of=...)` filters candidates on transaction time at document hydration and in the BM25 lane; the Pinecone lane ignores `as_of` and logs a warning. | `attestor/temporal/manager.py`, `attestor/store/schema.sql`, `attestor/store/pinecone_backend.py` |
+| **Hard tenant isolation, all three roles** | Tenant is the user. Postgres: row-level security keyed to `attestor.current_user_id`, with `namespace` stamped into metadata. Pinecone: one index, partitioned by `namespace=` on every call. Neo4j: `namespace` property with a composite `(key, namespace)` constraint and namespace-scoped traversal; the PageRank projection is global and is a ranking signal only. | `attestor/store/schema.sql`, `attestor/store/pinecone_backend.py`, `attestor/store/neo4j_backend.py` |
+| **Auditable forget-user and retention** | `forget_user()` writes an RLS-exempt, append-only by convention `forget_audit` row *before* deleting, then walks document → state → vector → graph and reports per-backend counts so partial success is visible, never silent. Declarative retention policies (`archive` / `delete`, filtered by namespace, category, layer, tags, age) apply first and write a `forget_audit` row after; only `forget_user()` is audit-first. Full export for subject-access requests. | `attestor/compliance/retention.py`, `attestor/core/agent_memory.py` — `export_user`, `purge_user`, `deletion_audit_log` |
+| **Durable governance jobs** | Consolidation, derived-state repair (`attestor durable rebuild`), the audit-first forget-user saga, and retention / session sweeps run as Temporal workflows with explicit retry policies and an operator UI. The forget saga writes the audit row, deletes document rows, then runs vector, graph, and state concurrently; it retries each backend independently and reports partial state as a failure. Opt-in extra (`attestor[durable]`); the read path and the Claude Code hooks never touch it. | `attestor/durable/`, `docs/INSTALL.md` (Ch. 04) |
 
-1. **Bi-temporal — replay any past state.** Every memory has both event time (`valid_from` / `valid_until`) and transaction time (`t_created` / `t_expired`). Nothing is deleted; everything is queryable forever (`attestor/temporal/manager.py:43-73`, `core.py:888-890`).
-2. **Semantic-first retrieval, no LLM in the hot path.** A six-step deterministic pipeline. Same query → same ranking. Unit-testable (`attestor/retrieval/orchestrator.py:1-14`).
-3. **Conversation ingest with auditable conflict resolution.** Two-pass speaker-locked extraction, then a four-decision (`ADD / UPDATE / INVALIDATE / NOOP`) resolver per fact. Every supersession carries an `evidence_episode_id` (`attestor/extraction/conflict_resolver.py:98`).
+### How to evaluate it
+
+The nearest neighbours are the temporal-knowledge-graph memory layers (Zep, Graphiti). For a production mesh the useful comparison is not benchmark accuracy — it is whether the memory layer *itself* enforces roles, budgets, tenancy, provenance, and auditable deletion, or leaves each of those to the calling application. The table above is Attestor's answer; hold any alternative to the same checklist, with file references.
 
 ### Designed for
 
-- Multi-agent products where many LLMs write to the same memory store
-- Regulated chat systems that need point-in-time reconstruction (compliance, audit, FOIA-style queries)
-- Self-hosted deployments — your VPC, your Postgres, your Neo4j
+- Multi-agent products where many LLM-driven agents with different trust levels write to the same memory
+- Regulated systems that need point-in-time reconstruction and a defensible deletion story
+- Self-hosted deployments — your VPC, your Postgres, your Pinecone, your Neo4j
 
 ### *Not* designed for
 
-- A general-purpose vector database
-- A RAG framework with built-in chunking, reranking, and orchestration
+- A personal memory for a single coding assistant — the Claude Code plugin below is an on-ramp demo of the same engine, not the product
+- A general-purpose vector database or a RAG framework with chunking / reranking / orchestration
 - An LLM agent runtime — Attestor is the memory backend; the agent loop is yours
+
+> **Try it locally in one command.** `pipx install attestor && attestor quickstart` brings up Postgres + Pinecone Local + Neo4j in Docker and wires the Claude Code MCP server + hooks so you can watch the governance layer work on a real project. Details in [Quick start](#quick-start) and [Install for Claude Code](#install-for-claude-code) below.
 
 ---
 
@@ -121,7 +121,7 @@ To reverse it later: **`attestor teardown`** (zero-question; keeps your data vol
 
 **In Claude Code**, drive the same install conversationally: `/plugin marketplace add bolnet/attestor` → `/plugin install attestor` (then enable it), and run **`/attestor:install-attestor`** — it runs `attestor quickstart` for you. Cloud/managed backends (Neon / RDS / Cloud SQL, Pinecone Cloud, Neo4j AuraDB) and alternative embedders (Pinecone Inference `llama-text-embed-v2`, Voyage `voyage-4`, OpenAI `text-embedding-3`) are configured in `~/.attestor/attestor.yaml` (the single source of truth) — see [docs/INSTALL.md](docs/INSTALL.md).
 
-`attestor doctor` (run automatically at the end, or any time) checks all four subsystems: **Document Store** (Postgres), **Vector Store** (Pinecone), **Graph Store** (Neo4j), **Retrieval Pipeline**. The only hard dependency that *cannot* be down is the document store (Postgres); transient vector-probe failures are surfaced in the response trace rather than swallowed (`retrieval/orchestrator.py` — `vector_error` field).
+`attestor doctor` (run automatically at the end, or any time) checks all four subsystems: **Document Store** (Postgres), **Vector Store** (Pinecone), **Graph Store** (Neo4j), **Retrieval Pipeline**. The only hard dependency that *cannot* be down is the document store (Postgres); transient vector-probe failures are surfaced in the response trace rather than swallowed (`retrieval/orchestrator/debug.py` — `vector_error` field).
 
 ### 3. Use it
 
@@ -511,7 +511,7 @@ Every tenant table (`users`, `projects`, `sessions`, `episodes`, `memories`, `us
 
 ### The retrieval pipeline — semantic-first, six steps
 
-`attestor/retrieval/orchestrator.py` runs the same six steps for every query:
+`attestor/retrieval/orchestrator/core.py` runs the same six steps for every query:
 
 1. **Vector top-K** — Pinecone cosine, k=50 (pgvector remains as opt-in fallback for self-contained deploys)
 2. **Graph narrow** — Neo4j BFS depth ≤ 2 from each candidate's entity to the question entities; affinity bonus per hop (0-hop=+0.30, 1-hop=+0.20, 2-hop=+0.10; unreachable=−0.05). Discrete, not "soft".
@@ -551,6 +551,27 @@ Full design + audit-invariant matrix: [`docs/plans/async-retrieval/PLAN.md`](doc
 | **Graph** | Entity nodes + typed edges | Neo4j 5 + GDS | Apache AGE on AlloyDB, ArangoDB, Neptune, NetworkX (Azure) |
 
 Postgres is the source of truth. **Pinecone vectors and Neo4j graph are derived state, both rebuildable from Postgres** — but both are required for the canonical install: vector cosine is step 1 of the retrieval pipeline, graph expansion is step 2, and conversation ingest writes typed edges. The only role that cannot be down is the document store; the orchestrator records transient vector-probe failures in the response trace (`vector_error`) instead of swallowing them.
+
+### Durable governance jobs — the read path never waits, the jobs never quit
+
+Governance work that used to be a hand-rolled queue, a docstring promising a sweeper, or a warning-only write runs as Temporal workflows (`attestor/durable/`). Opt-in: `durable.enabled: false` by default; with it off, or the server unreachable, every job falls back to the in-process path it replaced.
+
+| Trigger | Workflow | What it guarantees |
+|---|---|---|
+| On every write | `DeriveMemory` | Vector and graph derivation is idempotent and retried, so derived state cannot silently drift from Postgres. |
+| On each episode | `ConsolidateEpisode` | Replaces the SKIP LOCKED queue and lease; a stuck or failed episode is visible, not lost. |
+| On a schedule | `RetentionSweep`, `SessionSweep` | Declarative retention and idle-session cleanup actually run, on a Temporal Schedule you apply once. |
+| On demand | `RebuildDerived`, `ForgetUser` | Rebuild Pinecone and Neo4j from Postgres. Forget as a saga: audit row first, then each backend with its own retry and result. |
+
+Two hard rules, enforced by `tests/test_durable_isolation.py`: **recall never touches Temporal and hooks never wait on it** (nothing under `attestor/retrieval/**` or `attestor/hooks/**` may import `attestor.durable` or `temporalio`), and **workflow payloads carry ids, never memory content**, so Postgres stays the only source of truth and Temporal holds job state only. Driver exceptions are sanitized before they reach workflow history.
+
+```bash
+attestor quickstart --durable      # Temporal server + UI (:8233) via compose profile `durable`
+attestor worker                    # the governance worker; needs durable.enabled: true
+attestor durable status            # probe the server, list schedules, describe a workflow
+attestor durable rebuild           # rebuild derived state from Postgres
+attestor durable schedules apply   # idempotent create-or-update of the retention / session schedules
+```
 
 ### Optional BM25 / FTS lane
 
@@ -910,7 +931,7 @@ attestor/
   graph/
     extractor.py           -- entity / relation extraction
   retrieval/
-    orchestrator.py        -- 6-step semantic-first pipeline
+    orchestrator/          -- 6-step semantic-first pipeline (core.py)
     tag_matcher.py
     scorer.py              -- MMR, confidence decay, entity boost, fit-to-budget
     trace.py               -- JSONL trace writer

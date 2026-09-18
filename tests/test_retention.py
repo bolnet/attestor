@@ -314,7 +314,7 @@ class _FakePostgres:
         deleted: list[dict[str, Any]] = []
         for row in self.memories:
             if self._matches_filter(row, sql, params):
-                deleted.append({"id": row.id})
+                deleted.append({"id": row.id, "namespace": row.namespace})
             else:
                 keep.append(row)
         self.memories = keep
@@ -367,10 +367,15 @@ class _VectorStub:
     def __init__(self) -> None:
         self.deleted_user_ids: list[str] = []
         self.calls: list[str] = []
+        self.delete_calls: list[tuple[str, str]] = []
 
     def delete_by_user(self, user_id: str) -> int:
         self.deleted_user_ids.append(user_id)
         return 7  # arbitrary deterministic count
+
+    def delete(self, memory_id: str, namespace: str = "default") -> bool:
+        self.delete_calls.append((memory_id, namespace))
+        return True
 
 
 class _GraphStub:
@@ -581,6 +586,42 @@ def test_apply_delete_action(db: _FakePostgres) -> None:
     assert result.memories_deleted == 2
     assert len(db.memories) == 1
     assert db.memories[0].id == keep[0].id
+
+
+def test_apply_delete_threads_memory_namespace_to_vector_store(
+    db: _FakePostgres,
+) -> None:
+    """Regression: a retention hard-delete on a memory living in a
+    non-default namespace must delete its vector from THAT namespace,
+    not a hardcoded 'default' — otherwise the vector survives forever
+    while the delete reports success."""
+    from attestor.compliance.retention import (
+        add_retention_policy,
+        apply_retention,
+    )
+
+    add_retention_policy(
+        db, name="delete-180d",
+        older_than_days=180, action="delete",
+    )
+    tenant_rows = _populate(
+        db, n=2, age_days=200, namespace="tenant-a",
+    )
+    default_rows = _populate(db, n=1, age_days=200, namespace="default")
+
+    vec = _VectorStub()
+    mem = _MemStub(db, vector=vec)
+    result = apply_retention(mem)
+
+    assert result.memories_deleted == 3
+    deleted_ids = {mid for mid, _ns in vec.delete_calls}
+    assert deleted_ids == {r.id for r in tenant_rows} | {r.id for r in default_rows}
+
+    by_id = dict(vec.delete_calls)
+    for row in tenant_rows:
+        assert by_id[row.id] == "tenant-a"
+    for row in default_rows:
+        assert by_id[row.id] == "default"
 
 
 def test_apply_namespace_filter(db: _FakePostgres) -> None:

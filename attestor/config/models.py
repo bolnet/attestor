@@ -747,6 +747,45 @@ class ComplianceCfg:
 
 
 @dataclass(frozen=True)
+class DurableSchedulesCfg:
+    """Cron specs (5-field) for the scheduled governance workflows.
+
+    Consumed by ``attestor.durable.schedules`` (Phase 3). Parsed and
+    validated in Phase 1 so the YAML block ships complete.
+    """
+
+    retention_sweep: str = "0 3 * * *"
+    session_sweep: str = "*/10 * * * *"
+
+
+@dataclass(frozen=True)
+class DurableCfg:
+    """Durable governance jobs via Temporal (``durable:`` top-level block).
+
+    Opt-in. When ``enabled`` is False every ``attestor.durable`` entry
+    point refuses loudly (``DurableDisabledError``) and runtime callers
+    (consolidator daemon, ``add()`` repair in Phase 2) stay in-process.
+    Recall and hooks never read this block — see
+    ``tests/test_durable_isolation.py``.
+
+    Configuration:
+      enabled     — master switch (default False; quickstart unchanged)
+      address     — Temporal frontend ``host:port``
+      namespace   — Temporal namespace (dev server: ``default``)
+      task_queue  — single task queue every Attestor worker polls
+      tls         — enable TLS on the client connection
+      schedules   — cron specs for RetentionSweep / SessionSweep
+    """
+
+    enabled: bool = False
+    address: str = "localhost:7233"
+    namespace: str = "attestor"
+    task_queue: str = "attestor-governance"
+    tls: bool = False
+    schedules: DurableSchedulesCfg = field(default_factory=DurableSchedulesCfg)
+
+
+@dataclass(frozen=True)
 class StackConfig:
     postgres: PostgresCfg
     neo4j: Neo4jCfg
@@ -765,6 +804,7 @@ class StackConfig:
     consolidation: ConsolidationCfg = field(default_factory=ConsolidationCfg)
     compliance: ComplianceCfg = field(default_factory=ComplianceCfg)
     pinecone: PineconeCfg | None = None
+    durable: DurableCfg = field(default_factory=DurableCfg)
 
 
 @dataclass(frozen=True)

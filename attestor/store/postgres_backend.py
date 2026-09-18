@@ -17,14 +17,18 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import psycopg2
 import psycopg2.extras
 
 from attestor.store._postgres_document import _PostgresDocumentMixin
 from attestor.store._postgres_vector import _PostgresVectorMixin
+from attestor.store.conn_lock import lock_for_connection
 from attestor.store.connection import CloudConnection
+
+if TYPE_CHECKING:
+    import threading
 
 logger = logging.getLogger("attestor")
 
@@ -70,13 +74,12 @@ class PostgresBackend(
 
         self._conn = psycopg2.connect(**connect_kwargs)
         self._conn.autocommit = True
-        # psycopg2 connections are not thread-safe per the docs ("can be
-        # used by a single thread at a time"). Multi-agent write paths
-        # can race on the same cursor; serialise every _execute /
-        # _execute_scalar with a per-instance lock. Cheap under the GIL,
-        # bulletproof under threaded ASGI servers and worker pools.
-        import threading
-        self._conn_lock = threading.Lock()
+        # psycopg2 cursors are not thread-safe. Multi-agent write paths
+        # and the durable worker's activity pool can race on the same
+        # connection; every statement — _execute / _execute_scalar here
+        # AND the raw-SQL helpers in compliance/ + identity/ — serialises
+        # on the ONE re-entrant lock the registry keys by connection.
+        self._conn_lock = lock_for_connection(self._conn)
 
         self._embedder = None  # lazy-init via shared embeddings module
         self._embedding_fn = None  # backward compat for benchmark code
@@ -115,17 +118,11 @@ class PostgresBackend(
 
     # ── Low-level SQL helpers (used by every mixin) ──
 
-    def _get_conn_lock(self) -> "threading.Lock":
-        # Lazy-init so callers that build the backend via ``__new__``
-        # (test harnesses, pickled-state restores) don't trip an
-        # AttributeError. The lock is per-instance; under contention
-        # the first caller wins the once-init.
-        lock = getattr(self, "_conn_lock", None)
-        if lock is None:
-            import threading
-            lock = threading.Lock()
-            self._conn_lock = lock
-        return lock
+    def _get_conn_lock(self) -> threading.RLock:
+        # Keyed by the connection object (not the backend instance) so
+        # helpers that only see ``self._conn`` hold the SAME lock, and
+        # ``__new__``-built instances (test harnesses) still get one.
+        return lock_for_connection(self._conn)
 
     def _execute(self, sql: str, params: Any = None) -> list[dict[str, Any]]:
         """Execute SQL and return rows as dicts."""
@@ -151,8 +148,12 @@ class PostgresBackend(
         filter by this user. Pass None / empty to clear (fail-closed).
 
         Must be called on every connection checkout once the v4 schema is
-        in use. No-op for v3 schema since v3 tables have no RLS policies."""
-        with self._conn.cursor() as cur:
+        in use. No-op for v3 schema since v3 tables have no RLS policies.
+
+        SESSION-scoped state on a shared connection: callers that need
+        "scope → read → write" as one unit hold ``_get_conn_lock()``
+        (re-entrant) around the whole sequence."""
+        with self._get_conn_lock(), self._conn.cursor() as cur:
             cur.execute(
                 "SELECT set_config('attestor.current_user_id', %s, false)",
                 (str(user_id) if user_id else "",),

@@ -25,9 +25,35 @@ BACKEND_REGISTRY: dict[str, dict[str, Any]] = {
     "postgres": {
         "module": "attestor.store.postgres_backend",
         "class": "PostgresBackend",
-        # Document role only — vector belongs to Pinecone and graph to
-        # Neo4j in the canonical (and only) supported stack.
+        # Document role. The SAME class also implements the vector role via
+        # `_PostgresVectorMixin` — registered separately as `pgvector` below, so
+        # that "Postgres for documents, Pinecone for vectors" stays expressible
+        # and does not become the only option.
         "roles": {"document"},
+        "init_style": "config",
+    },
+    "pgvector": {
+        "module": "attestor.store.postgres_backend",
+        "class": "PostgresBackend",
+        # Vector role, served by the pgvector path in `_PostgresVectorMixin`
+        # (cosine distance, plus bi-temporal `as_of` / `time_window` filters
+        # that a external vector store cannot express in-store).
+        #
+        # A SEPARATE key rather than widening `postgres` to
+        # {"document", "vector"}: role assignment is per backend NAME, so a
+        # combined entry would make Postgres claim the vector role in every
+        # deployment and collide with `pinecone` — `BackendConflictError` fires
+        # when two backends claim one role. Kept apart, the choice is a config
+        # line:
+        #
+        #     backends = ["postgres", "pinecone", "neo4j"]   # external vectors
+        #     backends = ["postgres", "pgvector", "neo4j"]   # self-contained
+        #
+        # The implementation was already complete and simply unreachable: no
+        # registry entry offered it, so no config value could select it, and
+        # the README's "pgvector remains as opt-in fallback" described
+        # something the code did not expose.
+        "roles": {"vector"},
         "init_style": "config",
     },
     "pinecone": {

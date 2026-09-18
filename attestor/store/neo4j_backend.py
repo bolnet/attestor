@@ -388,25 +388,21 @@ class Neo4jBackend:
                 "RETURN count(DISTINCT e) AS nodes, "
                 "count(DISTINCT r) AS edges"
             )
-            try:
-                rec = s.run(count_q, ns=str(user_id)).single()
-            except Exception as e:  # noqa: BLE001
-                logger.debug("Neo4j delete_by_user count failed: %s", e)
-                return (0, 0)
+            # Driver / connectivity errors propagate: the durable forget
+            # saga retries the graph lane, and an in-process caller records
+            # the backend error. Swallowing them here reported a successful
+            # delete with the user's nodes still in the graph (e2e 2026-09-03).
+            rec = s.run(count_q, ns=str(user_id)).single()
             if rec is None:
                 return (0, 0)
             nodes = int(rec.get("nodes", 0) or 0)
             edges = int(rec.get("edges", 0) or 0)
             if nodes == 0 and edges == 0:
                 return (0, 0)
-            try:
-                s.run(
-                    "MATCH (e:Entity {namespace: $ns}) DETACH DELETE e",
-                    ns=str(user_id),
-                )
-            except Exception as e:  # noqa: BLE001
-                logger.debug("Neo4j delete_by_user delete failed: %s", e)
-                return (0, 0)
+            s.run(
+                "MATCH (e:Entity {namespace: $ns}) DETACH DELETE e",
+                ns=str(user_id),
+            )
         return (nodes, edges)
 
     def close(self) -> None:

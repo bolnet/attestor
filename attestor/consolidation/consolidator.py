@@ -14,6 +14,13 @@ with a stronger model. Three artifacts per episode (roadmap §E.1):
 The consolidator is intentionally synchronous — the queue handles
 parallelism via SKIP LOCKED. ``run_once`` processes a batch and
 returns; ``run_forever`` is an asyncio loop for daemons.
+
+Durable mode (``durable.enabled: true`` in configs/attestor.yaml):
+``run_forever(durable=cfg)`` claims one batch and starts one
+``ConsolidateEpisode`` Temporal workflow per episode
+(``dispatch_durable``) instead of looping in-process. The
+``attestor.durable`` import is lazy so plain installs never load
+``temporalio``.
 """
 
 from __future__ import annotations
@@ -21,7 +28,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from attestor.consolidation.queue import ConsolidationQueue, QueuedEpisode
 from attestor.conversation.apply import AppliedDecision, apply_decisions
@@ -34,6 +41,10 @@ from attestor.extraction.round_extractor import (
     extract_user_facts,
 )
 from attestor.models import Memory
+
+if TYPE_CHECKING:
+    from attestor.config import DurableCfg
+    from attestor.durable.models import DurableDispatch
 
 logger = logging.getLogger("attestor.consolidation.consolidator")
 
@@ -122,14 +133,29 @@ class SleepTimeConsolidator:
             return []
         return [self._consolidate_one(ep) for ep in batch]
 
-    async def run_forever(self) -> None:
+    async def run_forever(
+        self,
+        *,
+        durable: DurableCfg | None = None,
+        client: Any | None = None,
+    ) -> DurableDispatch | None:
         """Daemon loop. Sleeps cadence_seconds when the queue is empty.
+
+        Durable branch: when ``durable.enabled`` is true this does NOT
+        loop — it claims one batch, starts one ``ConsolidateEpisode``
+        workflow per episode (id ``consolidate-{episode_id}``) and
+        returns the :class:`DurableDispatch`. The Temporal worker
+        (``attestor worker``) owns retries + completion from there.
+        ``durable=None`` or ``enabled=False`` keeps the legacy in-process
+        loop byte-for-byte.
 
         A transient psycopg2 / Neo4j error inside ``run_once`` (e.g.
         ``dequeue_batch`` raising on a dropped connection) used to crash
         the entire daemon. The outer try/except now logs and sleeps,
         so transient failures recover automatically.
         """
+        if durable is not None and durable.enabled:
+            return await self.dispatch_durable(durable, client=client)
         while True:
             try:
                 results = self.run_once()
@@ -149,7 +175,86 @@ class SleepTimeConsolidator:
                 ok, len(results), len(results) - ok,
             )
 
+    async def dispatch_durable(
+        self,
+        durable: DurableCfg,
+        *,
+        client: Any | None = None,
+        limit: int | None = None,
+    ) -> DurableDispatch:
+        """Claim one batch and start one Temporal workflow per episode.
+
+        The queue row claim stays in Postgres (zero schema change). If
+        the server is unreachable every claim is released; if a single
+        start fails that row is released and the rest proceed — nothing
+        is left stranded in ``processing`` until the lease expires.
+        """
+        from attestor.durable import client as durable_client
+        from attestor.durable.config import require_enabled
+        from attestor.durable.models import (
+            ConsolidateRequest,
+            DurableDispatch,
+            EpisodeRef,
+        )
+
+        require_enabled(durable)
+        batch = self._queue.dequeue_batch(limit=limit or self._batch_size)
+        if not batch:
+            return DurableDispatch()
+        try:
+            temporal = client if client is not None else await durable_client.connect(durable)
+        except Exception:
+            self._release_all(batch)
+            raise
+
+        started: list[str] = []
+        released: list[str] = []
+        for ep in batch:
+            request = ConsolidateRequest(episode=EpisodeRef.from_queued(ep))
+            try:
+                started.append(
+                    await durable_client.start_consolidation(temporal, durable, request)
+                )
+            except Exception as e:  # release + report, keep dispatching
+                logger.warning("durable dispatch of episode %s failed: %s", ep.id, e)
+                self._queue.release(ep.id)
+                released.append(ep.id)
+        logger.info(
+            "durable dispatch: started %d workflow(s), released %d",
+            len(started), len(released),
+        )
+        return DurableDispatch(
+            workflow_ids=tuple(started), released_episode_ids=tuple(released),
+        )
+
+    def _release_all(self, batch: list[QueuedEpisode]) -> None:
+        for ep in batch:
+            try:
+                self._queue.release(ep.id)
+            except Exception as e:
+                logger.error("release of episode %s failed: %s", ep.id, e)
+
     # ── Per-episode ─────────────────────────────────────────────────────
+
+    def consolidate_claimed(self, episode_id: str, user_id: str) -> ConsolidationResult:
+        """Re-read a claimed row by ``(episode_id, user_id)`` and consolidate it.
+
+        Entry point for the durable activity: Temporal hands over ids
+        only, so the conversation text is read from Postgres here. A row
+        that is not ``processing`` for that user (never claimed, lease
+        reclaimed, already done, or owned by someone else) is a
+        permanent ``missing:`` error — retries cannot change it and the
+        row is not ours to mark failed.
+        """
+        ep = self._queue.fetch_claimed(episode_id, user_id=user_id)
+        if ep is None:
+            error = f"missing: episode {episode_id} is not claimed for user {user_id}"
+            logger.warning("consolidate_claimed: %s", error)
+            return ConsolidationResult(
+                episode_id=episode_id, user_facts=[], agent_facts=[],
+                applied=[], error=error,
+            )
+        return self._consolidate_one(ep)
 
     def _consolidate_one(self, ep: QueuedEpisode) -> ConsolidationResult:
         # RLS scope: the consolidator must operate as the episode's user.

@@ -33,6 +33,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from attestor.store.conn_lock import locked_cursor
+
 logger = logging.getLogger("attestor.compliance.retention")
 
 
@@ -177,7 +179,7 @@ def add_retention_policy(
     tags_tuple = tuple(tags_any) if tags_any else ()
 
     conn = _conn_of(target)
-    with conn.cursor() as cur:
+    with locked_cursor(conn) as cur:
         cur.execute(
             "INSERT INTO retention_policies "
             "(name, namespace, category, layer, tags_any, "
@@ -235,7 +237,7 @@ def list_retention_policies(
             "FROM retention_policies WHERE enabled = TRUE "
             "ORDER BY created_at"
         )
-    with conn.cursor() as cur:
+    with locked_cursor(conn) as cur:
         cur.execute(sql, ())
         rows = cur.fetchall()
     out: list[RetentionPolicy] = []
@@ -274,7 +276,7 @@ def remove_retention_policy(
     wants to pause the rule but keep it on file.
     """
     conn = _conn_of(target)
-    with conn.cursor() as cur:
+    with locked_cursor(conn) as cur:
         if soft:
             cur.execute(
                 "UPDATE retention_policies SET enabled = FALSE "
@@ -352,7 +354,7 @@ def _count_matches(
         "SELECT COUNT(*) AS count FROM memories WHERE "
         + " AND ".join(where)
     )
-    with conn.cursor() as cur:
+    with locked_cursor(conn) as cur:
         cur.execute(sql, tuple(params))
         row = cur.fetchone()
     if row is None:
@@ -376,7 +378,7 @@ def _apply_archive(
         + " AND ".join(where)
         + " RETURNING id"
     )
-    with conn.cursor() as cur:
+    with locked_cursor(conn) as cur:
         cur.execute(sql, (now, *params))
         rows = cur.fetchall() or []
     return len(rows)
@@ -384,50 +386,70 @@ def _apply_archive(
 
 def _apply_delete(
     conn: Any, where: list[str], params: list[Any],
-) -> tuple[int, list[str]]:
+) -> tuple[int, list[tuple[str, str]]]:
     """Hard-delete matching memories from Postgres.
 
-    Returns ``(count, ids)`` so callers can purge the same ids from
-    the vector + graph stores. Without the id list, vector entries
-    survive forever — a CRITICAL compliance gap caught in review.
+    Returns ``(count, id_namespace_pairs)`` so callers can purge the
+    same ids, *from their own namespace*, in the vector + graph
+    stores. Without the namespace, a vector-store delete would have to
+    guess (or hardcode) a namespace and silently leave non-default-
+    namespace vectors behind — a CRITICAL compliance gap caught in
+    review. ``metadata->>'_namespace'`` is present on both the v3 and
+    v4 schemas (both carry a ``metadata`` JSONB column), so this
+    RETURNING clause works unconditionally; it mirrors the same
+    namespace resolution ``_build_predicate`` already uses to filter
+    by ``policy.namespace``.
     """
     sql = (
         "DELETE FROM memories WHERE "
         + " AND ".join(where)
-        + " RETURNING id"
+        + " RETURNING id, COALESCE(metadata->>'_namespace', 'default') AS namespace"
     )
-    with conn.cursor() as cur:
+    with locked_cursor(conn) as cur:
         cur.execute(sql, tuple(params))
         rows = cur.fetchall() or []
-    ids: list[str] = []
+    pairs: list[tuple[str, str]] = []
     for r in rows:
         if isinstance(r, dict):
-            ids.append(str(r.get("id", "")))
+            memory_id = str(r.get("id", ""))
+            namespace = str(r.get("namespace") or "default")
         else:
-            ids.append(str(r[0]))
-    return len(rows), [i for i in ids if i]
+            memory_id = str(r[0])
+            namespace = str(r[1]) if len(r) > 1 and r[1] is not None else "default"
+        if memory_id:
+            pairs.append((memory_id, namespace))
+    return len(pairs), pairs
 
 
-def _delete_ids_from_vector(vector_store: Any, ids: list[str]) -> int:
+def _delete_ids_from_vector(
+    vector_store: Any, id_namespace_pairs: list[tuple[str, str]],
+) -> int:
     """Best-effort per-id delete on the vector store.
 
-    Pinecone exposes a per-id ``delete(memory_id)``; backends that
-    omit it silently return 0. Failures on individual ids are logged
-    at debug and counted as misses, never raised — the caller is
-    already inside a retention loop and one bad id must not abort
-    the others.
+    Pinecone exposes a per-id ``delete(memory_id, namespace=...)``;
+    backends that omit ``delete`` entirely silently return 0. Each
+    pair's own namespace is threaded through — deleting against a
+    fixed namespace (e.g. always "default") would leave a memory's
+    vector behind whenever it actually lives in a different namespace,
+    while the retention run still reports success. Failures on
+    individual ids are logged at debug and counted as misses, never
+    raised — the caller is already inside a retention loop and one bad
+    id must not abort the others.
     """
-    if vector_store is None or not ids:
+    if vector_store is None or not id_namespace_pairs:
         return 0
     method = getattr(vector_store, "delete", None)
     if method is None:
         return 0
     n = 0
-    for memory_id in ids:
+    for memory_id, namespace in id_namespace_pairs:
         try:
-            ok = method(memory_id)
+            ok = method(memory_id, namespace=namespace)
         except Exception as e:  # noqa: BLE001
-            logger.debug("vector delete failed for %s: %s", memory_id, e)
+            logger.debug(
+                "vector delete failed for %s (namespace=%s): %s",
+                memory_id, namespace, e,
+            )
             continue
         if ok:
             n += 1
@@ -443,7 +465,7 @@ def _write_apply_audit(
     initiated_by: str | None,
 ) -> str:
     aid = str(uuid.uuid4())  # placeholder; live DB returns its own
-    with conn.cursor() as cur:
+    with locked_cursor(conn) as cur:
         cur.execute(
             "INSERT INTO forget_audit (scope, target_user_id, policy_id, "
             "doc_rows_deleted, vector_rows_deleted, graph_nodes_deleted, "
@@ -479,6 +501,7 @@ def apply_retention(
     *,
     dry_run: bool = False,
     initiated_by: str | None = None,
+    policy_ids: tuple[str, ...] | None = None,
 ) -> RetentionApplyResult:
     """Evaluate every active retention policy and apply it.
 
@@ -487,11 +510,19 @@ def apply_retention(
 
     Returns counts per policy + totals. ``dry_run=True`` runs the same
     predicate logic but only counts — no UPDATE / DELETE / audit.
+    ``policy_ids`` restricts the run to those active policies (the
+    durable ``RetentionSweep`` applies one policy per activity); an
+    empty tuple is a caller bug and raises.
     """
+    if policy_ids is not None and not policy_ids:
+        raise ValueError("policy_ids must name at least one policy (or be None)")
     t0 = time.monotonic()
     conn = _conn_of(mem)
     vector_store = getattr(mem, "_vector_store", None)
     policies = list_retention_policies(mem)
+    if policy_ids is not None:
+        wanted = set(policy_ids)
+        policies = [p for p in policies if p.id in wanted]
     by_policy: dict[str, dict[str, Any]] = {}
     archived = 0
     deleted = 0
@@ -519,14 +550,14 @@ def apply_retention(
             archived += n
             v_n = 0
         else:
-            n, ids = _apply_delete(conn, where, params)
+            n, id_ns_pairs = _apply_delete(conn, where, params)
             deleted += n
             # Compliance: a retention-delete must purge the matching
             # vectors as well, otherwise the content remains queryable
             # via Pinecone forever. Graph entities are shared across
             # memories (entity nodes are global, not per-memory) and
             # are intentionally not retention-purged here.
-            v_n = _delete_ids_from_vector(vector_store, ids)
+            v_n = _delete_ids_from_vector(vector_store, id_ns_pairs)
             vector_purged += v_n
 
         by_policy[pol.id] = {
@@ -569,7 +600,7 @@ def apply_retention(
 
 def _count_user_doc_rows(conn: Any, user_id: str) -> int:
     sql = "SELECT COUNT(*) AS count FROM memories WHERE user_id = %s"
-    with conn.cursor() as cur:
+    with locked_cursor(conn) as cur:
         cur.execute(sql, (user_id,))
         row = cur.fetchone()
     if row is None:
@@ -582,7 +613,7 @@ def _count_user_doc_rows(conn: Any, user_id: str) -> int:
 def _count_user_state_rows(conn: Any, user_id: str) -> int:
     try:
         sql = "SELECT COUNT(*) AS count FROM state WHERE user_id = %s"
-        with conn.cursor() as cur:
+        with locked_cursor(conn) as cur:
             cur.execute(sql, (user_id,))
             row = cur.fetchone()
     except Exception:  # state table may not exist on v3
@@ -598,7 +629,7 @@ def _delete_user_doc_rows(conn: Any, user_id: str) -> int:
     sql = (
         "DELETE FROM memories WHERE user_id = %s RETURNING id"
     )
-    with conn.cursor() as cur:
+    with locked_cursor(conn) as cur:
         cur.execute(sql, (user_id,))
         rows = cur.fetchall() or []
     return len(rows)
@@ -607,7 +638,7 @@ def _delete_user_doc_rows(conn: Any, user_id: str) -> int:
 def _delete_user_state_rows(conn: Any, user_id: str) -> int:
     sql = "DELETE FROM state WHERE user_id = %s RETURNING id"
     try:
-        with conn.cursor() as cur:
+        with locked_cursor(conn) as cur:
             cur.execute(sql, (user_id,))
             rows = cur.fetchall() or []
     except Exception:
@@ -662,7 +693,7 @@ def _write_forget_audit(
     state_rows: int,
     initiated_by: str | None,
 ) -> str:
-    with conn.cursor() as cur:
+    with locked_cursor(conn) as cur:
         cur.execute(
             "INSERT INTO forget_audit (scope, target_user_id, policy_id, "
             "doc_rows_deleted, vector_rows_deleted, graph_nodes_deleted, "

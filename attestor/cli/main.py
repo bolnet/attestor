@@ -38,6 +38,7 @@ from attestor.cli.commands.memory import (
     _cmd_timeline,
     _cmd_update,
 )
+from attestor.cli.commands.durable import _cmd_durable, _cmd_worker
 from attestor.cli.commands.quickstart import _cmd_quickstart
 from attestor.cli.commands.server import (
     _cmd_api,
@@ -153,6 +154,11 @@ def main(argv=None):
     )
     p_quickstart.add_argument(
         "--no-verify", action="store_true", help="Skip the post-install health check"
+    )
+    p_quickstart.add_argument(
+        "--durable", action="store_true",
+        help="Also start the opt-in Temporal server + UI (compose profile `durable`) "
+             "for durable governance jobs; default quickstart is unchanged",
     )
 
     # teardown (zero-question reverse of quickstart)
@@ -455,6 +461,73 @@ def main(argv=None):
         help="Override store path (default: $ATTESTOR_PATH or ~/.attestor)",
     )
 
+    # worker (Temporal governance worker — requires durable.enabled: true)
+    p_worker = subparsers.add_parser(
+        "worker",
+        help="Run the durable governance worker (Temporal; needs durable.enabled "
+             "in attestor.yaml + `pip install attestor[durable]`)",
+    )
+    p_worker.add_argument(
+        "--path", default=None,
+        help="Memory store path the activities operate on (default: ~/.attestor)",
+    )
+    p_worker.add_argument("--task-queue", default=None, help="Override durable.task_queue")
+    p_worker.add_argument("--address", default=None, help="Override durable.address")
+    p_worker.add_argument("--namespace", default=None, help="Override durable.namespace")
+
+    # durable (introspection: status)
+    p_durable = subparsers.add_parser("durable", help="Durable governance jobs (Temporal)")
+    durable_sub = p_durable.add_subparsers(dest="durable_cmd", help="Subcommand")
+    p_dstatus = durable_sub.add_parser(
+        "status", help="Show durable config, server reachability, and optionally one workflow",
+    )
+    p_dstatus.add_argument("workflow_id", nargs="?", default=None, help="Workflow id to describe")
+    p_dstatus.add_argument("--address", default=None, help="Override durable.address")
+    p_dstatus.add_argument("--namespace", default=None, help="Override durable.namespace")
+    p_dstatus.add_argument("--task-queue", default=None, help="Override durable.task_queue")
+    p_drebuild = durable_sub.add_parser(
+        "rebuild",
+        help="Rebuild derived vector + graph state from Postgres via RebuildDerived "
+             "(one DeriveMemory child per memory id)",
+    )
+    p_drebuild.add_argument(
+        "--since", default=None,
+        help="Only memories created at/after this ISO-8601 timestamp (naive = UTC)",
+    )
+    p_drebuild.add_argument(
+        "--namespace", dest="memory_namespace", default=None,
+        help="Only memories in this MEMORY namespace (not the Temporal namespace)",
+    )
+    p_drebuild.add_argument(
+        "--user", dest="user_id", default=None,
+        help="Tenant scope: rebuild this user's memories (worker derives as this owner). "
+             "Required on a multi-tenant store; SOLO installs default to their single user",
+    )
+    p_drebuild.add_argument("--page-size", dest="page_size", type=int, default=None,
+                            help="Memory ids per list page")
+    p_drebuild.add_argument("--window", type=int, default=None,
+                            help="Max DeriveMemory children in flight")
+    p_drebuild.add_argument("--wait", action="store_true",
+                            help="Block until the rebuild completes and print counts")
+    p_drebuild.add_argument("--address", default=None, help="Override durable.address")
+    p_drebuild.add_argument("--temporal-namespace", dest="temporal_namespace", default=None,
+                            help="Override durable.namespace (Temporal server namespace)")
+    p_drebuild.add_argument("--task-queue", default=None, help="Override durable.task_queue")
+    p_dsched = durable_sub.add_parser(
+        "schedules",
+        help="Temporal Schedules for RetentionSweep / SessionSweep "
+             "(cron from durable.schedules in attestor.yaml)",
+    )
+    sched_sub = p_dsched.add_subparsers(dest="schedules_cmd", help="Subcommand")
+    for name, help_text in (
+        ("apply", "Create-or-update every declared schedule (idempotent)"),
+        ("list", "Show presence / next run of every declared schedule"),
+    ):
+        p_s = sched_sub.add_parser(name, help=help_text)
+        p_s.add_argument("--address", default=None, help="Override durable.address")
+        p_s.add_argument("--namespace", default=None, help="Override durable.namespace")
+        p_s.add_argument("--task-queue", default=None, help="Override durable.task_queue")
+
     # hook (delegates to hook handlers)
     p_hook = subparsers.add_parser("hook", help="Run a Claude Code lifecycle hook")
     hook_sub = p_hook.add_subparsers(dest="hook_name", help="Hook to run")
@@ -513,6 +586,8 @@ def main(argv=None):
         "longmemeval": _cmd_longmemeval,
         "mcp": _cmd_mcp_serve,
         "hook": _cmd_hook,
+        "worker": _cmd_worker,
+        "durable": _cmd_durable,
     }
     handlers[args.command](args)
 

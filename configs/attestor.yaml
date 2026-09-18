@@ -483,6 +483,27 @@ audit:
     enabled: false                  # opt-in; flip true to mount /audit/*
   trace_log_path: ~/.attestor/trace.jsonl   # default ATTESTOR_TRACE_FILE
 
+# ─── Durable governance jobs (Temporal) ─────────────────────────────────
+# Opt-in durable execution for the governance JOBS only — consolidation,
+# derived-state repair/rebuild, retention + session sweeps, forget-user
+# saga (docs/plans/temporal-integration.md). Hard rules: recall never
+# touches Temporal; hooks never wait on it; Postgres stays the source of
+# truth (Temporal holds job state only); `attestor quickstart` is
+# unchanged (enabled: false here). Requires the `durable` extra
+# (`pip install "attestor[durable]"`) and a reachable server —
+# `attestor worker` fails loudly otherwise. TEMPORAL_ADDRESS /
+# TEMPORAL_NAMESPACE / TEMPORAL_TASK_QUEUE / TEMPORAL_TLS env vars
+# override the values below at runtime.
+durable:
+  enabled: false                 # opt-in; false → every durable.* call is a no-op fallback to in-process
+  address: "localhost:7233"      # Temporal frontend (dev: `temporal server start-dev`)
+  namespace: "attestor"          # dev server ships only `default`; create `attestor` or override
+  task_queue: "attestor-governance"
+  tls: false
+  schedules:                     # consumed by `attestor durable schedules apply` (Phase 3)
+    retention_sweep: "0 3 * * *"       # daily 03:00
+    session_sweep: "*/10 * * * *"      # every 10 min
+
 # ─── Container image (for cloud deploys) ────────────────────────────────
 # The published image is currently the *introspection-only* MCP stub
 # (Glama listing). For Path B cloud deploys we build a separate

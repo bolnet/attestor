@@ -22,7 +22,12 @@ Supports two config formats (hybrid, following SQLAlchemy/Django/Prisma):
             "tls": {"verify": true, "ca_cert": "/path/to/ca.pem"}
         }
 
-The canonical stack is Postgres (document) + Pinecone (vector) + Neo4j (graph).
+The default stack is Postgres (document) + Pinecone (vector) + Neo4j (graph).
+The vector role is selectable: `pgvector` serves it from the same Postgres,
+for self-contained deployments that do not want an external vector service.
+
+    backends = ["postgres", "pinecone", "neo4j"]   # external vector store
+    backends = ["postgres", "pgvector", "neo4j"]   # self-contained
 """
 
 from __future__ import annotations
@@ -43,6 +48,18 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 ENGINE_DEFAULTS: dict[str, dict[str, Any]] = {
     "postgres": {
+        "url": "postgresql://localhost:5432",
+        "port": 5432,
+        "database": "attestor",
+        "auth": {"username": "postgres", "password": ""},
+        "tls": {"verify": False},
+    },
+    "pgvector": {
+        # Same engine as `postgres` — the vector role is served by the SAME
+        # PostgresBackend class through `_PostgresVectorMixin`. A separate entry
+        # so a deployment can point documents and vectors at different
+        # instances (a read replica, a differently-sized box) without either
+        # inheriting the other's connection settings by accident.
         "url": "postgresql://localhost:5432",
         "port": 5432,
         "database": "attestor",

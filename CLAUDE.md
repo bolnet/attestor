@@ -1,6 +1,6 @@
 # Attestor
 
-The memory layer for agent teams. Self-hosted, deterministic retrieval, zero LLM in the critical path.
+Governed memory for multi-agent production meshes. Self-hosted; role-based access enforced at the AgentContext layer, provenance on every memory, per-agent budgets, deterministic retrieval with no LLM in scoring by default, temporal supersession with `as_of` replay, hard tenant isolation, auditable forget + retention, and governance jobs on opt-in durable Temporal workflows (never on the read path). The Claude Code plugin is an on-ramp demo, not the product.
 
 PyPI: `attestor` -- Python import: `attestor`.
 
@@ -26,11 +26,15 @@ attestor/
   graph/
     extractor.py       -- Entity/relation extraction (4-output GraphRAG)
   retrieval/
-    orchestrator.py    -- 6-step semantic-first cascade (vector → BM25 → RRF → graph → MMR → fit)
+    orchestrator/      -- 6-step semantic-first cascade (vector → BM25 → RRF → graph → MMR → fit); core.py
     tag_matcher.py
     scorer.py          -- Temporal + entity + PageRank boosts, confidence decay, MMR
   temporal/
     manager.py         -- Contradiction detection, supersession, timeline, as_of replay
+  durable/             -- OPT-IN Temporal (durable execution) for governance JOBS only — not temporal reasoning
+    config.py, client.py, dispatch.py, worker.py, schedules.py, models.py, status.py
+    activities/        -- consolidation, derive, forget, retention, sessions (all I/O lives here; ids in, never content)
+    workflows/         -- ConsolidateEpisode, DeriveMemory, RebuildDerived, ForgetUser (saga), RetentionSweep, SessionSweep
   extraction/          -- Rule-based + optional LLM memory extraction
   mcp/
     server.py          -- MCP server (tools + resources + prompts)
@@ -56,6 +60,8 @@ Local development can run all three via Docker (`attestor/infra/local/`). Cloud 
 
 Alternate backends (ArangoDB, AWS DynamoDB+OpenSearch+Neptune, Azure Cosmos+NetworkX, GCP AlloyDB+AGE+ScaNN, the legacy pgvector single-DB bundle) and the Apache AGE-on-Postgres graph path were removed from the codebase on 2026-05-02 in service of single-stack focus.
 
+**Amended 2026-08-01: the VECTOR role is selectable.** `backends = ["postgres", "pgvector", "neo4j"]` serves vectors from the same Postgres; `["postgres", "pinecone", "neo4j"]` remains the default. This is not a return of the pgvector single-DB *bundle* — `pgvector` claims the vector role only, and a self-hosted deploy still runs Postgres + Neo4j. The implementation (`store/_postgres_vector.py`) was never removed, only de-registered, so this exposes existing code rather than adding a stack to maintain. Asking for both vector backends raises `BackendConflictError`.
+
 ## Development
 
 - Poetry manages dependencies -- `poetry run pytest`, `poetry run python`
@@ -74,7 +80,7 @@ Alternate backends (ArangoDB, AWS DynamoDB+OpenSearch+Neptune, Azure Cosmos+Netw
 
 Default embedder is **Pinecone Inference `llama-text-embed-v2`** (NVIDIA-hosted, 1024-D) — matches the index dim and pairs naturally with the Pinecone vector store. Voyage / OpenAI / Ollama remain as opt-in providers via `attestor/store/embeddings.py`.
 
-**6-step retrieval pipeline (deterministic, no LLM in the hot path):**
+**6-step retrieval pipeline (deterministic, no LLM in scoring by default; the optional reranker in `retrieval/reranker.py`, including its `llm` provider, is off by default):**
 1. Vector top-K (Pinecone cosine; HyDE v2 lane optional)
 2. BM25 lane (optional — Postgres FTS for v3, in-memory rank_bm25 for the experiment harness)
 3. RRF blend (vector + BM25 → unified rank, k=60)
@@ -82,14 +88,14 @@ Default embedder is **Pinecone Inference `llama-text-embed-v2`** (NVIDIA-hosted,
 5. MMR diversity (λ=0.7) + confidence decay
 6. Token-budget pack (greedy fit to recall budget)
 
-Implementation: `attestor/retrieval/orchestrator.py`. The pipeline is
+Implementation: `attestor/retrieval/orchestrator/` (`core.py`). The pipeline is
 semantic-first (vector → BM25 → RRF → graph → MMR → fit) as of 2026-04-19;
 a separate tag-match utility lives at `attestor/retrieval/tag_matcher.py`
 but is consumed by the entity extractor, not the recall pipeline.
 
-**Multi-agent primitives:** 6 RBAC roles (ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR) — **enforced at the AgentContext layer** via `ROLE_PERMISSIONS` in `attestor/context.py`. Matrix: ORCHESTRATOR = READ+WRITE+FORGET; PLANNER/EXECUTOR/RESEARCHER = READ+WRITE; REVIEWER/MONITOR = READ only. `read_only=True` is an independent kill switch that strips WRITE+FORGET regardless of role. Direct `AgentMemory.add()` calls (without an AgentContext) bypass the matrix — RBAC is a context-layer guarantee, not a backend one. Namespace isolation is enforced across all three roles: row-level + RLS on Postgres (policies keyed to `attestor.current_user_id`), per-namespace on Pinecone, and a `namespace` property with a composite `(key, namespace)` constraint plus namespace-scoped BFS on Neo4j (`store/neo4j_backend.py`). One known caveat: the Neo4j PageRank GDS projection (`neo4j_backend.py:pagerank`) is **not** namespace-scoped — it computes entity importance over the global graph. This is a ranking *signal* only (it reorders results that are already namespace-filtered); it does not surface another project's memories. The Claude Code plugin keys each project (git root, else cwd) to its own RLS tenant (`external_id=cc-project:<sha256(root)>`, hashed so it fits `VARCHAR(256)` and avoids path-separator issues; the human path is kept in user metadata) via `attestor/_project.py` + `attestor/hooks/_tenant.py`, so memory never bleeds across projects. Provenance tracking, write quotas, and per-agent token budgets are wired.
+**Multi-agent primitives:** 6 RBAC roles (ORCHESTRATOR, PLANNER, EXECUTOR, RESEARCHER, REVIEWER, MONITOR) — **enforced at the AgentContext layer** via `ROLE_PERMISSIONS` in `attestor/context.py`. Matrix: ORCHESTRATOR = READ+WRITE+FORGET; PLANNER/EXECUTOR/RESEARCHER = READ+WRITE; REVIEWER/MONITOR = READ only. `read_only=True` is an independent kill switch that strips WRITE+FORGET regardless of role. Direct `AgentMemory.add()` calls (without an AgentContext) bypass the matrix — RBAC is a context-layer guarantee, not a backend one. The REST API (`attestor/api.py`) and MCP server (`attestor/mcp/server.py`) call `AgentMemory` directly and rely on their own auth; `/forget` adds a JWT owner check. Namespace isolation is enforced across all three roles: row-level + RLS on Postgres (policies keyed to `attestor.current_user_id`), per-namespace on Pinecone, and a `namespace` property with a composite `(key, namespace)` constraint plus namespace-scoped BFS on Neo4j (`store/neo4j_backend.py`). One known caveat: the Neo4j PageRank GDS projection (`neo4j_backend.py:pagerank`) is **not** namespace-scoped — it computes entity importance over the global graph. This is a ranking *signal* only (it reorders results that are already namespace-filtered); it does not surface another project's memories. The Claude Code plugin keys each project (git root, else cwd) to its own RLS tenant (`external_id=cc-project:<sha256(root)>`, hashed so it fits `VARCHAR(256)` and avoids path-separator issues; the human path is kept in user metadata) via `attestor/_project.py` + `attestor/hooks/_tenant.py`, so memory never bleeds across projects. Provenance tracking, write quotas, and per-agent token budgets are wired.
 
-**Temporal:** Contradiction detection auto-supersedes older facts; nothing is deleted. Every fact has a validity window; `recall(as_of=...)` replays the past.
+**Temporal:** Contradiction detection auto-supersedes older facts; nothing is deleted. Every fact carries valid time (`valid_from`, `valid_until`) and transaction time (`t_created`, `t_expired`); `recall(as_of=...)` filters candidates on transaction time at document hydration and in the BM25 lane. The Pinecone lane ignores `as_of` and logs a warning.
 
 ## Runtime topologies
 
@@ -105,6 +111,7 @@ Same API across all three. Only configuration changes.
 - Non-fatal errors in vector/graph are caught and logged -- the document path never breaks.
 - Degradation is explicit and tiered: vector down → tag+graph; graph down → tag+vector; the document store is the only hard dependency.
 - PyPI name: `attestor`; import: `attestor`; single CLI entry point `attestor`
+- **Hot-path rule (Temporal):** recall never touches Temporal and hooks never wait on it. Nothing under `attestor/retrieval/**` or `attestor/hooks/**` may import `attestor.durable` (or `temporalio`) — `tests/test_durable_isolation.py` enforces it. `attestor/durable/` is opt-in (`durable.enabled: false` by default in `configs/attestor.yaml`; extra `attestor[durable]`; compose profile `durable` / `attestor quickstart --durable`), holds job state only (Postgres stays the source of truth; workflow payloads carry ids, never memory content), and fails loudly when enabled without the SDK or a reachable server. Plain `attestor quickstart` is unchanged.
 
 ## Install for Claude Code
 
