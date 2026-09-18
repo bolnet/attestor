@@ -3,4 +3,6 @@
   <url><loc>https://attestor.dev/</loc><lastmod>2026-09-18</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc>https://attestor.dev/inside_attestor.html</loc><lastmod>2026-09-18</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://attestor.dev/context-clock-benchmark.html</loc><lastmod>2026-09-18</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://attestor.dev/blog/</loc><lastmod>2026-09-18</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://attestor.dev/blog/no-longer-memory-for-your-coding-assistant.html</loc><lastmod>2026-09-18</lastmod><changefreq>yearly</changefreq><priority>0.8</priority></url>
 </urlset>
