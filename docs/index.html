@@ -4,14 +4,77 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark">
-<title>Attestor: governed memory for multi-agent production meshes</title>
-<meta name="description" content="Self-hosted memory for agent meshes that have to answer to someone. Role-based access, provenance on every memory, per-agent budgets, a deterministic read path, as_of replay, hard tenant isolation, auditable forget. MIT.">
+<title>Attestor: governed, auditable memory for multi-agent AI systems</title>
+<meta name="description" content="Open-source, self-hosted memory for multi-agent AI: role-based write and forget, provenance per memory, as-of replay, tenant isolation, auditable deletion. MIT.">
+<link rel="canonical" href="https://attestor.dev/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#f4f4f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101114" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Attestor: governed memory for multi-agent production meshes">
 <meta property="og:description" content="Who may write, who may forget, what an answer was built from. Enforced in code, not in a policy document. Open source, MIT.">
 <meta property="og:image" content="https://attestor.dev/og-image.png">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://attestor.dev/">
+<meta property="og:site_name" content="Attestor">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Attestor: governed memory for multi-agent production meshes. No longer memory for your coding assistant.">
+<meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Attestor: governed memory for multi-agent production meshes">
+<meta name="twitter:description" content="Who is allowed to write, who is allowed to forget, and can you prove it afterwards. Enforced in code, not in a policy document. Self-hosted, MIT, Python.">
+<meta name="twitter:image" content="https://attestor.dev/og-image.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2314151a'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-weight='700' font-size='22' fill='%23f4f4f2'%3Ea%3C/text%3E%3C/svg%3E">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://attestor.dev/#software",
+      "name": "Attestor",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Linux, macOS",
+      "description": "Governed memory for multi-agent production meshes. Self-hosted memory layer with role-based write and forget, provenance on every memory, temporal supersession with as-of replay, hard tenant isolation, audit-first deletion, and durable governance jobs on Temporal workflows.",
+      "url": "https://attestor.dev/",
+      "downloadUrl": "https://pypi.org/project/attestor/",
+      "softwareHelp": "https://attestor.dev/inside_attestor.html",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+      "programmingLanguage": "Python",
+      "author": {"@id": "https://attestor.dev/#author"},
+      "sameAs": ["https://github.com/bolnet/attestor", "https://pypi.org/project/attestor/"]
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://attestor.dev/#source",
+      "name": "bolnet/attestor",
+      "codeRepository": "https://github.com/bolnet/attestor",
+      "programmingLanguage": "Python",
+      "runtimePlatform": "Python 3.12+",
+      "license": "https://opensource.org/licenses/MIT",
+      "targetProduct": {"@id": "https://attestor.dev/#software"},
+      "author": {"@id": "https://attestor.dev/#author"}
+    },
+    {
+      "@type": "Person",
+      "@id": "https://attestor.dev/#author",
+      "name": "Surendra Singh",
+      "url": "https://www.linkedin.com/in/singhsurendra/",
+      "sameAs": ["https://github.com/bolnet", "https://www.linkedin.com/in/singhsurendra/"]
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://attestor.dev/#website",
+      "url": "https://attestor.dev/",
+      "name": "Attestor",
+      "inLanguage": "en",
+      "publisher": {"@id": "https://attestor.dev/#author"}
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap">
