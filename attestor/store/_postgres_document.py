@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from datetime import datetime
 from typing import Any
 
 from attestor.models import Memory
@@ -211,7 +212,20 @@ class _PostgresDocumentMixin:
         """, p)
         return memory
 
-    def delete(self, memory_id: str) -> bool:
+    def delete(self, memory_id: str, namespace: str = "default") -> bool:
+        """Delete the document row by id.
+
+        ``namespace`` is accepted (and ignored) for parity with the
+        ``VectorStore`` Protocol surface — when this class is
+        registered for the ``pgvector`` role, callers that thread a
+        memory's namespace through a generic ``vector_store.delete(id,
+        namespace=...)`` call must not blow up on an unexpected kwarg.
+        Namespace scoping doesn't matter here: the row is looked up
+        by its globally-unique id, so deleting it removes the vector
+        (pgvector's embedding column lives on the same row) regardless
+        of which namespace it belongs to.
+        """
+        del namespace  # reserved for VectorStore Protocol parity only
         rows = self._execute(
             "DELETE FROM memories WHERE id = %s RETURNING id", (memory_id,)
         )
@@ -305,6 +319,55 @@ class _PostgresDocumentMixin:
             params,
         )
         return [self._row_to_memory(r) for r in rows]
+
+    def list_memory_ids(
+        self,
+        *,
+        since: datetime | None = None,
+        namespace: str | None = None,
+        user_id: str | None = None,
+        after_id: str | None = None,
+        limit: int = 100,
+    ) -> tuple[list[str], str | None]:
+        """Keyset page of ACTIVE memory ids ordered by ``id``.
+
+        Source for ``RebuildDerived`` (derived state is rebuildable from
+        Postgres). Returns ``(ids, next_after_id)``; ``next_after_id`` is
+        ``None`` once the page is short. ``since`` filters on the schema's
+        creation column (``t_created`` v4 / ``created_at`` v3) and is sent
+        as an ISO literal so both column types compare correctly.
+        ``user_id`` pins the page to one tenant (v4 ``user_id`` column) in
+        addition to RLS, so a BYPASSRLS role still pages a single owner;
+        v3 has no tenancy column and ignores it.
+        """
+        if limit <= 0:
+            raise ValueError(f"limit must be positive, got {limit}")
+        time_col = "t_created" if self._v4 else "created_at"
+        filters = ["status = 'active'"]
+        params: dict[str, Any] = {"lim": limit}
+        if user_id and self._v4:
+            filters.append("user_id = %(user_id)s")
+            params["user_id"] = user_id
+        if since is not None:
+            filters.append(f"{time_col} >= %(since)s")
+            params["since"] = since.isoformat() if isinstance(since, datetime) else str(since)
+        if namespace:
+            if self._v4:
+                filters.append("metadata->>'_namespace' = %(namespace)s")
+            else:
+                filters.append("namespace = %(namespace)s")
+            params["namespace"] = namespace
+        if after_id:
+            filters.append("id > %(after_id)s")
+            params["after_id"] = after_id
+        # ``filters`` are constant fragments; every value is a bound parameter.
+        rows = self._execute(
+            f"SELECT id FROM memories WHERE {' AND '.join(filters)} "  # noqa: S608
+            f"ORDER BY id LIMIT %(lim)s",
+            params,
+        )
+        ids = [str(r["id"]) for r in rows]
+        return ids, (ids[-1] if len(ids) == limit else None)
 
     def tag_search(
         self,

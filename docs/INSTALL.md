@@ -10,6 +10,7 @@ A step-by-step guide to installing and verifying Attestor across different topol
 | [01](#chapter-01--local-stack-with-docker-compose) | Local stack (Docker Compose) | Postgres + Pinecone + Neo4j |
 | [02](#chapter-02--sidecar-rest-api) | Sidecar REST API | Same stack, exposed over HTTP |
 | [03](#chapter-03--cloud-managed) | Cloud managed | Managed Postgres + Pinecone + Neo4j |
+| [04](#chapter-04--governance-jobs-temporal) | Governance jobs (Temporal) — opt-in | Same stack + a Temporal server (shares Postgres) |
 
 ---
 
@@ -230,7 +231,7 @@ docker compose up -d            # postgres + pinecone + neo4j + attestor-api
 curl localhost:8080/health      # {"ok": true, "data": {"healthy": true, ...}}
 ```
 
-The API container (`attestor_api`) serves the same routes as the library — `/add`, `/recall`, `/search`, `/timeline`, `/forget`, `/memory/{id}`, `/health`, `/stats` (see [`attestor/api.py`](../attestor/api.py)). Any language can drive it via `MemoryClient` or raw REST. Backend config resolves from env (`POSTGRES_URL` / `NEO4J_URI` + `PINECONE_*`) and otherwise from `configs/attestor.yaml`; the vector (Pinecone) role is always preserved.
+The API container (`attestor_api`) serves the same routes as the library — `/add`, `/recall`, `/search`, `/timeline`, `/forget`, `/memory/{id}`, `/health`, `/stats` (see [`attestor/api.py`](../attestor/api.py)). Any language can drive it via `MemoryClient` or raw REST. With the opt-in durable profile ([Chapter 04](#chapter-04--governance-jobs-temporal)), run `attestor worker` next to the API container so governance jobs have a runner. Backend config resolves from env (`POSTGRES_URL` / `NEO4J_URI` + `PINECONE_*`) and otherwise from `configs/attestor.yaml`; the vector (Pinecone) role is always preserved.
 
 ---
 
@@ -255,6 +256,91 @@ export PINECONE_API_KEY="pcsk_..."   # Pinecone Cloud — index settings from co
 Run the API container (or your own image) with those env vars; `configs/attestor.yaml` remains the source of truth for the embedder, models, and retrieval budget. Validated reference deploys (App Runner / Cloud Run / Container Apps in front of managed Postgres + Pinecone + Neo4j) follow the same pattern — only DB hostnames and secrets differ.
 
 > **Operational notes** (from cloud-deploy validation): Neo4j needs ≥512 MB RAM even idle (the JVM + GDS plugin OOM in 0.5 GB containers — use the next size up). Don't put Neo4j behind HTTP-only compute (`bolt://` is TCP/7687 — use a small VM in the same VPC, or a TCP-capable platform). Keep the embedder dim and the schema `vector(N)` locked together. Tighten ingress (5432 / 7687) to your compute's egress range before production.
+
+---
+
+## Chapter 04 — Governance jobs (Temporal)
+
+**Opt-in.** Attestor's governance *jobs* — episode consolidation, derived-state repair and rebuild (Pinecone vectors + Neo4j graph from Postgres), the audit-first forget-user saga, and the retention / session sweeps — can run as durable workflows on [Temporal](https://temporal.io) (durable execution; unrelated to `attestor/temporal/`, which is temporal *reasoning*). Every job then has retry policies, deterministic idempotent ids, and an operator UI that shows exactly which lane is stuck or drifted. The design is in [`docs/plans/temporal-integration.md`](plans/temporal-integration.md).
+
+Three hard rules never change:
+
+- **Recall never touches Temporal.** The 6-step read path stays in-process and deterministic (`tests/test_durable_isolation.py` fails the build if `attestor/retrieval/**` or `attestor/hooks/**` ever imports `attestor.durable`).
+- **Hooks never wait on Temporal.** Claude Code hooks keep today's in-process behaviour.
+- **Postgres stays the source of truth.** Temporal holds job state only; workflow payloads carry ids, never memory content.
+
+Nothing in this chapter runs unless you opt in: the default `attestor quickstart` and `configs/attestor.yaml` (`durable.enabled: false`) are unchanged.
+
+### Step 1 — Install the extra
+
+```bash
+pipx install "attestor[durable]"          # or: pip install "attestor[durable]"
+# in a checkout: .venv/bin/pip install "temporalio>=1.32,<2"
+```
+
+The extra adds the `temporalio` SDK (Python ≥ 3.10). With `durable.enabled: true` and the SDK missing, `attestor worker` and every `attestor durable …` command fail loudly rather than degrading.
+
+### Step 2 — Start a Temporal server (compose profile `durable`)
+
+The bundled compose file carries the server + UI behind a profile, so they never start by accident:
+
+```bash
+attestor quickstart --durable            # the zero-question install + the durable profile
+# equivalent by hand:
+cd attestor/infra/local
+docker compose --profile durable up -d postgres neo4j pinecone temporal temporal-ui
+```
+
+| Container | Image | Port | Role |
+|-----------|-------|------|------|
+| `attestor_temporal_server` | `temporalio/auto-setup` | `7233` | Temporal frontend (gRPC) — `durable.address` |
+| `attestor_temporal_ui` | `temporalio/ui` | `8233` | Web UI — every job, retry, and failure |
+
+`auto-setup` reuses the existing Postgres container and credentials (`DB=postgres12`, `POSTGRES_SEEDS=postgres`), creates its own `temporal` + `temporal_visibility` databases, and creates the `attestor` namespace so it matches `durable.namespace`. Memory data stays in the `attestor` database. Without Docker: `temporal server start-dev --db-filename ~/.attestor/temporal.db` (creates only the `default` namespace — set `durable.namespace: default` or `TEMPORAL_NAMESPACE=default`).
+
+### Step 3 — Enable it in YAML
+
+`configs/attestor.yaml` (or the copy in your store, `~/.attestor/attestor.yaml`) is authoritative:
+
+```yaml
+durable:
+  enabled: true                  # opt-in; false → every durable.* call is an in-process no-op
+  address: "localhost:7233"
+  namespace: "attestor"
+  task_queue: "attestor-governance"
+  tls: false
+  schedules:
+    retention_sweep: "0 3 * * *"       # daily 03:00
+    session_sweep: "*/10 * * * *"      # every 10 min
+```
+
+`TEMPORAL_ADDRESS` / `TEMPORAL_NAMESPACE` / `TEMPORAL_TASK_QUEUE` / `TEMPORAL_TLS` override these at runtime (managed Temporal Cloud: point `address` at your namespace endpoint and set `tls: true`).
+
+### Step 4 — Run the worker
+
+```bash
+attestor worker                                   # foreground; one worker on durable.task_queue
+attestor worker --task-queue attestor-governance  # overrides: --address, --namespace
+```
+
+The worker registers every governance workflow + activity on one task queue and fails at start if the server is unreachable. Run it wherever the API / MCP server runs (Mode B sidecar: alongside `attestor api`; Mode C shared service: one or more worker containers next to the service, same Postgres + Pinecone + Neo4j). It is the only process that talks to Temporal on the hot path — `add()` merely *starts* a repair workflow (fire-and-forget) when a vector or graph write fails.
+
+### Step 5 — Apply the schedules and verify
+
+```bash
+attestor durable schedules apply      # create-or-update RetentionSweep + SessionSweep (idempotent)
+attestor durable schedules list       # presence / paused / next run
+attestor durable status               # config + server reachability
+attestor durable status forget-<id>   # follow one workflow (e.g. a forget-user saga)
+attestor durable rebuild --user <id> [--since ISO] [--namespace NS] [--wait]
+                                      # rebuild vectors + graph from Postgres for one tenant
+```
+
+Open `http://localhost:8233` to watch jobs. Workflow ids are deterministic (`derive-{memory_id}`, `consolidate-{episode_id}`, `forget-{user_id}-{audit_id}`, `retention-sweep-…`, `session-sweep-…`), so a retry or a concurrent rebuild never runs the same job twice.
+
+### Teardown
+
+`attestor teardown` removes the Temporal containers along with the rest of the stack (it passes `--profile durable` to `docker compose down`); `--purge` also drops the volumes. `pipx uninstall attestor` removes the extra with the package.
 
 ---
 

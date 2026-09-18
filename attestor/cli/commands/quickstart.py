@@ -8,7 +8,8 @@ ONE default profile, NO prompts. In a single run it:
      (``attestor.yaml``) from the bundled local default,
   2. writes ``~/.attestor/.env`` (local-dev passwords + the Ollama embedder
      route) — idempotent, never clobbers existing values,
-  3. brings up the local Docker backends (Postgres + Neo4j),
+  3. brings up the local Docker backends (Postgres + Pinecone Local + Neo4j;
+     ``--durable`` adds the opt-in Temporal server + UI compose profile),
   4. wires the Claude Code MCP server + lifecycle hooks (``.env``-sourcing),
   5. runs the health check.
 
@@ -51,6 +52,15 @@ PG_CONTAINER = "attestor_postgres_document_db"
 NEO4J_CONTAINER = "attestor_neo4j_graph_db"
 HEALTH_TIMEOUT_S = 120
 
+# Compose services. The three roles are the zero-question default; Temporal
+# (durable governance jobs) is an OPT-IN compose profile behind ``--durable``
+# — docs/plans/temporal-integration.md §2 "Quickstart stays zero-question".
+DEFAULT_COMPOSE_SERVICES: tuple[str, ...] = ("postgres", "neo4j", "pinecone")
+DURABLE_COMPOSE_PROFILE = "durable"
+DURABLE_COMPOSE_SERVICES: tuple[str, ...] = ("temporal", "temporal-ui")
+TEMPORAL_UI_URL = "http://localhost:8233"
+TEMPORAL_PORT = 7233
+
 # Ports the local stack uses — scanned up front so the user sees what's already
 # listening (backends already up) vs free (will be started) before anything runs.
 SCAN_PORTS = {
@@ -59,6 +69,7 @@ SCAN_PORTS = {
     "Pinecone Local": 5080,
     "Ollama": 11434,
 }
+DURABLE_SCAN_PORTS = {"Temporal": TEMPORAL_PORT, "Temporal UI": 8233}
 
 
 def _default_env(store: Path) -> dict[str, str]:
@@ -99,11 +110,12 @@ def _ollama_model_state(model: str) -> bool | None:
         return None
 
 
-def _preflight() -> None:
+def _preflight(*, durable: bool = False) -> None:
     """Scan ports + Docker + Ollama before acting, so the env state is visible."""
     print("[0/6] Preflight — scanning ports + tools (default credentials, no prompts)")
     print(f"  docker .............. {'available' if _docker_available() else 'NOT available'}")
-    for name, port in SCAN_PORTS.items():
+    ports = {**SCAN_PORTS, **(DURABLE_SCAN_PORTS if durable else {})}
+    for name, port in ports.items():
         state = "listening (already up)" if _port_open(port) else "free (will start)"
         print(f"  :{port:<6}{name:<16} {state}")
     model = _ollama_model_state(OLLAMA_EMBED_MODEL)
@@ -211,19 +223,30 @@ def _container_healthy(name: str) -> bool:
     return out.returncode == 0 and out.stdout.strip() == "healthy"
 
 
-def _bring_up_backends() -> bool:
+def _compose_up_cmd(*, durable: bool) -> list[str]:
+    """The ``docker compose up`` argv (pure; new list every call).
+
+    ``--profile`` is a global compose option, so it precedes ``up``; without it
+    the profile-gated Temporal services are invisible to compose entirely.
+    """
+    profile = ["--profile", DURABLE_COMPOSE_PROFILE] if durable else []
+    services = [*DEFAULT_COMPOSE_SERVICES, *(DURABLE_COMPOSE_SERVICES if durable else ())]
+    return ["docker", "compose", "-f", str(_compose_file()), *profile, "up", "-d", *services]
+
+
+def _bring_up_backends(*, durable: bool = False) -> bool:
     """Start the 3-role backends: postgres + neo4j + pinecone (Pinecone Local).
 
     The standalone ``attestor-api`` service is intentionally NOT started — the
     Claude Code path runs the MCP server from the installed binary, not that
     container. Only postgres + neo4j have healthchecks; pinecone has none, so we
     start it alongside and let the Pinecone backend's own readiness probe handle
-    it. Returns True if PG + Neo4j are healthy. Best-effort: prints the manual
-    command and returns False rather than raising if Docker is unavailable.
+    it. ``durable=True`` additionally enables the ``durable`` compose profile
+    (Temporal server + UI, sharing the Postgres container). Returns True if
+    PG + Neo4j are healthy. Best-effort: prints the manual command and returns
+    False rather than raising if Docker is unavailable.
     """
-    compose = _compose_file()
-    cmd = ["docker", "compose", "-f", str(compose), "up", "-d",
-           "postgres", "neo4j", "pinecone"]
+    cmd = _compose_up_cmd(durable=durable)
     if not _docker_available():
         print("  Docker not available — start the backends yourself:")
         print(f"    {' '.join(cmd)}")
@@ -280,12 +303,15 @@ def _run_doctor(store: Path) -> None:
         print(f"  doctor could not open the store: {type(exc).__name__}: {exc}")
 
 
-def _print_profile(store: Path) -> None:
+def _print_profile(store: Path, *, durable: bool = False) -> None:
     print("Attestor Quickstart — single local default profile (zero questions)")
     print("=" * 66)
     print("Everything below is fixed by default and printed, never asked:")
     print(f"  store path .......... {store}")
     print("  backends ........ Postgres (doc) + Pinecone Local (vector) + Neo4j (graph)")
+    if durable:
+        print(f"  durable jobs .... Temporal server :{TEMPORAL_PORT} + UI {TEMPORAL_UI_URL}"
+              " (--durable; opt-in compose profile)")
     print(f"  embedder ........ Ollama {OLLAMA_EMBED_MODEL} @{EMBED_DIM}d (local, zero cloud key)")
     print("  llm keys ........ none required (recall/add work fully local)")
     print(f"  passwords ....... '{DEFAULT_PASSWORD}' (localhost dev default; Pinecone key 'local')")
@@ -293,13 +319,23 @@ def _print_profile(store: Path) -> None:
     print()
 
 
+def _print_durable_next_steps(store: Path) -> None:
+    """Printed only for ``--durable``: the server is up, jobs stay opt-in in YAML."""
+    print("  • Durable jobs: set `durable.enabled: true` in "
+          f"{store / 'attestor.yaml'} (YAML is authoritative), then run")
+    print("      attestor worker                    # foreground governance worker")
+    print("      attestor durable schedules apply   # retention + session sweeps")
+    print(f"    Watch every job at {TEMPORAL_UI_URL} — recall and hooks never touch it.")
+
+
 def _cmd_quickstart(args: argparse.Namespace) -> None:
     store = Path(getattr(args, "path", None) or DEFAULT_STORE).expanduser()
     store.mkdir(parents=True, exist_ok=True)
+    durable = bool(getattr(args, "durable", False))
 
-    _print_profile(store)
+    _print_profile(store, durable=durable)
 
-    _preflight()
+    _preflight(durable=durable)
 
     print("[1/6] Stack config (attestor.yaml)")
     pre_existing = (store / "attestor.yaml").exists()
@@ -314,8 +350,9 @@ def _cmd_quickstart(args: argparse.Namespace) -> None:
     _load_env_into_os(env_path)
 
     if not getattr(args, "no_docker", False):
-        print("\n[4/6] Local Docker backends (Postgres + Neo4j)")
-        _bring_up_backends()
+        suffix = " + Temporal (--durable)" if durable else ""
+        print(f"\n[4/6] Local Docker backends (Postgres + Pinecone Local + Neo4j{suffix})")
+        _bring_up_backends(durable=durable)
     else:
         print("\n[4/6] Local Docker backends — skipped (--no-docker)")
 
@@ -342,3 +379,5 @@ def _cmd_quickstart(args: argparse.Namespace) -> None:
     print("  • Restart Claude Code so the MCP server + hooks attach (they load at session start).")
     print(f"  • Ensure Ollama is serving {OLLAMA_EMBED_MODEL}:  ollama pull {OLLAMA_EMBED_MODEL}")
     print("  • Then /mcp should show 'attestor' (8 tools); recall returns source: vector.")
+    if durable:
+        _print_durable_next_steps(store)

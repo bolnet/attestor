@@ -38,6 +38,7 @@ class _FakeMem:
 
     added: list[str] = field(default_factory=list)
     forgotten: list[str] = field(default_factory=list)
+    forgotten_users: list[str] = field(default_factory=list)
 
     def add(self, content: str, **kwargs) -> Memory:
         self.added.append(content)
@@ -50,6 +51,10 @@ class _FakeMem:
     def forget(self, memory_id: str) -> bool:
         self.forgotten.append(memory_id)
         return True
+
+    def forget_user(self, user_id: str, **kwargs) -> dict:
+        self.forgotten_users.append(user_id)
+        return {"user_id": user_id, "dry_run": kwargs.get("dry_run", False)}
 
     def recall(self, query: str, **kwargs):
         return []
@@ -185,3 +190,48 @@ def test_read_only_flag_does_not_affect_recall():
     # Should not raise. The fake returns [] but we are testing the gate,
     # not the retrieval pipeline.
     assert ctx.recall("anything") == []
+
+
+# ---------------------------------------------------------------------------
+# Whole-user forget (GDPR) enforcement -- durable saga blast radius
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_forget_user_allowed_for_orchestrator():
+    ctx, fake = _ctx(AgentRole.ORCHESTRATOR)
+    out = ctx.forget_user("u-9", initiated_by="ops")
+    assert out["user_id"] == "u-9"
+    assert fake.forgotten_users == ["u-9"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "role",
+    [AgentRole.PLANNER, AgentRole.EXECUTOR, AgentRole.RESEARCHER,
+     AgentRole.REVIEWER, AgentRole.MONITOR],
+)
+def test_forget_user_denied_for_non_orchestrators(role: AgentRole):
+    ctx, fake = _ctx(role)
+    with pytest.raises(PermissionError, match="forget"):
+        ctx.forget_user("u-9")
+    assert fake.forgotten_users == [], "backend must not be touched after a deny"
+
+
+@pytest.mark.unit
+def test_read_only_flag_strips_forget_user_even_for_orchestrator():
+    ctx, fake = _ctx(AgentRole.ORCHESTRATOR, read_only=True)
+    with pytest.raises(PermissionError, match="read-only"):
+        ctx.forget_user("u-9", dry_run=True)
+    assert fake.forgotten_users == []
+
+
+@pytest.mark.unit
+def test_forget_user_requires_a_backend_that_supports_it():
+    class _NoForgetUser:
+        def close(self):  # pragma: no cover
+            pass
+
+    ctx = AgentContext(agent_id="a", role=AgentRole.ORCHESTRATOR, memory=_NoForgetUser())
+    with pytest.raises(RuntimeError, match="forget_user"):
+        ctx.forget_user("u-9")

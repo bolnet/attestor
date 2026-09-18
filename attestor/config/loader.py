@@ -46,6 +46,7 @@ from attestor.config.models import (
     _VALID_SC_VOTERS,
 )
 from attestor.models import VALID_LAYERS
+from attestor.config._durable import parse_durable_block
 from attestor.config.resolver import _require, _resolve_env_password
 
 # Project root = ``attestor/`` package's parent. This module lives at
@@ -84,6 +85,9 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
     stack_blk = raw.get("stack") or {}
     image_blk = raw.get("image") or {}
     clouds_blk = raw.get("clouds") or {}
+    # Durable governance jobs (Temporal). Top-level, opt-in; absent block
+    # → DurableCfg defaults (enabled=False). Validated eagerly.
+    durable_cfg = parse_durable_block(raw.get("durable"))
 
     pg = stack_blk.get("postgres") or {}
     neo = stack_blk.get("neo4j") or {}
@@ -479,6 +483,7 @@ def _parse_yaml(cfg_path: Path, *, strict: bool) -> StackConfig:
             )
             if pcn is not None else None
         ),
+        durable=durable_cfg,
     )
 
 

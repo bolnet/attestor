@@ -27,6 +27,7 @@ from attestor.store.base import DocumentStore, GraphStore, VectorStore
 from attestor.temporal.manager import TemporalManager
 from attestor.utils.config import MemoryConfig, load_config, save_config
 
+from attestor.core.derive_service import LANE_GRAPH, LANE_VECTOR, _DeriveMixin
 from attestor.core.identity_service import _IdentityMixin
 from attestor.core.provenance_service import _ProvenanceMixin
 from attestor.core.quota_service import _QuotaMixin
@@ -46,7 +47,7 @@ def _registry():
 logger = logging.getLogger("attestor")
 
 
-class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
+class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin, _DeriveMixin):
     """Memory for AI agents, backed by Postgres (doc+pgvector) + Neo4j (graph).
 
     Usage:
@@ -115,19 +116,26 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
 
         # Initialize vector store (optional — graceful degradation)
         self._vector_store: VectorStore | None = None
+        # True when a vector role is configured but its backend failed to
+        # construct (outage at start-up). add() then schedules a durable
+        # repair for the vector lane instead of silently skipping it.
+        self._vector_init_failed = False
         if "vector" in role_assignments:
             try:
                 self._vector_store = _get_or_create(role_assignments["vector"])
             except Exception as e:
+                self._vector_init_failed = True
                 logger.warning("Vector store init failed (%s): %s",
                                role_assignments["vector"], e)
 
         # Initialize graph store (optional — graceful degradation)
         self._graph: GraphStore | None = None
+        self._graph_init_failed = False  # see _vector_init_failed
         if "graph" in role_assignments:
             try:
                 self._graph = _get_or_create(role_assignments["graph"])
             except Exception as e:
+                self._graph_init_failed = True
                 logger.warning("Graph store init failed (%s): %s",
                                role_assignments["graph"], e)
 
@@ -607,7 +615,25 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         Pinecone + Neo4j cleanup is best-effort: if the configured
         backend doesn't expose ``delete_by_user(user_id)`` the count is
         zero and a backend_error string surfaces on the result.
+
+        Durable mode (``durable.enabled: true``): a real delete starts the
+        ``ForgetUser`` saga instead and returns ``{"workflow_id", "audit_id",
+        "durable": True, ...}`` — follow it with ``attestor durable status``.
+        An unreachable Temporal server raises loudly; there is no silent
+        in-process fallback for a GDPR delete. ``dry_run`` always runs
+        in-process (it mutates nothing).
+
+        Authorization: this is the trusted / admin code path — holding an
+        ``AgentMemory`` is the credential. Agents must go through
+        ``AgentContext.forget_user`` (RBAC ``FORGET``); do not expose this
+        method on a CLI / API / MCP surface without an equivalent gate.
         """
+        if not dry_run:
+            from attestor.core.forget_service import start_durable_forget
+
+            started = start_durable_forget(user_id, initiated_by=initiated_by)
+            if started is not None:
+                return started
         from attestor.compliance.retention import forget_user as _forget
         result = _forget(
             self, user_id,
@@ -615,6 +641,7 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
             initiated_by=initiated_by,
         )
         return {
+            "durable": False,
             "user_id": result.user_id,
             "doc_rows_deleted": result.doc_rows_deleted,
             "vector_rows_deleted": result.vector_rows_deleted,
@@ -964,16 +991,13 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
         # the exception via logger.warning so the failure is debuggable
         # (silent pass made dim-mismatch / embedder-down / schema-drift bugs
         # invisible until recall returned 0 hits).
-        # Vector sink fallback (mirrors orchestrator wiring above): if no
-        # separate vector backend is wired, write to the document store's
-        # pgvector mixin so recall has embeddings to query against.
-        _vec_sink = self._vector_store
-        if _vec_sink is None and hasattr(self._store, "_embedding_dim"):
-            _vec_sink = self._store  # type: ignore[assignment]
-        if _vec_sink:
+        # The lane itself lives in ``_DeriveMixin`` so the durable repair /
+        # rebuild path writes byte-identical derived state.
+        repair_lanes: list[str] = []
+        if self._vector_sink():
             try:
                 t0 = time.monotonic()
-                _vec_sink.add(memory.id, embed_payload, namespace=namespace)
+                self._write_vector(memory.id, embed_payload, namespace)
                 store_timings["vector_ms"] = round((time.monotonic() - t0) * 1000, 2)
                 if _tr.is_enabled():
                     _tr.event("ingest.write.vector",
@@ -989,40 +1013,21 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
                     _tr.event("ingest.write.vector",
                               memory_id=memory.id, namespace=namespace,
                               ok=False, error=f"{type(e).__name__}: {e}")
+                repair_lanes.append(LANE_VECTOR)
+        elif getattr(self, "_vector_init_failed", False):
+            # Cold-start outage: no sink to write to, so nothing raised —
+            # still a missing derived write the repair saga must own.
+            repair_lanes.append(LANE_VECTOR)
 
         # Update entity graph (also non-fatal; surface exceptions for the
         # same reason — silent drops here mean recall layer 2 returns
         # nothing without the operator knowing).
         if self._graph:
             try:
-                # Branch on the LLM-extraction toggle. When enabled, we
-                # call the LLM-driven path which falls back to the
-                # regex extractor on LLM failure (NOT to empty). When
-                # disabled, the codepath is byte-identical to ``main``.
-                _le_cfg = (
-                    self._ingest_cfg.llm_entity_extraction
-                    if self._ingest_cfg is not None else None
-                )
                 t0 = time.monotonic()
-                if _le_cfg is not None and _le_cfg.enabled:
-                    from attestor.extraction.llm_entity_extractor import (
-                        extract_or_regex,
-                    )
-                    nodes, edges = extract_or_regex(
-                        content, tags or [], entity, category,
-                        namespace=namespace,
-                        llm_enabled=True,
-                        llm_model=_le_cfg.model,
-                        llm_timeout=_le_cfg.timeout_s,
-                    )
-                else:
-                    from attestor.graph.extractor import (
-                        extract_entities_and_relations,
-                    )
-                    nodes, edges = extract_entities_and_relations(
-                        content, tags or [], entity, category,
-                        namespace=namespace,
-                    )
+                nodes, edges = self._extract_graph(
+                    content, tags or [], entity, category, namespace,
+                )
                 if _tr.is_enabled():
                     _tr.event("ingest.extract",
                               memory_id=memory.id, namespace=namespace,
@@ -1030,38 +1035,7 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
                               entity_names=[n["name"] for n in nodes][:10])
                 # Tag every entity / relation with the writer's namespace
                 # so the graph layer enforces tenancy alongside Postgres.
-                # Older graph backends without the kwarg still accept the
-                # call via the TypeError fallback below.
-                for node in nodes:
-                    try:
-                        self._graph.add_entity(
-                            node["name"],
-                            entity_type=node.get("type", "general"),
-                            attributes=node.get("attributes"),
-                            namespace=namespace,
-                        )
-                    except TypeError:
-                        self._graph.add_entity(
-                            node["name"],
-                            entity_type=node.get("type", "general"),
-                            attributes=node.get("attributes"),
-                        )
-                for edge in edges:
-                    try:
-                        self._graph.add_relation(
-                            edge["from"],
-                            edge["to"],
-                            relation_type=edge.get("type", "related_to"),
-                            metadata=edge.get("metadata"),
-                            namespace=namespace,
-                        )
-                    except TypeError:
-                        self._graph.add_relation(
-                            edge["from"],
-                            edge["to"],
-                            relation_type=edge.get("type", "related_to"),
-                            metadata=edge.get("metadata"),
-                        )
+                self._write_graph(nodes, edges, namespace)
                 store_timings["graph_ms"] = round((time.monotonic() - t0) * 1000, 2)
                 if _tr.is_enabled():
                     _tr.event("ingest.write.graph",
@@ -1078,6 +1052,15 @@ class AgentMemory(_IdentityMixin, _QuotaMixin, _ProvenanceMixin):
                     _tr.event("ingest.write.graph",
                               memory_id=memory.id, namespace=namespace,
                               ok=False, error=f"{type(e).__name__}: {e}")
+                repair_lanes.append(LANE_GRAPH)
+        elif getattr(self, "_graph_init_failed", False):
+            repair_lanes.append(LANE_GRAPH)  # cold-start outage, see vector lane
+
+        # Durable repair (plan Phase 2): only on a derived-write failure and
+        # only when ``durable.enabled`` — otherwise this is a no-op and the
+        # behaviour above is unchanged.
+        if repair_lanes:
+            self._schedule_derive_repair(memory, lanes=tuple(repair_lanes))
 
         total_ms = round((time.monotonic() - t_total) * 1000, 2)
         store_timings["total_ms"] = total_ms

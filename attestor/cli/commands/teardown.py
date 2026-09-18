@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING
 
 from attestor.cli.commands.quickstart import (
     DEFAULT_STORE,
+    DURABLE_COMPOSE_PROFILE,
     _compose_file,
     _docker_available,
 )
@@ -42,7 +43,10 @@ MCP_KEYS = ("attestor", "memory")  # current + pre-2026-05 server names
 
 def _compose_down(*, purge: bool, dry_run: bool) -> None:
     compose = _compose_file()
-    cmd = ["docker", "compose", "-f", str(compose), "down"]
+    # `--profile durable` so the opt-in Temporal containers (quickstart
+    # --durable) are torn down too; a no-op when that profile never ran.
+    cmd = ["docker", "compose", "-f", str(compose),
+           "--profile", DURABLE_COMPOSE_PROFILE, "down"]
     if purge:
         cmd.append("--volumes")
         label = "remove containers + VOLUMES (wipes memories)"

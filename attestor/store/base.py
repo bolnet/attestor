@@ -100,7 +100,15 @@ class VectorStore(Protocol):
         self, query_text: str, limit: int = 20, namespace: str | None = None
     ) -> list[dict[str, Any]]: ...
 
-    def delete(self, memory_id: str) -> bool: ...
+    # ``namespace`` MUST be the namespace the memory was written to
+    # (see ``add()``). A backend that ignores it and always deletes
+    # from a fixed namespace silently leaves vectors behind for any
+    # memory outside that namespace — this was a real bug in
+    # ``PineconeBackend.delete`` (hardcoded ``namespace="default"``).
+    # Defaulting to "default" here only preserves call sites that
+    # never adopted namespaces; namespace-aware callers must pass the
+    # memory's actual namespace explicitly.
+    def delete(self, memory_id: str, namespace: str = "default") -> bool: ...
 
     def count(self) -> int: ...
 

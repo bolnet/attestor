@@ -92,3 +92,62 @@ def test_ensure_env_preserves_user_values(tmp_path: Path) -> None:
     assert "PGPASSWORD=custom-secret" in text
     assert "NEO4J_PASSWORD=" in text
     assert text.count("PGPASSWORD=") == 1
+
+
+# ── --durable: opt-in Temporal compose profile (default unchanged) ───────────
+def test_compose_up_cmd_default_has_no_durable_profile() -> None:
+    from attestor.cli.commands.quickstart import (
+        DEFAULT_COMPOSE_SERVICES,
+        _compose_file,
+        _compose_up_cmd,
+    )
+
+    cmd = _compose_up_cmd(durable=False)
+    assert cmd == [
+        "docker", "compose", "-f", str(_compose_file()), "up", "-d",
+        *DEFAULT_COMPOSE_SERVICES,
+    ]
+    assert "--profile" not in cmd
+    assert DEFAULT_COMPOSE_SERVICES == ("postgres", "neo4j", "pinecone")
+
+
+def test_compose_up_cmd_durable_enables_profile_and_temporal_services() -> None:
+    from attestor.cli.commands.quickstart import (
+        DEFAULT_COMPOSE_SERVICES,
+        DURABLE_COMPOSE_PROFILE,
+        DURABLE_COMPOSE_SERVICES,
+        _compose_up_cmd,
+    )
+
+    cmd = _compose_up_cmd(durable=True)
+    assert DURABLE_COMPOSE_PROFILE == "durable"
+    assert DURABLE_COMPOSE_SERVICES == ("temporal", "temporal-ui")
+    # Profile flag is a global compose option: it must precede `up`.
+    assert cmd.index("--profile") < cmd.index("up")
+    assert cmd[cmd.index("--profile") + 1] == DURABLE_COMPOSE_PROFILE
+    for svc in (*DEFAULT_COMPOSE_SERVICES, *DURABLE_COMPOSE_SERVICES):
+        assert svc in cmd[cmd.index("up"):]
+
+
+def test_quickstart_cli_durable_flag_defaults_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    import importlib
+
+    # ``attestor.cli`` re-exports ``main`` (the function), so attribute-style
+    # import would resolve to it — fetch the module explicitly.
+    cli_main = importlib.import_module("attestor.cli.main")
+
+    seen: list[object] = []
+    monkeypatch.setattr(cli_main, "_cmd_quickstart", lambda args: seen.append(args))
+    cli_main.main(["quickstart", "--no-docker", "--no-wire", "--no-verify"])
+    cli_main.main(["quickstart", "--durable", "--no-docker", "--no-wire", "--no-verify"])
+    assert [a.durable for a in seen] == [False, True]
+
+
+def test_teardown_compose_down_includes_durable_profile(capsys: pytest.CaptureFixture[str]) -> None:
+    """Teardown must also remove the opt-in Temporal containers when present."""
+    from attestor.cli.commands.teardown import _compose_down
+
+    _compose_down(purge=False, dry_run=True)
+    out = capsys.readouterr().out
+    assert "--profile durable" in out
+    assert " down" in out

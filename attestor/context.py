@@ -468,6 +468,31 @@ class AgentContext:
         mem = self._get_memory()
         return mem.forget(memory_id)
 
+    def forget_user(
+        self,
+        user_id: str,
+        *,
+        dry_run: bool = False,
+        initiated_by: str | None = None,
+    ) -> dict[str, Any]:
+        """Whole-user GDPR forget (doc + vector + graph + state).
+
+        The RBAC-gated entry point for agents: requires FORGET (ORCHESTRATOR
+        only, and never under ``read_only``). With ``durable.enabled`` this
+        starts the retried ``ForgetUser`` saga, so the gate runs BEFORE any
+        workflow is started. ``initiated_by`` defaults to this agent's id
+        so the ``forget_audit`` row names the requester.
+        """
+        self._require_permission(RolePermission.FORGET)
+        mem = self._get_memory()
+        runner = getattr(mem, "forget_user", None)
+        if runner is None:
+            raise RuntimeError(
+                f"memory backend {type(mem).__name__} does not expose forget_user "
+                "(whole-user forget needs an embedded AgentMemory)"
+            )
+        return runner(user_id, dry_run=dry_run, initiated_by=initiated_by or self.agent_id)
+
     # ------------------------------------------------------------------ #
     #  State lane (typed profile facts)                                    #
     # ------------------------------------------------------------------ #

@@ -3,20 +3,35 @@
 """SessionRepo — CRUD against the ``sessions`` table.
 
 Implements the lifecycle: pending → active → idle → ended → archived
-(see tenancy.md §3.1). Idle/ended transitions are time-driven; this repo
-exposes the explicit transitions only — a background sweeper handles the
-time-driven ones.
+(see tenancy.md §3.1). Idle/ended/archived transitions are time-driven:
+``sweep_idle`` / ``sweep_ended`` / ``sweep_archived`` are the pure-SQL
+batch queries the durable ``SessionSweep`` workflow (Temporal Schedule)
+runs; nothing here schedules anything.
+
+Tenancy note: ``sessions`` is under RLS. The sweeps run cross-tenant by
+design, so the sweeping connection must be the table owner or hold
+``BYPASSRLS`` — with a plain tenant session they update 0 rows.
+
+Thread safety: the durable worker shares ONE connection across its
+activity threads, so every cursor here is opened under the connection's
+re-entrant lock (``attestor.store.conn_lock``) — the same lock
+``PostgresBackend._execute`` holds.
 """
 
 from __future__ import annotations
 
 import json
-from datetime import datetime
-from typing import Any
+from contextlib import contextmanager
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 import psycopg2.extras
 
 from attestor.models import Session
+from attestor.store.conn_lock import lock_for_connection
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class SessionStateError(Exception):
@@ -26,6 +41,13 @@ class SessionStateError(Exception):
 class SessionRepo:
     def __init__(self, conn: Any) -> None:
         self._conn = conn
+        self._lock = lock_for_connection(conn)
+
+    @contextmanager
+    def _cursor(self, **kw: Any) -> Iterator[Any]:
+        """``conn.cursor(**kw)`` held under the connection lock."""
+        with self._lock, self._conn.cursor(**kw) as cur:
+            yield cur
 
     # ── Create / autostart ────────────────────────────────────────────────
 
@@ -36,7 +58,7 @@ class SessionRepo:
         title: str | None = None,
         metadata: dict | None = None,
     ) -> Session:
-        with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with self._cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
                 INSERT INTO sessions (user_id, project_id, title, metadata)
@@ -76,7 +98,7 @@ class SessionRepo:
         ).digest()
         lock_id = int.from_bytes(digest[:4], "big") & 0x7FFFFFFF
 
-        with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with self._cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             # Acquire the transactional advisory lock — blocks if
             # another thread already holds it for this (user, day).
             cur.execute("SELECT pg_advisory_xact_lock(%s)", (lock_id,))
@@ -121,7 +143,7 @@ class SessionRepo:
     # ── Read ──────────────────────────────────────────────────────────────
 
     def get(self, session_id: str) -> Session | None:
-        with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with self._cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT * FROM sessions WHERE id = %s", (session_id,))
             row = cur.fetchone()
         return Session.from_row(dict(row)) if row else None
@@ -144,7 +166,7 @@ class SessionRepo:
             params.append(before)
         sql += "ORDER BY last_active_at DESC LIMIT %s"
         params.append(limit)
-        with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with self._cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(sql, params)
             rows = cur.fetchall()
         return [Session.from_row(dict(r)) for r in rows]
@@ -153,7 +175,7 @@ class SessionRepo:
 
     def resume(self, session_id: str) -> Session | None:
         """Bump last_active_at to now. Returns updated row, or None if missing."""
-        with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with self._cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "UPDATE sessions SET last_active_at = NOW(), status = 'active' "
                 "WHERE id = %s AND status != 'archived' "
@@ -165,7 +187,7 @@ class SessionRepo:
         return Session.from_row(dict(row)) if row else None
 
     def bump_activity(self, session_id: str, message_increment: int = 1) -> None:
-        with self._conn.cursor() as cur:
+        with self._cursor() as cur:
             cur.execute(
                 "UPDATE sessions "
                 "SET last_active_at = NOW(), message_count = message_count + %s "
@@ -182,10 +204,10 @@ class SessionRepo:
         re-enqueued — ending a session is a strong "please re-look at
         these with the stronger model" signal.
         """
-        with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with self._cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "UPDATE sessions SET status = 'ended', ended_at = NOW() "
-                "WHERE id = %s AND status IN ('active', 'pending') "
+                "WHERE id = %s AND status IN ('active', 'idle', 'pending') "
                 "RETURNING *",
                 (session_id,),
             )
@@ -196,7 +218,7 @@ class SessionRepo:
         # Enqueue every episode in this session that's done/failed back
         # into pending. Already-pending/processing rows are untouched.
         try:
-            with self._conn.cursor() as cur:
+            with self._cursor() as cur:
                 cur.execute(
                     "UPDATE episodes "
                     "SET consolidation_state = 'pending', "
@@ -208,7 +230,7 @@ class SessionRepo:
                     (session_id,),
                 )
             self._conn.commit()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             # If the episodes table is older (no consolidation_state)
             # the schema mismatch is benign and the lifecycle transition
             # already succeeded — but a real DB error (constraint
@@ -221,7 +243,7 @@ class SessionRepo:
         return Session.from_row(dict(row))
 
     def archive(self, session_id: str) -> Session | None:
-        with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with self._cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 "UPDATE sessions SET status = 'archived' WHERE id = %s "
                 "RETURNING *",
@@ -231,8 +253,57 @@ class SessionRepo:
         self._conn.commit()
         return Session.from_row(dict(row)) if row else None
 
+    # ── Time-driven sweeps (pure SQL; run by the durable SessionSweep) ────
+
+    def sweep_idle(self, idle_after: timedelta, *, limit: int) -> tuple[str, ...]:
+        """active → idle for sessions silent longer than ``idle_after``."""
+        return self._sweep(
+            "UPDATE sessions SET status = 'idle' "
+            "WHERE id IN (SELECT id FROM sessions WHERE status = 'active' "
+            "AND last_active_at < NOW() - %s ORDER BY last_active_at LIMIT %s) "
+            "RETURNING id",
+            idle_after, limit,
+        )
+
+    def sweep_ended(self, ended_after: timedelta, *, limit: int) -> tuple[str, ...]:
+        """idle → ended (stamps ``ended_at``) after ``ended_after`` of silence."""
+        return self._sweep(
+            "UPDATE sessions SET status = 'ended', ended_at = NOW() "
+            "WHERE id IN (SELECT id FROM sessions WHERE status = 'idle' "
+            "AND last_active_at < NOW() - %s ORDER BY last_active_at LIMIT %s) "
+            "RETURNING id",
+            ended_after, limit,
+        )
+
+    def sweep_archived(self, archived_after: timedelta, *, limit: int) -> tuple[str, ...]:
+        """ended → archived once ``archived_after`` has passed since it ended."""
+        return self._sweep(
+            "UPDATE sessions SET status = 'archived' "
+            "WHERE id IN (SELECT id FROM sessions WHERE status = 'ended' "
+            "AND COALESCE(ended_at, last_active_at) < NOW() - %s "
+            "ORDER BY last_active_at LIMIT %s) "
+            "RETURNING id",
+            archived_after, limit,
+        )
+
+    def _sweep(self, sql: str, after: timedelta, limit: int) -> tuple[str, ...]:
+        if after <= timedelta(0):
+            raise ValueError(f"sweep interval must be positive; got {after!r}")
+        if limit <= 0:
+            raise ValueError(f"sweep limit must be > 0; got {limit!r}")
+        with self._lock:
+            try:
+                with self._cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute(sql, (after, limit))
+                    rows = cur.fetchall() or []
+                self._conn.commit()
+            except Exception:
+                self._conn.rollback()
+                raise
+        return tuple(str(r["id"]) for r in rows)
+
     def set_title(self, session_id: str, title: str) -> None:
-        with self._conn.cursor() as cur:
+        with self._cursor() as cur:
             cur.execute(
                 "UPDATE sessions SET title = %s WHERE id = %s",
                 (title, session_id),

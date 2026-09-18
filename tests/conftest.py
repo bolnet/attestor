@@ -97,3 +97,81 @@ def mem(mem_dir: str) -> Iterator[AgentMemory]:
         yield m
     finally:
         m.close()
+
+
+# ── Durable (Temporal) test-server fixture ───────────────────────────────
+#
+# ``WorkflowEnvironment.start_time_skipping()`` downloads a test-server
+# binary on first use (~64 MB, needs network). Two env knobs control it:
+#
+#   ATTESTOR_TEMPORAL_TEST_SERVER_DIR   directory to download/cache into
+#                                       (default ~/.cache/attestor/temporal-test-server)
+#   ATTESTOR_TEMPORAL_TEST_SERVER_PATH  pre-downloaded binary (CI cache);
+#                                       skips the download entirely
+#
+# When temporalio is not installed, or the binary cannot be fetched, the
+# fixture skips instead of failing — the durable extra is opt-in.
+
+TEMPORAL_TEST_SERVER_DIR_ENV = "ATTESTOR_TEMPORAL_TEST_SERVER_DIR"
+TEMPORAL_TEST_SERVER_PATH_ENV = "ATTESTOR_TEMPORAL_TEST_SERVER_PATH"
+_DEFAULT_TEST_SERVER_DIR = os.path.join(
+    os.path.expanduser("~"), ".cache", "attestor", "temporal-test-server",
+)
+
+
+def _temporal_test_server_kwargs() -> dict:
+    """Resolve download/cache kwargs for ``start_time_skipping``."""
+    existing = os.environ.get(TEMPORAL_TEST_SERVER_PATH_ENV)
+    if existing:
+        return {"test_server_existing_path": existing}
+    dest = os.environ.get(TEMPORAL_TEST_SERVER_DIR_ENV) or _DEFAULT_TEST_SERVER_DIR
+    # The SDK does not mkdir the destination (spike finding 2026-09-03).
+    os.makedirs(dest, exist_ok=True)
+    return {"download_dest_dir": dest}
+
+
+@pytest.fixture
+async def temporal_env():
+    """Time-skipping Temporal test environment, or ``pytest.skip``."""
+    pytest.importorskip("temporalio", reason="temporalio not installed (attestor[durable])")
+    from temporalio.contrib.pydantic import pydantic_data_converter
+    from temporalio.testing import WorkflowEnvironment
+
+    try:
+        env = await WorkflowEnvironment.start_time_skipping(
+            data_converter=pydantic_data_converter,
+            **_temporal_test_server_kwargs(),
+        )
+    except Exception as exc:  # noqa: BLE001 — download/launch failure → skip
+        pytest.skip(f"Temporal test server unavailable: {exc}")
+    try:
+        yield env
+    finally:
+        await env.shutdown()
+
+
+@pytest.fixture
+async def temporal_dev_env():
+    """Local Temporal dev server (``start_local``) — needed for Schedules.
+
+    The time-skipping test server does not implement the Schedule service
+    (verified 2026-09-03: ``CreateSchedule is unimplemented``), so the
+    schedule tests run against the CLI dev server, cached in the same
+    directory. Skips when the binary cannot be fetched.
+    """
+    pytest.importorskip("temporalio", reason="temporalio not installed (attestor[durable])")
+    from temporalio.contrib.pydantic import pydantic_data_converter
+    from temporalio.testing import WorkflowEnvironment
+
+    kwargs = _temporal_test_server_kwargs()
+    kwargs.pop("test_server_existing_path", None)  # that binary is the time-skipping one
+    try:
+        env = await WorkflowEnvironment.start_local(
+            data_converter=pydantic_data_converter, **kwargs,
+        )
+    except Exception as exc:  # noqa: BLE001 — download/launch failure → skip
+        pytest.skip(f"Temporal dev server unavailable: {exc}")
+    try:
+        yield env
+    finally:
+        await env.shutdown()

@@ -4,6 +4,9 @@
 #   attestor_pinecone_vector_db     Pinecone Local emulator — vector store.
 #   attestor_neo4j_graph_db         Neo4j 5 Community + GDS plugin — graph store.
 #   attestor_api                    Optional slim HTTP API (not started by quickstart).
+#   attestor_temporal_server        OPT-IN (--profile durable): Temporal server for the
+#                                   governance jobs; shares the Postgres container above.
+#   attestor_temporal_ui            OPT-IN (--profile durable): Temporal Web UI on :8233.
 #
 # Naming convention: every container/resource is `attestor_<meaningful>` — the
 # compose project name (`attestor`) also prefixes the named volumes
@@ -11,6 +14,8 @@
 #
 # Usage:
 #   docker compose up -d postgres neo4j pinecone   # what `attestor quickstart` runs
+#   docker compose --profile durable up -d postgres neo4j pinecone temporal temporal-ui
+#                                                  # what `attestor quickstart --durable` runs
 #   docker compose down                            # stop (keeps volumes/data)
 #   docker compose down -v                         # stop + wipe volumes (deletes memories)
 
@@ -125,6 +130,48 @@ services:
         condition: service_healthy
       pinecone:
         condition: service_started
+    restart: unless-stopped
+
+  # ─────────────── OPT-IN: Temporal (durable governance jobs) ─────────────
+  # Started ONLY with `--profile durable` (plain quickstart is unchanged).
+  # auto-setup reuses the Postgres container above (same credentials) and
+  # creates the `temporal` + `temporal_visibility` databases itself, plus
+  # the `attestor` namespace so it matches configs/attestor.yaml
+  # `durable.namespace`. Temporal holds JOB state only — Postgres `attestor`
+  # DB stays the source of truth for every memory.
+  temporal:
+    image: temporalio/auto-setup:1.29.7
+    container_name: attestor_temporal_server
+    profiles: ["durable"]
+    ports:
+      - "7233:7233"   # gRPC frontend — configs/attestor.yaml durable.address
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:-attestor}
+      POSTGRES_SEEDS: postgres
+      DEFAULT_NAMESPACE: attestor
+      # Exposed on the host, so tell clients + the UI where the frontend is.
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CLI_ADDRESS: temporal:7233
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  temporal-ui:
+    image: temporalio/ui:2.53.3
+    container_name: attestor_temporal_ui
+    profiles: ["durable"]
+    ports:
+      - "8233:8080"   # http://localhost:8233 — every governance job, retry, and failure
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_DEFAULT_NAMESPACE: attestor
+      TEMPORAL_CORS_ORIGINS: http://localhost:8233
+    depends_on:
+      - temporal
     restart: unless-stopped
 
 # Project name `attestor` (above) prefixes every named volume → they all become
