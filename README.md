@@ -2,6 +2,8 @@
 
 **Governed memory for multi-agent production meshes.**
 
+Attestor is no longer "memory for your coding assistant." Three things happened: the editor vendors shipped memory for free, the benchmark race became a race about which LLM answers the question, and every serious conversation about a memory layer was about something else entirely: when many agents share one memory, who is allowed to write, who is allowed to forget, and can you prove it afterwards. So that is what Attestor is now.
+
 When many agents share one memory, recall is the easy part. The hard part is who may write, who may forget, what an answer was built from, and whether you can prove all of it later. Attestor is a self-hosted memory service that makes those properties enforceable in code rather than in policy documents: role-based access at the `AgentContext` layer, provenance on every memory (optionally Ed25519-signed), per-agent token budgets and write quotas, a deterministic ranking path with no LLM in it, temporal supersession you can query as of any past moment, hard tenant isolation across all three storage roles, an auditable, audit-first forget-user path with declarative retention, and governance jobs that run as durable Temporal workflows: retried by policy, resumed after a crash, visible in an operator UI, and never on the read path. It runs as a Python library, a REST sidecar, or an MCP server with the same API. Role enforcement is an `AgentContext` guarantee and runs in process. The REST and MCP surfaces call the store directly and rely on their own auth.
 
 ```python
