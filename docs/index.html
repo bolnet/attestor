@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Attestor: governed memory for multi-agent production meshes</title>
 <meta name="description" content="Self-hosted memory for agent meshes that have to answer to someone. Role-based access, provenance on every memory, per-agent budgets, a deterministic read path, as_of replay, hard tenant isolation, auditable forget. MIT.">
-<meta property="og:title" content="Attestor: memory your agent mesh can be audited on">
+<meta property="og:title" content="Attestor: governed memory for multi-agent production meshes">
 <meta property="og:description" content="Who may write, who may forget, what an answer was built from. Enforced in code, not in a policy document. Open source, MIT.">
 <meta property="og:image" content="https://attestor.dev/og-image.png">
 <meta property="og:type" content="website">
@@ -114,7 +114,7 @@ h2 em{font-style:italic;font-weight:500;color:var(--acc)}
 .group h3{font-size:clamp(24px,2.4vw,30px);line-height:1.05;font-weight:700;letter-spacing:-0.025em;color:var(--ink)}
 .group .thesis{margin-top:12px;font-size:16px;color:var(--ink2);max-width:30ch}
 .items{display:grid;gap:26px}
-.item h4{font-size:20px;font-weight:600;line-height:1.25;letter-spacing:-0.01em;color:var(--ink)}
+.item h4{font-size:20px;font-weight:600;line-height:1.25;letter-spacing:-0.01em;color:var(--ink);max-width:40ch}
 .item h4 code{font-weight:400}
 .item p{margin-top:6px;font-size:15.5px;line-height:1.55;color:var(--ink2);max-width:62ch}
 .item p strong{color:var(--ink);font-weight:600}
@@ -202,7 +202,7 @@ h2 em{font-style:italic;font-weight:500;color:var(--acc)}
 :root[data-theme="dark"] .band{background:var(--bg3);color:var(--ink)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .band{background:var(--bg3);color:var(--ink)}}
 @media(max-width:860px){.band{grid-template-columns:1fr;padding:40px 28px}}
-.band h2{color:inherit;font-size:clamp(26px,3vw,40px);max-width:22ch}
+.band h2{color:inherit;font-size:clamp(26px,3vw,40px);max-width:24ch}
 .band p{margin-top:14px;font-size:17px;opacity:.8;max-width:44ch}
 .band-cta{display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end}
 @media(max-width:860px){.band-cta{justify-content:flex-start}}
@@ -236,8 +236,8 @@ footer{border-top:1px solid var(--line);padding:32px 0 56px}
 
   <header class="hero">
     <div>
-      <h1 class="rise">Memory your agent mesh can be <em>audited</em> on.</h1>
-      <p class="lede rise">Who may write, who may forget, and what an answer was built from: enforced in code, not in a policy document.</p>
+      <h1 class="rise">Governed memory for multi-agent production <em>meshes</em>.</h1>
+      <p class="lede rise">Attestor is no longer memory for your coding assistant. When many agents share one memory: who is allowed to write, who is allowed to forget, and can you prove it afterwards.</p>
       <div class="hero-cta rise">
         <a href="inside_attestor.html" class="btn btn-p btn-lg">Read the architecture</a>
         <a href="https://github.com/bolnet/attestor" class="btn btn-s btn-lg">Read the source</a>
@@ -262,8 +262,8 @@ mem.<span class="fn">recall</span>(<span class="kw">"..."</span>, context=ctx,
   </header>
 
   <section id="why">
-    <h2>Recall is the <em>easy</em> part.</h2>
-    <p class="sec-lede">Any vector store can hand an agent something relevant. A mesh in production has a harder problem: the memory is shared, the agents are not equally trusted, and one day someone who was not in the room will ask how a decision was made.</p>
+    <h2>Three things <em>happened</em>.</h2>
+    <p class="sec-lede">For a few months this was a memory layer for coding assistants. Then the editor vendors shipped memory for free. The benchmark race became a race about which LLM answers the question. And every serious conversation was about something else entirely: when many agents share one memory, who is allowed to write, who is allowed to forget, and can you prove it afterwards. So that is what Attestor is now.</p>
     <div class="qs">
       <div class="q">
         <h3>Who wrote this, on whose behalf?</h3>
@@ -281,8 +281,8 @@ mem.<span class="fn">recall</span>(<span class="kw">"..."</span>, context=ctx,
   </section>
 
   <section id="governance">
-    <h2>Every write has an author. Every read has a ranking you can <em>replay</em>.</h2>
-    <p class="sec-lede">Each guarantee below is a property of the code, with the file that enforces it. If it is not in the code, it is not on this page.</p>
+    <h2>What that means in the code, not the <em>deck</em>.</h2>
+    <p class="sec-lede">Every row names the file that enforces it, and the limits are written down next to the claims.</p>
 
     <div class="groups">
       <div class="group">
@@ -292,17 +292,17 @@ mem.<span class="fn">recall</span>(<span class="kw">"..."</span>, context=ctx,
         </div>
         <div class="items">
           <div class="item">
-            <h4>Role-based access, six roles</h4>
-            <p><strong>ORCHESTRATOR</strong> may read, write and forget. <strong>PLANNER</strong>, <strong>EXECUTOR</strong> and <strong>RESEARCHER</strong> may read and write. <strong>REVIEWER</strong> and <strong>MONITOR</strong> read only, because a reviewer that writes contaminates the evidence trail. <code>read_only=True</code> strips write and forget regardless of role. A violation raises before any backend is touched.</p>
+            <h4>Six roles gate write and forget before any backend is touched.</h4>
+            <p>Reviewers and monitors are read-only, because a reviewer that writes contaminates the evidence trail. <strong>ORCHESTRATOR</strong> may read, write and forget. <strong>PLANNER</strong>, <strong>EXECUTOR</strong> and <strong>RESEARCHER</strong> may read and write. <strong>REVIEWER</strong> and <strong>MONITOR</strong> read only. <code>read_only=True</code> strips write and forget regardless of role. A violation raises before any backend is touched.</p>
             <span class="src">attestor/context.py · ROLE_PERMISSIONS</span>
           </div>
           <div class="item">
-            <h4>Per-agent budgets and write quotas</h4>
+            <h4>Per-agent budgets and write quotas contain a misbehaving sub-agent by construction.</h4>
             <p>A token budget bounds what <code>recall()</code> packs for one context. A per-context write cap and a per-user daily quota bound what can be added. The cap is a property of the context, so a misbehaving sub-agent is contained by construction.</p>
             <span class="src">attestor/context.py · attestor/core/agent_memory.py</span>
           </div>
           <div class="item">
-            <h4>Hard tenant isolation, all three stores</h4>
+            <h4>Tenant isolation on all three stores, not only the database.</h4>
             <p>Postgres row-level security keyed to the current user, with namespace stamped into metadata. Pinecone: one index, a namespace partition on every call. Neo4j: a namespace property with a composite constraint and namespace-scoped traversal. The PageRank projection is global and is a ranking signal only.</p>
             <span class="src">attestor/store/schema.sql · pinecone_backend.py · neo4j_backend.py</span>
           </div>
@@ -316,17 +316,17 @@ mem.<span class="fn">recall</span>(<span class="kw">"..."</span>, context=ctx,
         </div>
         <div class="items">
           <div class="item">
-            <h4>Provenance on every memory</h4>
-            <p>Every write carries agent, session, namespace and role. Child contexts accumulate an agent trail, so "which agent said this, on whose behalf" is always answerable. Rows leave only through an explicit forget, a retention delete policy, or <code>compact()</code>. Optional Ed25519 signing gives cryptographic non-repudiation, verified with <code>verify_memory()</code>.</p>
+            <h4>Every memory carries which agent wrote it, in which session, on whose behalf.</h4>
+            <p>Optional Ed25519 signatures, verifiable later. Child contexts accumulate an agent trail, so "which agent said this, on whose behalf" is always answerable. Rows leave only through an explicit forget, a retention delete policy, or <code>compact()</code>. Signatures are verified with <code>verify_memory()</code>.</p>
             <span class="src">attestor/context.py · attestor/identity/signing.py</span>
           </div>
           <div class="item">
-            <h4>Temporal supersession, <code>as_of</code> replay</h4>
-            <p>Contradictions supersede older facts; supersession never deletes. Every fact carries valid time and transaction time. <code>recall(as_of=…)</code> filters candidates on transaction time at document hydration and in the BM25 lane. The Pinecone lane ignores <code>as_of</code> and says so in the log.</p>
+            <h4>Contradictions supersede instead of overwriting. You can ask what the mesh believed last Tuesday.</h4>
+            <p>Every fact has valid time and transaction time. Supersession never deletes. <code>recall(as_of=…)</code> filters candidates on transaction time at document hydration and in the BM25 lane. The Pinecone lane ignores <code>as_of</code> and says so in the log.</p>
             <span class="src">attestor/temporal/manager.py</span>
           </div>
           <div class="item">
-            <h4>Deterministic read path</h4>
+            <h4>The read path is deterministic. No model scores anything by default.</h4>
             <p>Ranking is vector, BM25, RRF, graph, MMR, budget fit, in that order, with no LLM in scoring by default. The optional reranker is off by default. Same query, same order: unit-testable, replayable, explainable to an auditor line by line.</p>
             <span class="src">attestor/retrieval/orchestrator/core.py · scorer.py · reranker.py</span>
           </div>
@@ -340,20 +340,20 @@ mem.<span class="fn">recall</span>(<span class="kw">"..."</span>, context=ctx,
         </div>
         <div class="items">
           <div class="item">
-            <h4>Auditable forget-user and retention</h4>
-            <p><code>forget_user()</code> writes an RLS-exempt audit row <strong>before</strong> deleting, then walks document, state, vector and graph and reports per-backend counts, so partial success is visible rather than silent. Declarative retention policies (archive or delete) apply first and write the audit row after. Full export for subject-access requests.</p>
+            <h4>Forgetting a user writes the audit row first, then walks every store and reports per-backend counts.</h4>
+            <p>Partial failure is visible, never silent. <code>forget_user()</code> writes an RLS-exempt audit row before deleting, then walks document, state, vector and graph. Declarative retention policies (archive or delete) apply first and write the audit row after. Full export for subject-access requests.</p>
             <span class="src">attestor/compliance/retention.py</span>
           </div>
           <div class="item">
-            <h4>Durable governance jobs</h4>
-            <p>Consolidation, derived-state rebuild, retention sweeps, session sweeps and the forget-user saga run as Temporal workflows with retry policies, resumable after a crash, visible in an operator UI. Opt-in; job state only. Postgres stays the source of truth. <a href="#durable">How it is wired.</a></p>
+            <h4>The governance jobs themselves are durable.</h4>
+            <p>Consolidation, derived-state repair, the forget saga and retention sweeps run as Temporal workflows with retry policies and an operator UI. Opt-in; job state only. Postgres stays the source of truth. <a href="#durable">How it is wired.</a></p>
             <span class="src">attestor/durable/workflows/ · attestor/durable/activities/</span>
           </div>
         </div>
       </div>
     </div>
 
-    <p class="frame"><strong>How to evaluate it.</strong> The nearest neighbours are the temporal-knowledge-graph memory layers (Zep, Graphiti). For a production mesh the useful comparison is not benchmark accuracy. It is whether the memory layer itself enforces roles, budgets, tenancy, provenance and auditable deletion, or leaves each of those to the calling application. Hold every option, including this one, to the list above with file references.</p>
+    <p class="frame"><strong>That is the whole pitch.</strong> Every row above names the file that enforces it, and the limits are written down next to the claims. If your memory layer cannot show you the enforcing line, it is a policy document. Hold every option to that, including the temporal-knowledge-graph layers (Zep, Graphiti) and this one.</p>
   </section>
 
   <section id="read">
@@ -485,12 +485,12 @@ $ attestor quickstart</div>
 
   <div class="band">
     <div>
-      <h2>If your memory layer cannot show you the enforcing line, it is a policy document.</h2>
-      <p>Roles, budgets, tenancy, provenance, replay, auditable forget, durable jobs: every row above names the file. Hold every option to that, including this one.</p>
+      <h2>If you run agent meshes in a regulated setting and this is the problem you have, I would like to talk.</h2>
+      <p>Self-hosted, MIT, Python. Designed and built by Surendra Singh.</p>
     </div>
     <div class="band-cta">
-      <a href="inside_attestor.html" class="btn btn-p btn-lg">Read the architecture</a>
-      <a href="https://github.com/bolnet/attestor" class="btn btn-s btn-lg">Read the source</a>
+      <a href="https://www.linkedin.com/in/singhsurendra/" class="btn btn-p btn-lg">Talk to me</a>
+      <a href="inside_attestor.html" class="btn btn-s btn-lg">Read the architecture</a>
     </div>
   </div>
 
@@ -503,7 +503,7 @@ $ attestor quickstart</div>
       <a href="https://pypi.org/project/attestor/">PyPI</a>
       <a href="inside_attestor.html">Architecture</a>
     </div>
-    <div>Attestor is MIT-licensed. Governed memory for multi-agent production meshes.</div>
+    <div>Self-hosted, MIT, Python. Governed memory for multi-agent production meshes.</div>
   </div>
 </footer>
 
