@@ -1,6 +1,6 @@
 # Attestor
 
-Governed memory for multi-agent production meshes. Self-hosted; role-based access enforced at the AgentContext layer, provenance on every memory, per-agent budgets, deterministic retrieval with no LLM in scoring by default, temporal supersession with `as_of` replay, hard tenant isolation, auditable forget + retention. The Claude Code plugin is an on-ramp demo, not the product.
+Governed memory for multi-agent production meshes. Self-hosted; role-based access enforced at the AgentContext layer, provenance on every memory, per-agent budgets, deterministic retrieval with no LLM in scoring by default, temporal supersession with `as_of` replay, hard tenant isolation, auditable forget + retention, and governance jobs on opt-in durable Temporal workflows (never on the read path). The Claude Code plugin is an on-ramp demo, not the product.
 
 PyPI: `attestor` -- Python import: `attestor`.
 

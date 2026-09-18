@@ -2,7 +2,7 @@
 
 **Governed memory for multi-agent production meshes.**
 
-When many agents share one memory, recall is the easy part. The hard part is who may write, who may forget, what an answer was built from, and whether you can prove all of it later. Attestor is a self-hosted memory service that makes those properties enforceable in code rather than in policy documents: role-based access at the `AgentContext` layer, provenance on every memory (optionally Ed25519-signed), per-agent token budgets and write quotas, a deterministic ranking path with no LLM in it, temporal supersession you can query as of any past moment, hard tenant isolation across all three storage roles, and an auditable, audit-first forget-user path with declarative retention. It runs as a Python library, a REST sidecar, or an MCP server with the same API. Role enforcement is an `AgentContext` guarantee and runs in process. The REST and MCP surfaces call the store directly and rely on their own auth.
+When many agents share one memory, recall is the easy part. The hard part is who may write, who may forget, what an answer was built from, and whether you can prove all of it later. Attestor is a self-hosted memory service that makes those properties enforceable in code rather than in policy documents: role-based access at the `AgentContext` layer, provenance on every memory (optionally Ed25519-signed), per-agent token budgets and write quotas, a deterministic ranking path with no LLM in it, temporal supersession you can query as of any past moment, hard tenant isolation across all three storage roles, an auditable, audit-first forget-user path with declarative retention, and governance jobs that run as durable Temporal workflows: retried by policy, resumed after a crash, visible in an operator UI, and never on the read path. It runs as a Python library, a REST sidecar, or an MCP server with the same API. Role enforcement is an `AgentContext` guarantee and runs in process. The REST and MCP surfaces call the store directly and rely on their own auth.
 
 ```python
 ctx = AgentContext(agent_id="reviewer-1", role=AgentRole.REVIEWER, namespace="acme-prod")
@@ -551,6 +551,27 @@ Full design + audit-invariant matrix: [`docs/plans/async-retrieval/PLAN.md`](doc
 | **Graph** | Entity nodes + typed edges | Neo4j 5 + GDS | Apache AGE on AlloyDB, ArangoDB, Neptune, NetworkX (Azure) |
 
 Postgres is the source of truth. **Pinecone vectors and Neo4j graph are derived state, both rebuildable from Postgres** — but both are required for the canonical install: vector cosine is step 1 of the retrieval pipeline, graph expansion is step 2, and conversation ingest writes typed edges. The only role that cannot be down is the document store; the orchestrator records transient vector-probe failures in the response trace (`vector_error`) instead of swallowing them.
+
+### Durable governance jobs — the read path never waits, the jobs never quit
+
+Governance work that used to be a hand-rolled queue, a docstring promising a sweeper, or a warning-only write runs as Temporal workflows (`attestor/durable/`). Opt-in: `durable.enabled: false` by default; with it off, or the server unreachable, every job falls back to the in-process path it replaced.
+
+| Trigger | Workflow | What it guarantees |
+|---|---|---|
+| On every write | `DeriveMemory` | Vector and graph derivation is idempotent and retried, so derived state cannot silently drift from Postgres. |
+| On each episode | `ConsolidateEpisode` | Replaces the SKIP LOCKED queue and lease; a stuck or failed episode is visible, not lost. |
+| On a schedule | `RetentionSweep`, `SessionSweep` | Declarative retention and idle-session cleanup actually run, on a Temporal Schedule you apply once. |
+| On demand | `RebuildDerived`, `ForgetUser` | Rebuild Pinecone and Neo4j from Postgres. Forget as a saga: audit row first, then each backend with its own retry and result. |
+
+Two hard rules, enforced by `tests/test_durable_isolation.py`: **recall never touches Temporal and hooks never wait on it** (nothing under `attestor/retrieval/**` or `attestor/hooks/**` may import `attestor.durable` or `temporalio`), and **workflow payloads carry ids, never memory content**, so Postgres stays the only source of truth and Temporal holds job state only. Driver exceptions are sanitized before they reach workflow history.
+
+```bash
+attestor quickstart --durable      # Temporal server + UI (:8233) via compose profile `durable`
+attestor worker                    # the governance worker; needs durable.enabled: true
+attestor durable status            # probe the server, list schedules, describe a workflow
+attestor durable rebuild           # rebuild derived state from Postgres
+attestor durable schedules apply   # idempotent create-or-update of the retention / session schedules
+```
 
 ### Optional BM25 / FTS lane
 
