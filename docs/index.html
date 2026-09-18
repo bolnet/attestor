@@ -202,7 +202,7 @@ h2 em{font-style:italic;font-weight:500;color:var(--acc)}
 :root[data-theme="dark"] .band{background:var(--bg3);color:var(--ink)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .band{background:var(--bg3);color:var(--ink)}}
 @media(max-width:860px){.band{grid-template-columns:1fr;padding:40px 28px}}
-.band h2{color:inherit;font-size:clamp(28px,3.4vw,44px);max-width:18ch}
+.band h2{color:inherit;font-size:clamp(26px,3vw,40px);max-width:22ch}
 .band p{margin-top:14px;font-size:17px;opacity:.8;max-width:44ch}
 .band-cta{display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end}
 @media(max-width:860px){.band-cta{justify-content:flex-start}}
@@ -293,7 +293,7 @@ mem.<span class="fn">recall</span>(<span class="kw">"..."</span>, context=ctx,
         <div class="items">
           <div class="item">
             <h4>Role-based access, six roles</h4>
-            <p><strong>ORCHESTRATOR</strong> may read, write and forget. <strong>PLANNER</strong>, <strong>EXECUTOR</strong> and <strong>RESEARCHER</strong> may read and write. <strong>REVIEWER</strong> and <strong>MONITOR</strong> read only. <code>read_only=True</code> strips write and forget regardless of role. A violation raises before any backend is touched.</p>
+            <p><strong>ORCHESTRATOR</strong> may read, write and forget. <strong>PLANNER</strong>, <strong>EXECUTOR</strong> and <strong>RESEARCHER</strong> may read and write. <strong>REVIEWER</strong> and <strong>MONITOR</strong> read only, because a reviewer that writes contaminates the evidence trail. <code>read_only=True</code> strips write and forget regardless of role. A violation raises before any backend is touched.</p>
             <span class="src">attestor/context.py · ROLE_PERMISSIONS</span>
           </div>
           <div class="item">
@@ -485,8 +485,8 @@ $ attestor quickstart</div>
 
   <div class="band">
     <div>
-      <h2>Hold every option to the checklist.</h2>
-      <p>Roles, budgets, tenancy, provenance, replay, auditable forget, with file references. Including this one.</p>
+      <h2>If your memory layer cannot show you the enforcing line, it is a policy document.</h2>
+      <p>Roles, budgets, tenancy, provenance, replay, auditable forget, durable jobs: every row above names the file. Hold every option to that, including this one.</p>
     </div>
     <div class="band-cta">
       <a href="inside_attestor.html" class="btn btn-p btn-lg">Read the architecture</a>
